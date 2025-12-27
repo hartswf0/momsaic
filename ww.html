@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Page Splitter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-8 font-sans">
+
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold mb-4 text-gray-800">Photo to PDF Splitter</h1>
+        <p class="mb-6 text-gray-600">Select your photo containing multiple pages. This tool will detect them, crop them, and create a printable PDF.</p>
+
+        <!-- Input Section -->
+        <div class="mb-8">
+            <label class="block mb-2 text-sm font-medium text-gray-900">Upload Image</label>
+            <input type="file" id="fileInput" accept="image/*" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none p-2">
+        </div>
+
+        <!-- Controls -->
+        <div id="controls" class="hidden flex gap-4 mb-6">
+            <button id="processBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition flex items-center gap-2">
+                <span>Process & Detect Pages</span>
+            </button>
+            <button id="downloadBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition hidden flex items-center gap-2">
+                <span>Download PDF</span>
+            </button>
+            <div id="loadingIndicator" class="hidden flex items-center gap-2 text-blue-600">
+                <div class="loader"></div>
+                <span>Processing...</span>
+            </div>
+        </div>
+
+        <!-- Preview Area -->
+        <div id="previewArea" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <!-- Cropped images will appear here -->
+        </div>
+        
+        <!-- Hidden Canvas for Processing -->
+        <canvas id="processCanvas" class="hidden"></canvas>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const processBtn = document.getElementById('processBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const previewArea = document.getElementById('previewArea');
+        const controls = document.getElementById('controls');
+        const loading = document.getElementById('loadingIndicator');
+        const canvas = document.getElementById('processCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let originalImage = new Image();
+        let croppedImages = []; // Stores base64 data of crops
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                originalImage.src = event.target.result;
+                originalImage.onload = () => {
+                    controls.classList.remove('hidden');
+                    previewArea.innerHTML = '';
+                    croppedImages = [];
+                    downloadBtn.classList.add('hidden');
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+
+        processBtn.addEventListener('click', async () => {
+            // UI Update
+            processBtn.disabled = true;
+            processBtn.classList.add('opacity-50');
+            loading.classList.remove('hidden');
+            previewArea.innerHTML = '';
+
+            // Allow UI to update before heavy processing
+            setTimeout(() => {
+                detectAndCrop();
+                processBtn.disabled = false;
+                processBtn.classList.remove('opacity-50');
+                loading.classList.add('hidden');
+            }, 100);
+        });
+
+        function detectAndCrop() {
+            // 1. Resize for analysis (speed optimization)
+            // We analyze on a smaller canvas but crop from the original source
+            const analysisWidth = 600; 
+            const scale = analysisWidth / originalImage.width;
+            const analysisHeight = originalImage.height * scale;
+
+            canvas.width = analysisWidth;
+            canvas.height = analysisHeight;
+            ctx.drawImage(originalImage, 0, 0, analysisWidth, analysisHeight);
+
+            const imageData = ctx.getImageData(0, 0, analysisWidth, analysisHeight);
+            const data = imageData.data;
+            const width = analysisWidth;
+            const height = analysisHeight;
+
+            // 2. Thresholding
+            // Assume paper is bright (high RGB) and background is dark
+            // We create a binary grid: 1 = paper, 0 = background
+            const binaryGrid = new Uint8Array(width * height);
+            const threshold = 180; // Adjustable threshold
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i+1];
+                const b = data[i+2];
+                // Simple brightness calculation
+                const brightness = (r + g + b) / 3;
+                binaryGrid[i / 4] = brightness > threshold ? 1 : 0;
+            }
+
+            // 3. Connected Component Labeling (Blob Detection)
+            const visited = new Uint8Array(width * height);
+            const blobs = [];
+            const minArea = (width * height) * 0.005; // Filter extremely small noise
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+                    if (binaryGrid[idx] === 1 && visited[idx] === 0) {
+                        // Start Flood Fill
+                        const blob = floodFill(x, y, width, height, binaryGrid, visited);
+                        // Check area
+                        const area = (blob.maxX - blob.minX) * (blob.maxY - blob.minY);
+                        // A rough aspect ratio check can also help, but size is usually enough
+                        if (area > minArea && blob.pixelCount > minArea) {
+                            blobs.push(blob);
+                        }
+                    }
+                }
+            }
+
+            // 4. Sort Blobs
+            // Sort by Y first to separate rows
+            blobs.sort((a, b) => a.centerY - b.centerY);
+
+            const rows = [];
+            if (blobs.length > 0) {
+                let currentRow = [blobs[0]];
+                let prevY = blobs[0].centerY;
+                const rowHeightThreshold = blobs[0].h * 0.5;
+
+                for (let i = 1; i < blobs.length; i++) {
+                    const blob = blobs[i];
+                    if (Math.abs(blob.centerY - prevY) > rowHeightThreshold) {
+                        // New Row
+                        // Sort previous row by X
+                        currentRow.sort((a, b) => a.centerX - b.centerX);
+                        rows.push(currentRow);
+                        currentRow = [blob];
+                        prevY = blob.centerY;
+                    } else {
+                        currentRow.push(blob);
+                    }
+                }
+                // Push last row
+                currentRow.sort((a, b) => a.centerX - b.centerX);
+                rows.push(currentRow);
+            }
+
+            const sortedBlobs = rows.flat();
+
+            // 5. Crop High-Res Images
+            croppedImages = [];
+            const padding = 10; // padding in high-res pixels (approx)
+
+            sortedBlobs.forEach((blob, index) => {
+                // Map coordinates back to original scale
+                const x = Math.max(0, Math.floor(blob.minX / scale) - padding);
+                const y = Math.max(0, Math.floor(blob.minY / scale) - padding);
+                const w = Math.min(originalImage.width - x, Math.ceil((blob.maxX - blob.minX) / scale) + padding * 2);
+                const h = Math.min(originalImage.height - y, Math.ceil((blob.maxY - blob.minY) / scale) + padding * 2);
+
+                // Create a temporary canvas to crop
+                const cropCanvas = document.createElement('canvas');
+                cropCanvas.width = w;
+                cropCanvas.height = h;
+                const cropCtx = cropCanvas.getContext('2d');
+                cropCtx.drawImage(originalImage, x, y, w, h, 0, 0, w, h);
+
+                const dataUrl = cropCanvas.toDataURL('image/jpeg', 0.9);
+                croppedImages.push({ data: dataUrl, w: w, h: h });
+
+                // Add to Preview UI
+                const imgContainer = document.createElement('div');
+                imgContainer.className = "border rounded p-2 bg-gray-50 flex flex-col items-center";
+                imgContainer.innerHTML = `
+                    <img src="${dataUrl}" class="max-w-full h-auto mb-2 shadow-sm">
+                    <span class="text-xs text-gray-500 font-bold">Page ${index + 1}</span>
+                `;
+                previewArea.appendChild(imgContainer);
+            });
+
+            if (croppedImages.length > 0) {
+                downloadBtn.classList.remove('hidden');
+            } else {
+                alert("No pages detected. Try an image with higher contrast or better lighting.");
+            }
+        }
+
+        // Standard iterative flood fill to avoid recursion stack overflow
+        function floodFill(startX, startY, w, h, grid, visited) {
+            const stack = [startX, startY];
+            let minX = startX, maxX = startX;
+            let minY = startY, maxY = startY;
+            let pixelCount = 0;
+            
+            visited[startY * w + startX] = 1;
+
+            while (stack.length > 0) {
+                const cy = stack.pop();
+                const cx = stack.pop();
+                pixelCount++;
+
+                if (cx < minX) minX = cx;
+                if (cx > maxX) maxX = cx;
+                if (cy < minY) minY = cy;
+                if (cy > maxY) maxY = cy;
+
+                // Check 4 neighbors
+                const neighbors = [
+                    [cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]
+                ];
+
+                for (let i = 0; i < neighbors.length; i++) {
+                    const nx = neighbors[i][0];
+                    const ny = neighbors[i][1];
+
+                    if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                        const nIdx = ny * w + nx;
+                        if (grid[nIdx] === 1 && visited[nIdx] === 0) {
+                            visited[nIdx] = 1;
+                            stack.push(nx, ny);
+                        }
+                    }
+                }
+            }
+
+            return {
+                minX, maxX, minY, maxY,
+                w: maxX - minX,
+                h: maxY - minY,
+                centerX: (minX + maxX) / 2,
+                centerY: (minY + maxY) / 2,
+                pixelCount
+            };
+        }
+
+        downloadBtn.addEventListener('click', () => {
+            if (croppedImages.length === 0) return;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            croppedImages.forEach((img, index) => {
+                if (index > 0) doc.addPage();
+                
+                // Fit image to PDF page (A4)
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                
+                const margin = 10;
+                const maxW = pageWidth - (margin * 2);
+                const maxH = pageHeight - (margin * 2);
+
+                const ratio = Math.min(maxW / img.w, maxH / img.h);
+                const finalW = img.w * ratio;
+                const finalH = img.h * ratio;
+
+                const x = (pageWidth - finalW) / 2;
+                const y = (pageHeight - finalH) / 2;
+
+                doc.addImage(img.data, 'JPEG', x, y, finalW, finalH);
+                doc.text(`Page ${index + 1}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+            });
+
+            doc.save('printable_pages.pdf');
+        });
+    </script>
+</body>
+</html>
+
