@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Printable Page Splitter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* This CSS is the magic part. 
+           It tells the browser that when printing, every element with 
+           class 'printable-page' must start on a new sheet of paper.
+        */
+        @media print {
+            @page {
+                margin: 0;
+                size: auto;
+            }
+            body { 
+                background: white; 
+                margin: 0;
+                padding: 0;
+            }
+            /* Hide controls and instructions when printing */
+            .no-print { 
+                display: none !important; 
+            }
+            /* Force page breaks */
+            .printable-page {
+                break-after: page;
+                page-break-after: always;
+                width: 100vw;
+                height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px; /* Small padding safe zone */
+                box-sizing: border-box;
+            }
+            /* Ensure images fit on the paper */
+            .printable-page img {
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+                box-shadow: none !important;
+                border: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen">
+
+    <!-- UI Container (Hidden when printing) -->
+    <div class="no-print container mx-auto p-6 max-w-3xl">
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">Photo to Printable PDF</h1>
+            <p class="text-gray-600 mb-6">Split a photo of multiple pages into a clean, printable document.</p>
+
+            <!-- Step 1: Upload -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Step 1: Upload Photo</label>
+                <div class="flex items-center justify-center w-full">
+                    <label for="fileInput" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <svg class="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                            </svg>
+                            <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> your image</p>
+                        </div>
+                        <input id="fileInput" type="file" class="hidden" accept="image/*" />
+                    </label>
+                </div>
+            </div>
+
+            <!-- Step 2: Process -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Step 2: Detect Pages</label>
+                <button id="processBtn" disabled class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex justify-center items-center gap-2">
+                    <span>Process Image</span>
+                    <div id="loadingSpinner" class="hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                </button>
+            </div>
+
+            <!-- Status Message -->
+            <div id="statusMessage" class="hidden p-4 mb-4 text-sm text-blue-800 rounded-lg bg-blue-50" role="alert">
+                <span class="font-medium">Processing...</span> This may take a few seconds depending on image size.
+            </div>
+
+            <!-- Step 3: Instructions (Shown after processing) -->
+            <div id="printInstructions" class="hidden bg-green-50 border border-green-200 rounded-lg p-4">
+                <h3 class="font-bold text-green-800 text-lg mb-2">✅ Success! Step 3: Print / Save as PDF</h3>
+                <ol class="list-decimal list-inside text-green-800 space-y-1">
+                    <li>Scroll down to check the crops.</li>
+                    <li>Press <span class="font-bold bg-white px-1 rounded border border-green-300">Ctrl + P</span> (Windows) or <span class="font-bold bg-white px-1 rounded border-green-300">Cmd + P</span> (Mac).</li>
+                    <li>Change destination to <span class="font-bold">"Save as PDF"</span>.</li>
+                    <li>You will see 1 page per image. Save or Print!</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- Output Area: Where the images will be injected -->
+    <div id="outputArea" class="flex flex-col items-center pb-20">
+        <!-- Images go here -->
+    </div>
+
+    <!-- Hidden Canvas for Image Processing -->
+    <canvas id="processCanvas" class="hidden"></canvas>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const processBtn = document.getElementById('processBtn');
+        const outputArea = document.getElementById('outputArea');
+        const statusMessage = document.getElementById('statusMessage');
+        const printInstructions = document.getElementById('printInstructions');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const canvas = document.getElementById('processCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let originalImage = new Image();
+
+        // 1. Handle File Upload
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Reset UI
+            processBtn.disabled = true;
+            processBtn.innerHTML = `<span>Loading Image...</span>`;
+            printInstructions.classList.add('hidden');
+            outputArea.innerHTML = '';
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                originalImage.src = ev.target.result;
+                originalImage.onload = () => {
+                    processBtn.disabled = false;
+                    processBtn.innerHTML = `<span>Process Image</span>`;
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 2. Handle Process Button Click
+        processBtn.addEventListener('click', () => {
+            if (!originalImage.src) return;
+
+            // UI Update
+            processBtn.disabled = true;
+            processBtn.classList.add('opacity-75');
+            loadingSpinner.classList.remove('hidden');
+            statusMessage.classList.remove('hidden');
+            outputArea.innerHTML = ''; // Clear previous
+
+            // Use setTimeout to allow the UI to render the loading state before blocking the thread
+            setTimeout(() => {
+                processImages();
+            }, 100);
+        });
+
+        function processImages() {
+            try {
+                // Resize for analysis (improves speed significantly)
+                const analysisWidth = 800; 
+                const scale = analysisWidth / originalImage.width;
+                const analysisHeight = originalImage.height * scale;
+
+                canvas.width = analysisWidth;
+                canvas.height = analysisHeight;
+                ctx.drawImage(originalImage, 0, 0, analysisWidth, analysisHeight);
+
+                const imageData = ctx.getImageData(0, 0, analysisWidth, analysisHeight);
+                const data = imageData.data;
+                
+                // Binary Grid: 1 = Paper (White), 0 = Background (Dark)
+                const binaryGrid = new Uint8Array(analysisWidth * analysisHeight);
+                const threshold = 180; // Brightness threshold (0-255)
+
+                for (let i = 0; i < data.length; i += 4) {
+                    // Simple average brightness
+                    const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
+                    binaryGrid[i / 4] = brightness > threshold ? 1 : 0;
+                }
+
+                // Blob Detection (Flood Fill)
+                const visited = new Uint8Array(analysisWidth * analysisHeight);
+                const blobs = [];
+                const minArea = (analysisWidth * analysisHeight) * 0.005; // Filter dust/noise
+
+                for (let y = 0; y < analysisHeight; y++) {
+                    for (let x = 0; x < analysisWidth; x++) {
+                        const idx = y * analysisWidth + x;
+                        if (binaryGrid[idx] === 1 && visited[idx] === 0) {
+                            const blob = floodFill(x, y, analysisWidth, analysisHeight, binaryGrid, visited);
+                            
+                            const area = blob.w * blob.h;
+                            // Basic filter: must be large enough
+                            if (area > minArea && blob.pixelCount > minArea) {
+                                blobs.push(blob);
+                            }
+                        }
+                    }
+                }
+
+                if (blobs.length === 0) {
+                    alert("No pages detected. Try an image with higher contrast between the paper and background.");
+                    resetUI();
+                    return;
+                }
+
+                // Sorting Logic: Rows then Columns
+                // 1. Sort by Y center
+                blobs.sort((a, b) => a.centerY - b.centerY);
+                
+                const rows = [];
+                if (blobs.length > 0) {
+                    let currentRow = [blobs[0]];
+                    let prevY = blobs[0].centerY;
+                    const rowHeightThreshold = blobs[0].h * 0.5; // If Y differs by >50% of height, it's a new row
+
+                    for (let i = 1; i < blobs.length; i++) {
+                        const blob = blobs[i];
+                        if (Math.abs(blob.centerY - prevY) > rowHeightThreshold) {
+                            // New Row started: Sort previous row by X
+                            currentRow.sort((a, b) => a.centerX - b.centerX);
+                            rows.push(currentRow);
+                            
+                            // Start new row
+                            currentRow = [blob];
+                            prevY = blob.centerY;
+                        } else {
+                            currentRow.push(blob);
+                        }
+                    }
+                    // Push final row
+                    currentRow.sort((a, b) => a.centerX - b.centerX);
+                    rows.push(currentRow);
+                }
+                const sortedBlobs = rows.flat();
+
+                // Crop High-Res Images and Display
+                const padding = 20; // Padding in high-res pixels
+
+                sortedBlobs.forEach((blob, index) => {
+                    // Scale coordinates back to original image size
+                    const x = Math.max(0, Math.floor(blob.minX / scale) - padding);
+                    const y = Math.max(0, Math.floor(blob.minY / scale) - padding);
+                    const w = Math.min(originalImage.width - x, Math.ceil(blob.w / scale) + padding * 2);
+                    const h = Math.min(originalImage.height - y, Math.ceil(blob.h / scale) + padding * 2);
+
+                    // Create crop canvas
+                    const cropCanvas = document.createElement('canvas');
+                    cropCanvas.width = w;
+                    cropCanvas.height = h;
+                    const cropCtx = cropCanvas.getContext('2d');
+                    cropCtx.drawImage(originalImage, x, y, w, h, 0, 0, w, h);
+
+                    const dataUrl = cropCanvas.toDataURL('image/jpeg', 0.90);
+
+                    // Create DOM Element
+                    const pageDiv = document.createElement('div');
+                    // 'printable-page' class triggers the CSS page break
+                    pageDiv.className = "printable-page flex flex-col items-center justify-center bg-white mb-8 border-b-2 border-dashed border-gray-300 pb-8 no-print-margin";
+                    
+                    pageDiv.innerHTML = `
+                        <div class="no-print font-bold text-gray-500 mb-2 bg-gray-200 px-3 py-1 rounded-full text-sm">Page ${index + 1}</div>
+                        <img src="${dataUrl}" class="rounded shadow-lg border border-gray-200" alt="Page ${index + 1}">
+                    `;
+                    outputArea.appendChild(pageDiv);
+                });
+
+                // Success State
+                statusMessage.classList.add('hidden');
+                printInstructions.classList.remove('hidden');
+                
+            } catch (error) {
+                console.error(error);
+                alert("An error occurred processing the image.");
+            } finally {
+                resetUI();
+            }
+        }
+
+        function resetUI() {
+            processBtn.disabled = false;
+            processBtn.classList.remove('opacity-75');
+            loadingSpinner.classList.add('hidden');
+        }
+
+        // Iterative Flood Fill (Prevents Stack Overflow)
+        function floodFill(startX, startY, w, h, grid, visited) {
+            const stack = [startX, startY];
+            let minX = startX, maxX = startX;
+            let minY = startY, maxY = startY;
+            let pixelCount = 0;
+            
+            visited[startY * w + startX] = 1;
+
+            while (stack.length) {
+                const cy = stack.pop();
+                const cx = stack.pop();
+                pixelCount++;
+
+                if (cx < minX) minX = cx;
+                if (cx > maxX) maxX = cx;
+                if (cy < minY) minY = cy;
+                if (cy > maxY) maxY = cy;
+
+                const neighbors = [
+                    [cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]
+                ];
+
+                for (let i = 0; i < neighbors.length; i++) {
+                    const nx = neighbors[i][0];
+                    const ny = neighbors[i][1];
+
+                    if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                        const idx = ny * w + nx;
+                        if (grid[idx] === 1 && visited[idx] === 0) {
+                            visited[idx] = 1;
+                            stack.push(nx, ny);
+                        }
+                    }
+                }
+            }
+
+            return {
+                minX, maxX, minY, maxY,
+                w: maxX - minX,
+                h: maxY - minY,
+                centerX: (minX + maxX) / 2,
+                centerY: (minY + maxY) / 2,
+                pixelCount
+            };
+        }
+    </script>
+</body>
+</html>
+
+
