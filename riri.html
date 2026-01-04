@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ripples on the River: Moving Energy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- Base & Typography --- */
+        :root {
+            --primary: #0ea5e9; /* Sky 500 */
+            --primary-dark: #0369a1; /* Sky 700 */
+            --accent: #f43f5e; /* Rose 500 */
+            --surface: #ffffff;
+            --background: #f1f5f9; /* Slate 100 */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #cbd5e1;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, .fun-text { font-family: 'Nunito', sans-serif; }
+
+        /* --- Device Frame (Desktop Only) --- */
+        .device-frame {
+            width: 100%;
+            height: 100%;
+            background: white;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        @media (min-width: 640px) {
+            .device-frame {
+                width: 390px;
+                height: 844px; /* iPhone 13/14 Pro dimensions */
+                border-radius: 48px;
+                box-shadow: 
+                    0 0 0 12px #334155, 
+                    0 25px 50px -12px rgba(0,0,0,0.5);
+                border: 8px solid #1e293b;
+            }
+            .device-frame::before {
+                content: '';
+                position: absolute;
+                top: 0; left: 50%;
+                transform: translateX(-50%);
+                width: 120px;
+                height: 28px;
+                background: #1e293b;
+                border-bottom-left-radius: 16px;
+                border-bottom-right-radius: 16px;
+                z-index: 50;
+            }
+        }
+
+        /* --- Animations & Transitions --- */
+        .slide-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #f8fafc;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            overflow-y: auto;
+            padding: 24px;
+            padding-bottom: 120px;
+            opacity: 0;
+            transform: translateX(50px);
+            transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
+            display: none;
+        }
+
+        .slide.active {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: auto;
+            display: block;
+        }
+
+        /* --- UI Components --- */
+        .card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+            border: 1px solid rgba(0,0,0,0.03);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .btn-primary:active { transform: scale(0.97); }
+
+        .btn-option {
+            background: white;
+            border: 2px solid #e2e8f0;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+        .btn-option.selected {
+            border-color: var(--primary);
+            background-color: #f0f9ff;
+            color: var(--primary-dark);
+            box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 999px;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: white;
+            color: var(--primary-dark);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        /* Utilities */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @keyframes bob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-bob { animation: bob 2s ease-in-out infinite; }
+    </style>
+</head>
+<body>
+
+    <div class="device-frame">
+        
+        <!-- Header -->
+        <header class="bg-white/80 backdrop-blur-md border-b border-slate-100 z-20 px-4 pt-10 pb-3 flex justify-between items-center sticky top-0">
+            <div>
+                <h1 class="text-lg font-extrabold text-slate-800 tracking-tight leading-none">Ripples on the River</h1>
+                <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                    Grade 4 • 4.PS4.1
+                </div>
+            </div>
+            <button onclick="toggleTeacherMode()" class="p-2 rounded-full text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition" title="Teacher Guide">
+                <i class="ph-bold ph-chalkboard-teacher text-xl"></i>
+            </button>
+        </header>
+
+        <!-- Progress Bar -->
+        <div class="h-1 w-full bg-slate-100">
+            <div id="progress-bar" class="h-full bg-sky-500 w-[20%] transition-all duration-500 ease-out shadow-[0_0_10px_rgba(14,165,233,0.5)]"></div>
+        </div>
+
+        <!-- Main Content Area -->
+        <main class="slide-container" id="main-container">
+            
+            <!-- Slide 0: Phenomenon (Engage) -->
+            <div class="slide active" id="slide-0">
+                <div class="card p-6 mb-6 relative overflow-hidden group cursor-pointer border-b-4 border-sky-100" onclick="animateBoat()">
+                    <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-sky-50 to-white -z-10"></div>
+                    
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="bg-sky-100 text-sky-700 text-[10px] uppercase font-bold px-2 py-1 rounded-md tracking-wider">Phenomenon</span>
+                        <i class="ph-fill ph-waves text-sky-300 text-2xl"></i>
+                    </div>
+
+                    <h2 class="text-xl font-bold text-slate-800 mb-2">Little Pigeon River</h2>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-4">
+                        You're fishing on a quiet spot. Your bobber sits still. Suddenly, a motorboat zooms by in the distance!
+                    </p>
+
+                    <!-- Fishing Hole Demo Visualizer -->
+                    <div class="h-40 w-full rounded-xl bg-sky-200 relative overflow-hidden border border-sky-300 shadow-inner group">
+                        <!-- Water Surface -->
+                        <div class="absolute bottom-0 w-full h-16 bg-sky-400/30 backdrop-blur-[1px]"></div>
+                        
+                        <!-- Bobber -->
+                        <div id="story-bobber" class="absolute left-1/2 bottom-12 -translate-x-1/2 transition-transform duration-100 z-10">
+                            <div class="w-0.5 h-6 bg-slate-800 mx-auto"></div>
+                            <div class="w-6 h-6 bg-white rounded-full border border-slate-500 overflow-hidden relative shadow-md">
+                                <div class="absolute bottom-0 w-full h-3 bg-rose-500"></div>
+                            </div>
+                        </div>
+
+                        <!-- Boat -->
+                        <div id="story-boat" class="absolute top-6 -right-16 text-5xl transition-all duration-[1500ms] ease-linear opacity-0">
+                            🚤
+                        </div>
+                    </div>
+                    <p class="text-center text-[10px] font-bold text-sky-600 mt-2 uppercase tracking-wide animate-pulse">Tap to start the boat</p>
+                </div>
+
+                <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-xl shadow-sm">
+                    <h3 class="text-xs font-bold text-amber-800 uppercase tracking-wide mb-1">Driving Question</h3>
+                    <p class="text-sm font-bold text-slate-800 italic leading-snug">
+                        "How did the boat's energy move the bobber without touching it?"
+                    </p>
+                </div>
+            </div>
+
+            <!-- Slide 1: Explore (Trotline & Tub) -->
+            <div class="slide" id="slide-1">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-slate-800">Investigation</h2>
+                    <!-- Toggle Switch -->
+                    <div class="flex bg-slate-200 p-1 rounded-full">
+                        <button onclick="setSimMode('tub')" id="tab-tub" class="tab-btn active">Water Tub</button>
+                        <button onclick="setSimMode('rope')" id="tab-rope" class="tab-btn">Trotline</button>
+                    </div>
+                </div>
+
+                <!-- Simulation Canvas -->
+                <div class="relative w-full aspect-[4/3] bg-white rounded-2xl border-2 border-slate-100 shadow-lg overflow-hidden mb-5">
+                    <canvas id="exploreCanvas" class="w-full h-full block cursor-pointer"></canvas>
+                    
+                    <!-- Sim Controls -->
+                    <div class="absolute top-3 right-3 flex flex-col gap-2">
+                        <button id="sim-action-btn" onclick="triggerSimAction()" class="bg-white/90 backdrop-blur text-slate-700 font-bold px-4 py-2 rounded-xl shadow-sm hover:scale-105 active:scale-95 transition border border-slate-200 group flex items-center gap-2">
+                            <span class="text-xl">🪨</span> <span class="text-xs">Drop Rock</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Context Label -->
+                    <div class="absolute top-3 left-3 bg-white/80 backdrop-blur px-3 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-500" id="sim-context-label">
+                        Fishing Hole Demo
+                    </div>
+                </div>
+
+                <!-- Observation Task -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                        <i class="ph-bold ph-eye text-sky-500"></i> What do you notice?
+                    </h3>
+                    
+                    <div id="obs-tub" class="space-y-2">
+                        <p class="text-xs text-slate-500 mb-2">When the rock hit the water...</p>
+                        <button onclick="checkExploreAnswer(this, true)" class="w-full text-left p-3 border rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">
+                            The bobber bounced in place.
+                        </button>
+                        <button onclick="checkExploreAnswer(this, false)" class="w-full text-left p-3 border rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">
+                            The bobber surfed to the edge.
+                        </button>
+                    </div>
+
+                    <div id="obs-rope" class="space-y-2 hidden">
+                        <p class="text-xs text-slate-500 mb-2">When the "Catfish" shook the trotline...</p>
+                        <button onclick="checkExploreAnswer(this, true)" class="w-full text-left p-3 border rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">
+                            The hump moved, but the rope stayed.
+                        </button>
+                        <button onclick="checkExploreAnswer(this, false)" class="w-full text-left p-3 border rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">
+                            The whole rope flew to the tree.
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 2: Explain (Diagram) -->
+            <div class="slide" id="slide-2">
+                <h2 class="text-xl font-bold text-slate-800 mb-2 px-1">River Surface Model</h2>
+                <p class="text-xs text-slate-500 mb-4 px-1">Connecting the Trotline to the River.</p>
+                
+                <div class="card p-1 mb-5 border-0 shadow-md">
+                    <svg viewBox="0 0 320 160" class="w-full rounded-xl bg-slate-50">
+                        <defs>
+                            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+                            </pattern>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#grid)"/>
+                        
+                        <!-- Axis -->
+                        <line x1="10" y1="80" x2="310" y2="80" stroke="#94a3b8" stroke-dasharray="4"/>
+                        <text x="15" y="75" font-size="8" fill="#94a3b8" font-family="sans-serif">Quiet River Level</text>
+
+                        <!-- The Wave -->
+                        <path d="M10,80 Q47.5,10 85,80 T160,80 T235,80 T310,80" fill="none" stroke="#0ea5e9" stroke-width="3" stroke-linecap="round"/>
+
+                        <!-- Movement Arrows -->
+                        <g id="movement-arrows">
+                            <!-- Energy Arrow -->
+                            <line x1="100" y1="130" x2="220" y2="130" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowhead-red)"/>
+                            <text x="110" y="145" font-size="9" font-weight="bold" fill="#ef4444">ENERGY moves this way</text>
+                            
+                            <!-- Matter Arrow -->
+                            <line x1="85" y1="95" x2="85" y2="65" stroke="#3b82f6" stroke-width="2"/>
+                            <polygon points="85,60 82,68 88,68" fill="#3b82f6"/>
+                            <polygon points="85,100 82,92 88,92" fill="#3b82f6"/>
+                            <text x="92" y="90" font-size="8" fill="#3b82f6">WATER moves</text>
+                        </g>
+
+                        <!-- Labels -->
+                        <g id="label-amp" class="opacity-0 transition-opacity duration-500">
+                            <line x1="47.5" y1="80" x2="47.5" y2="10" stroke="#f43f5e" stroke-width="2"/>
+                            <rect x="55" y="25" width="60" height="16" rx="4" fill="white" stroke="#f43f5e" stroke-width="1"/>
+                            <text x="60" y="36" font-size="9" font-weight="bold" fill="#f43f5e">AMPLITUDE</text>
+                        </g>
+
+                        <g id="label-wave" class="opacity-0 transition-opacity duration-500">
+                            <line x1="47.5" y1="15" x2="197.5" y2="15" stroke="#8b5cf6" stroke-width="2"/>
+                            <rect x="95" y="5" width="65" height="16" rx="4" fill="white" stroke="#8b5cf6" stroke-width="1"/>
+                            <text x="100" y="16" font-size="9" font-weight="bold" fill="#8b5cf6">WAVELENGTH</text>
+                        </g>
+                    </svg>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <button onclick="toggleDiagram('amp')" class="bg-white border border-rose-200 p-3 rounded-xl shadow-sm text-left hover:bg-rose-50 transition">
+                        <div class="text-[10px] font-bold text-rose-500 uppercase">The Height</div>
+                        <div class="text-sm font-bold text-slate-700">Amplitude</div>
+                    </button>
+                    <button onclick="toggleDiagram('wave')" class="bg-white border border-violet-200 p-3 rounded-xl shadow-sm text-left hover:bg-violet-50 transition">
+                        <div class="text-[10px] font-bold text-violet-500 uppercase">The Distance</div>
+                        <div class="text-sm font-bold text-slate-700">Wavelength</div>
+                    </button>
+                </div>
+
+                <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                    <h3 class="text-xs font-bold text-yellow-700 uppercase mb-1">🌟 The Golden Rule</h3>
+                    <p class="text-sm text-slate-700 font-medium">
+                        "Waves move <span class="font-extrabold text-rose-500 border-b-2 border-rose-300">ENERGY</span> from one place to another, but they do NOT move <span class="font-extrabold text-blue-600 border-b-2 border-blue-300">MATTER</span>."
+                    </p>
+                </div>
+            </div>
+
+            <!-- Slide 3: Elaborate (Cannonball) -->
+            <div class="slide" id="slide-3">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="text-2xl">🏊</span>
+                    <h2 class="text-xl font-bold text-slate-800">The Swimming Hole</h2>
+                </div>
+
+                <div class="card p-5 mb-5 relative overflow-hidden">
+                    <p class="text-sm text-slate-600 mb-4">
+                        You jump off a rock and do a huge <strong>cannonball</strong> splash! Your friend is floating on a tube nearby.
+                    </p>
+                    
+                    <div class="bg-sky-200 h-32 rounded-lg relative overflow-hidden border border-sky-300 mb-4">
+                        <div class="absolute bottom-0 w-full h-10 bg-sky-400 opacity-50"></div>
+                        <!-- Inner Tube -->
+                        <div id="tube" class="absolute left-1/2 bottom-6 -translate-x-1/2 w-12 h-4 bg-slate-800 rounded-full border-4 border-black transition-all duration-700"></div>
+                        <div class="absolute right-4 top-4 text-4xl animate-bounce">💦</div>
+                    </div>
+
+                    <h3 class="text-sm font-bold text-slate-800 mb-2">Predict: What happens to your friend?</h3>
+                    <div class="grid grid-cols-1 gap-3">
+                        <button onclick="runCannonball('surf')" class="btn-option p-3 rounded-xl flex items-center gap-3 text-left hover:bg-slate-50">
+                            <i class="ph-bold ph-arrow-right text-rose-500 text-xl"></i>
+                            <span class="text-xs font-bold">They surf to the bank</span>
+                        </button>
+                        <button onclick="runCannonball('bob')" class="btn-option p-3 rounded-xl flex items-center gap-3 text-left hover:bg-slate-50">
+                            <i class="ph-bold ph-arrows-vertical text-green-500 text-xl"></i>
+                            <span class="text-xs font-bold">They bob up and down</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="cannon-feedback" class="hidden text-center text-sm font-bold text-slate-600 bg-slate-100 p-3 rounded-xl"></div>
+            </div>
+
+            <!-- Slide 4: Evaluate (Exit Ticket) -->
+            <div class="slide" id="slide-4">
+                <div class="mb-4 border-b border-slate-100 pb-2">
+                    <h2 class="text-xl font-bold text-slate-800">Exit Ticket</h2>
+                    <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Claim • Evidence • Reasoning</p>
+                </div>
+
+                <div class="space-y-5 mb-8">
+                    <!-- Q1 -->
+                    <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+                        <p class="text-sm font-bold text-slate-800 mb-2"><span class="text-sky-500 mr-1">1. Claim:</span> The bobber will...</p>
+                        <div class="space-y-2">
+                            <button onclick="selectExitAnswer('q1', 'Bank', this)" class="btn-option w-full py-2 px-3 rounded text-xs font-bold text-left">Push to the river bank</button>
+                            <button onclick="selectExitAnswer('q1', 'Stay', this)" class="btn-option w-full py-2 px-3 rounded text-xs font-bold text-left">Stay in mostly the same spot</button>
+                        </div>
+                    </div>
+
+                    <!-- Q2 -->
+                    <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+                        <p class="text-sm font-bold text-slate-800 mb-2"><span class="text-sky-500 mr-1">2. Evidence:</span> In the "Trotline" shake...</p>
+                        <div class="space-y-2">
+                            <button onclick="selectExitAnswer('q2', 'Hand', this)" class="btn-option w-full py-2 px-3 rounded text-xs font-bold text-left">The rope stayed in my hand</button>
+                            <button onclick="selectExitAnswer('q2', 'Tree', this)" class="btn-option w-full py-2 px-3 rounded text-xs font-bold text-left">The rope flew to the tree</button>
+                        </div>
+                    </div>
+
+                    <!-- Q3 -->
+                    <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+                        <p class="text-sm font-bold text-slate-800 mb-2"><span class="text-sky-500 mr-1">3. Reasoning:</span> Waves only carry...</p>
+                        <div class="flex gap-2">
+                            <button onclick="selectExitAnswer('q3', 'Matter', this)" class="btn-option flex-1 py-2 rounded text-xs font-bold">Matter</button>
+                            <button onclick="selectExitAnswer('q3', 'Energy', this)" class="btn-option flex-1 py-2 rounded text-xs font-bold">Energy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="submit-btn" onclick="submitAssessment()" class="w-full btn-primary py-4 rounded-xl text-lg font-bold shadow-lg shadow-sky-200 opacity-50 cursor-not-allowed" disabled>
+                    Submit Exit Ticket
+                </button>
+            </div>
+
+            <!-- Slide 5: Success -->
+            <div class="slide" id="slide-5">
+                <div class="h-full flex flex-col items-center justify-center text-center p-6">
+                    <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center text-5xl mb-6 shadow-sm animate-bounce">
+                        🎣
+                    </div>
+                    <h2 class="text-2xl font-extrabold text-slate-800 mb-2">Excellent Work!</h2>
+                    <p class="text-slate-600 text-sm mb-6 max-w-[200px]">You explained how energy moves through the Little Pigeon River.</p>
+                    
+                    <button onclick="resetApp()" class="text-slate-400 font-bold text-xs hover:text-sky-600 transition uppercase tracking-widest border-b border-transparent hover:border-sky-600 pb-1">Restart Lesson</button>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Navigation Bar -->
+        <nav class="bg-white border-t border-slate-100 px-6 py-4 flex justify-between items-center z-20 shrink-0">
+            <button onclick="navigate(-1)" id="nav-prev" class="w-12 h-12 rounded-full flex items-center justify-center text-slate-300 hover:text-slate-600 hover:bg-slate-50 transition disabled:opacity-0">
+                <i class="ph-bold ph-arrow-left text-2xl"></i>
+            </button>
+
+            <!-- Dots -->
+            <div class="flex gap-1.5" id="nav-dots">
+                <!-- Populated by JS -->
+            </div>
+
+            <button onclick="navigate(1)" id="nav-next" class="w-12 h-12 rounded-full flex items-center justify-center text-white bg-slate-900 shadow-md hover:bg-slate-700 hover:scale-105 active:scale-95 transition disabled:opacity-0 disabled:bg-slate-200">
+                <i class="ph-bold ph-arrow-right text-2xl"></i>
+            </button>
+        </nav>
+
+        <!-- Teacher Overlay -->
+        <div id="teacher-view" class="absolute inset-0 bg-slate-900/95 z-50 p-6 hidden backdrop-blur-md text-white flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                <div>
+                    <h2 class="text-xl font-bold">Teacher Guide</h2>
+                    <p class="text-xs text-slate-400">Step 1 — Big Picture</p>
+                </div>
+                <button onclick="toggleTeacherMode()" class="p-2 bg-slate-800 rounded-lg hover:bg-slate-700"><i class="ph-bold ph-x"></i></button>
+            </div>
+
+            <div class="space-y-4 overflow-y-auto no-scrollbar pb-10">
+                <div class="bg-slate-800 p-4 rounded-xl border-l-4 border-sky-500">
+                    <h4 class="font-bold text-sky-400 text-xs uppercase mb-1">Standard 4.PS4.1</h4>
+                    <p class="text-sm text-slate-300">Use a model to describe patterns (amplitude/wavelength) and that waves cause objects to move.</p>
+                </div>
+
+                <div class="bg-slate-800 p-4 rounded-xl border-l-4 border-yellow-400">
+                    <h4 class="font-bold text-yellow-400 text-xs uppercase mb-1">Misconception Alert</h4>
+                    <p class="text-sm text-slate-300">Students often confuse <strong>current</strong> (water flowing) with <strong>waves</strong> (energy moving). Use the "Trotline" analogy: the rope wiggles but doesn't fly out of your hand.</p>
+                </div>
+
+                <div class="bg-slate-800 p-4 rounded-xl">
+                    <h4 class="font-bold text-white text-xs uppercase mb-2">Answer Key (CER)</h4>
+                    <ul class="space-y-2 text-sm text-slate-400">
+                        <li class="flex justify-between border-b border-slate-700 pb-1">
+                            <span>1. Claim</span> <span class="text-green-400 font-bold">Stays in spot</span>
+                        </li>
+                        <li class="flex justify-between border-b border-slate-700 pb-1">
+                            <span>2. Evidence</span> <span class="text-green-400 font-bold">Rope stayed in hand</span>
+                        </li>
+                        <li class="flex justify-between">
+                            <span>3. Reasoning</span> <span class="text-green-400 font-bold">Energy (not matter)</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const totalSlides = 5; // 0:Intro, 1:Explore, 2:Explain, 3:Elaborate, 4:Evaluate
+        let currentSlide = 0;
+        let simMode = 'tub'; // 'tub' or 'rope'
+        let simRunning = false;
+        let animationId;
+        let answers = { q1: null, q2: null, q3: null };
+
+        // --- Init ---
+        function init() {
+            const dotsContainer = document.getElementById('nav-dots');
+            for(let i=0; i<totalSlides; i++) {
+                const d = document.createElement('div');
+                d.className = `h-2 rounded-full transition-all ${i===0 ? 'w-6 bg-sky-500' : 'w-2 bg-slate-200'}`;
+                dotsContainer.appendChild(d);
+            }
+            resizeCanvas();
+        }
+
+        // --- Navigation ---
+        function navigate(dir) {
+            const slides = document.querySelectorAll('.slide');
+            const dots = document.getElementById('nav-dots').children;
+            
+            if (dir === 1 && currentSlide >= totalSlides) return; // Allow going to success slide (5)
+            if (dir === -1 && currentSlide <= 0) return;
+
+            // Handle transition
+            slides[currentSlide].classList.remove('active');
+            
+            currentSlide += dir;
+            
+            // Boundary for slide array
+            if(currentSlide > slides.length - 1) currentSlide = slides.length - 1;
+            
+            slides[currentSlide].classList.add('active');
+
+            // Update UI
+            updateNavUI();
+
+            // Slide Specific Triggers
+            if (currentSlide === 1) startSimulation();
+            else stopSimulation();
+        }
+
+        function updateNavUI() {
+            const dots = document.getElementById('nav-dots').children;
+            const bar = document.getElementById('progress-bar');
+            const nextBtn = document.getElementById('nav-next');
+            const prevBtn = document.getElementById('nav-prev');
+
+            // Dots
+            for(let i=0; i<totalSlides; i++) {
+                if(i >= dots.length) break;
+                if (i === currentSlide) {
+                    dots[i].className = 'h-2 rounded-full transition-all w-6 bg-sky-500';
+                } else {
+                    dots[i].className = 'h-2 rounded-full transition-all w-2 bg-slate-200';
+                }
+            }
+
+            // Bar
+            bar.style.width = `${((currentSlide + 1) / (totalSlides + 1)) * 100}%`;
+
+            // Buttons
+            prevBtn.disabled = currentSlide === 0;
+            
+            // Logic for Exit Ticket (Slide 4) - Hide Next Button
+            if (currentSlide === 4 || currentSlide === 5) {
+                nextBtn.style.display = 'none';
+            } else {
+                nextBtn.style.display = 'flex';
+                nextBtn.disabled = false;
+            }
+        }
+
+        // --- Slide 0: Phenomenon ---
+        function animateBoat() {
+            const boat = document.getElementById('story-boat');
+            const bobber = document.getElementById('story-bobber');
+            
+            // Boat enters
+            boat.style.opacity = '1';
+            boat.style.transform = 'translateX(-400px)'; 
+
+            // Bobber bounces after delay
+            setTimeout(() => {
+                bobber.classList.add('animate-bob');
+                setTimeout(() => bobber.classList.remove('animate-bob'), 3000);
+            }, 800);
+
+            // Reset
+            setTimeout(() => {
+                boat.style.transition = 'none';
+                boat.style.opacity = '0';
+                boat.style.transform = 'translateX(0)';
+                void boat.offsetWidth; // Force Reflow
+                boat.style.transition = 'all 1500ms linear';
+            }, 3000);
+        }
+
+        // --- Slide 1: Explore (Canvas Sim) ---
+        const canvas = document.getElementById('exploreCanvas');
+        const ctx = canvas.getContext('2d');
+        let waves = [];
+        let ropePulse = { active: false, x: 0 };
+
+        function setSimMode(mode) {
+            simMode = mode;
+            // UI Toggle
+            document.getElementById('tab-tub').className = mode === 'tub' ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('tab-rope').className = mode === 'rope' ? 'tab-btn active' : 'tab-btn';
+            
+            // Controls
+            const btn = document.getElementById('sim-action-btn');
+            const label = document.getElementById('sim-context-label');
+            const obsTub = document.getElementById('obs-tub');
+            const obsRope = document.getElementById('obs-rope');
+
+            if (mode === 'tub') {
+                btn.innerHTML = '<span class="text-xl">🪨</span> <span class="text-xs">Drop Rock</span>';
+                label.innerText = 'Fishing Hole Demo';
+                obsTub.classList.remove('hidden');
+                obsRope.classList.add('hidden');
+            } else {
+                btn.innerHTML = '<span class="text-xl">🎣</span> <span class="text-xs">Shake Trotline</span>';
+                label.innerText = 'Trotline (Rope) Model';
+                obsTub.classList.add('hidden');
+                obsRope.classList.remove('hidden');
+            }
+        }
+
+        function triggerSimAction() {
+            if (simMode === 'tub') {
+                waves.push({ r: 0, opacity: 1 });
+            } else {
+                if (!ropePulse.active) {
+                    ropePulse.active = true;
+                    ropePulse.x = 0;
+                }
+            }
+        }
+
+        function resizeCanvas() {
+            if (!canvas.parentElement) return;
+            canvas.width = canvas.parentElement.offsetWidth * 2;
+            canvas.height = canvas.parentElement.offsetHeight * 2;
+            ctx.scale(2, 2);
+        }
+
+        function startSimulation() {
+            if (!simRunning) {
+                simRunning = true;
+                resizeCanvas();
+                animateSim();
+            }
+        }
+        function stopSimulation() { simRunning = false; cancelAnimationFrame(animationId); }
+
+        function animateSim() {
+            if (!simRunning) return;
+            const w = canvas.width / 2;
+            const h = canvas.height / 2;
+
+            ctx.clearRect(0, 0, w, h);
+
+            if (simMode === 'tub') {
+                // --- Water Tub View (Top Down) ---
+                const centerX = w / 2;
+                const centerY = h / 2;
+
+                // Background
+                ctx.fillStyle = "#e0f2fe";
+                ctx.fillRect(0, 0, w, h);
+
+                // Waves
+                ctx.strokeStyle = "#0ea5e9";
+                ctx.lineWidth = 2;
+                
+                waves.forEach(wave => {
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, wave.r, 0, Math.PI * 2);
+                    ctx.globalAlpha = wave.opacity;
+                    ctx.stroke();
+                    
+                    wave.r += 2;
+                    wave.opacity -= 0.01;
+                });
+                ctx.globalAlpha = 1;
+
+                // Bobber
+                let bobberOffset = 0;
+                // Check collision with waves
+                waves.forEach(wave => {
+                    // If wave is near center (where bobber is in this abstract view? actually bobber should be offset)
+                    // Let's place bobber at w*0.7
+                    const bobberDist = Math.abs((w*0.7) - centerX); // dist from center
+                    if (Math.abs(wave.r - bobberDist) < 10) {
+                        bobberOffset = Math.sin(Date.now() / 50) * 3;
+                    }
+                });
+
+                // Draw Bobber (Top Down)
+                ctx.beginPath();
+                ctx.arc(w*0.7, centerY + bobberOffset, 12, 0, Math.PI * 2);
+                ctx.fillStyle = "white";
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(w*0.7, centerY + bobberOffset, 6, 0, Math.PI * 2);
+                ctx.fillStyle = "#ef4444";
+                ctx.fill();
+                
+                // Cleanup waves
+                waves = waves.filter(w => w.opacity > 0);
+
+            } else {
+                // --- Trotline View (Side View) ---
+                // Background
+                ctx.fillStyle = "#f8fafc";
+                ctx.fillRect(0, 0, w, h);
+
+                // Tree
+                ctx.fillStyle = "#78350f";
+                ctx.fillRect(w - 20, h/2 - 40, 20, 80); // Tree Trunk
+
+                // Catfish Hand
+                ctx.fillStyle = "#fcd34d";
+                ctx.beginPath();
+                ctx.arc(20, h/2, 10, 0, Math.PI*2);
+                ctx.fill();
+
+                // Rope
+                ctx.beginPath();
+                ctx.moveTo(20, h/2);
+
+                for(let x=20; x < w-20; x+=2) {
+                    let y = h/2;
+                    if (ropePulse.active) {
+                        // Pulse Math
+                        const dist = x - (20 + ropePulse.x);
+                        if (Math.abs(dist) < 40) {
+                            y -= Math.cos(dist * 0.08) * 30 * Math.exp(-(dist*dist)/500);
+                        }
+                    }
+                    ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = "#d97706"; // Rope color
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                if (ropePulse.active) {
+                    ropePulse.x += 4;
+                    if (ropePulse.x > w) ropePulse.active = false;
+                }
+            }
+
+            animationId = requestAnimationFrame(animateSim);
+        }
+
+        function checkExploreAnswer(btn, isCorrect) {
+            const all = btn.parentElement.querySelectorAll('button');
+            all.forEach(b => b.classList.remove('bg-green-100', 'border-green-500', 'bg-red-50', 'border-red-300'));
+            
+            if (isCorrect) {
+                btn.classList.add('bg-green-100', 'border-green-500');
+            } else {
+                btn.classList.add('bg-red-50', 'border-red-300');
+            }
+        }
+
+        // --- Slide 2: Explain ---
+        function toggleDiagram(id) {
+            document.getElementById('label-'+id).classList.toggle('opacity-0');
+        }
+
+        // --- Slide 3: Elaborate ---
+        function runCannonball(prediction) {
+            const tube = document.getElementById('tube');
+            const feedback = document.getElementById('cannon-feedback');
+            
+            feedback.classList.remove('hidden');
+            
+            if (prediction === 'surf') {
+                // Wrong animation
+                tube.style.transform = "translateX(150px)";
+                feedback.innerText = "Wait... waves don't carry matter! Try again.";
+                feedback.className = "text-center text-sm font-bold text-rose-600 bg-rose-50 p-3 rounded-xl mt-2";
+                setTimeout(() => tube.style.transform = "translateX(-50%)", 1000);
+            } else {
+                // Correct animation
+                tube.classList.add('animate-bob');
+                feedback.innerText = "Correct! The energy passes through, but your friend stays put.";
+                feedback.className = "text-center text-sm font-bold text-green-700 bg-green-50 p-3 rounded-xl mt-2";
+                setTimeout(() => tube.classList.remove('animate-bob'), 2000);
+            }
+        }
+
+        // --- Slide 4: Evaluate ---
+        function selectExitAnswer(q, val, btn) {
+            answers[q] = val;
+            const parent = btn.parentElement;
+            parent.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+
+            // Check if all answered
+            if (answers.q1 && answers.q2 && answers.q3) {
+                const sBtn = document.getElementById('submit-btn');
+                sBtn.disabled = false;
+                sBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function submitAssessment() {
+            if (answers.q1 === 'Stay' && answers.q2 === 'Hand' && answers.q3 === 'Energy') {
+                // Perfect score
+                document.getElementById('slide-4').classList.remove('active');
+                document.getElementById('slide-5').classList.add('active');
+                document.querySelector('nav').style.display = 'none';
+            } else {
+                alert("Check your reasoning again! Remember the Golden Rule.");
+            }
+        }
+
+        function resetApp() {
+            location.reload();
+        }
+
+        function toggleTeacherMode() {
+            const v = document.getElementById('teacher-view');
+            if (v.classList.contains('hidden')) {
+                v.classList.remove('hidden');
+                v.classList.add('flex');
+            } else {
+                v.classList.add('hidden');
+                v.classList.remove('flex');
+            }
+        }
+
+        // Boot
+        init();
+        window.addEventListener('resize', resizeCanvas);
+
+    </script>
+</body>
+</html>
+
+
