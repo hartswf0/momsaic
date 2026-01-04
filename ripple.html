@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ripples on the River: Final Version</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Patrick+Hand&display=swap" rel="stylesheet">
+
+    <style>
+        /* Base Settings */
+        body { 
+            font-family: 'Nunito', sans-serif; 
+            background-color: #cbd5e1; /* Slate-300 */
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .handwritten { font-family: 'Patrick Hand', cursive; }
+
+        /* The "Phone" Container */
+        .app-container {
+            width: 100%;
+            max-width: 420px;
+            height: 100%;
+            max-height: 850px;
+            background-color: #ffffff;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        /* Desktop specific styling to look like a phone */
+        @media (min-width: 640px) {
+            .app-container {
+                height: 90vh;
+                border-radius: 40px;
+                border: 8px solid #1e293b; /* Phone bezel */
+            }
+        }
+
+        /* Slide Transition Logic */
+        .slide { 
+            display: none; 
+            height: 100%; 
+            overflow-y: auto; 
+            padding-bottom: 80px; /* Space for footer */
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .slide.active { 
+            display: block; 
+            opacity: 1; 
+        }
+
+        /* Custom Scrollbar for inner content */
+        .slide::-webkit-scrollbar { width: 4px; }
+        .slide::-webkit-scrollbar-track { background: transparent; }
+        .slide::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+        /* UI Components */
+        .notebook-card {
+            background: #fff;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        .notebook-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 24px; bottom: 0;
+            width: 2px;
+            background-color: #f87171; /* Margin line */
+            opacity: 0.5;
+        }
+
+        /* Selection Buttons */
+        .btn-select {
+            transition: all 0.2s;
+            border: 2px solid #e2e8f0;
+        }
+        .btn-select.selected {
+            background-color: #ecfeff; /* Cyan-50 */
+            border-color: #06b6d4; /* Cyan-500 */
+            color: #0e7490;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <header class="bg-cyan-600 text-white p-4 shrink-0 z-20 shadow-md">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-xl font-bold leading-none">Ripples on the River</h1>
+                    <p class="text-[10px] uppercase font-bold tracking-wider opacity-80 mt-1">Grade 4 Science • 4.PS4.1</p>
+                </div>
+                <div class="bg-cyan-700 p-1 rounded-lg flex gap-1">
+                    <button onclick="toggleView('student')" id="view-student-btn" class="px-3 py-1 text-xs font-bold rounded bg-white text-cyan-800 shadow-sm transition">Student</button>
+                    <button onclick="toggleView('teacher')" id="view-teacher-btn" class="px-3 py-1 text-xs font-bold rounded text-cyan-100 hover:bg-cyan-600 transition">Teacher</button>
+                </div>
+            </div>
+            <div class="w-full bg-cyan-800 h-1.5 rounded-full mt-3 overflow-hidden">
+                <div id="progress-bar" class="bg-yellow-400 h-full w-[20%] transition-all duration-300"></div>
+            </div>
+        </header>
+
+        <main id="view-student" class="flex-1 relative overflow-hidden bg-slate-50">
+            
+            <div class="slide active p-5" id="slide-0">
+                <div class="notebook-card p-6 pl-12 mb-6">
+                    <span class="absolute top-2 right-2 text-2xl">🎣</span>
+                    <h2 class="text-lg font-bold text-slate-700 mb-2">The Story</h2>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-4">
+                        You are fishing on a quiet river. Your red-and-white bobber floats peacefully. Suddenly, a fast boat zooms by!
+                    </p>
+                    <div class="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r text-sm text-blue-900 italic">
+                        "The bobber bounces up and down violently, but it stays in the same spot."
+                    </div>
+                </div>
+
+                <div class="w-full h-40 bg-sky-200 rounded-xl border-2 border-sky-300 relative overflow-hidden shadow-inner mb-4 group">
+                    <div class="absolute bottom-0 w-full h-12 bg-sky-400 opacity-80"></div>
+                    <div class="absolute bottom-12 left-0 w-32 h-32 bg-emerald-200 rounded-full blur-sm"></div>
+                    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+                        <div class="w-1 h-6 bg-black mx-auto"></div>
+                        <div class="w-6 h-6 bg-white rounded-full border border-gray-500 overflow-hidden relative">
+                            <div class="absolute bottom-0 w-full h-3 bg-red-500"></div>
+                        </div>
+                    </div>
+                    <div class="absolute top-10 -right-10 text-4xl transition-transform duration-[2000ms] group-hover:-translate-x-[400px]">🚤</div>
+                    <div class="absolute top-2 left-2 text-[10px] text-sky-700 font-bold opacity-50">TAP TO SCARE THE FISH</div>
+                </div>
+                
+                <p class="text-center text-slate-500 text-xs italic">Tap the picture to see the boat zoom!</p>
+            </div>
+
+            <div class="slide p-5" id="slide-1">
+                <h2 class="text-lg font-bold text-slate-800 mb-3 pl-2">Experiment: Water Waves</h2>
+                
+                <div class="relative w-full h-64 bg-gradient-to-b from-sky-100 to-sky-300 rounded-xl border-2 border-sky-400 overflow-hidden shadow-lg mb-4">
+                    <canvas id="waveCanvas" class="w-full h-full block"></canvas>
+                    
+                    <button onclick="triggerWave()" class="absolute top-3 right-3 bg-white text-red-500 font-bold py-2 px-4 rounded-full shadow-lg text-xs flex items-center gap-2 hover:scale-105 transition active:scale-95">
+                        <i class="ph ph-baseball text-lg"></i> Throw Rock
+                    </button>
+                    
+                    <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur text-white text-xs px-3 py-2 rounded-lg border border-slate-700">
+                        Bobber Motion: <span id="bobber-readout" class="font-mono text-yellow-300 font-bold">STILL</span>
+                    </div>
+                </div>
+
+                <div class="notebook-card p-4 pl-10 bg-white">
+                    <p class="font-bold text-slate-700 text-sm mb-2">Observation Check:</p>
+                    <div class="space-y-2">
+                        <button onclick="checkObservation(this, false)" class="w-full text-left p-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+                            The bobber floated to the shore.
+                        </button>
+                        <button onclick="checkObservation(this, true)" class="w-full text-left p-2 border rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+                            The bobber bounced in place.
+                        </button>
+                    </div>
+                    <div id="obs-feedback" class="hidden mt-3 text-xs font-bold text-green-600 bg-green-50 p-2 rounded border border-green-200">
+                        Correct! Energy moves, matter stays!
+                    </div>
+                </div>
+            </div>
+
+            <div class="slide p-5" id="slide-2">
+                <h2 class="text-lg font-bold text-slate-800 mb-3 pl-2">The Science of Waves</h2>
+                
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-4">
+                    <svg viewBox="0 0 300 140" class="w-full">
+                        <defs>
+                            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f1f5f9" stroke-width="1"/>
+                            </pattern>
+                            <marker id="arrowHead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444"/>
+                            </marker>
+                            <marker id="arrowHeadPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#9333ea"/>
+                            </marker>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#grid)"/>
+                        
+                        <line x1="0" y1="70" x2="300" y2="70" stroke="#94a3b8" stroke-dasharray="4"/>
+                        <text x="5" y="65" font-size="8" fill="#94a3b8">Still Water Level</text>
+
+                        <path d="M0,70 Q37.5,10 75,70 T150,70 T225,70 T300,70" fill="none" stroke="#0ea5e9" stroke-width="3" stroke-linecap="round"/>
+
+                        <g id="diag-amp" class="hidden">
+                            <line x1="37.5" y1="70" x2="37.5" y2="10" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowHead)"/>
+                            <text x="45" y="40" font-size="10" font-weight="bold" fill="#ef4444">AMPLITUDE</text>
+                            <text x="45" y="52" font-size="8" fill="#64748b">(Height = Energy)</text>
+                        </g>
+
+                        <g id="diag-wave" class="hidden">
+                            <line x1="37.5" y1="5" x2="187.5" y2="5" stroke="#9333ea" stroke-width="2"/>
+                            <line x1="37.5" y1="15" x2="37.5" y2="0" stroke="#9333ea" stroke-width="1"/>
+                            <line x1="187.5" y1="15" x2="187.5" y2="0" stroke="#9333ea" stroke-width="1"/>
+                            <text x="65" y="15" font-size="10" font-weight="bold" fill="#9333ea" bg="white">WAVELENGTH</text>
+                        </g>
+                    </svg>
+
+                    <div class="flex gap-2 mt-4">
+                        <button onclick="toggleDiagram('amp')" class="flex-1 py-2 rounded bg-red-50 text-red-600 text-xs font-bold border border-red-200">Show Amplitude</button>
+                        <button onclick="toggleDiagram('wave')" class="flex-1 py-2 rounded bg-purple-50 text-purple-600 text-xs font-bold border border-purple-200">Show Wavelength</button>
+                    </div>
+                </div>
+
+                <div class="notebook-card p-4 pl-10 bg-yellow-50 border-yellow-200">
+                    <p class="text-sm text-slate-700">
+                        <strong class="text-purple-700">Wavelength</strong> is how LONG the wave is.<br>
+                        <strong class="text-red-700">Amplitude</strong> is how TALL the wave is (Energy).
+                    </p>
+                </div>
+            </div>
+
+            <div class="slide p-5" id="slide-3">
+                <div class="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 mb-20">
+                    <div class="flex justify-between items-center mb-6 border-b pb-4">
+                        <h2 class="font-bold text-xl text-slate-800">Exit Ticket</h2>
+                        <span class="bg-slate-100 text-slate-500 text-[10px] px-2 py-1 rounded font-bold">FINAL TASK</span>
+                    </div>
+
+                    <div class="mb-6">
+                        <p class="text-sm font-bold text-slate-700 mb-2">1. Waves carry <span class="border-b-2 border-dashed border-slate-300 w-12 inline-block"></span>, NOT matter.</p>
+                        <div class="flex gap-3">
+                            <button onclick="setAnswer('q1', 'Matter')" id="btn-matter" class="btn-select flex-1 py-3 rounded-xl text-sm font-bold text-slate-600">Matter</button>
+                            <button onclick="setAnswer('q1', 'Energy')" id="btn-energy" class="btn-select flex-1 py-3 rounded-xl text-sm font-bold text-slate-600">Energy</button>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <p class="text-sm font-bold text-slate-700 mb-2">2. How does the bobber move?</p>
+                        <div class="flex justify-center gap-4">
+                            <button onclick="setAnswer('q2', 'sideways')" id="btn-sideways" class="btn-select w-24 h-24 rounded-2xl flex flex-col items-center justify-center gap-2">
+                                <i class="ph ph-arrow-right text-3xl opacity-50"></i>
+                                <span class="text-xs font-bold opacity-70">Sideways</span>
+                            </button>
+                            <button onclick="setAnswer('q2', 'updown')" id="btn-updown" class="btn-select w-24 h-24 rounded-2xl flex flex-col items-center justify-center gap-2">
+                                <i class="ph ph-arrows-vertical text-3xl opacity-50"></i>
+                                <span class="text-xs font-bold opacity-70">Up & Down</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button onclick="submitTicket()" class="w-full bg-cyan-600 hover:bg-cyan-700 active:scale-95 transition text-white font-bold py-4 rounded-xl shadow-lg mb-4">
+                        Submit Answer
+                    </button>
+
+                    <div id="feedback-error" class="hidden p-3 bg-red-50 text-red-600 text-xs font-bold rounded-lg text-center border border-red-100">
+                        Please answer both questions first!
+                    </div>
+                    <div id="feedback-success" class="hidden p-4 bg-green-50 text-green-800 rounded-lg text-center border border-green-200">
+                        <div class="text-3xl mb-2">🌟</div>
+                        <h3 class="font-bold">Awesome Job!</h3>
+                        <p class="text-xs mt-1">You are a Wave Expert!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur border-t border-slate-200 p-3 flex justify-between items-center z-10">
+                <button onclick="changeSlide(-1)" id="nav-prev" class="p-3 text-slate-300 hover:text-cyan-600 transition disabled:opacity-0">
+                    <i class="ph ph-caret-circle-left text-4xl"></i>
+                </button>
+                
+                <span id="nav-indicator" class="text-xs font-extrabold uppercase tracking-widest text-cyan-800">Introduction</span>
+                
+                <button onclick="changeSlide(1)" id="nav-next" class="p-3 text-cyan-600 hover:text-cyan-800 transition disabled:opacity-0">
+                    <i class="ph ph-caret-circle-right text-4xl"></i>
+                </button>
+            </div>
+
+        </main>
+
+        <div id="view-teacher" class="hidden flex-1 bg-slate-100 overflow-y-auto p-6">
+            <div class="max-w-md mx-auto space-y-4">
+                <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-yellow-400">
+                    <h3 class="font-bold text-slate-800 text-sm uppercase mb-2">Misconception Alert</h3>
+                    <p class="text-sm text-slate-600">Students often confuse the movement of the <em>pattern</em> (the wave moving right) with the movement of the <em>matter</em> (the water moving right). Use the bobber simulation to prove the water only moves vertically.</p>
+                </div>
+
+                <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-cyan-500">
+                    <h3 class="font-bold text-slate-800 text-sm uppercase mb-2">Answer Key</h3>
+                    <ul class="text-sm text-slate-600 space-y-2">
+                        <li class="flex justify-between border-b pb-1"><span>Q1: Waves carry...</span> <span class="font-bold text-cyan-700">Energy</span></li>
+                        <li class="flex justify-between border-b pb-1"><span>Q2: Bobber moves...</span> <span class="font-bold text-cyan-700">Up & Down</span></li>
+                    </ul>
+                </div>
+
+                <div class="bg-white p-5 rounded-lg shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-sm uppercase mb-2">Lesson Stats</h3>
+                    <div class="grid grid-cols-2 gap-4 text-center">
+                        <div class="bg-slate-50 p-2 rounded">
+                            <div class="text-2xl font-bold text-slate-700">45m</div>
+                            <div class="text-[10px] uppercase text-slate-400">Duration</div>
+                        </div>
+                        <div class="bg-slate-50 p-2 rounded">
+                            <div class="text-2xl font-bold text-slate-700">PS4.1</div>
+                            <div class="text-[10px] uppercase text-slate-400">Standard</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Navigation Logic ---
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const titles = ["Introduction", "Experiment", "Diagram", "Exit Ticket"];
+        const progressBar = document.getElementById('progress-bar');
+        const navTitle = document.getElementById('nav-indicator');
+
+        function changeSlide(direction) {
+            // Hide current
+            slides[currentSlide].classList.remove('active');
+            
+            // Update Index
+            currentSlide += direction;
+            if (currentSlide < 0) currentSlide = 0;
+            if (currentSlide >= slides.length) currentSlide = slides.length - 1;
+
+            // Show new
+            slides[currentSlide].classList.add('active');
+
+            // Update UI
+            navTitle.innerText = titles[currentSlide];
+            progressBar.style.width = `${((currentSlide + 1) / slides.length) * 100}%`;
+            
+            document.getElementById('nav-prev').disabled = currentSlide === 0;
+            document.getElementById('nav-next').disabled = currentSlide === slides.length - 1;
+
+            // Trigger Canvas if on Experiment Slide
+            if (currentSlide === 1) startSimulation();
+        }
+
+        function toggleView(view) {
+            const sView = document.getElementById('view-student');
+            const tView = document.getElementById('view-teacher');
+            const sBtn = document.getElementById('view-student-btn');
+            const tBtn = document.getElementById('view-teacher-btn');
+
+            if (view === 'teacher') {
+                sView.classList.add('hidden');
+                tView.classList.remove('hidden');
+                sBtn.className = "px-3 py-1 text-xs font-bold rounded text-cyan-100 hover:bg-cyan-600 transition";
+                tBtn.className = "px-3 py-1 text-xs font-bold rounded bg-white text-cyan-800 shadow-sm transition";
+            } else {
+                tView.classList.add('hidden');
+                sView.classList.remove('hidden');
+                tBtn.className = "px-3 py-1 text-xs font-bold rounded text-cyan-100 hover:bg-cyan-600 transition";
+                sBtn.className = "px-3 py-1 text-xs font-bold rounded bg-white text-cyan-800 shadow-sm transition";
+            }
+        }
+
+        // --- Physics Simulation (Canvas) ---
+        const canvas = document.getElementById('waveCanvas');
+        const ctx = canvas.getContext('2d');
+        let waves = [];
+        let animationFrame;
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.offsetWidth;
+            canvas.height = canvas.parentElement.offsetHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        
+        function triggerWave() {
+            waves.push({ x: -20, amp: 25, speed: 4 });
+        }
+
+        function drawSimulation() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Water physics parameters
+            const waterLevel = canvas.height / 2 + 20;
+            const bobberX = canvas.width * 0.7;
+            let bobberY = waterLevel; // Default position
+
+            // Draw Sky/Water Background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#e0f2fe'); // Sky-100
+            gradient.addColorStop(0.5, '#bae6fd'); // Sky-200
+            gradient.addColorStop(1, '#0ea5e9'); // Sky-500
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Water Surface
+            ctx.beginPath();
+            ctx.moveTo(0, waterLevel);
+            
+            for (let x = 0; x <= canvas.width; x += 2) {
+                let y = waterLevel;
+                
+                // Superposition of waves
+                waves.forEach(wave => {
+                    const dist = x - wave.x;
+                    // Gaussian Wave Packet Formula
+                    if (Math.abs(dist) < 80) {
+                        y += Math.sin(dist * 0.15) * wave.amp * Math.exp(-(dist * dist) / 1000);
+                    }
+                });
+
+                ctx.lineTo(x, y);
+
+                // Check bobber height
+                if (Math.abs(x - bobberX) < 2) {
+                    bobberY = y;
+                }
+            }
+
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+            ctx.fill();
+            
+            ctx.strokeStyle = "#0284c7";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw Bobber
+            ctx.beginPath();
+            ctx.moveTo(bobberX, bobberY - 15);
+            ctx.lineTo(bobberX, bobberY - 25);
+            ctx.strokeStyle = "#334155";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Bobber White Top
+            ctx.beginPath();
+            ctx.arc(bobberX, bobberY - 6, 10, 0, Math.PI * 2);
+            ctx.fillStyle = "white";
+            ctx.fill();
+            ctx.stroke();
+
+            // Bobber Red Bottom
+            ctx.beginPath();
+            ctx.arc(bobberX, bobberY - 6, 10, 0, Math.PI, false);
+            ctx.fillStyle = "#ef4444";
+            ctx.fill();
+            
+            // Update UI Readout
+            const readout = document.getElementById('bobber-readout');
+            if (Math.abs(bobberY - waterLevel) > 1) {
+                readout.innerText = "BOUNCING!";
+                readout.className = "font-mono text-red-200 font-bold animate-pulse";
+            } else {
+                readout.innerText = "STILL";
+                readout.className = "font-mono text-yellow-300 font-bold";
+            }
+
+            // Update Physics State
+            waves.forEach(w => {
+                w.x += w.speed;
+                w.amp *= 0.995; // Decay
+            });
+            // Remove old waves
+            waves = waves.filter(w => w.x < canvas.width + 100);
+
+            animationFrame = requestAnimationFrame(drawSimulation);
+        }
+
+        function startSimulation() {
+            if (!animationFrame) {
+                resizeCanvas();
+                drawSimulation();
+            }
+        }
+
+        function checkObservation(btn, isCorrect) {
+            if (isCorrect) {
+                btn.classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+                document.getElementById('obs-feedback').classList.remove('hidden');
+            } else {
+                btn.classList.add('bg-red-50', 'border-red-300');
+                setTimeout(() => {
+                    btn.classList.remove('bg-red-50', 'border-red-300');
+                }, 1000);
+            }
+        }
+
+        // --- Diagram Logic ---
+        function toggleDiagram(type) {
+            const el = document.getElementById('diag-' + type);
+            el.classList.toggle('hidden');
+        }
+
+        // --- Exit Ticket Logic ---
+        let answers = { q1: null, q2: null };
+
+        function setAnswer(q, val) {
+            answers[q] = val;
+            
+            // Update UI State
+            if (q === 'q1') {
+                document.getElementById('btn-matter').classList.remove('selected');
+                document.getElementById('btn-energy').classList.remove('selected');
+                document.getElementById(val === 'Matter' ? 'btn-matter' : 'btn-energy').classList.add('selected');
+            } else {
+                document.getElementById('btn-sideways').classList.remove('selected');
+                document.getElementById('btn-updown').classList.remove('selected');
+                document.getElementById(val === 'sideways' ? 'btn-sideways' : 'btn-updown').classList.add('selected');
+            }
+        }
+
+        function submitTicket() {
+            const err = document.getElementById('feedback-error');
+            const suc = document.getElementById('feedback-success');
+
+            err.classList.add('hidden');
+            suc.classList.add('hidden');
+
+            if (!answers.q1 || !answers.q2) {
+                err.classList.remove('hidden');
+                return;
+            }
+
+            if (answers.q1 === 'Energy' && answers.q2 === 'updown') {
+                suc.classList.remove('hidden');
+            } else {
+                err.innerText = "Incorrect. Remember: Energy moves through the wave, but the bobber only moves Up & Down.";
+                err.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
