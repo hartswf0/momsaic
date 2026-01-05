@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a1a1a">
+<title>EL DESIERTO // PRO</title>
+<style>
+    :root {
+        --bg: #121212;
+        --panel: #1e1e1e;
+        --border: #333;
+        --gold: #ffb700;
+        --gold-dim: #997a2b;
+        --blue: #4488ff;
+        --bone: #e0e0e0;
+        
+        --c-rhythm: #ff8e72;
+        --c-lead: #ffdd44;
+        --c-swell: #aabbee;
+        --c-perc: #ffffff;
+        
+        --font-main: 'Courier Prime', monospace;
+        --font-disp: 'Georgia', serif;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; touch-action: none; }
+    
+    html, body {
+        margin: 0; padding: 0;
+        background: var(--bg); color: var(--bone);
+        font-family: var(--font-main);
+        height: 100%; width: 100%;
+        overflow: hidden; 
+        display: flex; flex-direction: column;
+    }
+
+    #sand-layer {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none; z-index: 1; mix-blend-mode: screen; opacity: 0.15;
+    }
+
+    header {
+        height: 64px; background: #080808; border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 16px; flex-shrink: 0; z-index: 20; gap: 20px;
+    }
+    
+    .brand { 
+        font-family: var(--font-disp); font-weight: 700; color: var(--gold); 
+        font-size: 16px; letter-spacing: 2px; flex-shrink: 0; margin-right: 10px;
+        transition: opacity 0.2s; min-width: 60px;
+    }
+    .brand.changing { opacity: 0; }
+
+    .meta-ctrls { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+
+    .btn-vintage {
+        background: #151515; border: 1px solid var(--border);
+        color: #888; font-family: var(--font-main); font-size: 10px;
+        padding: 6px 12px; cursor: pointer; text-transform: uppercase;
+        letter-spacing: 1px; border-radius: 2px; font-weight: bold;
+        position: relative; transition: all 0.2s; min-width: 80px; text-align: center;
+    }
+    .btn-vintage:active { border-color: var(--gold); color: var(--gold); background: #222; }
+    
+    .help-btn {
+        width: 30px; height: 30px; border: 1px solid #444; border-radius: 50%;
+        color: #666; display: grid; place-items: center; font-weight: bold; cursor: pointer; background: transparent;
+        font-size: 14px;
+    }
+    .help-btn:active { background: #fff; color: #000; border-color: #fff; }
+
+    .bpm-container {
+        display: flex; flex-direction: column; justify-content: center; gap: 6px; flex: 1; 
+        min-width: 0;
+    }
+    .bpm-header { display: flex; justify-content: space-between; align-items: center; }
+    .bpm-label { font-size: 9px; color: #666; font-weight: bold; letter-spacing: 1px; }
+    .bpm-val { font-size: 11px; color: var(--gold); font-weight: bold; font-family: var(--font-disp); }
+
+    /* --- UNIFIED FADER STYLES --- */
+    .fader-track { background: #222; position: relative; border-radius: 2px; }
+    .fader-fill { background: #888; border-radius: 2px; pointer-events: none; position: absolute; }
+    .fader-cap { 
+        background: #ccc; border-radius: 1px; 
+        box-shadow: 0 1px 4px rgba(0,0,0,0.8); pointer-events: none; position: absolute;
+    }
+
+    /* Vertical Fader */
+    .fader-wrap { width: 100%; flex: 1; position: relative; display: flex; justify-content: center; cursor: ns-resize; }
+    .fader-wrap .fader-track { width: 4px; height: 80%; top: 10%; background: #111; border: 1px solid #222; }
+    .fader-wrap .fader-fill { bottom: 0; left: 0; width: 100%; height: 50%; }
+    .fader-wrap .fader-cap { left: 50%; bottom: 50%; width: 24px; height: 12px; transform: translate(-50%, 6px); background: #444; border: 1px solid #666; }
+
+    /* Horizontal Fader */
+    .fader-h { width: 100%; height: 24px; position: relative; cursor: ew-resize; touch-action: none; display: flex; align-items: center; }
+    .fader-h .fader-track { width: 100%; height: 2px; background: #333; position: absolute; top: 50%; transform: translateY(-50%); }
+    .fader-h .fader-fill { top: 50%; left: 0; height: 2px; transform: translateY(-50%); width: 50%; }
+    .fader-h .fader-cap { top: 50%; left: 50%; width: 10px; height: 20px; transform: translate(-5px, -50%); background: #ddd; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+
+    .fader-fill.echo { background: var(--blue) !important; opacity: 0.8; }
+    .fader-h.bpm .fader-fill { background: var(--gold); }
+    .fader-h.bpm .fader-cap { background: var(--gold); }
+    
+    .rack[data-type="rhythm"] .fader-fill:not(.echo) { background: var(--c-rhythm); }
+    .rack[data-type="lead"] .fader-fill:not(.echo) { background: var(--c-lead); }
+    .rack[data-type="swell"] .fader-fill:not(.echo) { background: var(--c-swell); }
+    .rack[data-type="perc"] .fader-fill:not(.echo) { background: var(--c-perc); }
+
+    /* --- PRO CONTROL SURFACE (Footer) --- */
+    footer {
+        height: 90px; background: #080808; border-top: 1px solid var(--border);
+        display: flex; align-items: center; padding: 0 16px; z-index: 30; gap: 10px; flex-shrink: 0;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .control-surface {
+        flex: 1; height: 50px; background: #111; border: 1px solid #333;
+        border-radius: 4px; display: flex; align-items: stretch;
+        position: relative; overflow: hidden;
+    }
+
+    .slot-select {
+        width: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        font-family: var(--font-disp); font-weight: bold; font-size: 14px;
+        cursor: pointer; transition: background 0.2s; position: relative; z-index: 5;
+    }
+    .slot-select:active { transform: scale(0.95); }
+    .slot-select.slot-a { border-right: 1px solid #333; color: var(--gold); }
+    .slot-select.slot-b { border-left: 1px solid #333; color: var(--blue); }
+    .slot-select span { font-size: 8px; opacity: 0.5; font-family: var(--font-main); margin-top: 2px; }
+
+    .morph-zone {
+        flex: 1; position: relative; cursor: ew-resize; touch-action: none;
+        background: radial-gradient(circle at center, #1a1a1a 0%, #111 100%);
+    }
+    .morph-track-line {
+        position: absolute; top: 50%; left: 10px; right: 10px; height: 2px;
+        background: #222; transform: translateY(-50%);
+    }
+    .morph-fill-bar {
+        position: absolute; top: 50%; left: 10px; height: 2px; width: 50%;
+        background: linear-gradient(90deg, var(--gold) 0%, var(--blue) 100%);
+        transform: translateY(-50%); opacity: 0.7;
+    }
+    .morph-knob {
+        position: absolute; top: 50%; left: 50%; width: 20px; height: 30px;
+        background: #e0e0e0; transform: translate(-50%, -50%);
+        border-radius: 2px; box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+        z-index: 10;
+    }
+    .morph-knob::after {
+        content:''; position: absolute; top: 8px; bottom: 8px; left: 50%; width: 2px;
+        background: #888; transform: translateX(-50%);
+    }
+    
+    .morph-labels-float {
+        position: absolute; bottom: 4px; width: 100%; display: flex; justify-content: space-between;
+        padding: 0 70px; pointer-events: none; font-size: 9px; color: #555; font-weight: bold;
+    }
+
+    /* RACK STYLES */
+    #rack-container {
+        flex: 1; display: flex; flex-direction: column;
+        background: #000; z-index: 10; overflow: hidden; min-height: 0;
+    }
+    .rack {
+        flex: 1; border-bottom: 1px solid var(--border);
+        display: grid; grid-template-columns: 50px 1fr 50px;
+        background: var(--panel); min-height: 80px; position: relative;
+    }
+    .rack.muted .screen { opacity: 0.2; filter: grayscale(100%); }
+    .ctrl-col { background: #151515; display: flex; flex-direction: column; align-items: center; justify-content: center; touch-action: none; padding: 4px 0; }
+    .ctrl-col.left { border-right: 1px solid var(--border); }
+    .ctrl-col.right { border-left: 1px solid var(--border); }
+    .fader-lbl { font-size: 8px; color: #555; margin-top: 4px; text-align: center; font-weight: bold; letter-spacing: 1px; }
+    .screen { position: relative; background: #000; overflow: hidden; touch-action: none; cursor: crosshair; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+    
+    .track-meta { 
+        position: absolute; top: 6px; left: 8px; font-size: 10px; 
+        color: #fff; font-weight: bold; letter-spacing: 1px; pointer-events: auto;
+        text-shadow: 0 1px 2px #000; padding: 4px 8px; border-radius: 4px;
+        border: 1px solid rgba(255,255,255,0.1); cursor: pointer; background: rgba(0,0,0,0.6);
+        transition: all 0.1s;
+    }
+    .track-meta:hover { background: rgba(255,255,255,0.1); border-color: #fff; }
+    .track-meta:active { background: #fff; color:#000; }
+
+    #fab-mini {
+        width: 44px; height: 44px; border-radius: 50%;
+        background: #111; border: 2px solid var(--gold);
+        display: grid; place-items: center; cursor: pointer;
+        box-shadow: 0 0 15px rgba(0,0,0,0.5); flex-shrink: 0;
+    }
+    .play-tri { width: 0; height: 0; border-left: 12px solid var(--gold); border-top: 7px solid transparent; border-bottom: 7px solid transparent; margin-left: 4px; }
+    .playing .play-tri { border: none; width: 12px; height: 12px; background: #f00; margin: 0; border-radius: 2px; box-shadow: 0 0 10px #f00; }
+    .playing#fab-mini { border-color: #f00; }
+
+    /* Clear Button */
+    .ctrl-btn-std {
+        width: 30px; height: 20px; border: 1px solid #333; color: #666;
+        display: grid; place-items: center; font-size: 9px; cursor: pointer; border-radius: 2px;
+        font-weight: bold; margin-bottom: 6px; background: #1a1a1a; transition: all 0.1s;
+    }
+    .ctrl-btn-std.active { border-color: #f44; color: #fff; background: #d00; }
+    .ctrl-btn-std:active { transform: translateY(1px); color: #fff; border-color: #fff; }
+
+    #unlock { position: fixed; inset: 0; background: #050505; z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s; }
+    .unlock-btn { border: 1px solid var(--gold); padding: 15px 30px; border-radius: 2px; color: var(--gold); letter-spacing: 2px; cursor: pointer; background: #000; animation: pulse 2s infinite; margin: 10px; font-weight: bold; font-size: 14px; min-width: 200px; text-align: center; }
+    .unlock-text { color: #666; font-size: 10px; margin-top: 20px; max-width: 400px; text-align: center; line-height: 1.6; padding: 0 20px; }
+    .unlock-text strong { color: var(--gold); }
+    @keyframes pulse { 0% { opacity: 0.8; box-shadow: 0 0 10px rgba(255,183,0,0.1); } 50% { opacity: 1; box-shadow: 0 0 20px rgba(255,183,0,0.2); } 100% { opacity: 0.8; box-shadow: 0 0 10px rgba(255,183,0,0.1); } }
+
+    #toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; border: 1px solid var(--gold); padding: 10px 20px; color: var(--gold); font-size: 16px; font-family: var(--font-disp); opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 4000; box-shadow: 0 10px 40px rgba(0,0,0,0.9); }
+    #toast.show { opacity: 1; }
+
+    .preset-gallery { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 5000; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; animation: fadeIn 0.3s forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+    .gallery-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; max-width: 600px; padding: 20px; max-height: 60vh; overflow-y: auto; }
+    .preset-thumb { border: 1px solid #444; border-radius: 4px; padding: 10px; cursor: pointer; transition: all 0.2s; background: #111; }
+    .preset-thumb:hover { border-color: var(--gold); transform: scale(1.02); }
+    .preset-thumb canvas { width: 100%; height: auto; border-radius: 2px; }
+    .preset-label { text-align: center; margin-top: 8px; font-weight: bold; font-size: 11px; color: #888; font-family: var(--font-disp); }
+    .gallery-close { position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; border: 1px solid #444; border-radius: 50%; display: grid; place-items: center; color: #666; font-size: 20px; cursor: pointer; }
+    .gallery-close:hover { border-color: #fff; color: #fff; }
+    
+    .gallery-controls { display: flex; gap: 15px; margin-bottom: 20px; }
+    .gallery-btn {
+        background: #111; border: 1px solid var(--gold); color: var(--gold);
+        padding: 10px 25px; font-family: var(--font-disp); font-weight: bold; font-size: 12px;
+        cursor: pointer; transition: all 0.2s; letter-spacing: 2px;
+    }
+    .gallery-btn:hover { background: var(--gold); color: #000; }
+    .gallery-btn:active { transform: scale(0.95); }
+    
+    .gallery-paste-view { width: 90%; max-width: 600px; display: flex; flex-direction: column; gap: 10px; height: 70vh; }
+    .gallery-paste-area { width: 100%; flex: 1; background: #080808; border: 1px solid #333; color: #aaa; font-family: monospace; padding: 10px; resize: none; border-radius: 4px; font-size: 10px; }
+    .gallery-paste-area:focus { outline: none; border-color: var(--gold); }
+
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<div id="unlock">
+    <div style="color:#666; font-size:10px; margin-bottom:20px; letter-spacing:3px; font-weight:bold;">AUDIO SYSTEM PRE-FLIGHT</div>
+    <div class="unlock-btn" id="btn-start">INIT SYSTEM</div>
+    <div class="unlock-text">
+        <strong>STATUS:</strong> System ready.<br>
+        <strong>MODE:</strong> Always Edit.<br>
+        <strong>BLEND:</strong> Select A (Left) and B (Right). Slide to Morph.<br>
+        <strong>SAVE:</strong> Long-press A or B box to save pattern.
+    </div>
+</div>
+
+<canvas id="sand-layer"></canvas>
+
+<header>
+    <div class="brand" id="app-title">GALLOP</div>
+    <div class="bpm-container">
+        <div class="bpm-header">
+            <span class="bpm-label">TEMPO</span>
+            <span class="bpm-val" id="bpm-display">92</span>
+        </div>
+        <div class="fader-h bpm" id="bpm-slider">
+            <div class="fader-track"></div>
+            <div class="fader-fill" style="width: 30%;"></div>
+            <div class="fader-cap" style="left: 30%;"></div>
+        </div>
+    </div>
+    <div class="meta-ctrls">
+        <button class="btn-vintage" id="btn-set">SET: TIERRA</button>
+        <div class="help-btn" id="btn-help" title="View Presets">◉</div>
+    </div>
+</header>
+
+<div id="rack-container"></div>
+
+<footer>
+    <!-- PROFESSIONAL CONTROL SURFACE -->
+    <div class="control-surface">
+        <div class="slot-select slot-a active-edit-a" id="slot-a-btn">
+            I
+            <span id="label-a">SLOT I</span>
+        </div>
+        
+        <div class="morph-zone" id="morph-track">
+            <div class="morph-track-line"></div>
+            <div class="morph-fill-bar" id="morph-fill"></div>
+            <div class="morph-knob" id="morph-thumb"></div>
+        </div>
+        
+        <div class="slot-select slot-b" id="slot-b-btn">
+            II
+            <span id="label-b">SLOT II</span>
+        </div>
+        <div class="morph-labels-float">
+            <span id="morph-float-a" style="color:var(--gold)"></span>
+            <span id="morph-float-b" style="color:var(--blue)"></span>
+        </div>
+    </div>
+    
+    <div id="fab-mini"><div class="play-tri"></div></div>
+</footer>
+
+<!-- Hidden File Input for Import -->
+<input type="file" id="file-input" accept=".json" style="display: none;" />
+
+<script>
+const $ = id => document.getElementById(id);
+const Toast = msg => { 
+    const t = $('toast'); 
+    t.innerText = msg; 
+    t.classList.add('show'); 
+    setTimeout(() => t.classList.remove('show'), 1500); 
+};
+const Haptics = { 
+    enabled: !!navigator.vibrate, 
+    tick() { if(this.enabled) navigator.vibrate(5); }, 
+    thud() { if(this.enabled) navigator.vibrate([20, 20]); }, // Stronger thud
+    click() { if(this.enabled) navigator.vibrate(10); } 
+};
+
+/* AUDIO ENGINE */
+const Audio = {
+    ctx: null, master: null, limiter: null, isPlaying: false, step: 0, nextTime: 0, timer: null,
+    rhythm: { dry: null, send: null, input: null }, lead: { dry: null, send: null, input: null }, 
+    swell: { dry: null, send: null, input: null }, perc: { dry: null, send: null, input: null },
+    init() {
+        if (this.ctx) return;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AC();
+        this.limiter = this.ctx.createDynamicsCompressor();
+        this.limiter.threshold.value = -1.0; this.limiter.ratio.value = 20.0;
+        this.master = this.ctx.createGain(); 
+        this.master.connect(this.limiter); 
+        this.limiter.connect(this.ctx.destination);
+        this.verbBus = this.ctx.createGain();
+        this.springVerb = this.createConvolver(3.5);
+        this.verbBus.connect(this.springVerb); 
+        this.springVerb.connect(this.master);
+        
+        // Zero initial feedback
+        this.rhythm = this.createChannel(); 
+        this.rhythmDelay = this.createTapeDelay(0.12, 0.0, 1200);
+        this.rhythm.dry.connect(this.rhythmDelay.in); 
+        this.rhythmDelay.out.connect(this.master);
+        
+        this.lead = this.createChannel(); 
+        this.leadDelay = this.createTapeDelay(0.45, 0.0, 2000);
+        this.lead.dry.connect(this.leadDelay.in); 
+        this.leadDelay.out.connect(this.master); 
+        this.leadDelay.out.connect(this.verbBus);
+        
+        this.swell = this.createChannel(); 
+        this.perc = this.createChannel();
+    },
+    createChannel() {
+        const bus = this.ctx.createGain(); 
+        const dry = this.ctx.createGain(); 
+        const send = this.ctx.createGain(); 
+        send.gain.value = 0.3;
+        const analyzer = this.ctx.createAnalyser();
+        analyzer.fftSize = 256;
+        bus.connect(dry);
+        dry.connect(this.master);
+        bus.connect(send); 
+        send.connect(this.verbBus);
+        const analyzerTap = this.ctx.createGain();
+        analyzerTap.gain.value = 1.0;
+        dry.connect(analyzerTap);
+        analyzerTap.connect(analyzer);
+        return { input: bus, dry: dry, send: send, analyzer: analyzer };
+    },
+    createConvolver(sec) {
+        const c = this.ctx.createConvolver(); 
+        const len = this.ctx.sampleRate * sec; 
+        const buf = this.ctx.createBuffer(2, len, this.ctx.sampleRate);
+        for(let i=0; i<len; i++) { 
+            const d = Math.pow(1 - i/len, 2.5); 
+            buf.getChannelData(0)[i] = (Math.random()*2-1)*d; 
+            buf.getChannelData(1)[i] = (Math.random()*2-1)*d; 
+        }
+        c.buffer = buf; 
+        return c;
+    },
+    createTapeDelay(time, fbAmt, toneFreq) {
+        const inp = this.ctx.createGain(); 
+        const out = this.ctx.createGain();
+        const delay = this.ctx.createDelay(); 
+        delay.delayTime.value = time;
+        const feedback = this.ctx.createGain(); 
+        feedback.gain.value = fbAmt;
+        const filter = this.ctx.createBiquadFilter(); 
+        filter.frequency.value = toneFreq;
+        const hpf = this.ctx.createBiquadFilter(); 
+        hpf.type='highpass'; hpf.frequency.value = 150;
+        const shaper = this.ctx.createWaveShaper(); 
+        shaper.curve = this.makeDistortionCurve(5); 
+        const att = this.ctx.createGain();
+        att.gain.value = 0.8;
+        inp.connect(delay); delay.connect(filter); filter.connect(shaper); 
+        shaper.connect(att); att.connect(hpf); hpf.connect(feedback); 
+        feedback.connect(delay); filter.connect(out);
+        return { in: inp, out: out, gain: inp, fb: feedback };
+    },
+    makeDistortionCurve(amount) {
+        const k = amount, n = 44100, curve = new Float32Array(n);
+        for (let i=0; i<n; ++i) { 
+            const x = i*2/n - 1; 
+            curve[i] = (3+k)*x*20 * (Math.PI/180)/(Math.PI+k*Math.abs(x)); 
+        }
+        return curve;
+    },
+    toggle() { this.isPlaying ? this.stop() : this.play(); },
+    play() {
+        if(this.ctx.state === 'suspended') this.ctx.resume();
+        this.isPlaying = true; 
+        this.step = 0; 
+        this.nextTime = this.ctx.currentTime + 0.1;
+        if(this.rhythmDelay) this.rhythmDelay.fb.gain.setTargetAtTime(0.25, this.ctx.currentTime, 0.2);
+        if(this.leadDelay) this.leadDelay.fb.gain.setTargetAtTime(0.3, this.ctx.currentTime, 0.2);
+        this.scheduler(); 
+        $('fab-mini').classList.add('playing');
+    },
+    stop() {
+        this.isPlaying = false; 
+        clearTimeout(this.timer);
+        $('fab-mini').classList.remove('playing'); 
+        App.racks.forEach(r => r.visualStep = -1);
+        if(this.rhythmDelay) this.rhythmDelay.fb.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+        if(this.leadDelay) this.leadDelay.fb.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+    },
+    scheduler() {
+        while (this.nextTime < this.ctx.currentTime + 0.1) { 
+            this.doStep(this.step, this.nextTime); 
+            this.step = (this.step + 1) % 16; 
+            this.nextTime += 0.25 * (60.0 / CONFIG.bpm); 
+        }
+        if (this.isPlaying) this.timer = setTimeout(() => this.scheduler(), 25);
+    },
+    doStep(s, t) { 
+        App.racks.forEach(r => { 
+            r.visualStep = s; 
+            r.trigger(s, t, State.slotA, State.slotB, State.morph); 
+        }); 
+    }
+};
+
+/* INSTRUMENT DEFINITIONS */
+const InstrumentConfigs = {
+    rhythm: [
+        { name: "WOOD", type: 'triangle', filter: 800 },
+        { name: "PULSE", type: 'square', filter: 400 },
+        { name: "GRIT", type: 'sawtooth', filter: 1200 }
+    ],
+    lead: [
+        { name: "SAW", type: 'sawtooth', filter: 2000 },
+        { name: "SINE", type: 'sine', filter: 1000 },
+        { name: "SQUARE", type: 'square', filter: 3000 }
+    ],
+    swell: [
+        { name: "AIR", type: 'sine', filter: 600 },
+        { name: "PAD", type: 'triangle', filter: 400 },
+        { name: "SHIMMER", type: 'sawtooth', filter: 800 }
+    ],
+    perc: [
+        { name: "KICK/HAT", mod: 1.0 },
+        { name: "THUD/TICK", mod: 0.5 },
+        { name: "SLAM/SNAP", mod: 2.0 }
+    ]
+};
+
+const Synths = {
+    rhythm(ctx, freq, t, vol, echo, patchIdx) {
+        if(Audio.rhythmDelay) Audio.rhythmDelay.gain.gain.setValueAtTime(echo * 0.8, t);
+        const patch = InstrumentConfigs.rhythm[patchIdx || 0];
+        const osc = ctx.createOscillator(); 
+        osc.type = patch.type; 
+        osc.frequency.value = freq;
+        const g = ctx.createGain(); 
+        g.gain.setValueAtTime(0, t); 
+        g.gain.linearRampToValueAtTime(0.7*vol, t+0.01); 
+        g.gain.exponentialRampToValueAtTime(0.001, t+0.3);
+        const f = ctx.createBiquadFilter();
+        f.frequency.value = patch.filter;
+        osc.connect(f).connect(g).connect(Audio.rhythm.input); 
+        osc.start(t); 
+        osc.stop(t+0.4);
+    },
+    lead(ctx, freq, t, vol, echo, patchIdx) {
+        if(Audio.leadDelay) Audio.leadDelay.gain.gain.setValueAtTime(echo, t);
+        const patch = InstrumentConfigs.lead[patchIdx || 0];
+        const osc = ctx.createOscillator(); 
+        osc.type = patch.type; 
+        osc.frequency.value = freq;
+        const g = ctx.createGain(); 
+        g.gain.setValueAtTime(0, t); 
+        g.gain.linearRampToValueAtTime(0.5*vol, t+0.05); 
+        g.gain.exponentialRampToValueAtTime(0.001, t+1.2);
+        osc.connect(g).connect(Audio.lead.input); 
+        osc.start(t); 
+        osc.stop(t+1.5);
+    },
+    swell(ctx, freq, t, vol, echo, patchIdx) {
+        const patch = InstrumentConfigs.swell[patchIdx || 0];
+        const osc = ctx.createOscillator(); 
+        osc.type = patch.type; 
+        osc.frequency.value = freq;
+        const g = ctx.createGain(); 
+        g.gain.setValueAtTime(0, t); 
+        g.gain.linearRampToValueAtTime(vol*0.4, t+0.5); 
+        g.gain.linearRampToValueAtTime(0, t+2.0);
+        Audio.swell.send.gain.setValueAtTime(0.5+(echo*0.5), t);
+        osc.connect(g).connect(Audio.swell.input); 
+        osc.start(t); 
+        osc.stop(t+2.5);
+    },
+    perc(ctx, r, t, vol, echo, patchIdx) {
+        const patch = InstrumentConfigs.perc[patchIdx || 0];
+        const g = ctx.createGain(); 
+        g.connect(Audio.perc.input);
+        Audio.perc.send.gain.setValueAtTime(echo * 0.3, t);
+        let pitchMod = patch.mod;
+        if(r > 3) { 
+            const o = ctx.createOscillator(); 
+            o.frequency.setValueAtTime(120 * pitchMod, t); 
+            o.frequency.exponentialRampToValueAtTime(40, t+0.1);
+            g.gain.setValueAtTime(1.0*vol, t); 
+            g.gain.exponentialRampToValueAtTime(0.001, t+0.2);
+            o.connect(g); o.start(t); o.stop(t+0.25); Sand.shake();
+        } else {
+            const o = ctx.createOscillator(); 
+            o.type='square'; 
+            const f = ctx.createBiquadFilter(); f.type='bandpass'; 
+            f.frequency.value = 1200 * pitchMod;
+            g.gain.setValueAtTime(0.3*vol, t); 
+            g.gain.exponentialRampToValueAtTime(0.001, t+0.05);
+            o.connect(f).connect(g); o.start(t); o.stop(t+0.1);
+        }
+    },
+    powerUp(ctx) {
+        const o = ctx.createOscillator(); 
+        o.type='sawtooth'; 
+        o.frequency.setValueAtTime(50, ctx.currentTime); 
+        o.frequency.exponentialRampToValueAtTime(800, ctx.currentTime+0.3);
+        const g = ctx.createGain(); 
+        g.gain.setValueAtTime(0.2, ctx.currentTime); 
+        g.gain.linearRampToValueAtTime(0, ctx.currentTime+0.4);
+        o.connect(g).connect(ctx.destination); 
+        o.start(); o.stop(ctx.currentTime+0.5);
+    }
+};
+
+const CONFIG = { 
+    bpm: 92, 
+    root: 73.42, 
+    scale: [0, 2, 4, 5, 7, 9, 10, 12, 14, 16, 17, 19, 21, 24],
+    noteNames: ['D', 'E', 'F#', 'G', 'A', 'B', 'C#'],
+    trackSounds: [0, 0, 0, 0]
+};
+
+const State = {
+    slots: [ 
+        { set: 0, bpm: 92, sounds: [0,0,0,0], tracks: [[],[],[],[]].map(() => Array(16).fill().map(()=>Array(6).fill(false))) }, 
+        { set: 1, bpm: 110, sounds: [1,1,1,1], tracks: [[],[],[],[]].map(() => Array(16).fill().map(()=>Array(6).fill(false))) }, 
+        { set: 2, bpm: 124, sounds: [2,2,2,2], tracks: [[],[],[],[]].map(() => Array(16).fill().map(()=>Array(6).fill(false))) }, 
+        { set: 0, bpm: 80, sounds: [0,0,0,0], tracks: [[],[],[],[]].map(() => Array(16).fill().map(()=>Array(6).fill(false))) } 
+    ],
+    slotA: 0, slotB: 1, morph: 0.5, 
+    sets: ['TIERRA', 'NOCHE', 'SECO'], 
+    presetNames: ["GALLOP", "MIRAGE", "CANYON", "HORIZON"],
+    
+    get activeSlotIndex() { return this.morph > 0.5 ? this.slotB : this.slotA; },
+    
+    init() {
+        const data = localStorage.getItem('el_desierto_pro_v3');
+        if(data) {
+            try {
+                const loaded = JSON.parse(data);
+                if(loaded[0].sounds) this.slots = loaded;
+                else throw new Error("Format Mismatch");
+                Toast("LOADED");
+            } catch(e) { 
+                console.error("Save Corrupt or Old", e); 
+                this.saveToStorage();
+            }
+        }
+    },
+    saveToStorage() {
+        localStorage.setItem('el_desierto_pro_v3', JSON.stringify(this.slots));
+    },
+    saveSlot(idx) { 
+        const snap = App.racks.map(r => r.grid.map(step => [...step])); 
+        this.slots[idx].tracks = snap; 
+        this.slots[idx].bpm = CONFIG.bpm;
+        // Save current visible sounds to slot
+        this.slots[idx].sounds = [...this.slots[this.activeSlotIndex].sounds];
+        this.saveToStorage(); 
+        Toast("SAVED TO " + this.presetNames[idx]); 
+    },
+    
+    // EXPORT FUNCTIONALITY
+    exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.slots));
+        const dlAnchorElem = document.createElement('a');
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", "el_desierto_patch.json");
+        document.body.appendChild(dlAnchorElem);
+        dlAnchorElem.click();
+        document.body.removeChild(dlAnchorElem);
+        Toast("EXPORTED");
+    },
+    
+    // IMPORT FILE FUNCTIONALITY
+    importData() {
+        $('file-input').click();
+    },
+
+    // PASTE TEXT FUNCTIONALITY
+    importFromText(json) {
+        try {
+            const data = JSON.parse(json);
+            // Basic validation
+            if (Array.isArray(data) && data.length > 0 && data[0].tracks) {
+                // Allows loading partial (e.g. 2 slot) or full (4 slot) data
+                for(let i=0; i<Math.min(4, data.length); i++) {
+                    this.slots[i] = data[i];
+                }
+                this.saveToStorage();
+                App.updateFromState();
+                Toast("IMPORTED TEXT");
+            } else {
+                Toast("INVALID DATA");
+            }
+        } catch(e) {
+            console.error(e);
+            Toast("PARSE ERROR");
+        }
+    }
+};
+
+// Handle File Input
+document.getElementById('file-input').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (Array.isArray(data) && data.length === 4 && data[0].tracks) {
+                State.slots = data;
+                State.saveToStorage();
+                App.updateFromState();
+                Toast("IMPORTED SUCCESSFULLY");
+            } else {
+                Toast("INVALID FILE");
+            }
+        } catch(err) {
+            console.error(err);
+            Toast("IMPORT FAILED");
+        }
+    };
+    reader.readAsText(file);
+});
+
+const Sand = {
+    cv: null, ctx: null, w:0, h:0, particles: [], shakeAmount: 0,
+    init() {
+        this.cv = $('sand-layer'); this.ctx = this.cv.getContext('2d');
+        this.resize(); window.addEventListener('resize', () => this.resize());
+        for(let i=0; i<60; i++) this.particles.push({ x:Math.random()*this.w, y:Math.random()*this.h, s:Math.random()*2+0.5, vx:Math.random()*0.5+0.1 });
+        this.loop();
+    },
+    resize() { this.w = window.innerWidth; this.h = window.innerHeight; this.cv.width = this.w; this.cv.height = this.h; },
+    shake() { this.shakeAmount = 8; },
+    loop() {
+        this.ctx.clearRect(0,0,this.w,this.h);
+        let sx=0, sy=0; if(this.shakeAmount > 0.1) { sx=(Math.random()-0.5)*this.shakeAmount; sy=(Math.random()-0.5)*this.shakeAmount; this.shakeAmount*=0.9; }
+        this.ctx.fillStyle = '#c2b280';
+        this.particles.forEach(p => { p.x += p.vx; if(p.x > this.w) p.x = -5; this.ctx.beginPath(); this.ctx.arc(p.x+sx, p.y+sy, p.s, 0, Math.PI*2); this.ctx.fill(); });
+        requestAnimationFrame(() => this.loop());
+    }
+};
+
+const PresetGallery = {
+    show() {
+        const overlay = document.createElement('div');
+        overlay.className = 'preset-gallery';
+        overlay.innerHTML = `
+            <div class="gallery-close">×</div>
+            <div class="gallery-controls">
+                <button class="gallery-btn" id="modal-import-file">LOAD FILE</button>
+                <button class="gallery-btn" id="modal-import-text">PASTE CODE</button>
+                <button class="gallery-btn" id="modal-export">EXPORT FILE</button>
+            </div>
+            
+            <div class="gallery-paste-view" style="display:none;">
+                <textarea class="gallery-paste-area" placeholder="Paste your JSON code here..."></textarea>
+                <button class="gallery-btn" id="confirm-paste" style="width:100%">LOAD DATA</button>
+            </div>
+
+            <div class="gallery-grid">
+                ${State.presetNames.map((name, i) => `
+                    <div class="preset-thumb" data-slot="${i}">
+                        <canvas width="200" height="150"></canvas>
+                        <div class="preset-label">${name}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        overlay.querySelectorAll('canvas').forEach((cv, i) => {
+            const ctx = cv.getContext('2d');
+            const tracks = State.slots[i].tracks;
+            const colors = ['#ff8e72', '#ffdd44', '#aabbee', '#fff'];
+            tracks.forEach((track, tIdx) => {
+                const y = tIdx * 37.5;
+                track.forEach((step, sIdx) => {
+                    step.forEach((note, rIdx) => {
+                        if (note) {
+                            ctx.fillStyle = colors[tIdx];
+                            ctx.fillRect(sIdx * 12.5, y + rIdx * 6, 10, 4);
+                        }
+                    });
+                });
+            });
+        });
+        
+        const gridView = overlay.querySelector('.gallery-grid');
+        const pasteView = overlay.querySelector('.gallery-paste-view');
+        
+        overlay.querySelector('#modal-import-file').onclick = () => { State.importData(); overlay.remove(); };
+        
+        // Toggle Paste View
+        overlay.querySelector('#modal-import-text').onclick = () => {
+            gridView.style.display = 'none';
+            pasteView.style.display = 'flex';
+        };
+        
+        // Confirm Paste Logic
+        overlay.querySelector('#confirm-paste').onclick = () => {
+            const text = overlay.querySelector('.gallery-paste-area').value;
+            if(text) {
+                State.importFromText(text);
+                overlay.remove();
+            }
+        };
+
+        overlay.querySelector('#modal-export').onclick = () => { State.exportData(); };
+        overlay.querySelector('.gallery-close').onclick = () => overlay.remove();
+        
+        overlay.querySelectorAll('.preset-thumb').forEach(thumb => {
+            thumb.onclick = () => {
+                const idx = parseInt(thumb.dataset.slot);
+                State.slotA = idx;
+                App.updateFromState();
+                overlay.remove();
+                Toast("LOADED " + State.presetNames[idx]);
+            };
+        });
+        document.body.appendChild(overlay);
+    }
+};
+
+class Rack {
+    constructor(id, type, index, parent) {
+        this.id = id; this.type = type; this.index = index;
+        this.grid = Array(16).fill().map(() => Array(6).fill(false));
+        this.intensity = 0.7; this.echo = 0.3; this.visualStep = -1; 
+        this.muted = false; this.waveformData = new Uint8Array(128);
+        this.el = document.createElement('div'); this.el.className = 'rack'; this.el.dataset.type = type;
+        this.updateDOM(); parent.appendChild(this.el);
+        this.cv = this.el.querySelector('canvas'); this.ctx = this.cv.getContext('2d');
+        this.resize(); this.bindEvents(); 
+        setTimeout(() => { this.updateFaderUI('vol'); this.updateFaderUI('echo'); }, 100);
+    }
+    
+    getSoundName() {
+        const idx = State.slots[State.activeSlotIndex].sounds[this.index];
+        return InstrumentConfigs[this.type][idx].name;
+    }
+    
+    updateDOM() {
+        let colorVar = `var(--c-${this.type})`;
+        this.el.innerHTML = `
+            <div class="ctrl-col left">
+                <div class="ctrl-btn-std mute-btn">M</div>
+                <div class="fader-wrap vol-fader"><div class="fader-track"></div><div class="fader-fill"></div><div class="fader-cap"></div></div>
+                <div class="fader-lbl">VOL</div>
+            </div>
+            <div class="screen">
+                <canvas></canvas>
+                <div class="track-meta" id="tm-${this.index}" style="color:${colorVar}">
+                    ${this.type.toUpperCase()} <span style="color:#888; font-size:9px">// ${this.getSoundName()}</span>
+                </div>
+            </div>
+            <div class="ctrl-col right">
+                <div class="ctrl-btn-std clear-btn">X</div>
+                <div class="fader-wrap echo-fader"><div class="fader-track"></div><div class="fader-fill echo"></div><div class="fader-cap echo"></div></div>
+                <div class="fader-lbl">ECHO</div>
+            </div>
+        `;
+        this.el.querySelector('.track-meta').addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            const currentSounds = State.slots[State.activeSlotIndex].sounds;
+            currentSounds[this.index] = (currentSounds[this.index] + 1) % 3;
+            this.updateLabel();
+            State.saveToStorage();
+        });
+    }
+    
+    updateLabel() {
+        const el = document.getElementById(`tm-${this.index}`);
+        if(el) el.innerHTML = `${this.type.toUpperCase()} <span style="color:#888; font-size:9px">// ${this.getSoundName()}</span>`;
+    }
+    
+    resize() { const r = this.el.querySelector('.screen').getBoundingClientRect(); this.w = r.width; this.h = r.height; this.cv.width = this.w; this.cv.height = this.h; }
+    
+    updateFaderUI(type) {
+        const wrap = type === 'vol' ? this.el.querySelector('.vol-fader') : this.el.querySelector('.echo-fader');
+        if(!wrap) return;
+        const cap = wrap.querySelector('.fader-cap'); const fill = wrap.querySelector('.fader-fill');
+        const val = type === 'vol' ? this.intensity : this.echo;
+        cap.style.bottom = `${val*100}%`; fill.style.height = `${val*100}%`;
+    }
+    
+    bindEvents() {
+        const bindFader = (selector, param) => {
+            const el = this.el.querySelector(selector);
+            const handler = (y) => {
+                const r = el.getBoundingClientRect(); 
+                let val = 1 - ((y - r.top) / r.height); 
+                val = Math.max(0, Math.min(1, val));
+                this[param] = val; 
+                this.updateFaderUI(param === 'intensity' ? 'vol' : 'echo');
+            };
+            el.addEventListener('pointerdown', e => { 
+                e.preventDefault(); handler(e.clientY); el.setPointerCapture(e.pointerId); 
+                el.onpointermove = (ev) => handler(ev.clientY); 
+                el.onpointerup = () => { el.onpointermove = null; }; 
+            });
+        };
+        bindFader('.vol-fader', 'intensity'); bindFader('.echo-fader', 'echo');
+        
+        this.el.querySelector('.mute-btn').onpointerdown = (e) => { 
+            e.preventDefault(); this.muted = !this.muted; 
+            e.target.classList.toggle('active', this.muted); 
+            this.el.classList.toggle('muted', this.muted); 
+        };
+        this.el.querySelector('.clear-btn').onpointerdown = (e) => { 
+            e.preventDefault(); this.grid.forEach(c=>c.fill(false)); 
+            State.slots[State.activeSlotIndex].tracks[this.index] = Array(16).fill().map(()=>Array(6).fill(false));
+            Toast(`CLEARED ${this.id}`); 
+        };
+        
+        const input = (x, y) => {
+            if(!this.w) this.resize();
+            const c = Math.floor((x/this.w)*16); 
+            const r = Math.floor((y/this.h)*6);
+            if(c>=0 && c<16 && r>=0 && r<6) {
+                // Toggle based on current state of the DOMINANT slot
+                const currentVal = State.slots[State.activeSlotIndex].tracks[this.index][c][r];
+                const newVal = !currentVal;
+                
+                this.grid[c][r] = newVal;
+                State.slots[State.activeSlotIndex].tracks[this.index][c][r] = newVal;
+            }
+        };
+        this.cv.onpointerdown = (e) => { e.preventDefault(); const r=this.cv.getBoundingClientRect(); input(e.clientX-r.left, e.clientY-r.top); };
+    }
+    
+    trigger(step, time, slotA, slotB, morph) {
+        if (this.muted) return;
+        const inA = State.slots[slotA].tracks[this.index][step];
+        const inB = State.slots[slotB].tracks[this.index][step];
+        const sndA = State.slots[slotA].sounds[this.index];
+        const sndB = State.slots[slotB].sounds[this.index];
+        
+        for(let r=0; r<6; r++) {
+            if (inA[r]) {
+                // EQUAL POWER CROSSFADE (Cosine for A)
+                let volA = 1.0;
+                // If overlap, keep at max to avoid dip, else crossfade
+                if(inB[r]) volA = 1.0;
+                else volA = Math.cos(morph * 0.5 * Math.PI);
+                
+                if(volA > 0.05) this.playNote(r, time, volA, sndA);
+            }
+            
+            if (inB[r]) {
+                // EQUAL POWER CROSSFADE (Sine for B)
+                let volB = Math.sin(morph * 0.5 * Math.PI);
+                if(inA[r]) volB = 0; // Prevent overlap doubling if handled by A
+                
+                if(volB > 0.05) this.playNote(r, time, volB, sndB);
+            }
+        }
+    }
+    
+    playNote(r, time, volMod, soundIdx) {
+        const freq = CONFIG.root * Math.pow(2, (CONFIG.scale[13-r*2] || 0)/12);
+        const finalVol = this.intensity * volMod;
+        
+        if (this.type === 'rhythm') Synths.rhythm(Audio.ctx, freq, time, finalVol, this.echo, soundIdx);
+        else if (this.type === 'lead') Synths.lead(Audio.ctx, freq*2, time, finalVol, this.echo, soundIdx);
+        else if (this.type === 'swell') Synths.swell(Audio.ctx, freq, time, finalVol, this.echo, soundIdx);
+        else Synths.perc(Audio.ctx, r, time, finalVol, this.echo, soundIdx);
+    }
+    
+    draw(slotA, slotB, morph) {
+        const c = this.ctx; 
+        c.fillStyle = '#000'; c.fillRect(0,0,this.w,this.h);
+        const cellW = this.w / 16; const rowH = this.h / 6;
+        
+        if(this.visualStep > -1) { 
+            c.fillStyle = 'rgba(255,183,0,0.1)'; c.fillRect(this.visualStep * cellW, 0, cellW, this.h); 
+        }
+        
+        // Waveform
+        if(Audio.ctx && !this.muted && Audio[this.type].analyzer) {
+            Audio[this.type].analyzer.getByteTimeDomainData(this.waveformData);
+            c.strokeStyle = 'rgba(255,183,0,0.2)'; c.lineWidth = 2; c.beginPath();
+            const slice = this.w / 128;
+            for(let i=0; i<128; i++) {
+                const v = this.waveformData[i]/128.0; const y = v*this.h/2;
+                i===0?c.moveTo(0,y):c.lineTo(i*slice,y);
+            }
+            c.stroke();
+        }
+
+        c.lineWidth = 1;
+        for(let r=0; r<6; r++) {
+            c.strokeStyle = '#333'; c.beginPath(); 
+            const y = (r+0.5)*rowH; c.moveTo(0,y); c.lineTo(this.w,y); c.stroke();
+            
+            for(let s=0; s<16; s++) {
+                const inA = State.slots[slotA].tracks[this.index][s][r];
+                const inB = State.slots[slotB].tracks[this.index][s][r];
+                
+                let color, opacity = 0;
+                if (inA && inB) { color = '255,255,255'; opacity = 1.0; }
+                else if (inA) { color = '255,183,0'; opacity = 1.0 - morph; }
+                else if (inB) { color = '68,136,255'; opacity = morph; }
+                
+                if(opacity > 0.1) {
+                    c.fillStyle = `rgba(${color},${opacity})`;
+                    c.beginPath(); c.arc(s*cellW+cellW/2, y, 4, 0, Math.PI*2); c.fill();
+                }
+            }
+        }
+    }
+}
+
+const App = {
+    racks: [],
+    lastTickVal: 0,
+    init() {
+        State.init(); Sand.init(); 
+        const cont = $('rack-container');
+        this.racks.push(new Rack(0, 'rhythm', 0, cont)); 
+        this.racks.push(new Rack(1, 'lead', 1, cont));
+        this.racks.push(new Rack(2, 'swell', 2, cont)); 
+        this.racks.push(new Rack(3, 'perc', 3, cont));
+        
+        App.updateFromState();
+        
+        const start = () => { Audio.init(); if(Audio.ctx) Audio.ctx.resume(); Synths.powerUp(Audio.ctx); $('unlock').remove(); };
+        $('btn-start').onclick = start;
+        $('fab-mini').onclick = () => Audio.toggle();
+        
+        // SET BUTTON (MACRO)
+        $('btn-set').onclick = () => { 
+            const currentSlot = State.slots[State.activeSlotIndex];
+            const nextSetIdx = (currentSlot.sounds[0] + 1) % 3; 
+            currentSlot.sounds = [nextSetIdx, nextSetIdx, nextSetIdx, nextSetIdx];
+            $('btn-set').innerText = "SET: " + State.sets[nextSetIdx]; 
+            Toast(`SLOT ${State.presetNames[State.activeSlotIndex]} -> ${State.sets[nextSetIdx]}`); 
+            App.racks.forEach(r => r.updateLabel());
+            State.saveToStorage(); 
+        };
+        
+        // BPM Fader
+        const bpmEl = $('bpm-slider');
+        const updateBpm = (x) => {
+            const r = bpmEl.getBoundingClientRect();
+            let val = Math.max(0, Math.min(1, (x - r.left)/r.width));
+            const bpm = Math.floor(60 + val * 100);
+            CONFIG.bpm = bpm; $('bpm-display').innerText = bpm;
+            State.slots[State.activeSlotIndex].bpm = bpm;
+            bpmEl.querySelector('.fader-fill').style.width = (val*100)+'%';
+            bpmEl.querySelector('.fader-cap').style.left = (val*100)+'%';
+            if(Math.floor(bpm/10) !== this.lastBpmTick) { Haptics.tick(); this.lastBpmTick = Math.floor(bpm/10); }
+            State.saveToStorage();
+        };
+        bpmEl.onpointerdown = e => { e.preventDefault(); updateBpm(e.clientX); bpmEl.onpointermove = ev => updateBpm(ev.clientX); bpmEl.setPointerCapture(e.pointerId); };
+        bpmEl.onpointerup = () => bpmEl.onpointermove = null;
+
+        // MORPH FADER
+        const morphEl = $('morph-track');
+        const updateMorph = (x) => { 
+            const r = morphEl.getBoundingClientRect(); 
+            let val = Math.max(0, Math.min(1, (x - r.left) / r.width));
+            State.morph = val; 
+            $('morph-thumb').style.left = (val * 100) + '%'; 
+            $('morph-fill').style.width = (val * 100) + '%'; 
+            
+            // AUTO SELECT
+            if (val > 0.5) {
+                $('slot-b-btn').classList.add('active-edit-b');
+                $('slot-a-btn').classList.remove('active-edit-a');
+            } else {
+                $('slot-a-btn').classList.add('active-edit-a');
+                $('slot-b-btn').classList.remove('active-edit-b');
+            }
+            
+            if(Math.abs(val-0.5) < 0.05 && !this.snappedCenter) { Haptics.thud(); this.snappedCenter = true; }
+            if(Math.abs(val-0.5) > 0.1) this.snappedCenter = false;
+            
+            App.updateFromState();
+        };
+        morphEl.onpointerdown = e => { e.preventDefault(); updateMorph(e.clientX); morphEl.onpointermove = ev => updateMorph(ev.clientX); morphEl.setPointerCapture(e.pointerId); };
+        morphEl.onpointerup = () => morphEl.onpointermove = null;
+
+        // SLOT SELECTORS
+        const bindSlotSelector = (el, type) => {
+            el.onpointerdown = (e) => {
+                e.preventDefault();
+                let timer = setTimeout(() => {
+                    const idx = type === 'A' ? State.slotA : State.slotB;
+                    State.saveSlot(idx);
+                }, 800);
+                
+                el.onpointerup = () => {
+                    clearTimeout(timer);
+                    if (type === 'A') {
+                        State.slotA = (State.slotA + 1) % 4;
+                        if(State.slotA === State.slotB) State.slotA = (State.slotA + 1) % 4;
+                    } else {
+                        State.slotB = (State.slotB + 1) % 4;
+                        if(State.slotB === State.slotA) State.slotB = (State.slotB + 1) % 4;
+                    }
+                    App.updateFromState();
+                };
+            };
+        };
+        bindSlotSelector($('slot-a-btn'), 'A');
+        bindSlotSelector($('slot-b-btn'), 'B');
+
+        $('btn-help').onclick = () => PresetGallery.show();
+
+        setTimeout(() => this.racks.forEach(r => r.resize()), 100);
+        window.addEventListener('resize', () => this.racks.forEach(r => r.resize()));
+        this.loop();
+    },
+    
+    updateFromState() {
+        $('slot-a-btn').childNodes[0].nodeValue = State.presetNames[State.slotA];
+        $('slot-b-btn').childNodes[0].nodeValue = State.presetNames[State.slotB];
+        $('label-a').innerText = "SLOT " + State.presetNames[State.slotA];
+        $('label-b').innerText = "SLOT " + State.presetNames[State.slotB];
+        
+        const activeIdx = State.activeSlotIndex;
+        const titleEl = $('app-title');
+        titleEl.classList.add('changing');
+        setTimeout(() => { titleEl.innerText = State.presetNames[activeIdx]; titleEl.classList.remove('changing'); }, 200);
+
+        const slotData = State.slots[activeIdx];
+        const setIdx = slotData.sounds[0]; 
+        $('btn-set').innerText = "SET: " + State.sets[setIdx];
+        
+        App.racks.forEach(r => r.updateLabel());
+        
+        const bpmVal = (slotData.bpm - 60) / 100;
+        const bpmEl = $('bpm-slider');
+        bpmEl.querySelector('.fader-fill').style.width = (bpmVal*100)+'%';
+        bpmEl.querySelector('.fader-cap').style.left = (bpmVal*100)+'%';
+        $('bpm-display').innerText = slotData.bpm;
+        CONFIG.bpm = slotData.bpm;
+        
+        if (State.morph > 0.5) {
+            $('slot-b-btn').classList.add('active-edit-b');
+            $('slot-a-btn').classList.remove('active-edit-a');
+        } else {
+            $('slot-a-btn').classList.add('active-edit-a');
+            $('slot-b-btn').classList.remove('active-edit-b');
+        }
+    },
+    
+    loop() { 
+        this.racks.forEach(r => r.draw(State.slotA, State.slotB, State.morph)); 
+        requestAnimationFrame(() => this.loop()); 
+    }
+};
+
+Audio.doStep = (s, t) => {
+    App.racks.forEach(r => {
+        r.visualStep = s;
+        r.trigger(s, t, State.slotA, State.slotB, State.morph);
+    });
+};
+
+window.onload = () => App.init();
+</script>
+</body>
+</html>
+
+
