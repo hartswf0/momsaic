@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Orbital Loom v18: System Boot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            overscroll-behavior: none;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            background-color: #020202;
+            color: #e0e0e0;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+        }
+
+        /* --- ICONS (CSS Shapes) --- */
+        .icon { display: inline-block; vertical-align: middle; position: relative; }
+        
+        .icon-diamond {
+            width: 12px; height: 12px;
+            background: transparent;
+            border: 2px solid #00ffff;
+            transform: rotate(45deg);
+            margin-right: 8px;
+        }
+        
+        .icon-circle {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            border: 2px solid #00ffff;
+            margin-right: 8px;
+        }
+        
+        .icon-square {
+            width: 12px; height: 12px;
+            background: #00ffff;
+            margin-right: 8px;
+        }
+        
+        .icon-ring {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            border: 2px dashed #00ffff;
+            margin-right: 8px;
+        }
+
+        /* --- UI OVERLAYS --- */
+        #overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.8s ease-out;
+        }
+
+        .scanline {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 90;
+        }
+
+        .btn-init {
+            position: relative;
+            padding: 20px 60px;
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            background: rgba(0, 255, 255, 0.05);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.2rem;
+            letter-spacing: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+            overflow: hidden;
+        }
+        .btn-init::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.4), transparent);
+            transition: 0.5s;
+        }
+        .btn-init:hover::before { left: 100%; }
+        .btn-init:hover {
+            background: #00ffff; color: #000;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.6);
+        }
+
+        /* --- HUD --- */
+        #status-bar {
+            position: absolute;
+            top: -50px; /* Hidden initially */
+            left: 20px;
+            z-index: 20;
+            pointer-events: none;
+            transition: top 1s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+        #status-bar.visible { top: 20px; }
+        
+        .status-row { display: flex; gap: 10px; margin-bottom: 5px; font-size: 10px; }
+        .status-dot { width: 8px; height: 8px; background: #333; border-radius: 50%; }
+        .status-dot.active { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
+
+        /* --- TOAST NOTIFICATIONS --- */
+        #toast-container {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+            pointer-events: none;
+            text-align: center;
+        }
+        .toast {
+            font-size: 14px; letter-spacing: 3px;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(0,255,255,0.5);
+            background: rgba(0,0,0,0.8);
+            padding: 15px 30px;
+            border: 1px solid #00ffff;
+            opacity: 0;
+            transition: opacity 0.2s;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .toast.show { opacity: 1; }
+
+        /* --- CONTROLS --- */
+        .controls-container {
+            position: absolute;
+            bottom: -100px; /* Hidden initially */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            display: flex;
+            gap: 15px;
+            pointer-events: none;
+            transition: bottom 1s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+        .controls-container.visible { bottom: 30px; }
+        
+        .control-panel {
+            pointer-events: auto;
+            background: rgba(5, 5, 5, 0.9);
+            border: 1px solid #333;
+            padding: 10px 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none; width: 100px; height: 2px;
+            background: #333; outline: none; margin: 10px 0;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 10px; height: 10px;
+            background: #00ffff; cursor: pointer; transform: rotate(45deg);
+            box-shadow: 0 0 5px #00ffff;
+        }
+
+        .btn-ctrl {
+            border: 1px solid #333; color: #888;
+            font-size: 9px; padding: 8px 12px; cursor: pointer; transition: 0.2s;
+            background: transparent; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-ctrl:hover { border-color: #00ffff; color: #00ffff; box-shadow: 0 0 10px rgba(0,255,255,0.2); }
+
+        .label-sm { font-size: 8px; letter-spacing: 2px; color: #666; text-transform: uppercase; }
+        .val-lg { font-size: 11px; color: #fff; font-weight: bold; margin-top: 2px;}
+
+        /* --- RECORDER BUTTON --- */
+        #rec-btn-container {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 30; display: none; 
+        }
+        .rec-btn {
+            width: 80px; height: 80px; border-radius: 50%;
+            background: rgba(255, 0, 0, 0.1); border: 1px solid #ff0000;
+            color: #fff; font-weight: bold; letter-spacing: 1px;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.2);
+            cursor: pointer; font-size: 10px; backdrop-filter: blur(4px);
+            animation: pulse-red 2s infinite;
+        }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 10px rgba(255,0,0,0.2); } 50% { box-shadow: 0 0 30px rgba(255,0,0,0.5); } 100% { box-shadow: 0 0 10px rgba(255,0,0,0.2); } }
+
+        /* --- TUTORIAL OVERLAY --- */
+        #tutorial-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 150; display: none;
+            backdrop-filter: blur(8px);
+        }
+        .tut-card {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 300px; text-align: center;
+            border: 1px solid #00ffff; background: #050505;
+            padding: 30px; box-shadow: 0 0 50px rgba(0,255,255,0.2);
+        }
+        .tut-title { color: #00ffff; font-size: 14px; letter-spacing: 4px; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .tut-body { color: #ccc; font-size: 11px; line-height: 1.6; margin-bottom: 20px; }
+        .tut-icon-large { transform: scale(2); margin-bottom: 15px; display: inline-block; }
+
+        /* --- HELP & IO --- */
+        #help-btn {
+            position: absolute; top: 20px; right: 20px;
+            width: 30px; height: 30px; border: 1px solid #333;
+            color: #666; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; z-index: 30; background: rgba(0,0,0,0.5); font-size: 12px;
+            transition: 0.3s;
+        }
+        #help-btn:hover { border-color: #00ffff; color: #00ffff; }
+
+        #io-modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 320px; background: #111; border: 1px solid #00ffff;
+            padding: 20px; z-index: 200; display: none;
+            box-shadow: 0 0 50px rgba(0,0,0,0.9);
+        }
+        textarea {
+            width: 100%; height: 80px; background: #1a1a1a; color: #00ffff;
+            border: 1px solid #333; font-family: monospace; font-size: 10px;
+            margin: 10px 0; padding: 5px; outline: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="scanline"></div>
+
+    <div id="overlay">
+        <div class="mb-8 text-center opacity-50">
+            <div class="text-[10px] tracking-[0.5em] mb-2">SYSTEM READY</div>
+            <div class="w-24 h-[1px] bg-white mx-auto"></div>
+        </div>
+        <button id="init-btn" class="btn-init">INITIALIZE</button>
+        <div id="loading-status" class="mt-6 text-[10px] text-[#00ffff] animate-pulse hidden">BOOT SEQUENCE INITIATED...</div>
+    </div>
+
+    <!-- HUD -->
+    <div id="status-bar">
+        <div class="status-row items-center">
+            <div id="dot-beat" class="status-dot"></div>
+            <div class="text-white tracking-widest font-bold">ORBITAL LOOM v18</div>
+        </div>
+        <div class="status-row">
+            <span class="text-gray-500">MODE:</span>
+            <span id="active-status" class="text-white">STANDBY</span>
+        </div>
+    </div>
+
+    <button id="help-btn">?</button>
+
+    <!-- NOTIFICATIONS -->
+    <div id="toast-container">
+        <div id="toast-msg" class="toast"></div>
+    </div>
+
+    <!-- RECORDER -->
+    <div id="rec-btn-container">
+        <button id="rec-trigger" class="rec-btn">HOLD<br>REC</button>
+    </div>
+
+    <!-- MAIN CONTROLS -->
+    <div id="controls-bar" class="controls-container">
+        <div class="control-panel">
+            <div class="label-sm">TEMPO</div>
+            <input type="range" id="bpm-slider" min="60" max="180" value="120">
+            <div id="bpm-val" class="val-lg">120 BPM</div>
+        </div>
+        
+        <div class="control-panel flex-row gap-2">
+            <button id="clear-btn" class="btn-ctrl">CLEAR</button>
+            <button id="io-btn" class="btn-ctrl">DATA</button>
+        </div>
+    </div>
+
+    <!-- TUTORIAL OVERLAY -->
+    <div id="tutorial-overlay">
+        <!-- Step 1: Tune -->
+        <div id="tut-step-1" class="tut-card">
+            <div class="tut-title">STEP 1: TUNING</div>
+            <div class="tut-body">
+                <div class="mb-4"><span class="icon-diamond"></span></div>
+                Drag the <strong>DIAMOND HANDLE</strong> around the ring to tune frequencies (Radio Stations or Synth Pitch).<br><br>
+                <strong>Double-Tap</strong> it to switch sources (Radio/Drone/Sampler).
+            </div>
+            <button class="btn-ctrl" onclick="nextTutorial(2)">NEXT >></button>
+        </div>
+        
+        <!-- Step 2: Mix -->
+        <div id="tut-step-2" class="tut-card hidden">
+            <div class="tut-title">STEP 2: MIXING</div>
+            <div class="tut-body">
+                <div class="mb-4"><span class="icon-circle"></span></div>
+                Drag the <strong>CIRCLE HANDLE</strong> (at the bottom) IN or OUT to adjust the ring size and volume.
+            </div>
+            <button class="btn-ctrl" onclick="nextTutorial(3)">NEXT >></button>
+        </div>
+
+        <!-- Step 3: Shape -->
+        <div id="tut-step-3" class="tut-card hidden">
+            <div class="tut-title">STEP 3: SHAPING</div>
+            <div class="tut-body">
+                <div class="mb-4"><span class="icon-square"></span></div>
+                Drag the <strong>SQUARE HANDLE</strong> (at the left) UP or DOWN to set note duration (Staccato vs Drone).
+            </div>
+            <button class="btn-ctrl" onclick="nextTutorial(4)">NEXT >></button>
+        </div>
+
+        <!-- Step 4: Sequence -->
+        <div id="tut-step-4" class="tut-card hidden">
+            <div class="tut-title">STEP 4: SEQUENCING</div>
+            <div class="tut-body">
+                <div class="mb-4"><span class="icon-ring"></span></div>
+                <strong>Swipe or Tap</strong> the ring segments to activate beats.
+            </div>
+            <button class="btn-ctrl" onclick="endTutorial()">ENGAGE SYSTEM</button>
+        </div>
+    </div>
+
+    <!-- I/O MODAL -->
+    <div id="io-modal">
+        <div class="text-xs tracking-widest mb-2 text-[#00ffff]">PATTERN DATA</div>
+        <textarea id="io-text"></textarea>
+        <div class="flex gap-2">
+            <button id="import-btn" class="flex-1 bg-[#00ffff] text-black py-2 text-xs font-bold hover:bg-white">LOAD</button>
+            <button id="close-io-btn" class="flex-1 border border-gray-600 text-gray-300 py-2 text-xs hover:bg-gray-800">CLOSE</button>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="main-canvas"></canvas>
+    </div>
+
+    <script>
+        // --- DATA & CONFIG ---
+        const GOLD_STATIONS = [
+            { name: "GROOVE SALAD", url: "https://ice6.somafm.com/groovesalad-256-mp3" },
+            { name: "DRONE ZONE", url: "https://ice6.somafm.com/dronezone-256-mp3" },
+            { name: "DEF CON", url: "https://ice6.somafm.com/defcon-256-mp3" },
+            { name: "SPACE STATION", url: "https://ice6.somafm.com/spacestation-128-mp3" },
+            { name: "SECRET AGENT", url: "https://ice6.somafm.com/secretagent-128-mp3" },
+            { name: "SUBURBS OF GOA", url: "https://ice6.somafm.com/suburbsofgoa-128-mp3" },
+            { name: "MISSION CONTROL", url: "https://ice6.somafm.com/missioncontrol-128-mp3" },
+            { name: "DEEP SPACE ONE", url: "https://ice6.somafm.com/deepspaceone-128-mp3" },
+            { name: "BEAT BLENDER", url: "https://ice6.somafm.com/beatblender-128-mp3" },
+            { name: "CLIQHOP", url: "https://ice6.somafm.com/cliqhop-128-mp3" },
+            { name: "POPRONICS", url: "https://ice6.somafm.com/poptron-128-mp3" },
+            { name: "FLUID", url: "https://ice6.somafm.com/fluid-128-mp3" }
+        ];
+        
+        let STATION_LIST = [...GOLD_STATIONS];
+        const SCALE = [1.0, 1.125, 1.25, 1.5, 1.66, 2.0]; 
+
+        // --- TUTORIAL LOGIC ---
+        function startTutorial() {
+            document.getElementById('tutorial-overlay').style.display = 'block';
+            document.getElementById('tut-step-1').classList.remove('hidden');
+        }
+        window.nextTutorial = (step) => {
+            document.querySelectorAll('.tut-card').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tut-step-${step}`).classList.remove('hidden');
+        };
+        window.endTutorial = () => {
+            document.getElementById('tutorial-overlay').style.display = 'none';
+            // Trigger visual boot animation for rings
+            if(window.uiInstance) window.uiInstance.bootAnimation();
+        };
+
+        // --- TOAST SYSTEM ---
+        let toastTimer = null;
+        function showToast(msg) {
+            const t = document.getElementById('toast-msg');
+            t.innerText = msg;
+            t.classList.add('show');
+            if(toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        // --- AUDIO ENGINE ---
+        class LoomAudio {
+            constructor() {
+                this.ctx = null;
+                this.master = null;
+                this.compressor = null;
+                this.analyser = null;
+                
+                // Colors: High=Yellow, Mid=Cyan, Low=Magenta
+                this.configs = [
+                    { id: 0, name: 'HIGH', type: 'highpass', freq: 3000, baseNote: 880, color: '#FFFF00' },
+                    { id: 1, name: 'MID', type: 'bandpass', freq: 1000, baseNote: 440, color: '#00FFFF' },
+                    { id: 2, name: 'LOW', type: 'lowpass', freq: 200, baseNote: 110, color: '#FF00FF' }
+                ];
+
+                this.tracks = []; 
+                this.micStream = null;
+            }
+
+            async init() {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AC();
+                this.compressor = this.ctx.createDynamicsCompressor();
+                this.compressor.threshold.value = -12;
+                this.master = this.ctx.createGain();
+                this.analyser = this.ctx.createAnalyser();
+                this.analyser.smoothingTimeConstant = 0.7;
+                
+                this.compressor.connect(this.master);
+                this.master.connect(this.analyser);
+                this.analyser.connect(this.ctx.destination);
+
+                this.configs.forEach((cfg, idx) => {
+                    const t = {
+                        id: idx,
+                        cfg: cfg,
+                        mode: 'RADIO',
+                        filter: this.ctx.createBiquadFilter(),
+                        gate: this.ctx.createGain(),
+                        volume: this.ctx.createGain(),
+                        audio: new Audio(),
+                        radioSource: null,
+                        stationIdx: idx * 3,
+                        isPaused: true,
+                        overlap: 0.5,
+                        
+                        osc: null,
+                        oscGain: null,
+                        pitchIdx: 0,
+
+                        buffer: null,
+                        recorder: null,
+                        chunks: [],
+                        sampleRate: 1.0,
+                        sampleSource: null, 
+                        isLooping: false
+                    };
+
+                    t.filter.type = cfg.type;
+                    t.filter.frequency.value = cfg.freq;
+                    if(cfg.type === 'bandpass') t.filter.Q.value = 1.0;
+                    
+                    t.gate.gain.value = 0; 
+                    t.volume.gain.value = 0.8;
+
+                    t.filter.connect(t.gate);
+                    t.gate.connect(t.volume);
+                    t.volume.connect(this.compressor);
+
+                    t.audio.crossOrigin = "anonymous";
+                    t.audio.loop = true;
+                    t.radioSource = this.ctx.createMediaElementSource(t.audio);
+                    
+                    this.tracks.push(t);
+                    this.setMode(idx, 'RADIO');
+                });
+
+                await this.fetchStations();
+                await this.ctx.resume();
+            }
+
+            async fetchStations() {
+                try {
+                    const res = await fetch('https://de1.api.radio-browser.info/json/stations/search?limit=60&order=votes&hidebroken=true&is_https=true');
+                    const data = await res.json();
+                    if(data && data.length > 0) {
+                        const newStations = data.map(s => ({
+                            name: s.name.substring(0, 20).toUpperCase(),
+                            url: s.url_resolved
+                        }));
+                        STATION_LIST = [...GOLD_STATIONS, ...newStations];
+                    }
+                } catch(e) {}
+            }
+
+            setMode(idx, mode) {
+                const t = this.tracks[idx];
+                const prevMode = t.mode;
+                t.mode = mode;
+
+                if(prevMode === 'RADIO') {
+                    t.radioSource.disconnect();
+                    t.audio.pause();
+                } else if (prevMode === 'DRONE') {
+                    if(t.osc) { t.osc.stop(); t.osc.disconnect(); t.osc = null; }
+                    if(t.oscGain) { t.oscGain.disconnect(); t.oscGain = null; }
+                } else if (prevMode === 'SAMPLER') {
+                    this.stopSampleLoop(idx);
+                }
+
+                if(mode === 'RADIO') {
+                    t.radioSource.connect(t.filter);
+                    this.tuneRadio(idx, t.stationIdx);
+                } 
+                else if (mode === 'DRONE') {
+                    t.osc = this.ctx.createOscillator();
+                    t.osc.type = idx === 2 ? 'sawtooth' : (idx === 1 ? 'triangle' : 'sine');
+                    t.oscGain = this.ctx.createGain();
+                    t.oscGain.gain.value = 0.3;
+                    t.osc.connect(t.oscGain);
+                    t.oscGain.connect(t.filter);
+                    t.osc.start();
+                    this.tuneDrone(idx, t.pitchIdx);
+                }
+                else if (mode === 'SAMPLER') {
+                    if(t.buffer) this.startSampleLoop(idx);
+                }
+                
+                showToast(`${t.cfg.name} MODE: ${mode}`);
+            }
+
+            togglePlay(idx) {
+                const t = this.tracks[idx];
+                if (t.mode === 'RADIO') {
+                    if (t.isPaused) {
+                        t.audio.play().then(() => {
+                            t.isPaused = false;
+                            showToast(`${t.cfg.name}: PLAY`);
+                        }).catch(e => {});
+                    } else {
+                        t.audio.pause();
+                        t.isPaused = true;
+                        showToast(`${t.cfg.name}: PAUSE`);
+                    }
+                }
+            }
+
+            tuneRadio(idx, stIdx) {
+                const t = this.tracks[idx];
+                if(stIdx >= STATION_LIST.length) stIdx = 0;
+                if(stIdx < 0) stIdx = STATION_LIST.length - 1;
+                t.stationIdx = stIdx;
+                if(t.mode === 'RADIO') {
+                    const wasPlaying = !t.isPaused;
+                    t.audio.src = STATION_LIST[stIdx].url;
+                    if(wasPlaying) t.audio.play().catch(e=>{});
+                    showToast(`${t.cfg.name}: ${STATION_LIST[stIdx].name}`);
+                }
+            }
+
+            tuneDrone(idx, pitchIdx) {
+                const t = this.tracks[idx];
+                if(pitchIdx > 11) pitchIdx = 0;
+                if(pitchIdx < 0) pitchIdx = 11;
+                t.pitchIdx = pitchIdx;
+                if(t.mode === 'DRONE' && t.osc) {
+                    const octave = Math.floor(pitchIdx / 5);
+                    const degree = pitchIdx % 5;
+                    const freq = t.cfg.baseNote * SCALE[degree] * Math.pow(2, octave);
+                    t.osc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.1);
+                    showToast(`${t.cfg.name} PITCH: ${pitchIdx}`);
+                }
+            }
+
+            async startRecording(idx) {
+                if(!this.micStream) {
+                    try {
+                        this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    } catch(e) { showToast("MIC ERROR"); return; }
+                }
+                const t = this.tracks[idx];
+                this.stopSampleLoop(idx); 
+                t.chunks = [];
+                t.recorder = new MediaRecorder(this.micStream);
+                t.recorder.ondataavailable = e => t.chunks.push(e.data);
+                t.recorder.onstop = async () => {
+                    const blob = new Blob(t.chunks, { 'type' : 'audio/ogg; codecs=opus' });
+                    const buf = await blob.arrayBuffer();
+                    t.buffer = await this.ctx.decodeAudioData(buf);
+                    this.startSampleLoop(idx);
+                    showToast(`${t.cfg.name}: SAMPLE CAPTURED`);
+                };
+                t.recorder.start();
+                showToast("RECORDING...");
+            }
+
+            stopRecording(idx) {
+                const t = this.tracks[idx];
+                if(t.recorder && t.recorder.state === 'recording') t.recorder.stop();
+            }
+
+            startSampleLoop(idx) {
+                const t = this.tracks[idx];
+                if(!t.buffer) return;
+                this.stopSampleLoop(idx);
+                t.sampleSource = this.ctx.createBufferSource();
+                t.sampleSource.buffer = t.buffer;
+                t.sampleSource.loop = true;
+                t.sampleSource.playbackRate.value = t.sampleRate;
+                t.sampleSource.connect(t.filter);
+                t.sampleSource.start();
+                t.isLooping = true;
+            }
+
+            stopSampleLoop(idx) {
+                const t = this.tracks[idx];
+                if(t.sampleSource) {
+                    t.sampleSource.stop();
+                    t.sampleSource.disconnect();
+                    t.sampleSource = null;
+                }
+                t.isLooping = false;
+            }
+
+            setSampleRate(idx, rate) {
+                const t = this.tracks[idx];
+                t.sampleRate = rate;
+                if(t.sampleSource) t.sampleSource.playbackRate.setTargetAtTime(rate, this.ctx.currentTime, 0.1);
+                showToast(`${t.cfg.name} RATE: ${rate.toFixed(1)}x`);
+            }
+
+            setOverlap(idx, val) {
+                this.tracks[idx].overlap = val;
+            }
+
+            trigger(idx, stepDuration) {
+                const t = this.tracks[idx];
+                const now = this.ctx.currentTime;
+                const releaseTime = stepDuration * t.overlap; 
+                t.gate.gain.cancelScheduledValues(now);
+                t.gate.gain.setValueAtTime(t.gate.gain.value, now);
+                t.gate.gain.linearRampToValueAtTime(1.0, now + 0.01); 
+                t.gate.gain.setTargetAtTime(0, now + 0.01, releaseTime / 3); 
+            }
+
+            setVolume(idx, val) {
+                const t = this.tracks[idx];
+                t.volume.gain.setTargetAtTime(val, this.ctx.currentTime, 0.1);
+            }
+        }
+
+        // --- SEQUENCER ---
+        class Sequencer {
+            constructor(audio) {
+                this.audio = audio;
+                this.bpm = 120;
+                this.stepCount = 16;
+                this.currentStep = 0;
+                this.nextNoteTime = 0;
+                this.grid = [
+                    new Array(16).fill(false),
+                    new Array(16).fill(false),
+                    new Array(16).fill(false)
+                ];
+                this.grid[2][0] = true; this.grid[2][8] = true; 
+            }
+
+            start() {
+                if(this.audio.ctx.state === 'suspended') this.audio.ctx.resume();
+                this.nextNoteTime = this.audio.ctx.currentTime;
+                this.schedule();
+            }
+
+            schedule() {
+                const secondsPerBeat = 60.0 / this.bpm;
+                const stepDuration = secondsPerBeat / 4; 
+                while(this.nextNoteTime < this.audio.ctx.currentTime + 0.1) {
+                    this.playStep(this.currentStep, this.nextNoteTime, stepDuration);
+                    this.nextNoteTime += stepDuration;
+                    this.currentStep = (this.currentStep + 1) % this.stepCount;
+                }
+                requestAnimationFrame(this.schedule.bind(this));
+            }
+
+            playStep(step, time, duration) {
+                if(step % 4 === 0) {
+                    document.getElementById('dot-beat').classList.add('active');
+                    setTimeout(()=>document.getElementById('dot-beat').classList.remove('active'), 50);
+                }
+                for(let i=0; i<3; i++) {
+                    if(this.grid[i][step]) {
+                        this.audio.trigger(i, duration);
+                    }
+                }
+            }
+
+            setStep(trackIdx, stepIdx, state) {
+                this.grid[trackIdx][stepIdx] = state;
+            }
+
+            serialize() {
+                return JSON.stringify({
+                    bpm: this.bpm,
+                    grid: this.grid,
+                    tracks: this.audio.tracks.map(t => ({
+                        mode: t.mode,
+                        stationIdx: t.stationIdx,
+                        pitchIdx: t.pitchIdx,
+                        sampleRate: t.sampleRate,
+                        vol: t.volume.gain.value,
+                        overlap: t.overlap
+                    }))
+                });
+            }
+
+            deserialize(json) {
+                try {
+                    const data = JSON.parse(json);
+                    this.bpm = data.bpm || 120;
+                    if(data.grid) this.grid = data.grid;
+                    if(data.tracks) {
+                        data.tracks.forEach((td, i) => {
+                            this.audio.setMode(i, td.mode);
+                            if(td.mode === 'RADIO') this.audio.tuneRadio(i, td.stationIdx);
+                            if(td.mode === 'DRONE') this.audio.tuneDrone(i, td.pitchIdx);
+                            if(td.mode === 'SAMPLER') this.audio.setSampleRate(i, td.sampleRate);
+                            if(td.overlap) this.audio.setOverlap(i, td.overlap);
+                        });
+                    }
+                    showToast("PATTERN LOADED");
+                    return true;
+                } catch(e) { showToast("LOAD ERROR"); return false; }
+            }
+        }
+
+        // --- VISUAL INTERFACE ---
+        class Interface {
+            constructor(canvasId, audio, seq) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.audio = audio;
+                this.seq = seq;
+                
+                this.width = 0; this.height = 0; this.cx = 0; this.cy = 0;
+
+                // Physics state for boot animation
+                this.rings = [
+                    { name: 'HIGH', r: 0, targetR: 100, angle: 0, hover: false },
+                    { name: 'MID',  r: 0, targetR: 180, angle: 0, hover: false },
+                    { name: 'LOW',  r: 0, targetR: 260, angle: 0, hover: false }
+                ];
+                
+                this.dragTarget = null; 
+                this.lastTap = { time: 0, trackIdx: -1 }; 
+                this.lastPaintedStep = -1;
+                this.booting = false;
+
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+            }
+
+            resize() {
+                this.width = window.innerWidth;
+                this.height = window.innerHeight;
+                this.canvas.width = this.width;
+                this.canvas.height = this.height;
+                this.cx = this.width / 2;
+                this.cy = this.height / 2;
+                
+                const s = Math.min(this.width, this.height) / 800;
+                this.rings[0].targetR = 100 * s + 50;
+                this.rings[1].targetR = 180 * s + 50;
+                this.rings[2].targetR = 260 * s + 50;
+                
+                if (!this.booting) {
+                    this.rings[0].r = this.rings[0].targetR;
+                    this.rings[1].r = this.rings[1].targetR;
+                    this.rings[2].r = this.rings[2].targetR;
+                }
+            }
+
+            bootAnimation() {
+                this.booting = true;
+                this.rings.forEach(r => r.r = 0); // Reset to 0
+                // Show HUD
+                document.getElementById('status-bar').classList.add('visible');
+                document.getElementById('controls-bar').classList.add('visible');
+            }
+
+            render() {
+                this.ctx.fillStyle = '#050505';
+                this.ctx.fillRect(0, 0, this.width, this.height);
+                this.ctx.translate(this.cx, this.cy);
+
+                // Animation physics
+                if (this.booting) {
+                    let settled = true;
+                    this.rings.forEach(r => {
+                        r.r += (r.targetR - r.r) * 0.1; // Ease out
+                        if (Math.abs(r.r - r.targetR) > 1) settled = false;
+                    });
+                    if (settled) this.booting = false;
+                }
+
+                if(this.dragTarget && this.dragTarget.type === 'tune') {
+                    this.drawGuidelines(this.rings[this.dragTarget.trackIdx].r);
+                }
+                
+                this.drawRadar();
+                for(let i=2; i>=0; i--) this.drawTrack(i);
+
+                this.ctx.translate(-this.cx, -this.cy);
+                requestAnimationFrame(() => this.render());
+            }
+
+            drawGuidelines(r) {
+                this.ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+                this.ctx.lineWidth = 1;
+                for(let i=0; i<12; i++) {
+                    const a = (i/12)*Math.PI*2 - Math.PI/2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0,0);
+                    this.ctx.lineTo(Math.cos(a)*(r+150), Math.sin(a)*(r+150));
+                    this.ctx.stroke();
+                }
+            }
+
+            drawRadar() {
+                const sweepAng = (this.seq.currentStep / 16) * Math.PI * 2 - Math.PI/2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(0,0);
+                const maxR = this.rings[2].r + 60;
+                this.ctx.lineTo(Math.cos(sweepAng)*maxR, Math.sin(sweepAng)*maxR);
+                this.ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+            }
+
+            drawTrack(idx) {
+                const r = this.rings[idx];
+                // Hide if radius too small (booting)
+                if (r.r < 10) return;
+
+                const t = this.audio.tracks[idx];
+                const trackData = this.seq.grid[idx];
+                const color = t.cfg.color; 
+                
+                // Ring
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, r.r, 0, Math.PI*2);
+                this.ctx.strokeStyle = (t.mode === 'RADIO' && t.isPaused) ? '#333' : '#555';
+                this.ctx.lineWidth = r.hover ? 2 : 1;
+                if(r.hover) { this.ctx.shadowColor=color; this.ctx.shadowBlur=5; } else { this.ctx.shadowBlur=0; }
+                this.ctx.stroke();
+                this.ctx.shadowBlur=0;
+
+                // Segments
+                const stepSize = (Math.PI*2) / 16;
+                const gap = 0.05;
+                for(let i=0; i<16; i++) {
+                    const active = trackData[i];
+                    const start = i * stepSize - Math.PI/2 + gap;
+                    
+                    if (active) {
+                        const arcLength = (stepSize * t.overlap) - gap;
+                        const end = start + arcLength;
+                        this.ctx.beginPath();
+                        this.ctx.arc(0, 0, r.r, start, end);
+                        this.ctx.lineWidth = 8;
+                        this.ctx.strokeStyle = color;
+                        this.ctx.shadowBlur = (this.seq.currentStep === i) ? 20 : 5;
+                        this.ctx.shadowColor = color;
+                        this.ctx.stroke();
+                        this.ctx.shadowBlur = 0;
+                    } else {
+                        const end = start + stepSize - gap*2;
+                        this.ctx.beginPath();
+                        this.ctx.arc(0, 0, r.r, start, end);
+                        this.ctx.lineWidth = 4;
+                        this.ctx.strokeStyle = 'rgba(255,255,255,0.1)'; 
+                        this.ctx.stroke();
+                    }
+                }
+
+                // --- OVERLAP HANDLE (Left Square) ---
+                const ovAng = Math.PI;
+                const ox = Math.cos(ovAng) * r.r;
+                const oy = Math.sin(ovAng) * r.r;
+                
+                this.ctx.save();
+                this.ctx.translate(ox, oy);
+                this.ctx.fillStyle = color;
+                const isDragO = (this.dragTarget && this.dragTarget.type === 'overlap' && this.dragTarget.trackIdx === idx);
+                const oSize = isDragO ? 16 : 12;
+                this.ctx.fillRect(-oSize/2, -oSize/2, oSize, oSize);
+                this.ctx.restore();
+
+                // --- TUNE HANDLE (Diamond) ---
+                let ang = r.angle; 
+                const tx = Math.cos(ang) * (r.r + 25);
+                const ty = Math.sin(ang) * (r.r + 25);
+
+                this.ctx.save();
+                this.ctx.translate(tx, ty);
+                this.ctx.rotate(ang + Math.PI/4);
+                
+                const isDragT = (this.dragTarget && this.dragTarget.type === 'tune' && this.dragTarget.trackIdx === idx);
+                const tSize = isDragT ? 16 : 12;
+
+                if(t.mode === 'RADIO' && t.isPaused) {
+                    this.ctx.strokeStyle = color;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(-tSize/2, -tSize/2, tSize, tSize); 
+                } else {
+                    this.ctx.fillStyle = color;
+                    this.ctx.fillRect(-tSize/2, -tSize/2, tSize, tSize); 
+                }
+                this.ctx.restore();
+
+                // Label
+                this.ctx.fillStyle = color;
+                this.ctx.font = '10px monospace';
+                this.ctx.textAlign = 'center';
+                let label = "";
+                if(t.mode === 'RADIO') label = STATION_LIST[t.stationIdx].name;
+                if(t.mode === 'DRONE') label = "PITCH " + t.pitchIdx;
+                if(t.mode === 'SAMPLER') label = "RATE " + t.sampleRate.toFixed(2);
+                
+                const lx = Math.cos(ang) * (r.r + 50);
+                const ly = Math.sin(ang) * (r.r + 50);
+                this.ctx.fillText(label, lx, ly);
+                this.ctx.fillStyle = '#666';
+                this.ctx.fillText(`[${t.mode}]`, lx, ly + 10);
+
+                // --- VOL HANDLE (Bottom Circle) ---
+                const vy = r.r; 
+                this.ctx.beginPath();
+                const isDragV = (this.dragTarget && this.dragTarget.type === 'vol' && this.dragTarget.trackIdx === idx);
+                const vSize = isDragV ? 10 : 8;
+                this.ctx.arc(0, vy, vSize, 0, Math.PI*2);
+                this.ctx.fillStyle = '#fff';
+                this.ctx.fill();
+                
+                const volH = t.volume.gain.value * (vSize-2);
+                this.ctx.beginPath();
+                this.ctx.arc(0, vy, volH, 0, Math.PI*2);
+                this.ctx.fillStyle = color;
+                this.ctx.fill();
+            }
+
+            getHit(x, y) {
+                const dx = x - this.cx;
+                const dy = y - this.cy;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const inputAng = Math.atan2(dy, dx); 
+
+                const HIT_SIZE = 45; // Generous hit area
+
+                for(let i=0; i<3; i++) {
+                    const r = this.rings[i];
+                    if (r.r < 10) continue; // Skip if collapsed
+                    
+                    // Tune
+                    const hx = Math.cos(r.angle) * (r.r + 25);
+                    const hy = Math.sin(r.angle) * (r.r + 25);
+                    if(Math.sqrt((dx-hx)**2 + (dy-hy)**2) < HIT_SIZE) return { type: 'tune', trackIdx: i };
+
+                    // Vol
+                    const vx = 0; const vy = r.r; 
+                    if(Math.sqrt((dx-vx)**2 + (dy-vy)**2) < HIT_SIZE) return { type: 'vol', trackIdx: i };
+
+                    // Overlap
+                    const ox = -r.r; const oy = 0;
+                    if(Math.sqrt((dx-ox)**2 + (dy-oy)**2) < HIT_SIZE) return { type: 'overlap', trackIdx: i };
+
+                    // Segments
+                    if(Math.abs(dist - r.r) < 30) { 
+                        let relAng = inputAng + Math.PI/2;
+                        if(relAng < 0) relAng += Math.PI*2;
+                        const step = Math.floor( (relAng / (Math.PI*2)) * 16 );
+                        return { type: 'step', trackIdx: i, stepIdx: step };
+                    }
+                }
+                return null;
+            }
+        }
+
+        // --- MAIN ---
+        const audio = new LoomAudio();
+        const seq = new Sequencer(audio);
+        window.uiInstance = new Interface('main-canvas', audio, seq);
+        const ui = window.uiInstance;
+        
+        const recBtnContainer = document.getElementById('rec-btn-container');
+        const recTrigger = document.getElementById('rec-trigger');
+        let activeRecTrack = -1;
+
+        document.getElementById('init-btn').addEventListener('click', async () => {
+            document.getElementById('loading-status').classList.remove('hidden');
+            await audio.init();
+            seq.start();
+            document.getElementById('overlay').style.opacity = 0;
+            setTimeout(()=> {
+                document.getElementById('overlay').style.display='none';
+                startTutorial(); // Launch tutorial
+            }, 800);
+            ui.render();
+            updateActiveStatus();
+        });
+
+        document.getElementById('bpm-slider').addEventListener('input', e => {
+            seq.bpm = parseInt(e.target.value);
+            document.getElementById('bpm-val').innerText = seq.bpm + " BPM";
+        });
+
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            for(let i=0; i<3; i++) seq.grid[i].fill(false);
+            showToast("PATTERN CLEARED");
+        });
+
+        // Help
+        document.getElementById('help-btn').addEventListener('click', () => startTutorial());
+
+        // IO
+        const ioModal = document.getElementById('io-modal');
+        const ioText = document.getElementById('io-text');
+        document.getElementById('io-btn').addEventListener('click', () => {
+            ioText.value = seq.serialize();
+            ioModal.style.display = 'block';
+        });
+        document.getElementById('close-io-btn').addEventListener('click', () => ioModal.style.display = 'none');
+        document.getElementById('import-btn').addEventListener('click', () => {
+            if(seq.deserialize(ioText.value)) {
+                ioModal.style.display = 'none';
+                updateActiveStatus();
+            }
+        });
+
+        recTrigger.addEventListener('mousedown', () => { if(activeRecTrack>=0) audio.startRecording(activeRecTrack); });
+        recTrigger.addEventListener('mouseup', () => { if(activeRecTrack>=0) audio.stopRecording(activeRecTrack); });
+        recTrigger.addEventListener('touchstart', (e) => { e.preventDefault(); if(activeRecTrack>=0) audio.startRecording(activeRecTrack); });
+        recTrigger.addEventListener('touchend', (e) => { e.preventDefault(); if(activeRecTrack>=0) audio.stopRecording(activeRecTrack); });
+
+        function updateActiveStatus() {
+            const types = audio.tracks.map(t => t.mode[0]).join('/'); 
+            document.getElementById('active-status').innerText = types;
+        }
+
+        const canvas = document.getElementById('main-canvas');
+        
+        const getCanvasCoords = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        };
+
+        const handleStart = (x, y) => {
+            if(audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
+
+            const hit = ui.getHit(x, y);
+            if(hit) {
+                if(hit.type === 'step') {
+                    ui.dragTarget = { type: 'paint', trackIdx: hit.trackIdx, state: !seq.grid[hit.trackIdx][hit.stepIdx] };
+                    seq.setStep(hit.trackIdx, hit.stepIdx, ui.dragTarget.state);
+                    ui.lastPaintedStep = hit.stepIdx;
+                    if(navigator.vibrate) navigator.vibrate(5);
+                } else if (hit.type === 'tune') {
+                    ui.dragTarget = { ...hit, lastAng: Math.atan2(y - ui.cy, x - ui.cx) };
+                    const now = Date.now();
+                    if(ui.lastTap.trackIdx === hit.trackIdx && (now - ui.lastTap.time) < 300) {
+                        const modes = ['RADIO', 'DRONE', 'SAMPLER'];
+                        const t = audio.tracks[hit.trackIdx];
+                        const next = modes[(modes.indexOf(t.mode) + 1) % 3];
+                        audio.setMode(hit.trackIdx, next);
+                        if(next === 'SAMPLER') {
+                            activeRecTrack = hit.trackIdx;
+                            recBtnContainer.style.display = 'block';
+                        } else if (activeRecTrack === hit.trackIdx) {
+                            recBtnContainer.style.display = 'none';
+                            activeRecTrack = -1;
+                        }
+                        updateActiveStatus();
+                        if(navigator.vibrate) navigator.vibrate([10, 10]);
+                        ui.dragTarget = null;
+                    } else {
+                        ui.lastTap = { time: now, trackIdx: hit.trackIdx, isTap: true };
+                    }
+                } else if (hit.type === 'vol' || hit.type === 'overlap') {
+                    ui.dragTarget = { ...hit };
+                }
+            }
+        };
+
+        const handleMove = (x, y) => {
+            // Hover logic
+            const hit = ui.getHit(x, y);
+            canvas.style.cursor = hit ? 'pointer' : 'default';
+            ui.rings.forEach(r => r.hover = false);
+            if(hit) ui.rings[hit.trackIdx].hover = true;
+
+            if(ui.dragTarget) {
+                const t = ui.dragTarget;
+                const r = ui.rings[t.trackIdx];
+                const dx = x - ui.cx;
+                const dy = y - ui.cy;
+                
+                if (t.type === 'paint') {
+                    const ang = Math.atan2(dy, dx);
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if(Math.abs(dist - r.r) < 40) {
+                        let relAng = ang + Math.PI/2;
+                        if(relAng < 0) relAng += Math.PI*2;
+                        const step = Math.floor( (relAng / (Math.PI*2)) * 16 );
+                        if (step !== ui.lastPaintedStep) {
+                            seq.setStep(t.trackIdx, step, t.state);
+                            ui.lastPaintedStep = step;
+                            if(navigator.vibrate) navigator.vibrate(5);
+                        }
+                    }
+                    return;
+                }
+
+                if(t.type === 'vol') {
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const newR = Math.max(50, Math.min(350, dist));
+                    r.targetR = newR; // Animate to this
+                    r.r = newR; // Snap for responsivness
+                    const vol = (newR - 50) / 300;
+                    audio.setVolume(t.trackIdx, vol);
+                }
+                else if(t.type === 'overlap') {
+                    const val = Math.max(0.1, Math.min(4.0, 2.0 - (dy / 100)));
+                    audio.setOverlap(t.trackIdx, val);
+                }
+                else if(t.type === 'tune') {
+                    const curAng = Math.atan2(dy, dx);
+                    let delta = curAng - t.lastAng;
+                    if(delta > Math.PI) delta -= Math.PI*2;
+                    if(delta < -Math.PI) delta += Math.PI*2;
+                    
+                    r.angle += delta;
+                    t.lastAng = curAng;
+                    if(Math.abs(delta) > 0.01) ui.lastTap.isTap = false;
+
+                    if(!r.accum) r.accum = 0;
+                    r.accum += delta;
+                    
+                    const stepSize = 0.5;
+                    if(Math.abs(r.accum) > stepSize) {
+                        const steps = Math.floor(Math.abs(r.accum) / stepSize);
+                        const dir = r.accum > 0 ? 1 : -1;
+                        
+                        const trk = audio.tracks[t.trackIdx];
+                        if(trk.mode === 'RADIO') audio.tuneRadio(t.trackIdx, trk.stationIdx + (steps * dir));
+                        else if(trk.mode === 'DRONE') audio.tuneDrone(t.trackIdx, trk.pitchIdx + (steps * dir));
+                        else if(trk.mode === 'SAMPLER') audio.setSampleRate(t.trackIdx, Math.max(0.2, trk.sampleRate + (steps * dir * 0.1)));
+                        
+                        r.accum = r.accum % stepSize;
+                        if(navigator.vibrate) navigator.vibrate(10);
+                    }
+                }
+            }
+        };
+
+        const handleEnd = () => {
+            if(ui.dragTarget && ui.dragTarget.type === 'tune' && ui.lastTap.isTap) {
+                audio.togglePlay(ui.dragTarget.trackIdx);
+            }
+            ui.dragTarget = null;
+            ui.lastPaintedStep = -1;
+        };
+
+        canvas.addEventListener('mousedown', e => { const p = getCanvasCoords(e); handleStart(p.x, p.y); });
+        window.addEventListener('mousemove', e => { const p = getCanvasCoords(e); handleMove(p.x, p.y); });
+        window.addEventListener('mouseup', handleEnd);
+        
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); const p = getCanvasCoords(e); handleStart(p.x, p.y); }, {passive:false});
+        window.addEventListener('touchmove', e => { if(ui.dragTarget) { const p = getCanvasCoords(e); handleMove(p.x, p.y); } }, {passive:false});
+        window.addEventListener('touchend', handleEnd);
+
+    </script>
+</body>
+</html>
+
+
