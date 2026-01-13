@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Helicopter Flight Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            background: #000;
+            touch-action: none;
+        }
+
+        #canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #hud {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: #0f0;
+            font-size: 12px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border: 1px solid #0f0;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .joystick {
+            width: 120px;
+            height: 120px;
+            background: rgba(0,255,0,0.1);
+            border: 2px solid #0f0;
+            border-radius: 50%;
+            position: relative;
+            touch-action: none;
+        }
+
+        .stick {
+            width: 40px;
+            height: 40px;
+            background: #0f0;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .label {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #0f0;
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        #radio {
+            position: fixed;
+            bottom: 160px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.9);
+            border: 1px solid #0f0;
+            color: #0f0;
+            padding: 10px;
+            font-size: 11px;
+            max-height: 100px;
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .radio-msg {
+            margin: 3px 0;
+            opacity: 0;
+            animation: fadeIn 0.3s forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        #damage {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #f00;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+            z-index: 100;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border: 2px solid #f00;
+        }
+
+        #wind-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 80px;
+            height: 80px;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid #0f0;
+            z-index: 10;
+        }
+
+        .wind-arrow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 30px;
+            background: #0f0;
+            transform-origin: top center;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="hud">
+        <div>ALT: <span id="altitude">0</span>m</div>
+        <div>SPD: <span id="speed">0</span> km/h</div>
+        <div>COLLECTIVE: <span id="collective">0</span>%</div>
+        <div>DAMAGE: <span id="dmg">0</span>%</div>
+        <div>STATUS: <span id="status">OK</span></div>
+    </div>
+
+    <div id="wind-indicator">
+        <div class="wind-arrow" id="windArrow"></div>
+        <div style="position:absolute;bottom:5px;left:50%;transform:translateX(-50%);color:#0f0;font-size:10px;" id="windSpeed">0</div>
+    </div>
+
+    <div id="radio"></div>
+
+    <div id="damage"></div>
+
+    <div id="controls">
+        <div class="joystick" id="cyclic">
+            <div class="label">CYCLIC</div>
+            <div class="stick" id="cyclicStick"></div>
+        </div>
+        <div class="joystick" id="collective-control">
+            <div class="label">COLLECTIVE</div>
+            <div class="stick" id="collectiveStick"></div>
+        </div>
+        <div class="joystick" id="pedals">
+            <div class="label">PEDALS</div>
+            <div class="stick" id="pedalsStick"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x87ceeb, 50, 500);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        
+        const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        sunLight.position.set(100, 100, 50);
+        sunLight.castShadow = true;
+        sunLight.shadow.camera.left = -100;
+        sunLight.shadow.camera.right = 100;
+        sunLight.shadow.camera.top = 100;
+        sunLight.shadow.camera.bottom = -100;
+        scene.add(sunLight);
+
+        // Helicopter
+        const heliGroup = new THREE.Group();
+        
+        // Main fuselage - more detailed body
+        const fuselageGeo = new THREE.BoxGeometry(2.2, 1.3, 4.5);
+        const fuselageMat = new THREE.MeshPhongMaterial({ color: 0x2a5a2a });
+        const fuselage = new THREE.Mesh(fuselageGeo, fuselageMat);
+        fuselage.castShadow = true;
+        heliGroup.add(fuselage);
+
+        // Nose section
+        const noseGeo = new THREE.SphereGeometry(0.9, 12, 12);
+        const noseMat = new THREE.MeshPhongMaterial({ color: 0x2a5a2a });
+        const nose = new THREE.Mesh(noseGeo, noseMat);
+        nose.position.set(0, 0, 2.8);
+        nose.scale.set(1.1, 0.9, 1.3);
+        nose.castShadow = true;
+        heliGroup.add(nose);
+
+        // Cockpit glass - larger and more prominent
+        const cockpitGeo = new THREE.SphereGeometry(1, 16, 16, 0, Math.PI);
+        const cockpitMat = new THREE.MeshPhongMaterial({ 
+            color: 0x88ccff, 
+            transparent: true, 
+            opacity: 0.6,
+            shininess: 100
+        });
+        const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
+        cockpit.position.set(0, 0.4, 1.8);
+        cockpit.rotation.x = -Math.PI / 6;
+        cockpit.scale.set(1.2, 1, 1.5);
+        heliGroup.add(cockpit);
+
+        // Landing skids
+        const skidMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
+        
+        const skidGeo = new THREE.CylinderGeometry(0.08, 0.08, 4);
+        const leftSkid = new THREE.Mesh(skidGeo, skidMat);
+        leftSkid.rotation.z = Math.PI / 2;
+        leftSkid.position.set(-1, -0.9, 0);
+        leftSkid.castShadow = true;
+        heliGroup.add(leftSkid);
+        
+        const rightSkid = leftSkid.clone();
+        rightSkid.position.set(1, -0.9, 0);
+        heliGroup.add(rightSkid);
+
+        // Skid connectors
+        const connectorGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.6);
+        for (let z = -1.5; z <= 1.5; z += 1.5) {
+            const leftConn = new THREE.Mesh(connectorGeo, skidMat);
+            leftConn.position.set(-1, -0.6, z);
+            heliGroup.add(leftConn);
+            
+            const rightConn = leftConn.clone();
+            rightConn.position.set(1, -0.6, z);
+            heliGroup.add(rightConn);
+        }
+
+        // Tail boom - more streamlined (rotated to connect properly)
+        const tailGeo = new THREE.CylinderGeometry(0.25, 0.18, 6.5);
+        const tailMat = new THREE.MeshPhongMaterial({ color: 0x2a5a2a });
+        const tail = new THREE.Mesh(tailGeo, tailMat);
+        tail.rotation.x = Math.PI / 2;
+        tail.position.set(0, 0.3, -4.5);
+        tail.castShadow = true;
+        heliGroup.add(tail);
+
+        // Tail fin
+        const finGeo = new THREE.BoxGeometry(0.1, 1.5, 1.2);
+        const finMat = new THREE.MeshPhongMaterial({ color: 0x2a5a2a });
+        const fin = new THREE.Mesh(finGeo, finMat);
+        fin.position.set(0, 0.8, -7);
+        fin.castShadow = true;
+        heliGroup.add(fin);
+
+        // Engine housing
+        const engineGeo = new THREE.BoxGeometry(1.5, 1, 2);
+        const engineMat = new THREE.MeshPhongMaterial({ color: 0x3a4a3a });
+        const engine = new THREE.Mesh(engineGeo, engineMat);
+        engine.position.set(0, 0.8, -1);
+        engine.castShadow = true;
+        heliGroup.add(engine);
+
+        // Exhaust pipes
+        const exhaustGeo = new THREE.CylinderGeometry(0.12, 0.1, 0.6);
+        const exhaustMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+        const exhaust1 = new THREE.Mesh(exhaustGeo, exhaustMat);
+        exhaust1.rotation.x = Math.PI / 2;
+        exhaust1.position.set(0.4, 1.2, -1);
+        heliGroup.add(exhaust1);
+        
+        const exhaust2 = exhaust1.clone();
+        exhaust2.position.set(-0.4, 1.2, -1);
+        heliGroup.add(exhaust2);
+
+        // Main rotor mast
+        const mastGeo = new THREE.CylinderGeometry(0.15, 0.18, 0.8);
+        const mastMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+        const mast = new THREE.Mesh(mastGeo, mastMat);
+        mast.position.set(0, 1.3, 0);
+        heliGroup.add(mast);
+
+        // Main rotor hub
+        const hubGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.2);
+        const hubMat = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+        const hub = new THREE.Mesh(hubGeo, hubMat);
+        hub.position.set(0, 1.8, 0);
+        heliGroup.add(hub);
+
+        // Main rotor blades - more detailed
+        const mainRotor = new THREE.Group();
+        const bladeGeo = new THREE.BoxGeometry(0.25, 0.08, 5.5);
+        const bladeMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
+        
+        for (let i = 0; i < 4; i++) {
+            const blade = new THREE.Mesh(bladeGeo, bladeMat);
+            blade.rotation.y = (Math.PI / 2) * i;
+            blade.castShadow = true;
+            mainRotor.add(blade);
+            
+            // Blade tips (different color)
+            const tipGeo = new THREE.BoxGeometry(0.25, 0.08, 0.5);
+            const tipMat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
+            const tip = new THREE.Mesh(tipGeo, tipMat);
+            tip.position.z = 2.75;
+            blade.add(tip);
+        }
+        mainRotor.position.set(0, 1.85, 0);
+        heliGroup.add(mainRotor);
+
+        // Tail rotor housing
+        const trHousingGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.3);
+        const trHousingMat = new THREE.MeshPhongMaterial({ color: 0x2a5a2a });
+        const trHousing = new THREE.Mesh(trHousingGeo, trHousingMat);
+        trHousing.rotation.z = Math.PI / 2;
+        trHousing.position.set(0.65, 0.8, -7.2);
+        heliGroup.add(trHousing);
+
+        // Tail rotor blades
+        const tailRotor = new THREE.Group();
+        const trBladeGeo = new THREE.BoxGeometry(0.06, 0.06, 1.6);
+        const trBladeMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
+        
+        for (let i = 0; i < 4; i++) {
+            const trBlade = new THREE.Mesh(trBladeGeo, trBladeMat);
+            trBlade.rotation.y = (Math.PI / 2) * i;
+            trBlade.castShadow = true;
+            tailRotor.add(trBlade);
+        }
+        tailRotor.position.set(0.7, 0.8, -7.2);
+        tailRotor.rotation.y = Math.PI / 2;
+        heliGroup.add(tailRotor);
+
+        heliGroup.position.set(0, 20, 0);
+        scene.add(heliGroup);
+
+        // Audio context and sound effects
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+        
+        let rotorSound = null;
+        let engineSound = null;
+        let rotorGain = null;
+        let engineGain = null;
+
+        function createRotorSound() {
+            const oscillator = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(80, audioCtx.currentTime);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(300, audioCtx.currentTime);
+            
+            oscillator.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            
+            oscillator.start();
+            rotorSound = oscillator;
+            rotorGain = gain;
+        }
+
+        function createEngineSound() {
+            const oscillator = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(120, audioCtx.currentTime);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(400, audioCtx.currentTime);
+            
+            oscillator.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            
+            oscillator.start();
+            engineSound = oscillator;
+            engineGain = gain;
+        }
+
+        function updateSounds() {
+            if (!rotorSound) return;
+            
+            const now = audioCtx.currentTime;
+            const rotorFreq = 60 + state.rotorSpeed * 4;
+            const engineFreq = 100 + state.collective * 80;
+            
+            rotorSound.frequency.setValueAtTime(rotorFreq, now);
+            engineSound.frequency.setValueAtTime(engineFreq, now);
+            
+            rotorGain.gain.setValueAtTime(0.15 + state.collective * 0.15, now);
+            engineGain.gain.setValueAtTime(0.08 + state.collective * 0.12, now);
+        }
+
+        function playCollisionSound() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(40, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.3);
+            
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function playWarningSound() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        // Haptic feedback
+        function vibrate(pattern) {
+            if ('vibrate' in navigator) {
+                navigator.vibrate(pattern);
+            }
+        }
+
+        // Initialize audio on first interaction
+        let audioInitialized = false;
+        function initAudio() {
+            if (!audioInitialized) {
+                audioCtx.resume();
+                createRotorSound();
+                createEngineSound();
+                audioInitialized = true;
+            }
+        }
+
+        // Terrain
+        const oceanGeo = new THREE.PlaneGeometry(1000, 1000);
+        const oceanMat = new THREE.MeshPhongMaterial({ color: 0x1e90ff });
+        const ocean = new THREE.Mesh(oceanGeo, oceanMat);
+        ocean.rotation.x = -Math.PI / 2;
+        ocean.receiveShadow = true;
+        scene.add(ocean);
+
+        // Cliff
+        const cliffGeo = new THREE.BoxGeometry(100, 50, 20);
+        const cliffMat = new THREE.MeshPhongMaterial({ color: 0x8b7355 });
+        const cliff = new THREE.Mesh(cliffGeo, cliffMat);
+        cliff.position.set(50, 25, 0);
+        cliff.castShadow = true;
+        cliff.receiveShadow = true;
+        scene.add(cliff);
+
+        // Add some rocks
+        for (let i = 0; i < 10; i++) {
+            const rock = new THREE.Mesh(
+                new THREE.SphereGeometry(Math.random() * 3 + 1, 8, 8),
+                new THREE.MeshPhongMaterial({ color: 0x696969 })
+            );
+            rock.position.set(
+                Math.random() * 200 - 100,
+                Math.random() * 5,
+                Math.random() * 200 - 100
+            );
+            rock.castShadow = true;
+            scene.add(rock);
+        }
+
+        // Landing pad
+        const padGeo = new THREE.CylinderGeometry(8, 8, 0.5, 16);
+        const padMat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
+        const pad = new THREE.Mesh(padGeo, padMat);
+        pad.position.set(-30, 0.25, 30);
+        pad.receiveShadow = true;
+        scene.add(pad);
+
+        // Flight state
+        const state = {
+            collective: 0,
+            pitch: 0,
+            roll: 0,
+            yaw: 0,
+            velocity: new THREE.Vector3(0, 0, 0),
+            angularVelocity: new THREE.Vector3(0, 0, 0),
+            damage: 0,
+            rotorSpeed: 0,
+            wind: { x: 0, z: 0, strength: 0 },
+            lastRadio: 0
+        };
+
+        // Wind simulation
+        function updateWind() {
+            const time = Date.now() / 1000;
+            state.wind.strength = 5 + Math.sin(time * 0.3) * 3;
+            state.wind.x = Math.cos(time * 0.2) * state.wind.strength;
+            state.wind.z = Math.sin(time * 0.2) * state.wind.strength;
+
+            const angle = Math.atan2(state.wind.z, state.wind.x);
+            document.getElementById('windArrow').style.transform = 
+                `translate(-50%, -100%) rotate(${angle}rad)`;
+            document.getElementById('windSpeed').textContent = 
+                state.wind.strength.toFixed(1) + ' m/s';
+        }
+
+        // Radio communications
+        const radioMessages = [
+            "Tower: Helicopter N-427, wind from northeast at 8 knots",
+            "Tower: Caution, turbulence reported near cliff face",
+            "Tower: N-427, you're cleared for approach to yellow pad",
+            "Tower: Maintain altitude above 10 meters near terrain",
+            "Tower: Wind shear advisory in effect",
+            "Tower: N-427, rotor clearance critical, advise caution"
+        ];
+
+        function sendRadio(msg) {
+            const radio = document.getElementById('radio');
+            const div = document.createElement('div');
+            div.className = 'radio-msg';
+            div.textContent = msg;
+            radio.appendChild(div);
+            radio.scrollTop = radio.scrollHeight;
+            
+            if (radio.children.length > 5) {
+                radio.removeChild(radio.children[0]);
+            }
+        }
+
+        // Touch controls
+        function setupJoystick(id, onChange) {
+            const joystick = document.getElementById(id);
+            const stick = joystick.querySelector('.stick');
+            let active = false;
+
+            function handleMove(e) {
+                if (!active) return;
+                e.preventDefault();
+                initAudio();
+
+                const rect = joystick.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                const touch = e.touches ? e.touches[0] : e;
+                const dx = touch.clientX - centerX;
+                const dy = touch.clientY - centerY;
+
+                const maxDist = rect.width / 2 - 20;
+                const dist = Math.min(Math.sqrt(dx * dx + dy * dy), maxDist);
+                const angle = Math.atan2(dy, dx);
+
+                const x = Math.cos(angle) * dist;
+                const y = Math.sin(angle) * dist;
+
+                stick.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+                
+                // Haptic feedback for control input
+                if (dist > maxDist * 0.8) {
+                    vibrate(10);
+                }
+                
+                onChange(x / maxDist, y / maxDist);
+            }
+
+            function handleEnd() {
+                active = false;
+                stick.style.transform = 'translate(-50%, -50%)';
+                onChange(0, 0);
+            }
+
+            joystick.addEventListener('touchstart', (e) => {
+                active = true;
+                vibrate(5);
+                handleMove(e);
+            });
+            joystick.addEventListener('touchmove', handleMove);
+            joystick.addEventListener('touchend', handleEnd);
+            joystick.addEventListener('mousedown', (e) => {
+                active = true;
+                initAudio();
+                handleMove(e);
+            });
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', handleEnd);
+        }
+
+        setupJoystick('cyclic', (x, y) => {
+            state.roll = x;
+            state.pitch = y;
+        });
+
+        setupJoystick('collective-control', (x, y) => {
+            state.collective = Math.max(0, Math.min(1, 0.5 - y));
+        });
+
+        setupJoystick('pedals', (x, y) => {
+            state.yaw = x;
+        });
+
+        // Physics
+        function checkCollisions() {
+            const pos = heliGroup.position;
+            
+            // Ground collision
+            if (pos.y < 1) {
+                if (state.velocity.length() > 2) {
+                    state.damage += 30;
+                    sendRadio("IMPACT! Heavy landing damage");
+                    playCollisionSound();
+                    vibrate([100, 50, 100]);
+                }
+                pos.y = 1;
+                state.velocity.y = 0;
+                state.velocity.multiplyScalar(0.5);
+            }
+
+            // Cliff collision
+            if (pos.x > 0 && pos.x < 100 && Math.abs(pos.z) < 10 && pos.y < 50) {
+                const dist = Math.abs(pos.x - 50);
+                if (dist < 15) {
+                    state.damage += 50;
+                    sendRadio("COLLISION! Terrain strike");
+                    playCollisionSound();
+                    vibrate([200, 100, 200, 100, 200]);
+                    pos.x = pos.x < 50 ? -15 : 115;
+                }
+            }
+
+            // Rotor strike check
+            if (pos.y < 5 && (Math.abs(state.roll) > 0.3 || Math.abs(state.pitch) > 0.3)) {
+                state.damage += 20;
+                sendRadio("WARNING! Rotor strike hazard");
+                playWarningSound();
+                vibrate([50, 30, 50]);
+            }
+        }
+
+        function updatePhysics(dt) {
+            // Collective (lift)
+            const lift = state.collective * 15 - 9.8;
+            state.velocity.y += lift * dt;
+
+            // Cyclic (pitch and roll)
+            const forward = new THREE.Vector3(
+                Math.sin(heliGroup.rotation.y),
+                0,
+                Math.cos(heliGroup.rotation.y)
+            );
+            const right = new THREE.Vector3(
+                Math.cos(heliGroup.rotation.y),
+                0,
+                -Math.sin(heliGroup.rotation.y)
+            );
+
+            state.velocity.add(forward.multiplyScalar(-state.pitch * 8 * dt));
+            state.velocity.add(right.multiplyScalar(state.roll * 8 * dt));
+
+            // Yaw
+            state.angularVelocity.y = state.yaw * 2;
+
+            // Wind effects
+            const windForce = new THREE.Vector3(state.wind.x, 0, state.wind.z);
+            windForce.multiplyScalar(0.3 * dt);
+            state.velocity.add(windForce);
+
+            // Drag
+            state.velocity.multiplyScalar(0.98);
+
+            // Apply velocity
+            heliGroup.position.add(state.velocity.clone().multiplyScalar(dt));
+            heliGroup.rotation.y += state.angularVelocity.y * dt;
+
+            // Tilt based on control input
+            heliGroup.rotation.x = state.pitch * 0.3;
+            heliGroup.rotation.z = -state.roll * 0.3;
+
+            // Rotor speed
+            state.rotorSpeed = state.collective * 20 + 5;
+            mainRotor.rotation.y += state.rotorSpeed * dt;
+            tailRotor.rotation.x += state.rotorSpeed * 2 * dt;
+
+            checkCollisions();
+        }
+
+        // Camera follow
+        function updateCamera() {
+            const offset = new THREE.Vector3(0, 5, -15);
+            offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), heliGroup.rotation.y);
+            camera.position.copy(heliGroup.position).add(offset);
+            camera.lookAt(heliGroup.position);
+        }
+
+        // HUD update
+        function updateHUD() {
+            document.getElementById('altitude').textContent = 
+                Math.max(0, heliGroup.position.y - 1).toFixed(1);
+            document.getElementById('speed').textContent = 
+                (state.velocity.length() * 3.6).toFixed(1);
+            document.getElementById('collective').textContent = 
+                (state.collective * 100).toFixed(0);
+            document.getElementById('dmg').textContent = state.damage.toFixed(0);
+            
+            const statusEl = document.getElementById('status');
+            if (state.damage > 80) {
+                statusEl.textContent = 'CRITICAL';
+                statusEl.style.color = '#f00';
+            } else if (state.damage > 50) {
+                statusEl.textContent = 'DAMAGED';
+                statusEl.style.color = '#ff0';
+            } else {
+                statusEl.textContent = 'OK';
+                statusEl.style.color = '#0f0';
+            }
+
+            if (state.damage >= 100) {
+                document.getElementById('damage').style.display = 'block';
+                document.getElementById('damage').textContent = 
+                    'AIRCRAFT DESTROYED\nTap to restart';
+                playCollisionSound();
+                vibrate([500, 200, 500]);
+                if (rotorGain) rotorGain.gain.setValueAtTime(0, audioCtx.currentTime);
+                if (engineGain) engineGain.gain.setValueAtTime(0, audioCtx.currentTime);
+                document.addEventListener('click', () => location.reload(), { once: true });
+            }
+        }
+
+        // Main loop
+        let lastTime = Date.now();
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const now = Date.now();
+            const dt = Math.min((now - lastTime) / 1000, 0.1);
+            lastTime = now;
+
+            updateWind();
+            updatePhysics(dt);
+            updateCamera();
+            updateHUD();
+            updateSounds();
+
+            if (now - state.lastRadio > 15000) {
+                const msg = radioMessages[Math.floor(Math.random() * radioMessages.length)];
+                sendRadio(msg);
+                state.lastRadio = now;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Start
+        sendRadio("Tower: N-427, you are cleared for takeoff");
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
