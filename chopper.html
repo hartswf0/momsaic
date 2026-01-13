@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>City Rescue: Chopper Squad Campaign</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --ui-color: #58a6ff;
+            --accent-color: #3fb950;
+            --danger-color: #f85149;
+            --glass-bg: rgba(22, 27, 34, 0.85);
+            --glass-border: rgba(240, 246, 252, 0.1);
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            overflow: hidden;
+            font-family: 'Segoe UI', 'Roboto', monospace;
+            color: #c9d1d9;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* UI LAYERS */
+        .layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex; flex-direction: column;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        /* HUD */
+        #hud {
+            justify-content: space-between;
+            padding: 10px;
+            opacity: 0;
+        }
+        #hud.visible { opacity: 1; }
+
+        .top-bar {
+            display: flex; justify-content: space-between; width: 100%; align-items: flex-start;
+        }
+
+        .stat-group { display: flex; gap: 10px; }
+        .controls-group { display: flex; gap: 8px; pointer-events: auto; }
+
+        .stat-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 6px 14px;
+            border-radius: 16px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column; align-items: center;
+            min-width: 70px;
+        }
+
+        .stat-label { font-size: 9px; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 16px; font-weight: 700; color: #f0f6fc; }
+        .health-ok { color: var(--accent-color); }
+        .health-low { color: var(--danger-color); }
+
+        /* MINI MAP */
+        #minimap-container {
+            position: absolute;
+            top: 60px; left: 50%; transform: translateX(-50%);
+            width: 250px; height: 12px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            backdrop-filter: blur(4px);
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        
+        .map-pip {
+            position: absolute; top: 2px; height: 8px; width: 8px; border-radius: 50%;
+            transform: translateX(-50%);
+        }
+        .map-player { background: var(--ui-color); border: 1px solid #fff; z-index: 10; width: 10px; height: 10px; top: 1px; transition: left 0.1s linear; }
+        .map-survivor { background: #ffd700; width: 6px; height: 6px; top: 3px; }
+        .map-base { background: var(--accent-color); width: 20px; height: 4px; border-radius: 2px; top: 4px; transform: translateX(0); }
+        .map-rescued { background: #444; }
+
+        /* HUD Buttons */
+        .hud-btn {
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            color: var(--ui-color);
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 10px; font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+        .hud-btn.active { background: var(--ui-color); color: #090c10; border-color: var(--ui-color); }
+        .hud-btn:active { transform: scale(0.95); }
+        .hud-btn.danger { color: var(--danger-color); border-color: var(--danger-color); }
+
+        /* HINTS */
+        #hint-box {
+            position: absolute; top: 85px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            border: 1px solid var(--accent-color);
+            color: #e6edf3;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0; transform: translate(-50%, 10px);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        #hint-box.show { opacity: 1; transform: translate(-50%, 0); }
+        .highlight { color: var(--accent-color); font-weight: bold; }
+
+        /* NOTIFICATIONS */
+        #notification {
+            position: absolute; top: 30%; width: 100%;
+            text-align: center; font-size: 24px; font-weight: 800;
+            color: #fff; text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+            letter-spacing: 2px;
+            opacity: 0; transform: scale(0.8);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 20;
+        }
+        #notification.show { opacity: 1; transform: scale(1); }
+
+        /* CONTROLS */
+        .touch-zone {
+            position: absolute; bottom: 20px; width: 160px; height: 160px;
+            background: rgba(255,255,255,0.03);
+            border: 2px dashed rgba(255,255,255,0.1);
+            border-radius: 30px;
+            pointer-events: auto;
+            display: flex; justify-content: center; align-items: center;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .touch-zone:active { background: rgba(88, 166, 255, 0.1); border-color: var(--ui-color); }
+        
+        #zone-left { left: 20px; }
+        #zone-right { right: 20px; }
+
+        .zone-label {
+            position: absolute; bottom: -25px; width: 100%; text-align: center;
+            font-size: 10px; color: #8b949e; pointer-events: none;
+        }
+        .zone-icon { font-size: 40px; opacity: 0.2; color: #fff; }
+
+        .knob {
+            position: absolute; width: 60px; height: 60px;
+            border-radius: 50%; border: 3px solid #fff;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px var(--ui-color);
+            opacity: 0; pointer-events: none; transition: opacity 0.1s;
+            z-index: 50;
+        }
+        .knob.active { opacity: 0.8; }
+
+        /* MENUS */
+        #menu-layer {
+            background: rgba(13, 17, 23, 0.95);
+            backdrop-filter: blur(10px);
+            align-items: center; justify-content: center;
+            pointer-events: auto;
+            z-index: 100;
+            opacity: 1;
+            transition: opacity 0.6s ease-out;
+        }
+        #menu-layer.fade-out { opacity: 0; pointer-events: none; }
+
+        .menu-content { text-align: center; max-width: 500px; padding: 20px; transition: transform 0.5s; }
+        .menu-content.hidden { display: none; }
+        
+        h1 { font-size: 42px; margin: 0 0 10px 0; color: #f0f6fc; text-transform: uppercase; letter-spacing: -1px; }
+        h2 { font-size: 16px; margin: 0 0 30px 0; color: var(--ui-color); font-weight: 400; letter-spacing: 2px; }
+        
+        .level-badge {
+            background: var(--ui-color); color: #000; padding: 4px 10px;
+            border-radius: 10px; font-size: 12px; font-weight: bold; margin-bottom: 10px; display: inline-block;
+        }
+
+        .instruction-box {
+            background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px;
+            margin-bottom: 30px; text-align: left; font-size: 14px; line-height: 1.6;
+            border: 1px solid var(--glass-border);
+        }
+        .key { color: var(--ui-color); font-weight: bold; }
+
+        .btn {
+            background: var(--accent-color); color: #fff; border: none;
+            padding: 16px 40px; font-size: 20px; font-weight: 700;
+            border-radius: 50px; cursor: pointer; text-transform: uppercase;
+            box-shadow: 0 4px 0 #2ea043; transition: transform 0.1s;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: none; }
+        .btn-next { background: var(--ui-color); box-shadow: 0 4px 0 #1f6feb; }
+        .btn-restart { background: #444; box-shadow: 0 4px 0 #222; }
+
+        /* End Screen */
+        .result-title { font-size: 40px; margin-bottom: 20px; }
+        .win { color: var(--accent-color); }
+        .lose { color: var(--danger-color); }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="layer">
+        <div class="top-bar">
+            <div class="stat-group">
+                <div class="stat-box">
+                    <span class="stat-label">Level</span>
+                    <span class="stat-value" id="level-val">1</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">Survivors</span>
+                    <span class="stat-value"><span id="score-val">0</span> / <span id="score-max">3</span></span>
+                </div>
+                <div class="stat-box" style="border-color: rgba(255,255,255,0.1);">
+                    <span class="stat-label">Hull</span>
+                    <span class="stat-value health-ok" id="health-val">100%</span>
+                </div>
+            </div>
+            
+            <div class="controls-group">
+                <button id="vis-toggle" class="hud-btn active" onclick="Game.toggleVis()">VIS</button>
+                <button id="voice-toggle" class="hud-btn active" onclick="VoiceSys.toggle()">VOICE</button>
+                <button class="hud-btn danger" onclick="Game.resetLevel()">↻</button>
+            </div>
+        </div>
+
+        <!-- Mini Map -->
+        <div id="minimap-container">
+            <div id="map-base" class="map-pip map-base"></div>
+            <div id="map-player" class="map-pip map-player"></div>
+            <div id="map-pips-layer"></div>
+        </div>
+        
+        <div id="hint-box"></div>
+        <div id="notification"></div>
+    </div>
+
+    <!-- Controls -->
+    <div id="controls" class="layer controls-layer" style="opacity: 0; transition: opacity 1s;">
+        <div id="zone-left" class="touch-zone">
+            <div class="zone-icon">▲</div>
+            <div class="zone-label">LIFT & TURN</div>
+        </div>
+        <div id="zone-right" class="touch-zone">
+            <div class="zone-icon">↔</div>
+            <div class="zone-label">TILT / MOVE</div>
+        </div>
+        <div id="knob-left" class="knob"></div>
+        <div id="knob-right" class="knob"></div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="menu-layer" class="layer">
+        <div class="menu-content" id="start-screen">
+            <h1>City Rescue</h1>
+            <h2>Campaign Mode</h2>
+            
+            <div class="instruction-box">
+                <p>1. <span class="key">LEFT TOUCH:</span> Drag UP for Lift, Left/Right to Turn.</p>
+                <p>2. <span class="key">RIGHT TOUCH:</span> Drag Left/Right to Tilt & Move.</p>
+                <p>3. <strong>GOAL:</strong> Rescue survivors and return to base to unlock the next level.</p>
+            </div>
+            
+            <button class="btn" onclick="Game.startIntro()">START CAMPAIGN</button>
+        </div>
+
+        <div class="menu-content hidden" id="end-screen">
+            <span id="level-complete-badge" class="level-badge">LEVEL COMPLETE</span>
+            <h1 id="end-title" class="result-title">MISSION SUCCESS</h1>
+            <p id="end-reason" style="margin-bottom: 30px; font-size: 18px; color: #8b949e;">All survivors secured.</p>
+            
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="btn-next" class="btn btn-next" onclick="Game.nextLevel()">NEXT LEVEL</button>
+                <button id="btn-retry" class="btn btn-restart" onclick="Game.resetLevel()">RETRY</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- SYSTEMS ---
+        const VoiceSys = {
+            enabled: true, synth: window.speechSynthesis, lastSpoken: 0,
+            toggle: function() { this.enabled = !this.enabled; document.getElementById('voice-toggle').className = this.enabled ? 'hud-btn active' : 'hud-btn'; if(this.enabled) this.speak("Voice Online"); },
+            speak: function(text, priority = false) {
+                if (!this.enabled || !this.synth) return;
+                if (!priority && Date.now() - this.lastSpoken < 2500) return;
+                if (priority) this.synth.cancel();
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.rate = 1.1; 
+                const voices = this.synth.getVoices();
+                if(voices.length) utter.voice = voices.find(v => v.name.includes('Google US English')) || voices[0];
+                this.synth.speak(utter);
+                this.lastSpoken = Date.now();
+            }
+        };
+
+        const AudioSys = {
+            ctx: null,
+            init: function() {
+                if (this.ctx) return;
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return;
+                try {
+                    this.ctx = new AC();
+                    this.master = this.ctx.createGain();
+                    this.master.gain.value = 0.3;
+                    this.master.connect(this.ctx.destination);
+                    this.rotor = this.ctx.createOscillator();
+                    this.rotor.type = 'sawtooth';
+                    this.rotor.frequency.value = 40;
+                    this.filter = this.ctx.createBiquadFilter();
+                    this.filter.type = 'lowpass';
+                    this.filter.frequency.value = 400;
+                    this.rotorGain = this.ctx.createGain();
+                    this.rotorGain.gain.value = 0;
+                    this.rotor.connect(this.filter);
+                    this.filter.connect(this.rotorGain);
+                    this.rotorGain.connect(this.master);
+                    this.rotor.start();
+                } catch(e) { console.warn("Audio error", e); }
+            },
+            updateEngine: function(power) {
+                if (!this.ctx || this.ctx.state === 'suspended') { if(this.ctx) this.ctx.resume(); return; }
+                this.rotor.frequency.setTargetAtTime(40 + (power * 30), this.ctx.currentTime, 0.1);
+                this.filter.frequency.setTargetAtTime(200 + (power * 600), this.ctx.currentTime, 0.1);
+                this.rotorGain.gain.setTargetAtTime(0.1 + (power * 0.5), this.ctx.currentTime, 0.1);
+            },
+            sfx: function(type) {
+                if (!this.ctx) return;
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.connect(g); g.connect(this.master);
+                if (type === 'rescue') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(880, t); osc.frequency.exponentialRampToValueAtTime(1760, t+0.1);
+                    g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.5);
+                } else if (type === 'crash') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, t); osc.frequency.exponentialRampToValueAtTime(10, t+0.3);
+                    g.gain.setValueAtTime(0.8, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.4);
+                } else if (type === 'win') {
+                    [523, 659, 783, 1046].forEach((f, i) => {
+                        const o = this.ctx.createOscillator(); const gn = this.ctx.createGain();
+                        o.connect(gn); gn.connect(this.master); o.frequency.value = f;
+                        gn.gain.setValueAtTime(0.2, t+i*0.1); gn.gain.exponentialRampToValueAtTime(0.001, t+i*0.1+0.5);
+                        o.start(t+i*0.1); o.stop(t+i*0.1+0.5);
+                    });
+                    return;
+                }
+                osc.start(); osc.stop(t+0.5);
+            }
+        };
+
+        const Game = {
+            canvas: document.getElementById('gameCanvas'),
+            ctx: document.getElementById('gameCanvas').getContext('2d'),
+            state: 'MENU',
+            width: 0, height: 0, worldWidth: 0,
+            
+            // Level State
+            currentLevelIdx: 1, // Start at Level 1
+            score: 0, targetScore: 2, health: 100,
+            
+            // Objects
+            heli: { x: 0, y: 0, vx: 0, vy: 0, angle: 0, power: 0, width: 40, height: 20 },
+            camera: { x: 0 },
+            buildings: [], survivors: [], particles: [], hazards: [],
+            
+            // Physics
+            gravity: 0.15, liftMax: 0.38, drag: 0.985, wind: 0,
+            input: { lift: 0, yaw: 0, tilt: 0 },
+            vis: { enabled: true },
+            hintTimer: 0,
+
+            init: function() {
+                window.addEventListener('resize', () => this.resize());
+                this.resize();
+                Input.setup('zone-left', 'knob-left', 'left');
+                Input.setup('zone-right', 'knob-right', 'right');
+                
+                // Intro loop
+                this.generateWorld(1); // Dummy world
+                this.heli.x = -100; this.heli.y = this.height/3; this.heli.vx = 5;
+                requestAnimationFrame(() => this.loop());
+            },
+
+            resize: function() {
+                this.width = window.innerWidth;
+                this.height = window.innerHeight;
+                this.canvas.width = this.width;
+                this.canvas.height = this.height;
+                this.worldWidth = this.width * 4;
+            },
+
+            toggleVis: function() {
+                this.vis.enabled = !this.vis.enabled;
+                document.getElementById('vis-toggle').className = this.vis.enabled ? 'hud-btn active' : 'hud-btn';
+            },
+
+            // --- PROCEDURAL LEVEL GEN ---
+            getLevelConfig: function(level) {
+                // Level 1: Tutorial (2 survivors, no wind)
+                if (level === 1) return { survivors: 2, wind: 0, fire: false, title: "Training", desc: "Calm Weather. Rescue 2 Survivors." };
+                
+                // Infinite scaling
+                const survivors = Math.min(6, 2 + Math.floor(level / 2)); // Caps at 6
+                // Wind starts at level 3, caps at 0.02 (gentle drift)
+                const wind = level < 3 ? 0 : -0.005 * Math.min(4, (level - 2)); 
+                const fire = level >= 4; // Fire starts level 4
+                
+                return {
+                    survivors: survivors,
+                    wind: wind,
+                    fire: fire,
+                    title: `Sector ${level}`,
+                    desc: wind < 0 ? "High Winds Alert." : "Clear Skies."
+                };
+            },
+
+            generateWorld: function(levelIdx) {
+                this.buildings = []; this.survivors = []; this.hazards = [];
+                
+                const cfg = this.getLevelConfig(levelIdx);
+                this.targetScore = cfg.survivors;
+                this.wind = cfg.wind;
+                
+                // Base
+                this.buildings.push({ x: 50, w: 200, h: 100, y: this.height-100, type: 'base', color: '#238636' });
+                
+                let x = 300;
+                while (x < this.worldWidth - 100) {
+                    const w = 100 + Math.random() * 150;
+                    const gap = 50 + Math.random() * 80;
+                    const h = 150 + Math.random() * (this.height * 0.5);
+                    this.buildings.push({
+                        x: x, y: this.height - h, w: w, h: h, type: 'building',
+                        color: `hsl(${210 + Math.random()*20}, 25%, ${20 + Math.random()*15}%)`
+                    });
+                    x += w + (50 + Math.random() * 80);
+                }
+
+                // Place Survivors (Guaranteed Count)
+                const candidates = this.buildings.filter(b => b.type !== 'base' && b.x > 600);
+                // Shuffle
+                for(let i = candidates.length-1; i>0; i--){
+                    const j = Math.floor(Math.random()*(i+1));
+                    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+                }
+                
+                const count = Math.min(this.targetScore, candidates.length);
+                this.targetScore = count;
+
+                for(let i=0; i<count; i++) {
+                    const b = candidates[i];
+                    b.type = 'rescue';
+                    this.survivors.push({ x: b.x+b.w/2, y: b.y, state: 'waiting', timer: 0, buildingIdx: this.buildings.indexOf(b) });
+                }
+
+                // Place Fire Hazards
+                if (cfg.fire) {
+                    for(let b of this.buildings) {
+                        if(b.type === 'building' && Math.random() > 0.6) {
+                            this.hazards.push({ x: b.x, y: b.y, w: b.w, h: 20, type: 'fire' });
+                        }
+                    }
+                }
+
+                this.initMiniMap();
+                document.getElementById('score-max').innerText = this.targetScore;
+            },
+
+            initMiniMap: function() {
+                const layer = document.getElementById('map-pips-layer');
+                layer.innerHTML = '';
+                this.survivors.forEach((s, i) => {
+                    const pip = document.createElement('div');
+                    pip.className = 'map-pip map-survivor';
+                    pip.id = `pip-${i}`;
+                    pip.style.left = ((s.x / this.worldWidth) * 100) + '%';
+                    layer.appendChild(pip);
+                });
+                const base = document.getElementById('map-base');
+                base.style.left = ((150 / this.worldWidth) * 100) + '%';
+            },
+
+            updateMiniMap: function() {
+                document.getElementById('map-player').style.left = ((this.heli.x / this.worldWidth) * 100) + '%';
+                this.survivors.forEach((s, i) => {
+                    const pip = document.getElementById(`pip-${i}`);
+                    if(pip && s.state === 'rescued') pip.classList.add('map-rescued');
+                });
+            },
+
+            startIntro: function() {
+                try { AudioSys.init(); window.speechSynthesis.getVoices(); } catch(e){}
+                document.getElementById('menu-layer').classList.add('fade-out');
+                this.state = 'INTRO';
+                this.heli.x = -100; this.heli.y = this.height * 0.3; this.heli.vx = 8;
+                this.currentLevelIdx = 1;
+                VoiceSys.speak("Campaign Started.");
+                setTimeout(() => this.resetLevel(), 2000);
+            },
+
+            resetLevel: function() {
+                document.getElementById('menu-layer').classList.add('fade-out');
+                document.getElementById('hud').classList.add('visible');
+                document.getElementById('controls').style.opacity = '1';
+                document.getElementById('start-screen').classList.add('hidden');
+                document.getElementById('end-screen').classList.add('hidden');
+                
+                this.state = 'PLAY';
+                this.score = 0;
+                this.health = 100;
+                this.heli.x = 150; this.heli.y = this.height - 150;
+                this.heli.vx = 0; this.heli.vy = 0; this.heli.angle = 0; this.heli.power = 0.395;
+                
+                this.generateWorld(this.currentLevelIdx);
+                
+                const cfg = this.getLevelConfig(this.currentLevelIdx);
+                this.notify(`LEVEL ${this.currentLevelIdx}: ${cfg.title}`);
+                VoiceSys.speak(cfg.desc, true);
+                
+                document.getElementById('level-val').innerText = this.currentLevelIdx;
+                this.updateHUD();
+            },
+
+            nextLevel: function() {
+                this.currentLevelIdx++;
+                this.resetLevel();
+            },
+
+            endGame: function(win, reason) {
+                this.state = 'END';
+                const menu = document.getElementById('menu-layer');
+                menu.classList.remove('fade-out');
+                document.getElementById('hud').classList.remove('visible');
+                document.getElementById('controls').style.opacity = '0';
+                
+                document.getElementById('start-screen').classList.add('hidden');
+                const screen = document.getElementById('end-screen');
+                screen.classList.remove('hidden');
+                
+                const title = document.getElementById('end-title');
+                title.innerText = win ? "MISSION SUCCESS" : "MISSION FAILED";
+                title.className = win ? "result-title win" : "result-title lose";
+                document.getElementById('end-reason').innerText = reason;
+                document.getElementById('level-complete-badge').style.display = win ? 'inline-block' : 'none';
+                
+                const btnNext = document.getElementById('btn-next');
+                if (win) {
+                    btnNext.style.display = 'inline-block';
+                    btnNext.innerText = "NEXT LEVEL";
+                    btnNext.onclick = () => Game.nextLevel();
+                } else {
+                    btnNext.style.display = 'none';
+                }
+
+                if (win) AudioSys.sfx('win');
+            },
+
+            update: function() {
+                if (this.state === 'MENU' || this.state === 'INTRO') {
+                    this.heli.x += 4; if (this.heli.x > this.width + 100) this.heli.x = -100;
+                    this.heli.y = this.height * 0.4 + Math.sin(Date.now()/500)*20;
+                    if(this.state === 'INTRO') {
+                        this.heli.x += (this.width/2 - this.heli.x)*0.05;
+                        this.camera.x += (this.heli.x - this.width/3 - this.camera.x)*0.1;
+                    }
+                    return;
+                }
+                if (this.state !== 'PLAY') return;
+
+                const h = this.heli;
+                // Input & Physics
+                let targetPower = 0.395 + (this.input.lift * 0.3);
+                h.power += (targetPower - h.power) * 0.1;
+                // INCREASED TILT AUTHORITY so you can fight wind
+                let targetAngle = this.input.tilt * 1.0; 
+                h.angle += (targetAngle - h.angle) * 0.1;
+
+                const lift = h.power * this.liftMax;
+                h.vx += lift * Math.sin(h.angle);
+                h.vy -= lift * Math.cos(h.angle);
+                h.vy += this.gravity;
+                
+                h.vx += this.wind; // Wind force
+
+                h.vx *= this.drag; h.vy *= this.drag;
+                h.x += h.vx; h.y += h.vy;
+
+                // Camera
+                let camTarget = h.x - this.width * 0.3;
+                camTarget = Math.max(0, Math.min(camTarget, this.worldWidth - this.width));
+                this.camera.x += (camTarget - this.camera.x) * 0.1;
+
+                this.checkCollisions();
+                this.checkSurvivors();
+                this.updateHazards();
+                this.updateParticles();
+                this.updateMiniMap();
+                this.updateHints();
+                AudioSys.updateEngine(h.power);
+            },
+
+            checkCollisions: function() {
+                const h = this.heli;
+                if(h.y > this.height-10) { h.y=this.height-10; this.crash(10); h.vy*=-0.5; }
+                if(h.y < 0) { h.y=0; h.vy=0.5; }
+                if(h.x < 0) { h.x=0; h.vx=0; }
+                if(h.x > this.worldWidth) { h.x=this.worldWidth; h.vx=0; }
+
+                for (let b of this.buildings) {
+                    if (h.x + 15 > b.x && h.x - 15 < b.x + b.w && h.y + 10 > b.y && h.y - 10 < b.y + b.h) {
+                        if (h.y < b.y + 15 && h.vy > 0) { // Land
+                            h.y = b.y - 10;
+                            if (h.vy > 3.0 || Math.abs(h.angle) > 0.5) { this.crash(20); h.vy *= -0.5; }
+                            else {
+                                h.vy = 0; h.vx *= 0.8; h.angle *= 0.8;
+                                if (b.type === 'base' && this.score >= this.targetScore && Math.abs(h.vx) < 0.1) {
+                                    this.endGame(true, "Mission Accomplished.");
+                                }
+                            }
+                        } else { // Crash side
+                            h.vx *= -0.5; this.crash(5);
+                        }
+                    }
+                }
+            },
+
+            checkSurvivors: function() {
+                const h = this.heli;
+                this.survivors.forEach(s => {
+                    if (s.state === 'waiting') {
+                        const b = this.buildings[s.buildingIdx];
+                        const isLanded = (Math.abs(h.y - (b.y - 10)) < 2) && (h.x > b.x && h.x < b.x + b.w);
+                        if (isLanded && Math.abs(h.x - s.x) < 60 && Math.abs(h.vx) < 0.2) {
+                            s.timer++;
+                            if (s.timer > 100) {
+                                s.state = 'rescued'; this.score++; this.updateHUD();
+                                AudioSys.sfx('rescue'); VoiceSys.speak("Secured");
+                                this.spawnParticles(s.x, s.y, 'sparkle', 10);
+                                if (this.score === this.targetScore) {
+                                    this.notify("RETURN TO BASE!"); VoiceSys.speak("Return to Base", true);
+                                }
+                            }
+                        } else s.timer = 0;
+                    }
+                });
+            },
+
+            updateHazards: function() {
+                const h = this.heli;
+                for(let hz of this.hazards) {
+                    if(hz.type === 'fire') {
+                        if(Math.random()>0.8) this.spawnParticles(hz.x + Math.random()*hz.w, hz.y, 'fire', 1);
+                        if(h.x > hz.x && h.x < hz.x+hz.w && h.y < hz.y && h.y > hz.y - 80) {
+                            if(Math.random()>0.9) this.crash(1);
+                        }
+                    }
+                }
+            },
+
+            updateHints: function() {
+                this.hintTimer++;
+                if(this.hintTimer % 60 !== 0) return;
+                let hint = "";
+                if (this.health < 40) hint = "WARNING: CRITICAL DAMAGE";
+                else if (this.wind < 0 && Math.abs(this.heli.vx) < 1) hint = "ALERT: HIGH WINDS DETECTED";
+                else if (this.score === 0) hint = "FIND <span class='highlight'>YELLOW PADS</span>";
+                else if (this.score === this.targetScore) hint = "RETURN TO <span class='highlight'>BASE</span>";
+                const box = document.getElementById('hint-box');
+                box.innerHTML = hint; box.className = hint ? "show" : "";
+            },
+
+            updateMiniMap: function() {
+                document.getElementById('map-player').style.left = ((this.heli.x / this.worldWidth) * 100) + '%';
+                this.survivors.forEach((s, i) => {
+                    const pip = document.getElementById(`pip-${i}`);
+                    if(pip && s.state === 'rescued') pip.classList.add('map-rescued');
+                });
+            },
+
+            crash: function(dmg) {
+                this.health -= dmg;
+                this.spawnParticles(this.heli.x, this.heli.y, 'fire', 5);
+                AudioSys.sfx('crash');
+                if (navigator.vibrate) navigator.vibrate(200);
+                this.updateHUD();
+                if (this.health <= 0) { this.health = 0; this.endGame(false, "Hull Destroyed."); }
+            },
+
+            spawnParticles: function(x, y, type, count) {
+                for(let i=0; i<count; i++) this.particles.push({ x: x, y: y, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, life: 1.0, type: type });
+            },
+
+            updateParticles: function() {
+                if(this.wind !== 0 && Math.random() > 0.8) {
+                    this.particles.push({
+                        x: this.camera.x + this.width + 50,
+                        y: Math.random() * this.height,
+                        vx: this.wind * 100, vy: 0, life: 1.0, type: 'wind'
+                    });
+                }
+                for(let i=this.particles.length-1; i>=0; i--) {
+                    let p = this.particles[i];
+                    p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+                    if(p.life <= 0) this.particles.splice(i, 1);
+                }
+            },
+
+            notify: function(msg) {
+                const el = document.getElementById('notification');
+                el.innerText = msg; el.classList.add('show');
+                setTimeout(() => el.classList.remove('show'), 2500);
+            },
+
+            updateHUD: function() {
+                document.getElementById('score-val').innerText = this.score;
+                const hEl = document.getElementById('health-val');
+                hEl.innerText = Math.ceil(this.health) + "%";
+                hEl.className = this.health > 30 ? "stat-value health-ok" : "stat-value health-low";
+            },
+
+            draw: function() {
+                this.ctx.fillStyle = '#0d1117'; this.ctx.fillRect(0, 0, this.width, this.height);
+                const grad = this.ctx.createLinearGradient(0, 0, 0, this.height);
+                grad.addColorStop(0, '#020408'); grad.addColorStop(1, '#161b22');
+                this.ctx.fillStyle = grad; this.ctx.fillRect(0, 0, this.width, this.height);
+
+                this.ctx.save();
+                if(this.state !== 'MENU') this.ctx.translate(-this.camera.x, 0);
+
+                for (let b of this.buildings) {
+                    this.ctx.fillStyle = b.color; this.ctx.fillRect(b.x, b.y, b.w, b.h);
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    for(let wy=b.y+20; wy<b.y+b.h; wy+=30) for(let wx=b.x+10; wx<b.x+b.w-10; wx+=20) if(Math.random()>0.8) this.ctx.fillRect(wx, wy, 10, 15);
+                    if (b.type === 'base' || b.type === 'rescue') {
+                        this.ctx.fillStyle = 'rgba(0,0,0,0.3)'; this.ctx.fillRect(b.x, b.y, b.w, 10);
+                        this.ctx.fillStyle = b.type === 'base' ? '#3fb950' : '#d29922';
+                        this.ctx.font = 'bold 20px Arial'; this.ctx.textAlign = 'center';
+                        this.ctx.fillText(b.type === 'base' ? 'BASE' : 'H', b.x + b.w/2, b.y + 25);
+                    }
+                }
+
+                for (let s of this.survivors) {
+                    if (s.state === 'waiting') {
+                        if (s.timer > 0) { this.ctx.fillStyle = '#3fb950'; this.ctx.fillRect(s.x-15, s.y-35, (s.timer/100)*30, 4); }
+                        this.ctx.strokeStyle = '#fff'; this.ctx.lineWidth = 2; this.ctx.beginPath();
+                        const wave = Math.sin(Date.now()/100)*5;
+                        this.ctx.moveTo(s.x, s.y); this.ctx.lineTo(s.x, s.y-12); this.ctx.lineTo(s.x-5, s.y+2); 
+                        this.ctx.moveTo(s.x, s.y); this.ctx.lineTo(s.x+5, s.y+2);
+                        this.ctx.moveTo(s.x, s.y-8); this.ctx.lineTo(s.x-8, s.y-15+wave);
+                        this.ctx.moveTo(s.x, s.y-8); this.ctx.lineTo(s.x+8, s.y-5);
+                        this.ctx.stroke(); this.ctx.beginPath(); this.ctx.arc(s.x, s.y-16, 3, 0, Math.PI*2); this.ctx.fillStyle = '#fff'; this.ctx.fill();
+                    }
+                }
+
+                for (let p of this.particles) {
+                    this.ctx.globalAlpha = p.life;
+                    if(p.type === 'wind') {
+                        this.ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                        this.ctx.fillRect(p.x, p.y, 50, 1);
+                    } else {
+                        this.ctx.fillStyle = p.type === 'fire' ? '#f85149' : '#e3b341';
+                        this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.type === 'fire'?4:2, 0, Math.PI*2); this.ctx.fill();
+                    }
+                }
+                this.ctx.globalAlpha = 1;
+
+                if (this.vis.enabled && this.state === 'PLAY') this.drawTrajectory();
+                this.drawHeli();
+                if (this.vis.enabled && this.state === 'PLAY') this.drawVectors();
+
+                this.ctx.restore();
+            },
+
+            drawHeli: function() {
+                const h = this.heli;
+                this.ctx.save(); this.ctx.translate(h.x, h.y); this.ctx.rotate(h.angle);
+                this.ctx.strokeStyle = '#8b949e'; this.ctx.lineWidth = 2; this.ctx.beginPath();
+                this.ctx.moveTo(-10, 12); this.ctx.lineTo(-10, 18); this.ctx.lineTo(15, 18);
+                this.ctx.moveTo(10, 12); this.ctx.lineTo(10, 18); this.ctx.stroke();
+                this.ctx.fillStyle = '#c9d1d9'; this.ctx.beginPath();
+                this.ctx.moveTo(-15, -10); this.ctx.lineTo(10, -10); this.ctx.lineTo(20, 5);
+                this.ctx.lineTo(10, 12); this.ctx.lineTo(-15, 12); this.ctx.closePath(); this.ctx.fill();
+                this.ctx.fillStyle = '#58a6ff'; this.ctx.beginPath();
+                this.ctx.moveTo(0, -8); this.ctx.lineTo(10, -8); this.ctx.lineTo(18, 5); this.ctx.lineTo(0, 5); this.ctx.closePath(); this.ctx.fill();
+                this.ctx.fillStyle = '#c9d1d9'; this.ctx.fillRect(-35, -5, 20, 5);
+                this.ctx.fillStyle = '#8b949e'; this.ctx.beginPath(); this.ctx.arc(-35, -3, 8, 0, Math.PI*2); this.ctx.globalAlpha = 0.5; this.ctx.fill(); this.ctx.globalAlpha = 1;
+                this.ctx.fillStyle = 'rgba(240, 246, 252, 0.5)'; this.ctx.fillRect(-50, -10, 100, 2);
+                const blur = Math.sin(Date.now() / (20 + (1-h.power)*100)) * 45;
+                this.ctx.fillStyle = '#fff'; this.ctx.fillRect(blur, -10, 10, 3);
+                this.ctx.restore();
+            },
+
+            drawVectors: function() {
+                const h = this.heli; this.ctx.save(); this.ctx.translate(h.x, h.y);
+                this.ctx.beginPath(); this.ctx.strokeStyle = '#f85149'; this.ctx.lineWidth = 2; this.ctx.moveTo(0,0); this.ctx.lineTo(0,40); this.ctx.stroke();
+                this.ctx.beginPath(); this.ctx.fillStyle = '#f85149'; this.ctx.moveTo(0,40); this.ctx.lineTo(-4,34); this.ctx.lineTo(4,34); this.ctx.fill();
+                const liftLen = h.power * 80; const angle = h.angle;
+                const lx = Math.sin(angle)*liftLen; const ly = -Math.cos(angle)*liftLen;
+                this.ctx.beginPath(); this.ctx.strokeStyle = '#3fb950'; this.ctx.lineWidth = 2; this.ctx.moveTo(0,0); this.ctx.lineTo(lx,ly); this.ctx.stroke();
+                this.ctx.beginPath(); this.ctx.fillStyle = '#3fb950'; this.ctx.translate(lx,ly); this.ctx.rotate(angle); this.ctx.moveTo(0,0); this.ctx.lineTo(-4,6); this.ctx.lineTo(4,6); this.ctx.fill();
+                this.ctx.restore();
+            },
+
+            drawTrajectory: function() {
+                let simH = { x: this.heli.x, y: this.heli.y, vx: this.heli.vx, vy: this.heli.vy, angle: this.heli.angle, power: this.heli.power };
+                this.ctx.beginPath(); this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                this.ctx.setLineDash([4, 4]); this.ctx.lineWidth = 2; this.ctx.moveTo(simH.x, simH.y);
+                for(let i=0; i<60; i++) {
+                    const lift = simH.power * this.liftMax;
+                    simH.vx += lift * Math.sin(simH.angle); simH.vy -= lift * Math.cos(simH.angle);
+                    simH.vy += this.gravity; simH.vx += this.wind; simH.vx *= this.drag; simH.vy *= this.drag;
+                    simH.x += simH.vx; simH.y += simH.vy;
+                    this.ctx.lineTo(simH.x, simH.y);
+                }
+                this.ctx.stroke(); this.ctx.setLineDash([]);
+                this.ctx.fillStyle = 'rgba(255,255,255,0.5)'; this.ctx.beginPath(); this.ctx.arc(simH.x, simH.y, 3, 0, Math.PI*2); this.ctx.fill();
+            },
+
+            loop: function() {
+                this.update(); this.draw(); requestAnimationFrame(() => this.loop());
+            }
+        };
+
+        const Input = {
+            setup: function(zoneId, knobId, type) {
+                const zone = document.getElementById(zoneId);
+                const knob = document.getElementById(knobId);
+                let touchId = null; let startX, startY; const maxDist = 50;
+                const handleMove = (cx, cy) => {
+                    const dx = cx - startX; const dy = cy - startY;
+                    const dist = Math.min(maxDist, Math.sqrt(dx*dx + dy*dy));
+                    const angle = Math.atan2(dy, dx);
+                    const kx = Math.cos(angle) * dist; const ky = Math.sin(angle) * dist;
+                    knob.style.transform = `translate(calc(-50% + ${kx}px), calc(-50% + ${ky}px))`;
+                    knob.classList.add('active');
+                    const nx = kx / maxDist; const ny = ky / maxDist;
+                    if (type === 'left') { Game.input.lift = -ny; Game.input.yaw = nx; } else { Game.input.tilt = nx; }
+                };
+                const start = (id, cx, cy) => {
+                    touchId = id; const rect = zone.getBoundingClientRect();
+                    startX = rect.left + rect.width/2; startY = rect.top + rect.height/2;
+                    knob.style.left = startX + 'px'; knob.style.top = startY + 'px';
+                    handleMove(cx, cy);
+                };
+                zone.addEventListener('touchstart', e => { e.preventDefault(); if (touchId !== null) return; const t = e.changedTouches[0]; start(t.identifier, t.clientX, t.clientY); }, {passive: false});
+                zone.addEventListener('touchmove', e => { e.preventDefault(); for(let i=0; i<e.changedTouches.length; i++) { if(e.changedTouches[i].identifier === touchId) handleMove(e.changedTouches[i].clientX, e.changedTouches[i].clientY); } }, {passive: false});
+                const end = (e) => { for(let i=0; i<e.changedTouches.length; i++) { if(e.changedTouches[i].identifier === touchId) { touchId = null; knob.classList.remove('active'); knob.style.transform = `translate(-50%, -50%)`; if (type === 'left') { Game.input.lift = 0; Game.input.yaw = 0; } else { Game.input.tilt = 0; } } } };
+                zone.addEventListener('touchend', end); zone.addEventListener('touchcancel', end);
+                zone.addEventListener('mousedown', e => start(999, e.clientX, e.clientY));
+                window.addEventListener('mousemove', e => { if (touchId === 999) handleMove(e.clientX, e.clientY); });
+                window.addEventListener('mouseup', () => { if (touchId === 999) { touchId = null; knob.classList.remove('active'); if (type === 'left') { Game.input.lift = 0; Game.input.yaw = 0; } else { Game.input.tilt = 0; } } });
+            }
+        };
+
+        window.onload = () => Game.init();
+    </script>
+</body>
+</html>
+
+
