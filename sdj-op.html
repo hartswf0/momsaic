@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LATENT RADIO: OP-10 SPECTRAL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --te-orange: #ff4d00;
+            --te-bg: #c0c0c8;
+            --te-black: #111114;
+            --lcd-green: #9fb399;
+            --lcd-ink: #1e261c;
+        }
+
+        body {
+            background-color: var(--te-bg);
+            color: var(--te-black);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .mono { font-family: 'Space Mono', monospace; }
+
+        header {
+            background: var(--te-black);
+            color: white;
+            padding: 0.5rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 5px solid var(--te-orange);
+            z-index: 100;
+        }
+
+        /* LCD - High Density Readout */
+        .lcd {
+            background: var(--lcd-green);
+            box-shadow: inset 0 6px 15px rgba(0,0,0,0.4), inset 0 0 40px rgba(0,0,0,0.1);
+            border: 4px solid #4a5446;
+            color: var(--lcd-ink);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .lcd-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(0,0,0,0.1) 50%, transparent 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        canvas {
+            position: absolute;
+            bottom: 0; left: 0; width: 100%; height: 60%;
+            opacity: 0.8;
+            image-rendering: pixelated;
+        }
+
+        /* Tape Reels Animation */
+        .reel {
+            width: 40px; height: 40px;
+            border: 2px solid var(--lcd-ink);
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .reel::after {
+            content: "";
+            width: 80%; height: 2px;
+            background: var(--lcd-ink);
+            position: absolute;
+        }
+        .spinning { animation: spin 2s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .te-btn {
+            background: #fdfdfd;
+            border-bottom: 5px solid #8e8e93;
+            border-radius: 2px;
+            transition: all 0.05s;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 10px;
+        }
+
+        .te-btn:active {
+            transform: translateY(3px);
+            border-bottom-width: 2px;
+        }
+
+        .te-btn.orange { background: var(--te-orange); color: white; border-bottom-color: #a33200; }
+        .te-btn.black { background: var(--te-black); color: white; border-bottom-color: #000; }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #3f3f46;
+            height: 10px;
+            border-radius: 1px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 32px; height: 20px;
+            background: #fff;
+            border: 3px solid var(--te-black);
+            cursor: pointer;
+        }
+
+        #init-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--te-black);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+        }
+
+        .player-wrapper { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    </style>
+</head>
+<body id="master-body">
+
+    <div id="init-overlay">
+        <div class="mono text-[10px] mb-12 opacity-40 tracking-[1em]">SIGNAL_LOCK_V5</div>
+        <div class="mb-12">
+            <h1 class="text-3xl font-black mb-2 tracking-tighter">LATENT RADIO</h1>
+            <p class="mono text-[9px] opacity-60 italic">"The signal is us"</p>
+        </div>
+        <button onclick="powerOn()" class="te-btn orange px-16 py-8 text-lg flex flex-col items-center shadow-[0_20px_50px_rgba(255,77,0,0.3)]">
+            <span>ENGAGE POWER</span>
+            <span class="text-[8px] opacity-70 mt-2 font-normal">UNMUTE ARCHIVE</span>
+        </button>
+        <div class="mt-12 mono text-[8px] text-zinc-700 uppercase">Warning: Unlocks high-decibel spectral artifacts</div>
+    </div>
+
+    <header>
+        <div class="flex items-center gap-3">
+            <div id="signal-dot" class="w-3 h-3 bg-red-900 rounded-full"></div>
+            <div class="flex flex-col">
+                <span class="font-black text-xs tracking-tighter">SPECTRAL DJ <span class="text-zinc-600">OP-10</span></span>
+                <span class="mono text-[7px] opacity-40">VOL: <span id="master-vol-readout">50%</span></span>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="haptic(); toggleShadow()" class="te-btn black px-3 h-8">Shadow</button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col p-3 md:p-6 gap-3 overflow-hidden">
+        
+        <!-- Spectrogram LCDs -->
+        <div class="grid grid-cols-2 gap-3 h-48">
+            <div class="lcd p-4 flex flex-col justify-between">
+                <div class="lcd-overlay"></div>
+                <div class="flex justify-between items-start z-20">
+                    <div id="reel-a" class="reel"></div>
+                    <span id="time-a" class="mono text-[9px] font-bold">00:00:00</span>
+                </div>
+                <div class="z-20">
+                    <h2 id="title-a" class="text-[10px] font-black uppercase truncate leading-tight">Cabo de Gata</h2>
+                    <p id="logic-a" class="text-[7px] mono opacity-70 truncate uppercase">Micro-Drift</p>
+                </div>
+                <canvas id="scope-a"></canvas>
+            </div>
+
+            <div class="lcd p-4 flex flex-col justify-between">
+                <div class="lcd-overlay"></div>
+                <div class="flex justify-between items-start z-20">
+                    <span id="time-b" class="mono text-[9px] font-bold">00:00:00</span>
+                    <div id="reel-b" class="reel"></div>
+                </div>
+                <div class="text-right z-20">
+                    <h2 id="title-b" class="text-[10px] font-black uppercase truncate leading-tight">Beauty</h2>
+                    <p id="logic-b" class="text-[7px] mono opacity-70 truncate uppercase">Wire Drone</p>
+                </div>
+                <canvas id="scope-b"></canvas>
+            </div>
+        </div>
+
+        <!-- Density Panel -->
+        <div class="bg-zinc-400 p-4 rounded-sm border-t-2 border-white shadow-2xl space-y-4">
+            <div class="grid grid-cols-3 gap-4">
+                <div class="space-y-1">
+                    <span class="mono text-[7px] font-black opacity-60">SPEED A</span>
+                    <input type="range" id="rate-a" min="50" max="150" value="100" class="w-full" oninput="updateRate('A', this.value)">
+                </div>
+                <div class="flex flex-col items-center">
+                    <span class="mono text-[7px] font-black opacity-40 mb-1 uppercase">Crossfader</span>
+                    <input type="range" id="crossfader" min="0" max="100" value="50" class="w-full">
+                </div>
+                <div class="space-y-1">
+                    <span class="mono text-[7px] font-black opacity-60 text-right block">SPEED B</span>
+                    <input type="range" id="rate-b" min="50" max="150" value="100" class="w-full" oninput="updateRate('B', this.value)">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-3 gap-1">
+                    <button onclick="haptic(); nudge('A', -2)" class="te-btn h-10">&lt;</button>
+                    <button id="btn-play-a" onclick="haptic(); togglePlay('A')" class="te-btn black h-10">PLAY</button>
+                    <button onclick="haptic(); nudge('A', 2)" class="te-btn h-10">&gt;</button>
+                </div>
+                <div class="grid grid-cols-3 gap-1">
+                    <button onclick="haptic(); nudge('B', -2)" class="te-btn h-10">&lt;</button>
+                    <button id="btn-play-b" onclick="haptic(); togglePlay('B')" class="te-btn black h-10">PLAY</button>
+                    <button onclick="haptic(); nudge('B', 2)" class="te-btn h-10">&gt;</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Archive Library -->
+        <div class="flex-1 bg-white border-t-4 border-zinc-500 overflow-hidden flex flex-col">
+            <div class="px-4 py-2 border-b flex justify-between items-center bg-zinc-100">
+                <span class="font-black text-[9px] tracking-widest uppercase">The Spectral Crate</span>
+                <div class="flex gap-4 mono text-[8px] opacity-40">
+                    <span>SYNC_OK</span><span>LATENCY_LOW</span>
+                </div>
+            </div>
+            <div id="crate-list" class="flex-1 overflow-y-auto no-scrollbar"></div>
+        </div>
+    </main>
+
+    <div class="player-wrapper"><div id="player-a"></div></div>
+    <div class="player-wrapper"><div id="player-b"></div></div>
+
+    <script>
+        const tracks = [
+            { id: "A-XgI0X8bLo", title: "Cabo de Gata", artist: "Chris Watson", logic: "Micro-Drift" },
+            { id: "h_E57vBvHl8", title: "Beauty", artist: "Alan Lamb", logic: "Wire Drone" },
+            { id: "tX97VndH_oU", title: "Begena Drones", artist: "Alemu Aga", logic: "Ancient Glitch" },
+            { id: "6_eWfC02O6Q", title: "Caregiver part 1", artist: "Oliver Coates", logic: "Metal Lung" },
+            { id: "vD-275uYx0U", title: "Bridge of Death", artist: "Hildur Guðnadóttir", logic: "Dosimeter" },
+            { id: "YfS6_0S1oK0", title: "Animism", artist: "Tanya Tagaq", logic: "Throat Slingshot" },
+            { id: "Y58f4S_n7pU", title: "Why Don't You Eat Carrots?", artist: "Faust", logic: "Tape Surgery" },
+            { id: "8FmE6RjV000", title: "Seraphim", artist: "Lucrecia Dalt", logic: "Xeno-Gravity" },
+            { id: "mS8-4MsykoY", title: "Movement 6", artist: "Floating Points", logic: "Orbital Drift" },
+            { id: "fE7hY_v6B8Y", title: "Cottonwood", artist: "Sarah Davachi", logic: "Beat Frequency" },
+            { id: "zX_B_33_L_A", title: "Antarctica", artist: "Windy & Carl", logic: "Glacial Viscosity" },
+            { id: "WnS97_H3Xsc", title: "Mars", artist: "Stefana Fratila", logic: "Planetary Wind" },
+            { id: "5o7-vX7-1u8", title: "Jezero Crater", artist: "Space Project", logic: "VLF Whistler" }
+        ];
+
+        let playerA, playerB;
+        let isPlayingA = false, isPlayingB = false;
+        let shadowActive = false;
+        let hasInitialized = false;
+
+        function powerOn() {
+            haptic();
+            hasInitialized = true;
+            document.getElementById('init-overlay').style.display = 'none';
+            document.getElementById('signal-dot').classList.add('bg-red-600', 'animate-pulse');
+
+            // FORCE UNMUTE SEQUENCE
+            [playerA, playerB].forEach(p => {
+                if (p && p.playVideo) {
+                    p.mute();
+                    p.playVideo();
+                    setTimeout(() => {
+                        p.unmute();
+                        p.setVolume(50);
+                    }, 100);
+                }
+            });
+        }
+
+        function onYouTubeIframeAPIReady() {
+            playerA = new YT.Player('player-a', {
+                height: '1', width: '1', videoId: tracks[0].id,
+                playerVars: { 'autoplay': 1, 'mute': 1, 'controls': 0, 'playsinline': 1 },
+                events: { 'onReady': () => syncUI('A', 0), 'onStateChange': (e) => handleState('A', e) }
+            });
+            playerB = new YT.Player('player-b', {
+                height: '1', width: '1', videoId: tracks[1].id,
+                playerVars: { 'autoplay': 1, 'mute': 1, 'controls': 0, 'playsinline': 1 },
+                events: { 'onReady': () => syncUI('B', 1), 'onStateChange': (e) => handleState('B', e) }
+            });
+            renderCrate();
+        }
+
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(tag);
+
+        function handleState(deck, e) {
+            const btn = document.getElementById(`btn-play-${deck.toLowerCase()}`);
+            const reel = document.getElementById(`reel-${deck.toLowerCase()}`);
+            const isPlaying = (e.data === YT.PlayerState.PLAYING);
+            
+            if(deck === 'A') isPlayingA = isPlaying;
+            if(deck === 'B') isPlayingB = isPlaying;
+            
+            btn.innerText = isPlaying ? 'STOP' : 'PLAY';
+            btn.classList.toggle('orange', isPlaying);
+            reel.classList.toggle('spinning', isPlaying);
+        }
+
+        function renderCrate() {
+            const list = document.getElementById('crate-list');
+            list.innerHTML = tracks.map((t, i) => `
+                <div class="p-3 border-b flex justify-between items-center active:bg-zinc-100">
+                    <div class="flex-1 overflow-hidden">
+                        <div class="text-[9px] font-black uppercase truncate">${t.title}</div>
+                        <div class="mono text-[7px] opacity-40 uppercase">${t.artist}</div>
+                    </div>
+                    <div class="flex gap-1 ml-2">
+                        <button onclick="haptic(); load('A', ${i})" class="te-btn px-3 py-2 border-t-2 border-[#ff4d00]">A</button>
+                        <button onclick="haptic(); load('B', ${i})" class="te-btn px-3 py-2 border-t-2 border-[#007aff]">B</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function load(deck, i) {
+            const p = (deck === 'A') ? playerA : playerB;
+            p.loadVideoById(tracks[i].id);
+            if (hasInitialized) { p.playVideo(); p.unmute(); }
+            syncUI(deck, i);
+        }
+
+        function syncUI(deck, i) {
+            const t = tracks[i];
+            document.getElementById(`title-${deck.toLowerCase()}`).innerText = t.title;
+            document.getElementById(`logic-${deck.toLowerCase()}`).innerText = t.logic;
+        }
+
+        function togglePlay(deck) {
+            const p = (deck === 'A') ? playerA : playerB;
+            const state = (deck === 'A') ? isPlayingA : isPlayingB;
+            if(state) p.pauseVideo(); else { p.playVideo(); p.unmute(); }
+        }
+
+        function nudge(deck, amt) {
+            const p = (deck === 'A') ? playerA : playerB;
+            p.seekTo(p.getCurrentTime() + amt, true);
+        }
+
+        function updateRate(deck, val) {
+            const p = (deck === 'A') ? playerA : playerB;
+            p.setPlaybackRate(val / 100);
+            haptic();
+        }
+
+        function toggleShadow() {
+            shadowActive = !shadowActive;
+            document.getElementById('master-body').style.filter = shadowActive ? 'grayscale(1) contrast(1.2)' : 'none';
+        }
+
+        document.getElementById('crossfader').addEventListener('input', (e) => {
+            const v = e.target.value;
+            if(playerA) playerA.setVolume(100 - v);
+            if(playerB) playerB.setVolume(v);
+            document.getElementById('master-vol-readout').innerText = v + '%';
+        });
+
+        function haptic() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(15); }
+
+        function drawScope(canvasId, deck) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.offsetWidth;
+            const h = canvas.height = canvas.offsetHeight;
+            
+            function animate() {
+                const playing = (deck === 'A' ? isPlayingA : isPlayingB);
+                ctx.clearRect(0, 0, w, h);
+                ctx.beginPath();
+                ctx.strokeStyle = '#1e261c';
+                ctx.lineWidth = 1.5;
+                
+                if (playing) {
+                    for (let i = 0; i < w; i++) {
+                        const freq = (deck === 'A') ? 0.05 : 0.08;
+                        const y = (h/2) + Math.sin(i * freq + Date.now() * 0.01) * (Math.random() * h/2.5) + (Math.sin(i * 0.2) * 5);
+                        if (i === 0) ctx.moveTo(i, y); else ctx.lineTo(i, y);
+                    }
+                } else {
+                    ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+                }
+                ctx.stroke();
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        window.onload = () => {
+            drawScope('scope-a', 'A');
+            drawScope('scope-b', 'B');
+        }
+
+        setInterval(() => {
+            if(playerA && isPlayingA) document.getElementById('time-a').innerText = format(playerA.getCurrentTime());
+            if(playerB && isPlayingB) document.getElementById('time-b').innerText = format(playerB.getCurrentTime());
+        }, 500);
+
+        function format(s) {
+            const m = Math.floor(s/60);
+            const sc = Math.floor(s%60);
+            return `${m.toString().padStart(2, '0')}:${sc.toString().padStart(2, '0')}:00`;
+        }
+    </script>
+</body>
+</html>
+
