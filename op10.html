@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LATENT RADIO: OP-10 SPECTRAL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --te-orange: #ff4d00;
+            --te-bg: #c0c0c8;
+            --te-black: #111114;
+            --lcd-green: #9fb399;
+            --lcd-ink: #1e261c;
+        }
+
+        body {
+            background-color: var(--te-bg);
+            color: var(--te-black);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .mono { font-family: 'Space Mono', monospace; }
+
+        /* Industrial Header */
+        header {
+            background: var(--te-black);
+            color: white;
+            padding: 0.5rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 5px solid var(--te-orange);
+            z-index: 100;
+        }
+
+        /* LCD - High Density Readout */
+        .lcd {
+            background: var(--lcd-green);
+            box-shadow: inset 0 6px 15px rgba(0,0,0,0.4), inset 0 0 40px rgba(0,0,0,0.1);
+            border: 4px solid #4a5446;
+            color: var(--lcd-ink);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .lcd-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(0,0,0,0.1) 50%, transparent 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        canvas {
+            position: absolute;
+            bottom: 0; left: 0; width: 100%; height: 50%;
+            opacity: 0.6;
+            image-rendering: pixelated;
+        }
+
+        /* Tactile Elements */
+        .te-btn {
+            background: #fdfdfd;
+            border-bottom: 5px solid #8e8e93;
+            border-radius: 2px;
+            transition: all 0.05s;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 10px;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1);
+        }
+
+        .te-btn:active {
+            transform: translateY(3px);
+            border-bottom-width: 2px;
+        }
+
+        .te-btn.orange { background: var(--te-orange); color: white; border-bottom-color: #a33200; }
+        .te-btn.black { background: var(--te-black); color: white; border-bottom-color: #000; }
+
+        /* Faders */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #3f3f46;
+            height: 10px;
+            border-radius: 1px;
+            border: 1px solid #27272a;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 32px; height: 20px;
+            background: #fff;
+            border: 3px solid var(--te-black);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
+
+        /* Init System */
+        #init-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--te-black);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+        }
+
+        .signal-grid {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            gap: 1px;
+            width: 100%;
+            height: 4px;
+            opacity: 0.2;
+        }
+
+        .grid-pixel { background: var(--lcd-ink); }
+
+        .player-wrapper { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    </style>
+</head>
+<body id="master-body">
+
+    <!-- INITIALIZATION INTERFACE -->
+    <div id="init-overlay">
+        <div class="mono text-[10px] mb-12 opacity-40 tracking-[1em]">ARCHIVE_BOOT_SEQUENCE_V4</div>
+        <div class="mb-12">
+            <h1 class="text-3xl font-black mb-2 tracking-tighter">SPECTRAL CRATE</h1>
+            <p class="mono text-[9px] opacity-60">KEPLERIAN-ORGANIC SYNC REQUIRED</p>
+        </div>
+        <button onclick="powerOn()" class="te-btn orange px-16 py-8 text-lg flex flex-col items-center">
+            <span>ENGAGE POWER</span>
+            <span class="text-[8px] opacity-70 mt-2 font-normal">ENABLE AUDIO RELAY</span>
+        </button>
+        <div class="mt-12 mono text-[9px] text-zinc-700 max-w-xs uppercase leading-relaxed">
+            Note: Mobile browsers require manual engagement to initiate the signal stream.
+        </div>
+    </div>
+
+    <header>
+        <div class="flex items-center gap-3">
+            <div class="w-3 h-3 bg-red-600 rounded-full shadow-[0_0_12px_red]"></div>
+            <div class="flex flex-col">
+                <span class="font-black text-xs tracking-tighter">LATENT RADIO <span class="text-zinc-600">OP-10</span></span>
+                <span class="mono text-[7px] opacity-40">52.3702° N / 4.8952° E</span>
+            </div>
+        </div>
+        <div class="flex gap-4 items-center">
+            <div class="hidden md:block mono text-[8px] opacity-40 text-right uppercase">
+                Data Density: 98.4%<br>Spectral Shadow: Active
+            </div>
+            <button onclick="haptic(); toggleShadow()" id="shadow-toggle" class="te-btn orange px-3 h-8">Shadow</button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col p-3 md:p-6 gap-3 overflow-hidden">
+        
+        <!-- Dual Spectral Analyzers -->
+        <div class="grid grid-cols-2 gap-3 h-44">
+            <div class="lcd p-4 flex flex-col justify-between">
+                <div class="lcd-overlay"></div>
+                <div class="flex justify-between items-center mono text-[9px] font-bold z-20">
+                    <span class="bg-black/10 px-1">SIG_01</span>
+                    <span id="time-a">00:00:00</span>
+                </div>
+                <div class="z-20">
+                    <h2 id="title-a" class="text-[11px] font-black uppercase truncate leading-none mb-1">Cabo de Gata</h2>
+                    <p id="logic-a" class="text-[8px] mono opacity-70 truncate tracking-tight uppercase">Micro-Drift Environment</p>
+                </div>
+                <canvas id="scope-a"></canvas>
+            </div>
+
+            <div class="lcd p-4 flex flex-col justify-between">
+                <div class="lcd-overlay"></div>
+                <div class="flex justify-between items-center mono text-[9px] font-bold z-20">
+                    <span id="time-b">00:00:00</span>
+                    <span class="bg-black/10 px-1">SIG_02</span>
+                </div>
+                <div class="text-right z-20">
+                    <h2 id="title-b" class="text-[11px] font-black uppercase truncate leading-none mb-1 text-right">Beauty</h2>
+                    <p id="logic-b" class="text-[8px] mono opacity-70 truncate tracking-tight uppercase text-right">Industrial Harp</p>
+                </div>
+                <canvas id="scope-b"></canvas>
+            </div>
+        </div>
+
+        <!-- High Density Control Panel -->
+        <div class="bg-zinc-400 p-4 rounded-sm border border-zinc-500 shadow-xl space-y-4">
+            <!-- Global Matrix -->
+            <div class="grid grid-cols-3 gap-4">
+                <div class="space-y-1">
+                    <div class="flex justify-between mono text-[7px] font-black opacity-60"><span>PITCH A</span><span id="pitch-a-val">1.0X</span></div>
+                    <input type="range" id="rate-a" min="50" max="150" value="100" class="w-full" oninput="updateRate('A', this.value)">
+                </div>
+                <div class="flex flex-col items-center justify-center">
+                    <span class="mono text-[8px] font-black opacity-40 mb-1 uppercase tracking-widest">Crossfader</span>
+                    <input type="range" id="crossfader" min="0" max="100" value="50" class="w-full">
+                </div>
+                <div class="space-y-1">
+                    <div class="flex justify-between mono text-[7px] font-black opacity-60"><span>PITCH B</span><span id="pitch-b-val">1.0X</span></div>
+                    <input type="range" id="rate-b" min="50" max="150" value="100" class="w-full" oninput="updateRate('B', this.value)">
+                </div>
+            </div>
+
+            <!-- Transport Matrix -->
+            <div class="grid grid-cols-2 gap-8">
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="haptic(); nudge('A', -1)" class="te-btn h-12">Nudge-</button>
+                    <button id="btn-play-a" onclick="haptic(); togglePlay('A')" class="te-btn black h-12">Play</button>
+                    <button onclick="haptic(); nudge('A', 1)" class="te-btn h-12">Nudge+</button>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="haptic(); nudge('B', -1)" class="te-btn h-12">Nudge-</button>
+                    <button id="btn-play-b" onclick="haptic(); togglePlay('B')" class="te-btn black h-12">Play</button>
+                    <button onclick="haptic(); nudge('B', 1)" class="te-btn h-12">Nudge+</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- The Archive Scroll -->
+        <div class="flex-1 bg-white border-t-2 border-zinc-500 overflow-hidden flex flex-col rounded-t-lg">
+            <div class="px-4 py-2 border-b flex justify-between items-center bg-zinc-100">
+                <span class="font-black text-[9px] tracking-widest uppercase">Signal Log_Archive</span>
+                <span class="mono text-[8px] opacity-40">LATENT_303</span>
+            </div>
+            <div id="crate-list" class="flex-1 overflow-y-auto no-scrollbar">
+                <!-- Tracks Injected -->
+            </div>
+        </div>
+    </main>
+
+    <div class="player-wrapper"><div id="player-a"></div></div>
+    <div class="player-wrapper"><div id="player-b"></div></div>
+
+    <script>
+        const tracks = [
+            { id: "A-XgI0X8bLo", title: "Cabo de Gata", artist: "Chris Watson", logic: "The Lizard's Ear: Micro-Drift" },
+            { id: "h_E57vBvHl8", title: "Beauty", artist: "Alan Lamb", logic: "Natural Aeolian: Wire Drone" },
+            { id: "tX97VndH_oU", title: "Begena Drones", artist: "Alemu Aga", logic: "The Unstable Rattle: Ancient Glitch" },
+            { id: "6_eWfC02O6Q", title: "Caregiver part 1", artist: "Oliver Coates", logic: "The Metal Lung: Respiratory Rate" },
+            { id: "vD-275uYx0U", title: "Bridge of Death", artist: "Hildur Guðnadóttir", logic: "Radioactive Caverns: Dosimeter" },
+            { id: "YfS6_0S1oK0", title: "Animism", artist: "Tanya Tagaq", logic: "The Throat Slingshot: Bio-Industrial" },
+            { id: "Y58f4S_n7pU", title: "Why Don't You Eat Carrots?", artist: "Faust", logic: "Kraut-Slingshot: Tape Surgery" },
+            { id: "8FmE6RjV000", title: "Seraphim", artist: "Lucrecia Dalt", logic: "Xeno-Pop: Geotechnical Gravity" },
+            { id: "mS8-4MsykoY", title: "Movement 6", artist: "Floating Points", logic: "Orbital Drift: Zero Gravity" },
+            { id: "fE7hY_v6B8Y", title: "Cottonwood", artist: "Sarah Davachi", logic: "Microtonal Beat Frequencies" },
+            { id: "zX_B_33_L_A", title: "Antarctica", artist: "Windy & Carl", logic: "Frozen Reverb: Glacial Viscosity" },
+            { id: "WnS97_H3Xsc", title: "Mars", artist: "Stefana Fratila", logic: "Atmospheric: Planetary Wind Data" },
+            { id: "5o7-vX7-1u8", title: "Jezero Crater", artist: "Space Project", logic: "Magnetosphere Ritual: VLF Whistler" }
+        ];
+
+        let playerA, playerB;
+        let isPlayingA = false, isPlayingB = false;
+        let shadowActive = false;
+
+        function powerOn() {
+            haptic();
+            document.getElementById('init-overlay').style.display = 'none';
+            // Critical: Play videos at volume 0 to prime the engine
+            if(playerA) { playerA.setVolume(0); playerA.playVideo(); setTimeout(() => { if(!isPlayingA) playerA.pauseVideo(); playerA.setVolume(50); }, 500); }
+            if(playerB) { playerB.setVolume(0); playerB.playVideo(); setTimeout(() => { if(!isPlayingB) playerB.pauseVideo(); playerB.setVolume(50); }, 500); }
+        }
+
+        function onYouTubeIframeAPIReady() {
+            playerA = new YT.Player('player-a', {
+                height: '1', width: '1', videoId: tracks[0].id,
+                playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'playsinline': 1 },
+                events: { 'onReady': () => syncUI('A', 0), 'onStateChange': (e) => handleState('A', e) }
+            });
+            playerB = new YT.Player('player-b', {
+                height: '1', width: '1', videoId: tracks[1].id,
+                playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'playsinline': 1 },
+                events: { 'onReady': () => syncUI('B', 1), 'onStateChange': (e) => handleState('B', e) }
+            });
+            renderCrate();
+        }
+
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(tag);
+
+        function handleState(deck, e) {
+            const btn = document.getElementById(`btn-play-${deck.toLowerCase()}`);
+            if(deck === 'A') isPlayingA = (e.data === YT.PlayerState.PLAYING);
+            if(deck === 'B') isPlayingB = (e.data === YT.PlayerState.PLAYING);
+            btn.innerText = (e.data === YT.PlayerState.PLAYING) ? 'STOP' : 'PLAY';
+            btn.classList.toggle('orange', e.data === YT.PlayerState.PLAYING);
+        }
+
+        function renderCrate() {
+            const list = document.getElementById('crate-list');
+            list.innerHTML = tracks.map((t, i) => `
+                <div class="p-3 border-b flex justify-between items-center active:bg-zinc-100">
+                    <div class="flex-1 overflow-hidden">
+                        <div class="text-[9px] font-black uppercase truncate tracking-tight">${t.title}</div>
+                        <div class="mono text-[7px] opacity-40 uppercase">${t.artist}</div>
+                    </div>
+                    <div class="flex gap-1 ml-3">
+                        <button onclick="haptic(); load('A', ${i})" class="te-btn px-3 py-1 border-t-2 border-[#ff4d00]">A</button>
+                        <button onclick="haptic(); load('B', ${i})" class="te-btn px-3 py-1 border-t-2 border-[#007aff]">B</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function load(deck, i) {
+            const p = (deck === 'A') ? playerA : playerB;
+            p.loadVideoById(tracks[i].id);
+            syncUI(deck, i);
+        }
+
+        function syncUI(deck, i) {
+            const t = tracks[i];
+            document.getElementById(`title-${deck.toLowerCase()}`).innerText = t.title;
+            document.getElementById(`logic-${deck.toLowerCase()}`).innerText = t.logic;
+        }
+
+        function togglePlay(deck) {
+            const p = (deck === 'A') ? playerA : playerB;
+            const state = (deck === 'A') ? isPlayingA : isPlayingB;
+            if(state) p.pauseVideo(); else p.playVideo();
+        }
+
+        function nudge(deck, amt) {
+            const p = (deck === 'A') ? playerA : playerB;
+            p.seekTo(p.getCurrentTime() + amt, true);
+        }
+
+        function updateRate(deck, val) {
+            const p = (deck === 'A') ? playerA : playerB;
+            const rate = val / 100;
+            p.setPlaybackRate(rate);
+            document.getElementById(`pitch-${deck.toLowerCase()}-val`).innerText = rate.toFixed(1) + 'X';
+            haptic();
+        }
+
+        function toggleShadow() {
+            shadowActive = !shadowActive;
+            document.body.style.filter = shadowActive ? 'grayscale(1) contrast(1.5) brightness(0.8)' : 'none';
+        }
+
+        document.getElementById('crossfader').addEventListener('input', (e) => {
+            const v = e.target.value;
+            if(playerA) playerA.setVolume(100 - v);
+            if(playerB) playerB.setVolume(v);
+        });
+
+        function haptic() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(12); }
+
+        // OSCILLOSCOPE ANIMATION
+        function drawScope(canvasId, isPlaying) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.offsetWidth;
+            const h = canvas.height = canvas.offsetHeight;
+            
+            function animate() {
+                ctx.clearRect(0, 0, w, h);
+                ctx.beginPath();
+                ctx.strokeStyle = '#1e261c';
+                ctx.lineWidth = 2;
+                
+                if (isPlaying) {
+                    for (let i = 0; i < w; i++) {
+                        const y = (h/2) + Math.sin(i * 0.1 + Date.now() * 0.01) * (Math.random() * h/3);
+                        if (i === 0) ctx.moveTo(i, y); else ctx.lineTo(i, y);
+                    }
+                } else {
+                    ctx.moveTo(0, h/2);
+                    ctx.lineTo(w, h/2);
+                }
+                ctx.stroke();
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        window.onload = () => {
+            drawScope('scope-a', true);
+            drawScope('scope-b', true);
+        }
+
+        setInterval(() => {
+            if(playerA && isPlayingA) document.getElementById('time-a').innerText = format(playerA.getCurrentTime());
+            if(playerB && isPlayingB) document.getElementById('time-b').innerText = format(playerB.getCurrentTime());
+        }, 500);
+
+        function format(s) {
+            const m = Math.floor(s/60);
+            const sc = Math.floor(s%60);
+            return `${m.toString().padStart(2, '0')}:${sc.toString().padStart(2, '0')}:00`;
+        }
+    </script>
+</body>
+</html>
+
