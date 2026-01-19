@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+    <title>Pixel Puppet: Director's Cut v27</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <style>
+        /* --- THEME --- */
+        :root { --ink: #111111; --paper: #F4F4F0; --accent: #e5e5e0; }
+        
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #1a1a1a;
+            color: var(--ink);
+            overflow: hidden; 
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            height: 100dvh;
+            width: 100vw;
+        }
+
+        .bg-paper { background-color: var(--paper); }
+        
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            display: block;
+        }
+
+        /* --- DYNAMIC ISLAND (Updated) --- */
+        .dynamic-island {
+            position: absolute;
+            top: 8px; left: 50%;
+            transform: translateX(-50%);
+            background: #000;
+            border-radius: 20px;
+            height: 28px;
+            width: 90px;
+            z-index: 60;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+        
+        .dynamic-island:active { transform: translateX(-50%) scale(0.95); }
+        
+        .dynamic-island.active {
+            width: 220px;
+            height: 36px;
+        }
+        
+        .island-content {
+            opacity: 0;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dynamic-island.active .island-content { opacity: 1; }
+
+        /* --- HUD (Moved to Top) --- */
+        .hud-overlay {
+            position: absolute;
+            top: 10px; /* Top aligned */
+            left: 0; right: 0;
+            display: flex; flex-direction: column; align-items: center;
+            pointer-events: none; z-index: 50; padding: 0 20px;
+        }
+
+        .hud-bubble {
+            background: rgba(255, 255, 255, 0.98);
+            border: 2px solid var(--ink);
+            color: var(--ink);
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 800;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+            opacity: 0;
+            transform: translateY(-10px) scale(0.9);
+            animation: bubbleDrop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            max-width: 90%;
+            margin-bottom: 4px;
+            text-align: center;
+        }
+        @keyframes bubbleDrop { to { opacity: 1; transform: translateY(0) scale(1); } }
+
+        /* --- LAYOUT TRANSITIONS --- */
+        #stage-area { 
+            transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1), flex-grow 0.4s ease; 
+            min-height: 0;
+        }
+        #chat-container {
+            transition: flex-grow 0.4s ease, opacity 0.2s ease;
+        }
+        #app-header {
+            transition: margin-top 0.4s ease, opacity 0.4s ease;
+        }
+        #canvas-wrapper {
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* PUPPET MODE */
+        body.puppet-active #chat-container { flex-grow: 0.0001; height: 0; padding: 0; opacity: 0; margin: 0; }
+        body.puppet-active #stage-area { flex-grow: 1; background-color: #E0E0DC; }
+        body.puppet-active #app-header { margin-top: -64px; opacity: 0; }
+
+        /* INPUT FOCUS STATE */
+        body.input-active #chat-container { flex-grow: 0.0001; height: 0; padding: 0; opacity: 0; }
+        body.input-active #app-header { margin-top: -64px; opacity: 0; }
+        body.input-active #stage-area { flex-grow: 1; background-color: #F8F8F6; }
+        body.input-active #canvas-wrapper { transform: scale(0.65); }
+        body.input-active #coord-display { opacity: 0; }
+
+        /* --- CONTROLS --- */
+        .control-bar { display: flex; gap: 6px; overflow-x: auto; padding: 8px 4px; scrollbar-width: none; }
+        .control-bar::-webkit-scrollbar { display: none; }
+
+        .ctrl-pill {
+            flex-shrink: 0; height: 32px; padding: 0 12px;
+            background: white; border: 1px solid var(--ink); border-radius: 8px;
+            font-size: 10px; font-weight: 800; display: flex; align-items: center; gap: 6px;
+            cursor: pointer; transition: transform 0.05s, background-color 0.1s;
+            box-shadow: 2px 2px 0px var(--ink); user-select: none;
+        }
+        .ctrl-pill:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px var(--ink); background: var(--ink); color: white; }
+        .ctrl-pill.active { background: var(--ink); color: white; box-shadow: inset 1px 1px 2px rgba(0,0,0,0.2); }
+
+        /* Mini XY Pad */
+        .xy-mini { width: 40px; height: 32px; background: white; border: 1px solid var(--ink); border-radius: 8px; position: relative; flex-shrink: 0; box-shadow: 2px 2px 0px var(--ink); overflow: hidden; }
+        .xy-grid { position: absolute; inset: 0; opacity: 0.1; background-image: linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px); background-size: 8px 8px; }
+        .xy-dot { width: 6px; height: 6px; background: var(--ink); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; border: 1px solid white; transition: all 0.1s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+        /* Signal Dots */
+        .signal-dot { width: 6px; height: 6px; border-radius: 50%; background: #444; transition: all 0.2s; }
+        .signal-dot.active { background: #32CD32; box-shadow: 0 0 6px #32CD32; }
+        .signal-dot.busy { background: #FF4500; box-shadow: 0 0 6px #FF4500; }
+
+        /* CHAT */
+        .chat-line { font-size: 11px; margin-bottom: 8px; opacity: 0.8; }
+        .chat-line.user { text-align: right; color: var(--ink); }
+        .chat-line.bot { color: #444; }
+
+        /* MODAL */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(244,244,240,0.95); z-index: 100; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+    </style>
+</head>
+<body class="flex items-center justify-center bg-gray-900">
+
+    <!-- SETTINGS MODAL -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="w-full max-w-sm bg-white border-4 border-ink p-6 rounded-3xl shadow-xl flex flex-col gap-4 transform transition-transform duration-300 scale-95" id="settings-card">
+            <div class="flex justify-between items-center border-b-4 border-ink pb-2">
+                <h2 class="text-xl font-black uppercase">Config</h2>
+                <button onclick="app.closeSettings(false)" class="text-xs font-bold hover:text-red-500">CLOSE</button>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold uppercase opacity-50 block mb-1">OpenAI API Key</label>
+                <input type="password" id="setting-api-key" class="w-full border-2 border-ink rounded-lg p-3 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-black" placeholder="sk-...">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold uppercase opacity-50 block mb-1">Persona</label>
+                <textarea id="setting-prompt" class="w-full border-2 border-ink rounded-lg p-3 text-xs font-mono h-20 resize-none focus:outline-none focus:ring-2 focus:ring-black" placeholder="System Persona...">You are the Director, a cryptic but helpful digital puppet.</textarea>
+            </div>
+            <button onclick="app.closeSettings(true)" class="bg-ink text-white py-3 rounded-xl font-bold text-xs hover:scale-105 transition-transform shadow-md">CONNECT AI</button>
+        </div>
+    </div>
+
+    <!-- DEVICE FRAME -->
+    <div class="relative w-full max-w-[400px] h-full max-h-[100dvh] bg-paper rounded-[20px] md:rounded-[2.5rem] overflow-hidden border-x-[4px] border-y-[4px] md:border-[6px] border-[#111] shadow-2xl flex flex-col transition-all" id="device-frame">
+        
+        <!-- DYNAMIC ISLAND (Clickable) -->
+        <div id="dynamic-island" class="dynamic-island" onclick="app.tapIsland()">
+            <div class="island-content" id="island-text">
+                <div class="flex gap-1 mr-1">
+                    <div class="signal-dot"></div>
+                    <div class="signal-dot"></div>
+                </div>
+                <span>IDLE</span>
+            </div>
+        </div>
+
+        <!-- 1. HEADER (Increased Height for Clearance) -->
+        <div id="app-header" class="h-[64px] w-full flex justify-between items-end px-5 pb-3 text-[10px] font-bold tracking-widest uppercase border-b-2 border-ink bg-paper shrink-0 z-40 relative">
+            <span class="opacity-30">V27</span>
+            <div class="flex items-center gap-3 mb-0.5">
+                <button id="btn-connect-ai" onclick="app.openSettings()" class="flex items-center gap-1 bg-white border border-ink px-2 py-0.5 rounded text-[9px] font-bold hover:bg-gray-100 transition-colors">
+                    <div class="w-1.5 h-1.5 rounded-full bg-red-500" id="ai-status-dot"></div>
+                    <span id="ai-status-text">CONNECT AI</span>
+                </button>
+                <button onclick="location.reload()" class="opacity-30 hover:opacity-100" title="Reset">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. STAGE -->
+        <div class="relative h-[260px] border-b-2 border-ink flex flex-col items-center justify-center bg-paper overflow-hidden shrink-0 transition-all duration-300" id="stage-area">
+            <div id="css-grid-overlay" class="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-200" style="background-image: linear-gradient(#f00 1px, transparent 1px), linear-gradient(90deg, #f00 1px, transparent 1px); background-size: 16px 16px; mix-blend-mode: multiply;"></div>
+            
+            <!-- HUD Overlay (Top Aligned) -->
+            <div id="hud-overlay" class="hud-overlay"></div>
+            
+            <div id="canvas-wrapper" class="relative transition-transform duration-300">
+                <canvas id="mainCanvas" width="256" height="256" style="width: 240px; height: 240px;" class="bg-transparent drop-shadow-md"></canvas>
+            </div>
+            <div class="absolute bottom-2 left-4 text-[9px] font-mono opacity-30" id="coord-display">--</div>
+        </div>
+
+        <!-- 3. CHAT HISTORY -->
+        <div id="chat-container" class="flex-1 bg-[#f0f0ed] overflow-y-auto p-4 relative shadow-inner min-h-0">
+             <div class="text-center opacity-20 text-[9px] font-bold mt-2">-- LOG START --</div>
+             <div id="chat-list" class="flex flex-col justify-end min-h-0 pt-4"></div>
+        </div>
+
+        <!-- 4. CONTROLS (Sticky Bottom with Safe Padding) -->
+        <div class="w-full bg-paper border-t-2 border-ink shrink-0 z-50 pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+            
+            <!-- Tools Drawer -->
+            <div class="control-bar border-b border-ink/10 bg-white/50">
+                <div class="xy-mini" id="xy-pad">
+                    <div class="xy-grid"></div>
+                    <div class="xy-dot" id="xy-handle"></div>
+                </div>
+                <button class="ctrl-pill" id="btn-puppet" onclick="toggle('puppet')"><span>🎭</span> VIEW</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('HAPPY')">☺ JOY</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('SAD')">☹ SAD</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('SURPRISED')">! POP</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('ANGRY')">ÒÓ MAD</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('LOVE')">♥ LUV</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('CONFUSED')">? HUH</button>
+                <button class="ctrl-pill" onclick="toggle('grid')"># GRID</button>
+                <button class="ctrl-pill" onclick="app.openSettings()">⚙️ SET</button>
+            </div>
+
+            <!-- Input Area (Extra padding bottom) -->
+            <div class="p-3 pb-6 flex items-stretch gap-2 bg-paper">
+                <div class="flex-1 bg-white border-2 border-ink rounded-lg flex items-center px-1 min-h-[48px] shadow-sm focus-within:shadow-[2px_2px_0px_var(--ink)] focus-within:border-black transition-all">
+                    <span class="text-ink font-bold text-xs pl-2 pr-1 select-none opacity-50">></span>
+                    <input type="text" id="user-input" 
+                           class="flex-1 bg-transparent border-none h-10 text-xs font-mono focus:outline-none text-ink placeholder-gray-400"
+                           placeholder="Type here..." autocomplete="off">
+                </div>
+                <button id="send-btn" class="bg-ink text-white w-14 rounded-lg font-black text-xs shadow-md active:scale-95 transition-transform tracking-widest">SEND</button>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+    try {
+        if(window.lucide) { try { lucide.createIcons(); } catch(e) {} }
+
+        /* --- SOUND --- */
+        const Sound = {
+            ctx: null,
+            init: function() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if(AudioContext) this.ctx = new AudioContext();
+                }
+            },
+            play: function(type) {
+                if (!this.ctx) this.init();
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                const now = this.ctx.currentTime;
+                
+                if (type === 'type') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.02, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                    osc.start(now); osc.stop(now + 0.03);
+                } else if (type === 'send') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(300, now);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+                } else if (type === 'click') {
+                    osc.type = 'square'; osc.frequency.setValueAtTime(600, now);
+                    gain.gain.setValueAtTime(0.02, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+                    osc.start(now); osc.stop(now + 0.02);
+                }
+            },
+            haptic: function(pattern) { if (navigator.vibrate) navigator.vibrate(pattern || 5); },
+            speak: function(text) {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const u = new SpeechSynthesisUtterance(text);
+                    u.rate = 1.1; u.pitch = 0.9; u.volume = 0.8;
+                    window.speechSynthesis.speak(u);
+                }
+            }
+        };
+
+        /* --- DATA --- */
+        const MOUTH_SHAPES = {
+            NEUTRAL:    [{x:6,y:12},{x:7,y:12},{x:8,y:12}],
+            OPEN_S:     [{x:7,y:12}],
+            OPEN_M:     [{x:6,y:12},{x:7,y:12},{x:8,y:12},{x:7,y:13}],
+            OPEN_L:     [{x:6,y:11},{x:7,y:11},{x:8,y:11}, {x:6,y:12},{x:8,y:12}, {x:7,y:13}],
+            SMILE:      [{x:5,y:11},{x:9,y:11},{x:6,y:12},{x:7,y:12},{x:8,y:12}],
+            FROWN:      [{x:6,y:12},{x:7,y:12},{x:8,y:12},{x:5,y:13},{x:9,y:13}],
+            SMIRK:      [{x:5,y:12},{x:6,y:12},{x:7,y:12},{x:8,y:11}]
+        };
+
+        const CHAR_DATA = {
+            base: [
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                0,1,1,1,1,1,0,0,0,1,1,1,1,1,0,0, 
+                0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0, 
+                0,1,0,0,0,1,1,1,1,1,0,0,0,1,0,0, 
+                0,1,0,2,0,1,0,0,0,1,0,2,0,1,0,0, // Pupils x3, x11
+                0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0, 
+                0,1,1,1,1,1,0,0,0,1,1,1,1,1,0,0, 
+                0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0, 
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 
+                0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0, // Default Mouth
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+            ],
+            emotions: {
+                HAPPY:     { mouth: 'SMILE' },
+                SAD:       { mouth: 'FROWN' },
+                SURPRISED: { mouth: 'OPEN_S', y: 1, x: [1,2,3,4,5,9,10,11,12,13], val: 1 }, 
+                ANGRY:     { mouth: 'FROWN', y: 3, x: [2,3,4,5,10,11,12,13], val: 1 },
+                LOVE:      { mouth: 'SMILE' },
+                CONFUSED:  { mouth: 'SMIRK', y: 1, x: [1,2,3,4,5], val: 1 },
+                TALKING:   { mouth: 'TALK_ANIM' },
+                THINKING:  { mouth: 'NEUTRAL' } 
+            }
+        };
+
+        /* --- ENGINE --- */
+        class DirectorEngine {
+            constructor() {
+                this.canvas = document.getElementById('mainCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.state = 'IDLE';
+                this.config = { grid: false, puppetMode: false };
+                this.apiKey = null;
+                this.systemPrompt = document.getElementById('setting-prompt').value;
+                
+                this.currentX = 0; this.targetX = 0;
+                this.currentY = 0; this.targetY = 0;
+                this.isTyping = false;
+                
+                this.tick = 0;
+                this.blinkTimer = 0;
+                this.nextBlinkTime = 200; 
+                this.mouthFrame = 'NEUTRAL';
+                this.talkTimer = 0;
+
+                this.loop = this.loop.bind(this);
+                this.draw();
+                requestAnimationFrame(this.loop);
+            }
+
+            openSettings() {
+                const modal = document.getElementById('settings-modal');
+                modal.style.display = 'flex';
+                setTimeout(() => {
+                    modal.classList.add('open');
+                    document.getElementById('settings-card').style.transform = 'scale(1)';
+                }, 10);
+            }
+
+            closeSettings(save) {
+                const modal = document.getElementById('settings-modal');
+                modal.classList.remove('open');
+                document.getElementById('settings-card').style.transform = 'scale(0.95)';
+                setTimeout(() => modal.style.display = 'none', 300);
+
+                if(save) {
+                    const key = document.getElementById('setting-api-key').value.trim();
+                    const prompt = document.getElementById('setting-prompt').value.trim();
+                    
+                    this.apiKey = key || null;
+                    if(prompt) this.systemPrompt = prompt;
+                    
+                    this.updateAIStatus();
+                    addMsg("SYSTEM CONFIG UPDATED.", 'bot');
+                    Sound.play('click');
+                }
+            }
+
+            updateAIStatus() {
+                const dot = document.getElementById('ai-status-dot');
+                const txt = document.getElementById('ai-status-text');
+                
+                if(this.apiKey) {
+                    dot.classList.remove('bg-red-500'); dot.classList.add('bg-green-500');
+                    txt.innerText = "AI ACTIVE";
+                } else {
+                    dot.classList.remove('bg-green-500'); dot.classList.add('bg-red-500');
+                    txt.innerText = "DEMO MODE";
+                }
+            }
+
+            tapIsland() {
+                this.pulseSignal('active');
+                Sound.play('click');
+            }
+
+            async getAIResponse(prompt) {
+                if(!this.apiKey) return null; 
+                try {
+                    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
+                        body: JSON.stringify({
+                            model: "gpt-3.5-turbo",
+                            messages: [
+                                {role: "system", content: this.systemPrompt},
+                                {role: "user", content: prompt}
+                            ],
+                            max_tokens: 60
+                        })
+                    });
+                    const data = await res.json();
+                    return data.choices[0].message.content;
+                } catch(e) { return "CONNECTION ERROR"; }
+            }
+
+            setEmotion(emo) {
+                this.state = emo;
+                Sound.play('click');
+                Sound.haptic(10);
+                
+                if(emo === 'THINKING') {
+                    this.updateTargetGaze(0.8, -0.8);
+                    this.updateIsland("PROCESSING...", true);
+                    document.querySelectorAll('.signal-dot').forEach(d => d.classList.add('busy'));
+                } else {
+                    document.querySelectorAll('.signal-dot').forEach(d => d.classList.remove('busy'));
+                    if(emo === 'TALKING') this.updateIsland("SPEAKING...", true);
+                    else this.updateIsland(emo, true);
+                    
+                    if(!['TALKING', 'SLEEP'].includes(emo)) {
+                        setTimeout(() => { 
+                            if(this.state === emo) {
+                                this.state = 'IDLE'; 
+                                this.updateIsland("IDLE", false);
+                            }
+                        }, 2000);
+                    }
+                }
+            }
+
+            updateIsland(text, active=true) {
+                const island = document.getElementById('dynamic-island');
+                const content = document.getElementById('island-text');
+                content.querySelector('span').innerText = text;
+                const dots = document.querySelectorAll('.signal-dot');
+                
+                if(active) {
+                    island.classList.add('active');
+                    dots.forEach(d => d.classList.add('active'));
+                } else {
+                    island.classList.remove('active');
+                    dots.forEach(d => d.classList.remove('active'));
+                }
+            }
+
+            updateTargetGaze(nx, ny) {
+                this.targetX = Math.max(-1, Math.min(1, nx));
+                this.targetY = Math.max(-1, Math.min(1, ny));
+                const h = document.getElementById('xy-handle');
+                if(h) {
+                    h.style.left = `${((this.targetX+1)/2)*100}%`;
+                    h.style.top = `${((this.targetY+1)/2)*100}%`;
+                }
+            }
+
+            startTyping() { 
+                this.isTyping = true; 
+                this.updateTargetGaze(0, 0.8);
+                document.body.classList.add('input-active');
+            }
+            stopTyping() { 
+                this.isTyping = false; 
+                this.updateTargetGaze(0, 0); 
+                document.body.classList.remove('input-active');
+            }
+            
+            draw() {
+                if(!this.ctx) return;
+                this.ctx.fillStyle = '#F4F4F0';
+                this.ctx.fillRect(0, 0, 256, 256);
+
+                this.tick++;
+
+                this.currentX += (this.targetX - this.currentX) * 0.15;
+                this.currentY += (this.targetY - this.currentY) * 0.15;
+
+                let isBlinking = false;
+                if(!['SLEEP', 'SURPRISED'].includes(this.state)) {
+                    this.blinkTimer++;
+                    if(this.blinkTimer > this.nextBlinkTime) {
+                        isBlinking = true;
+                        if(this.blinkTimer > this.nextBlinkTime + 8) { 
+                            this.blinkTimer = 0;
+                            this.nextBlinkTime = 150 + Math.random() * 300;
+                        }
+                    }
+                }
+
+                let activeMouth = MOUTH_SHAPES.NEUTRAL;
+                const emo = CHAR_DATA.emotions[this.state];
+                
+                if (this.state === 'TALKING') {
+                    this.talkTimer--;
+                    if(this.talkTimer <= 0) {
+                        const shapes = ['NEUTRAL', 'OPEN_S', 'OPEN_M', 'OPEN_L', 'OPEN_S', 'NEUTRAL'];
+                        this.mouthFrame = shapes[Math.floor(Math.random() * shapes.length)];
+                        this.talkTimer = 4 + Math.floor(Math.random() * 6); 
+                    }
+                    activeMouth = MOUTH_SHAPES[this.mouthFrame];
+                } else if (emo && emo.mouth) {
+                    activeMouth = MOUTH_SHAPES[emo.mouth] || MOUTH_SHAPES.NEUTRAL;
+                }
+
+                this.ctx.fillStyle = '#111111';
+                
+                let lx = 1; 
+                if(this.currentX < -0.3) lx = 0;
+                if(this.currentX > 0.3) lx = 2;
+
+                let ly = 1; 
+                if(this.currentY < -0.4) ly = 0; 
+                else if(this.currentY > 0.6) ly = 3;
+                else if(this.currentY > 0.1) ly = 2;
+
+                for(let y=0; y<16; y++) {
+                    for(let x=0; x<16; x++) {
+                        let val = CHAR_DATA.base[y*16 + x];
+
+                        if (emo) {
+                            if (emo.x && emo.y && y===emo.y && emo.x.includes(x)) val = emo.val;
+                        }
+
+                        const isLeft = (x>=2 && x<=4 && y>=3 && y<=6);
+                        const isRight = (x>=10 && x<=12 && y>=3 && y<=6);
+
+                        if(isLeft || isRight) {
+                            const localX = isLeft ? x-2 : x-10;
+                            const localY = y-3;
+                            if (localX === lx && localY === ly) val = 1; 
+                        }
+
+                        if (isBlinking && (isLeft || isRight)) val = 1;
+                        
+                        if(y>=10 && y<=14 && x>=5 && x<=9) {
+                            if(CHAR_DATA.base[y*16+x] === 1) val = 0; 
+                        }
+                        if (activeMouth.some(p => p.x === x && p.y === y)) val = 1;
+                        
+                        if ((this.state === 'SLEEP' || this.state === 'LOVE') && (isLeft || isRight)) val = 0; 
+
+                        if(val === 1) {
+                            const breath = Math.sin(this.tick / 40) * 1.5;
+                            this.ctx.fillRect(x * 16, (y * 16) + breath, 16, 16);
+                        }
+                    }
+                }
+
+                const breath = Math.sin(this.tick / 40) * 1.5;
+                if(this.state === 'LOVE') {
+                    this.ctx.fillStyle = '#111111';
+                    const heart = (cx, cy) => {
+                        const py = cy*16 + breath; const px = cx*16;
+                        this.ctx.fillRect(px, py, 16, 16);
+                        this.ctx.fillRect(px-16, py-16, 16, 16);
+                        this.ctx.fillRect(px+16, py-16, 16, 16);
+                    };
+                    heart(3, 5); heart(11, 5);
+                }
+            }
+
+            loop() {
+                this.tick++;
+                this.draw();
+                requestAnimationFrame(this.loop);
+            }
+        }
+
+        /* --- 3. INIT --- */
+        window.app = new DirectorEngine();
+
+        window.toggle = (key) => {
+            window.app.config[key] = !window.app.config[key];
+            const el = document.getElementById('btn-puppet');
+            
+            if(key==='grid') document.getElementById('css-grid-overlay').style.opacity = window.app.config.grid ? '0.3' : '0';
+            
+            if(key==='puppet') {
+                document.body.classList.toggle('puppet-active');
+                el.classList.toggle('active');
+            }
+            Sound.play('click');
+            Sound.haptic(5);
+        };
+
+        const input = document.getElementById('user-input');
+        const chatList = document.getElementById('chat-list');
+        const hud = document.getElementById('hud-overlay');
+        const pad = document.getElementById('xy-pad');
+        
+        // Input Handling
+        input.addEventListener('focus', () => window.app.startTyping());
+        input.addEventListener('blur', () => window.app.stopTyping());
+        input.addEventListener('input', (e) => {
+            const progress = Math.min(input.value.length, 30) / 30; 
+            window.app.targetX = (progress * 1.6) - 0.8;
+            Sound.play('type');
+        });
+
+        // XY Pad
+        const handlePad = (e) => {
+            const r = pad.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const x = (clientX - r.left) / r.width;
+            const y = (clientY - r.top) / r.height;
+            window.app.updateTargetGaze((x*2)-1, (y*2)-1);
+        };
+        pad.addEventListener('mousemove', e => e.buttons===1 && handlePad(e));
+        pad.addEventListener('touchmove', handlePad);
+
+        const addMsg = (text, type) => {
+            // Chat History
+            const div = document.createElement('div');
+            div.className = `chat-line ${type}`;
+            div.innerText = type === 'bot' ? `> ${text}` : text;
+            chatList.appendChild(div);
+            // Auto scroll container
+            const container = document.getElementById('chat-container');
+            container.scrollTop = container.scrollHeight;
+
+            if(type==='bot') {
+                Sound.speak(text);
+                const bub = document.createElement('div');
+                bub.className = 'hud-bubble';
+                bub.innerText = text;
+                hud.innerHTML = '';
+                hud.appendChild(bub);
+                setTimeout(() => { if(hud.firstChild===bub) hud.innerHTML=''; }, 4000);
+            }
+        };
+
+        const handleSend = async () => {
+            const txt = input.value.trim();
+            if(!txt) return;
+            addMsg(txt, 'user');
+            input.value = '';
+            input.blur(); 
+            Sound.play('send');
+            Sound.haptic(20);
+            
+            window.app.setEmotion('THINKING');
+            
+            let reply = "...";
+            if(window.app.apiKey) {
+                const aiReply = await window.app.getAIResponse(txt);
+                reply = aiReply || "Connection failed.";
+            } else {
+                const r = ["I am online in Demo Mode. Add an API Key to enable full intelligence.", "Grid aligned.", "Visuals clear.", "Input acknowledged."];
+                reply = r[Math.floor(Math.random()*r.length)];
+            }
+
+            window.app.setEmotion('TALKING');
+            addMsg(reply, 'bot');
+            Sound.haptic([10, 50, 10]);
+        };
+
+        document.getElementById('send-btn').onclick = handleSend;
+        input.onkeydown = (e) => { if(e.key==='Enter') handleSend(); };
+
+        setTimeout(() => addMsg("Director v27 Online. [Demo Mode]", "bot"), 800);
+
+    } catch(err) {
+        document.body.innerHTML = `<div class="p-4 text-red-500 font-mono">CRITICAL ERROR: ${err.message}</div>`;
+    }
+</script>
+</body>
+</html>
+
