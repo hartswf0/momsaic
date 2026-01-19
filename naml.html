@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+    <title>Pixel Puppet: Director's Cut v39</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <style>
+        /* --- CORE THEME --- */
+        :root { 
+            --ink: #111111; 
+            --paper: #F4F4F0; 
+            --accent: #e5e5e0; 
+            --glow: #32CD32;
+        }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        html, body {
+            height: 100dvh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            color: var(--ink);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* --- LAYOUT ENGINE --- */
+        #app-shell {
+            height: 100dvh;
+            width: 100vw;
+            background-color: var(--paper);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+            background: #000; color: #fff;
+            height: 28px; width: 90px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 900; letter-spacing: 1px;
+            z-index: 60; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+        .dynamic-island.active { width: 220px; height: 34px; border-radius: 17px; }
+        .island-content { opacity: 0; transition: opacity 0.2s; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+        .dynamic-island.active .island-content { opacity: 1; }
+
+        /* Header */
+        header {
+            height: 60px;
+            flex-shrink: 0;
+            border-bottom: 2px solid var(--ink);
+            position: relative;
+            background: #fff;
+            display: flex;
+            align-items: flex-end;
+            padding: 0 16px 8px 16px;
+            z-index: 50;
+            transition: transform 0.4s ease, opacity 0.3s ease;
+        }
+
+        /* Stage (Face) */
+        #stage {
+            height: 260px;
+            flex-shrink: 0;
+            background-color: var(--paper);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1), flex-grow 0.4s ease;
+            overflow: hidden;
+            border-bottom: 2px solid var(--ink);
+        }
+
+        /* Chat Scroller */
+        #chat-scroller {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            background-color: #E8E8E5;
+            transition: flex 0.4s ease, opacity 0.3s;
+            position: relative;
+            min-height: 0;
+        }
+
+        /* Control Deck */
+        #deck {
+            flex-shrink: 0;
+            background-color: #fff;
+            border-top: 2px solid var(--ink);
+            z-index: 50;
+            padding-bottom: env(safe-area-inset-bottom, 12px);
+        }
+
+        /* --- MODE STATES --- */
+        
+        /* Puppet Mode (VIEW) */
+        body.puppet-active header { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+        body.puppet-active #stage { height: 100% !important; flex-grow: 1; background-color: #E0E0DC; border-bottom: none; }
+        body.puppet-active #chat-scroller { flex: 0 0 0 !important; height: 0 !important; opacity: 0; pointer-events: none; }
+        body.puppet-active #canvas-wrapper { transform: scale(1.2); }
+
+        /* Typing State */
+        body.input-active #stage { height: 120px; }
+        body.input-active #canvas-wrapper { transform: scale(0.65); }
+
+        /* --- UI COMPONENTS --- */
+        .ctrl-row { display: flex; gap: 8px; overflow-x: auto; padding: 10px; scrollbar-width: none; background: #fafafa; }
+        
+        .pad {
+            flex-shrink: 0; height: 44px; min-width: 44px; padding: 0 16px;
+            background: #fff; border: 2px solid var(--ink); border-radius: 8px;
+            display: flex; align-items: center; gap: 6px;
+            font-size: 10px; font-weight: 900; cursor: pointer; transition: all 0.1s;
+            box-shadow: 0 4px 0 var(--ink);
+        }
+        .pad:active { transform: translateY(4px); box-shadow: 0 0 0 var(--ink); }
+        .pad.active { background: var(--glow); color: #000; transform: translateY(4px); box-shadow: 0 0 0 var(--ink); }
+
+        .xy-pad {
+            width: 60px; height: 44px; background: #fff; border: 2px solid var(--ink); border-radius: 8px;
+            position: relative; flex-shrink: 0; overflow: hidden; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.1);
+        }
+        .xy-handle {
+            width: 10px; height: 10px; background: var(--ink); border-radius: 50%;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            border: 2px solid #fff; pointer-events: none;
+            transition: all 0.1s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .input-bar { padding: 12px; display: flex; gap: 8px; background: #fff; }
+        .input-box {
+            flex-grow: 1; background: #eee; border: 2px solid var(--ink); border-radius: 12px;
+            padding: 0 12px; height: 48px; font-family: inherit; font-size: 14px; font-weight: 600; outline: none;
+        }
+        .send-btn {
+            width: 48px; height: 48px; background: var(--ink); color: #fff;
+            border-radius: 12px; display: flex; align-items: center; justify-content: center;
+        }
+
+        /* HUD Popup */
+        .hud-overlay {
+            position: absolute; top: 20px; left: 0; right: 0;
+            display: flex; flex-direction: column; align-items: center;
+            pointer-events: none; z-index: 50; padding: 0 20px;
+        }
+        .hud-bubble {
+            background: rgba(255, 255, 255, 0.98); border: 2px solid var(--ink);
+            padding: 6px 12px; border-radius: 12px; font-size: 11px; font-weight: 800;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.1); animation: bubbleIn 0.3s forwards;
+        }
+        @keyframes bubbleIn { from { transform: translateY(-10px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+
+        #canvas-wrapper { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; }
+        
+        .chat-line { font-size: 11px; font-weight: 600; padding: 8px 12px; border-radius: 12px; background: #fff; border: 1px solid var(--ink); max-width: 85%; align-self: flex-start; box-shadow: 2px 2px 0 rgba(0,0,0,0.05); }
+        .chat-line.user { align-self: flex-end; background: var(--ink); color: #fff; }
+
+    </style>
+</head>
+<body>
+
+    <div id="app-shell">
+        <!-- ISLAND -->
+        <div id="dynamic-island" class="dynamic-island">
+            <div class="island-content" id="island-text">
+                <div class="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                <span>DIRECTOR READY</span>
+            </div>
+        </div>
+
+        <!-- HEADER -->
+        <header id="app-header">
+            <div class="flex flex-col">
+                <span class="text-[9px] font-black opacity-30 tracking-widest">NODE_v39</span>
+                <span class="text-xs font-black tracking-tighter">SYSTEM_ACTIVE</span>
+            </div>
+            <div class="ml-auto flex items-center gap-2">
+                <button onclick="app.toggleAIConfig()" class="bg-white border-2 border-ink px-2 py-1 rounded text-[9px] font-black active:scale-95 transition-all">CONFIG</button>
+            </div>
+        </header>
+
+        <!-- STAGE -->
+        <div id="stage">
+            <div id="hud-overlay" class="hud-overlay"></div>
+            <div id="canvas-wrapper">
+                <canvas id="mainCanvas" width="256" height="256" style="width: 240px; height: 240px;"></canvas>
+            </div>
+            <div class="absolute bottom-2 right-4 text-[8px] font-mono opacity-20" id="coord-display">--</div>
+        </div>
+
+        <!-- LOGS -->
+        <div id="chat-scroller">
+            <div id="chat-list" class="flex flex-col gap-3 p-4"></div>
+        </div>
+
+        <!-- DECK -->
+        <div id="deck">
+            <div class="ctrl-row">
+                <div class="xy-pad" id="xy-pad">
+                    <div class="xy-handle" id="xy-handle"></div>
+                </div>
+                <button class="pad" id="btn-view" onclick="app.togglePuppetMode()">VIEW</button>
+                <button class="pad" onclick="app.setEmotion('SEARCHING')">SCAN</button>
+                <button class="pad" onclick="app.setEmotion('HAPPY')">JOY</button>
+                <button class="pad" onclick="app.setEmotion('SAD')">SAD</button>
+                <button class="pad" onclick="app.setEmotion('LOVE')">LUV</button>
+                <button class="pad" onclick="app.setEmotion('SURPRISED')">WOW</button>
+            </div>
+
+            <div class="input-bar">
+                <input type="text" id="user-input" class="input-box" placeholder="SYSTEM CMD..." autocomplete="off">
+                <button class="send-btn" onclick="app.handleSend()">↵</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONFIG -->
+    <div id="config-modal" class="fixed inset-0 z-[100] hidden bg-black/60 items-center justify-center p-6 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-xs p-6 rounded-3xl border-4 border-ink flex flex-col gap-4">
+            <h3 class="font-black uppercase border-b-2 border-ink pb-1">Config</h3>
+            <input type="password" id="api-key" class="w-full border-2 border-ink rounded-lg p-2 text-xs font-mono" placeholder="OpenAI Key...">
+            <button onclick="app.saveConfig()" class="bg-ink text-white py-3 rounded-xl font-black text-xs">SAVE</button>
+            <button onclick="app.toggleAIConfig()" class="text-[10px] font-bold">CANCEL</button>
+        </div>
+    </div>
+
+<script>
+/**
+ * DIRECTOR ENGINE v39
+ */
+const app = (() => {
+    // ASSETS
+    const CHAR_DATA = {
+        base: [
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,1,1,1,1,1,0,0,0,1,1,1,1,1,0,0, 
+            0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0, 
+            0,1,0,0,0,1,1,1,1,1,0,0,0,1,0,0, 
+            0,1,0,2,0,1,0,0,0,1,0,2,0,1,0,0, // Pupils at x3, x11
+            0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0, 
+            0,1,1,1,1,1,0,0,0,1,1,1,1,1,0,0, 
+            0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0, 
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 
+            0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0, // y11 Mouth
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        ],
+        mouths: {
+            NEUTRAL: [{x:6,y:11},{x:7,y:11},{x:8,y:11}],
+            SMILE:   [{x:5,y:10},{x:9,y:10},{x:6,y:11},{x:7,y:11},{x:8,y:11}],
+            FROWN:   [{x:6,y:11},{x:7,y:11},{x:8,y:11},{x:5,y:12},{x:9,y:12}]
+        }
+    };
+
+    // STATE
+    const state = {
+        emo: 'IDLE',
+        gaze: { x:0, y:0, tx:0, ty:0 },
+        tick: 0,
+        blink: 0,
+        nextBlink: 100,
+        isTyping: false,
+        apiKey: null
+    };
+
+    let canvas, ctx;
+
+    const init = () => {
+        canvas = document.getElementById('mainCanvas');
+        ctx = canvas.getContext('2d');
+        
+        // Safety: Try loading icons, but don't crash if it fails
+        if(window.lucide) {
+            try { lucide.createIcons(); } catch(e) {}
+        }
+
+        setupEvents();
+        requestAnimationFrame(loop);
+        addMsg("System Restored. v39 Boot.", 'bot');
+    };
+
+    const loop = () => {
+        state.tick++;
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    };
+
+    const update = () => {
+        // Smooth Gaze
+        state.gaze.x += (state.gaze.tx - state.gaze.x) * 0.15;
+        state.gaze.y += (state.gaze.ty - state.gaze.y) * 0.15;
+
+        // Auto-blink
+        state.blink++;
+        if(state.blink > state.nextBlink) {
+            if(state.blink > state.nextBlink + 6) {
+                state.blink = 0;
+                state.nextBlink = 120 + Math.random() * 300;
+            }
+        }
+
+        // Search logic
+        if(state.emo === 'SEARCHING') {
+            state.gaze.tx += 0.3;
+            if(state.gaze.tx > 1.2) state.gaze.tx = -1.2;
+            state.gaze.ty = 0;
+        }
+    };
+
+    const draw = () => {
+        ctx.fillStyle = '#F4F4F0';
+        ctx.fillRect(0,0,256,256);
+        ctx.fillStyle = '#111111';
+
+        const blinking = state.blink > state.nextBlink;
+        
+        // Pupil Offset Mapping
+        let ox = 0; if(state.gaze.x < -0.3) ox = -1; if(state.gaze.x > 0.3) ox = 1;
+        let oy = 1; if(state.gaze.y < -0.4) oy = 0; else if(state.gaze.y > 0.3) oy = 2;
+
+        for(let y=0; y<16; y++) {
+            for(let x=0; x<16; x++) {
+                let val = CHAR_DATA.base[y*16+x];
+
+                // Pupil Mapping
+                const isLeftLens = (x>=2 && x<=4 && y>=3 && y<=6);
+                const isRightLens = (x>=10 && x<=12 && y>=3 && y<=6);
+
+                if(isLeftLens || isRightLens) {
+                    const localX = isLeftLens ? x-2 : x-10;
+                    const localY = y-3;
+                    if(localX === 1+ox && localY === oy) val = 1;
+                    if(blinking) val = 1;
+                }
+
+                // Mouth
+                if(y >= 10 && y <= 14 && x >= 5 && x <= 9) {
+                    if(CHAR_DATA.base[y*16+x] === 1) val = 0;
+                }
+                const m = (state.emo === 'HAPPY') ? 'SMILE' : (state.emo === 'SAD' ? 'FROWN' : 'NEUTRAL');
+                if(CHAR_DATA.mouths[m].some(p => p.x === x && p.y === y)) val = 1;
+
+                if(val === 1) {
+                    const b = Math.sin(state.tick / 40) * 1.5;
+                    ctx.fillRect(x*16, y*16 + b, 16, 16);
+                }
+            }
+        }
+    };
+
+    const setupEvents = () => {
+        const stage = document.getElementById('stage');
+        const input = document.getElementById('user-input');
+
+        const handleMove = (e) => {
+            const r = stage.getBoundingClientRect();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            state.gaze.tx = Math.max(-1, Math.min(1, (cx - (r.left + r.width/2))/(r.width/2)));
+            state.gaze.ty = Math.max(-1, Math.min(1, (cy - (r.top + r.height/2))/(r.height/2)));
+        };
+
+        stage.addEventListener('mousedown', () => stage.addEventListener('mousemove', handleMove));
+        window.addEventListener('mouseup', () => stage.removeEventListener('mousemove', handleMove));
+        stage.addEventListener('touchstart', (e) => { handleMove(e); stage.addEventListener('touchmove', handleMove); }, {passive:false});
+        window.addEventListener('touchend', () => stage.removeEventListener('touchmove', handleMove));
+
+        input.addEventListener('focus', () => { state.isTyping = true; document.body.classList.add('input-active'); });
+        input.addEventListener('blur', () => { state.isTyping = false; document.body.classList.remove('input-active'); });
+        input.onkeydown = (e) => e.key === 'Enter' && handleSend();
+    };
+
+    const addMsg = (text, type) => {
+        const list = document.getElementById('chat-list');
+        const div = document.createElement('div');
+        div.className = `chat-line ${type}`;
+        div.innerText = (type === 'bot' ? "> " : "") + text;
+        list.appendChild(div);
+        
+        const scroll = document.getElementById('chat-scroller');
+        scroll.scrollTop = scroll.scrollHeight;
+
+        if(type === 'bot') {
+            const hud = document.getElementById('hud-overlay');
+            const bub = document.createElement('div');
+            bub.className = 'hud-bubble'; bub.innerText = text;
+            hud.innerHTML = ''; hud.appendChild(bub);
+            setTimeout(() => bub.remove(), 4000);
+        }
+    };
+
+    const handleSend = () => {
+        const input = document.getElementById('user-input');
+        const text = input.value.trim();
+        if(!text) return;
+        addMsg(text, 'user');
+        input.value = '';
+        setEmotion('THINKING');
+        setTimeout(() => {
+            setEmotion('IDLE');
+            addMsg("Input Received. Grid Calibrated.", 'bot');
+        }, 1200);
+    };
+
+    const setEmotion = (emo) => {
+        state.emo = emo;
+        if(!['IDLE','SEARCHING'].includes(emo)) {
+            setTimeout(() => { if(state.emo === emo) state.emo = 'IDLE'; }, 2000);
+        }
+    };
+
+    const togglePuppetMode = () => {
+        document.body.classList.toggle('puppet-active');
+        document.getElementById('btn-view').classList.toggle('active');
+    };
+
+    return { init, togglePuppetMode, setEmotion, handleSend, toggleAIConfig: () => {
+        const m = document.getElementById('config-modal');
+        m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
+    }, saveConfig: () => {
+        state.apiKey = document.getElementById('api-key').value.trim();
+        addMsg("AI Config Logged.", 'bot');
+        document.getElementById('config-modal').style.display = 'none';
+    }};
+})();
+
+window.onload = app.init;
+</script>
+</body>
+</html>
+
