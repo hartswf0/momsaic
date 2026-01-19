@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pixel Puppet: Director's Cut</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <style>
+        /* --- THEME --- */
+        :root { --ink: #111111; --paper: #F4F4F0; --active: #000; }
+        
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #222;
+            color: var(--ink);
+            overflow: hidden; /* Prevent body scroll */
+            touch-action: none; /* Prevent iOS bounce */
+        }
+
+        /* --- UI COMPONENTS --- */
+        .bg-paper { background-color: var(--paper); }
+        
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            display: block;
+        }
+
+        /* --- CONTROL DECK STYLES --- */
+        .pad-btn {
+            background: #fff;
+            border: 2px solid var(--ink);
+            box-shadow: 2px 2px 0px var(--ink);
+            transition: all 0.05s;
+            font-weight: 900;
+            font-size: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+        .pad-btn:active, .pad-btn.active {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px var(--ink);
+            background: var(--ink);
+            color: white;
+        }
+
+        /* Signal Lights (Smoother) */
+        .signal-light {
+            width: 6px; height: 6px;
+            background-color: var(--ink);
+            opacity: 0.1;
+            border-radius: 50%;
+            transition: opacity 0.2s;
+        }
+        .signal-light.active { opacity: 1; box-shadow: 0 0 4px var(--ink); }
+
+        .toggle-switch {
+            width: 32px; height: 16px;
+            background: var(--paper);
+            border: 2px solid var(--ink);
+            border-radius: 99px;
+            position: relative;
+            cursor: pointer;
+        }
+        .toggle-switch.on { background: var(--ink); }
+        .toggle-switch::after {
+            content: ''; position: absolute;
+            top: 1px; left: 1px;
+            width: 10px; height: 10px;
+            background: var(--ink);
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .toggle-switch.on::after {
+            transform: translateX(16px);
+            background: white;
+        }
+
+        /* XY Pad */
+        .xy-pad {
+            background-image: linear-gradient(var(--ink) 1px, transparent 1px), linear-gradient(90deg, var(--ink) 1px, transparent 1px);
+            background-size: 10px 10px;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- DEVICE FRAME -->
+    <div class="relative w-full max-w-[390px] h-[844px] max-h-[95vh] bg-paper rounded-[2rem] overflow-hidden border-[6px] border-[#111] shadow-2xl flex flex-col">
+        
+        <!-- NOTCH -->
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-[#111] rounded-b-xl z-50 pointer-events-none"></div>
+
+        <!-- 1. HEADER -->
+        <div class="h-[44px] w-full flex justify-between items-end px-4 pb-2 text-[10px] font-bold tracking-widest uppercase border-b-2 border-ink bg-paper shrink-0 z-40">
+            <span>SYS.READY</span>
+            <!-- STATUS LIGHTS (No random strobe) -->
+            <div class="flex gap-1 mb-0.5" id="signal-array">
+                <div class="signal-light"></div>
+                <div class="signal-light"></div>
+                <div class="signal-light"></div>
+                <div class="signal-light"></div>
+            </div>
+        </div>
+
+        <!-- 2. STAGE -->
+        <div class="relative flex-1 min-h-[250px] border-b-2 border-ink flex flex-col items-center justify-center bg-paper overflow-hidden shrink-1" id="stage-area">
+            
+            <!-- Assessment Grid -->
+            <div id="css-grid-overlay" class="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-200" 
+                 style="background-image: linear-gradient(#f00 1px, transparent 1px), linear-gradient(90deg, #f00 1px, transparent 1px); background-size: 16px 16px; mix-blend-mode: multiply;">
+            </div>
+
+            <div id="canvas-wrapper" class="relative transition-transform duration-100">
+                <canvas id="mainCanvas" width="256" height="256" class="w-56 h-56 md:w-64 md:h-64 bg-transparent"></canvas>
+            </div>
+            
+            <div class="absolute bottom-2 text-[9px] font-mono opacity-50" id="coord-display">X:0.0 Y:0.0</div>
+        </div>
+
+        <!-- 3. MAESTRO DECK -->
+        <div class="bg-[#e5e5e0] p-3 flex flex-col gap-3 shrink-0 min-h-[280px] z-30 shadow-[inset_0_4px_6px_rgba(0,0,0,0.05)]">
+            
+            <!-- A. MIXER ROW -->
+            <div class="flex gap-3 h-20 shrink-0">
+                <!-- XY Gaze Pad -->
+                <div class="w-20 h-20 bg-white border-2 border-ink shadow-[2px_2px_0px_#111] relative cursor-crosshair overflow-hidden touch-none" id="xy-pad">
+                    <div class="xy-pad absolute inset-0 opacity-20"></div>
+                    <div class="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none text-[8px] font-bold">XY</div>
+                    <div id="xy-handle" class="absolute w-3 h-3 bg-black border border-white shadow-sm -ml-1.5 -mt-1.5 rounded-full top-1/2 left-1/2 pointer-events-none"></div>
+                </div>
+
+                <!-- Toggles -->
+                <div class="flex-1 flex flex-col justify-between py-0.5">
+                    <div class="flex items-center justify-between" onclick="toggle('toggle-track', 'tracking')">
+                        <span class="text-[9px] font-bold uppercase cursor-pointer">Track</span>
+                        <div class="toggle-switch on" id="toggle-track"></div>
+                    </div>
+                    <div class="flex items-center justify-between" onclick="toggle('toggle-blink', 'autoBlink')">
+                        <span class="text-[9px] font-bold uppercase cursor-pointer">Blink</span>
+                        <div class="toggle-switch on" id="toggle-blink"></div>
+                    </div>
+                    <div class="flex items-center justify-between" onclick="toggle('toggle-grid', 'grid')">
+                        <span class="text-[9px] font-bold uppercase cursor-pointer">Grid</span>
+                        <div class="toggle-switch" id="toggle-grid"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- B. EMOTION GRID -->
+            <div class="grid grid-cols-4 grid-rows-2 gap-2 flex-1">
+                <button class="pad-btn" onclick="app.setEmotion('HAPPY')"><span>☺</span><span>JOY</span></button>
+                <button class="pad-btn" onclick="app.setEmotion('SAD')"><span>☹</span><span>SAD</span></button>
+                <button class="pad-btn" onclick="app.setEmotion('ANGRY')"><span>ÒÓ</span><span>RAGE</span></button>
+                <button class="pad-btn" onclick="app.setEmotion('LOVE')"><span>♥</span><span>LOVE</span></button>
+                
+                <button class="pad-btn" onclick="app.setEmotion('SURPRISED')"><span>!</span><span>SHOCK</span></button>
+                <button class="pad-btn" onclick="app.setEmotion('CONFUSED')"><span>?</span><span>WHAT</span></button>
+                <button class="pad-btn" onclick="app.setEmotion('SLEEP')"><span>Zzz</span><span>REST</span></button>
+                <button class="pad-btn" onclick="app.setEmotion('TALKING')"><span>...</span><span>TALK</span></button>
+            </div>
+        </div>
+
+        <!-- 4. TERMINAL -->
+        <div class="h-[50px] w-full border-t-2 border-ink bg-paper p-2 flex items-center gap-2 z-20 shrink-0">
+            <span class="text-ink font-bold text-xs">></span>
+            <input type="text" id="user-input" 
+                   class="flex-1 bg-transparent border-none text-xs font-mono focus:outline-none text-ink placeholder-gray-400 uppercase"
+                   placeholder="TYPE HERE TO CHAT..." autocomplete="off">
+            <button id="send-btn" class="w-8 h-8 bg-ink text-white flex items-center justify-center font-bold text-xs hover:opacity-80">↵</button>
+        </div>
+
+    </div>
+
+<script>
+    /* --- 1. DATA: 3x3 LENS CHARACTER --- */
+    const CHAR_DATA = {
+        // Base Grid (16x16)
+        // 0=Paper, 1=Ink, 2=Pupil Center
+        base: [
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,1,1,1,1,1,0,0,0,0,1,1,1,1,1,0, // Top Rim
+            0,1,0,0,0,1,0,0,0,0,1,0,0,0,1,0, // Side Rim
+            0,1,0,2,0,1,1,1,1,1,1,0,2,0,1,0, // Mid (Pupils at x:3, x:12)
+            0,1,0,0,0,1,0,0,0,0,1,0,0,0,1,0, // Side Rim
+            0,1,1,1,1,1,0,1,0,0,1,1,1,1,1,0, // Bot Rim
+            0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,1,1,0,1,0,0,0,0,0,0, // Mouth
+            0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0, // Mouth
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        ],
+        // Updated pupil centers for 3x3 lens
+        pupils: [ {x: 3, y: 5}, {x: 12, y: 5} ],
+        emotions: {
+            // HAPPY: Eyes squint up (fill bottom row of lens), Mouth smiles
+            HAPPY:     { y: 11, x: [6,9], val: 0 },
+            
+            // SAD: Mouth frowns, Top of eyes droop?
+            SAD:       { y: 12, x: [7,8], val: 0 }, 
+            
+            // SURPRISED: Top rim pops way up
+            SURPRISED: { y: 2, x: [1,2,3,4,5,10,11,12,13,14], val: 1 }, 
+            
+            // ANGRY: Top rim thickens downwards
+            ANGRY:     { y: 4, x: [2,3,4,11,12,13], val: 1 }, 
+            
+            // CONFUSED: One brow up, mouth crooked
+            CONFUSED:  { y: 2, x: [1,2,3,4,5], val: 1 },
+            
+            LOVE:      { y: 5, x: [1,2,3,4,5,10,11,12,13,14], val: 0 }, // Clear for hearts
+            SLEEP:     { y: 5, x: [2,3,4,11,12,13], val: 0 }, // Clear for lines
+            
+            TALKING:   { y: 11, xStart: 6, xEnd: 9, val: 0 }
+        },
+        // Blink fills the 3x3 internal space
+        blinkAreas: [
+            {x:2,y:4},{x:3,y:4},{x:4,y:4}, {x:2,y:5},{x:3,y:5},{x:4,y:5}, {x:2,y:6},{x:3,y:6},{x:4,y:6},
+            {x:11,y:4},{x:12,y:4},{x:13,y:4}, {x:11,y:5},{x:12,y:5},{x:13,y:5}, {x:11,y:6},{x:12,y:6},{x:13,y:6}
+        ]
+    };
+
+    /* --- 2. ENGINE --- */
+    class MaestroEngine {
+        constructor() {
+            this.canvas = document.getElementById('mainCanvas');
+            this.ctx = this.canvas.getContext('2d');
+            
+            this.state = 'IDLE';
+            this.config = { tracking: true, autoBlink: true, grid: false };
+            
+            // Gaze (Lerped)
+            this.currentX = 0; this.targetX = 0;
+            this.currentY = 0; this.targetY = 0;
+            
+            // Input Tracking
+            this.isTyping = false;
+            this.typingProgress = 0; // -1 (left) to 1 (right)
+
+            this.tick = 0;
+            this.blinkTimer = 0;
+            
+            this.loop = this.loop.bind(this);
+            requestAnimationFrame(this.loop);
+        }
+
+        setEmotion(emo) {
+            this.state = emo;
+            
+            // Pulse Lights once
+            const lights = document.querySelectorAll('.signal-light');
+            lights.forEach(l => {
+                l.classList.add('active');
+                setTimeout(()=>l.classList.remove('active'), 200);
+            });
+
+            if(!['TALKING', 'SLEEP'].includes(emo)) {
+                setTimeout(() => { if(this.state === emo) this.state = 'IDLE'; }, 1500);
+            }
+        }
+
+        updateTargetGaze(nx, ny) {
+            // If typing, ignore manual/mouse tracking (unless override needed)
+            if(this.isTyping) {
+                // Look down (y=0.8) and scan x based on typingProgress
+                this.targetX = this.typingProgress;
+                this.targetY = 0.8;
+            } else {
+                this.targetX = Math.max(-1, Math.min(1, nx));
+                this.targetY = Math.max(-1, Math.min(1, ny));
+            }
+            document.getElementById('coord-display').innerText = `X:${this.targetX.toFixed(1)} Y:${this.targetY.toFixed(1)}`;
+        }
+
+        startTyping() { this.isTyping = true; this.updateTargetGaze(0, 0); }
+        stopTyping() { this.isTyping = false; this.updateTargetGaze(0, 0); }
+        updateTypingProgress(len) {
+            // Map length 0..20 chars to -0.8..0.8 range
+            const maxLen = 20;
+            const progress = Math.min(len, maxLen) / maxLen; 
+            this.typingProgress = (progress * 1.6) - 0.8; // Map 0->1 to -0.8->0.8
+            this.updateTargetGaze(0,0); // Trigger update
+        }
+
+        draw() {
+            this.ctx.fillStyle = '#F4F4F0';
+            this.ctx.fillRect(0, 0, 256, 256);
+
+            // 1. Physics (Smoothing)
+            this.currentX += (this.targetX - this.currentX) * 0.2; // Faster snap for typing
+            this.currentY += (this.targetY - this.currentY) * 0.2;
+            
+            // Update Handle UI
+            const h = document.getElementById('xy-handle');
+            if(!this.isTyping) {
+                h.style.left = `${((this.currentX+1)/2)*100}%`;
+                h.style.top = `${((this.currentY+1)/2)*100}%`;
+            }
+
+            // 2. State Logic
+            let isBlinking = false;
+            if(this.config.autoBlink && !['SLEEP', 'SURPRISED'].includes(this.state)) {
+                this.blinkTimer++;
+                if(this.blinkTimer > 200 + Math.random()*150) {
+                    isBlinking = true;
+                    if(this.blinkTimer > 210 + Math.random()*150) this.blinkTimer = 0;
+                }
+            }
+            let isTalking = (this.state === 'TALKING' && Math.floor(this.tick/6)%2===0);
+
+            // 3. Pixel Rendering
+            this.ctx.fillStyle = '#111111';
+            
+            // Gaze Offset (Quantized to 1px)
+            let ox = 0, oy = 0;
+            if(Math.abs(this.currentX) > 0.2) ox = Math.sign(this.currentX);
+            if(Math.abs(this.currentY) > 0.2) oy = Math.sign(this.currentY);
+
+            for(let i=0; i<256; i++) {
+                const x = i % 16;
+                const y = Math.floor(i / 16);
+                let val = CHAR_DATA.base[i];
+
+                const isLeftPupil = (x===3 && y===5);
+                const isRightPupil = (x===12 && y===5);
+
+                let drawX = x; 
+                let drawY = y;
+
+                // Handle Pupil Movement
+                if(isLeftPupil || isRightPupil) {
+                    drawX += ox;
+                    drawY += oy;
+                    val = 1; 
+                    if(isBlinking) val = 0;
+                }
+
+                // Apply Overrides
+                if(CHAR_DATA.emotions[this.state]) {
+                    const e = CHAR_DATA.emotions[this.state];
+                    if(e.x && e.y && e.y === y && e.x.includes(x)) val = e.val;
+                    if(e.xStart && y===e.y && x>=e.xStart && x<=e.xEnd && isTalking) val = e.val;
+                }
+                
+                // HAPPY Squint (Extra Logic)
+                if(this.state === 'HAPPY') {
+                    // Fill bottom row of lens (y=6)
+                    if(y===6 && ((x>=2 && x<=4) || (x>=11 && x<=13))) val = 1;
+                }
+
+                if(isBlinking) {
+                    if(CHAR_DATA.blinkAreas.some(p => p.x===x && p.y===y)) val = 1;
+                }
+
+                // Special FX Clears
+                if((this.state==='LOVE' || this.state==='SLEEP') && (isLeftPupil || isRightPupil)) val = 0;
+
+                // Breathing
+                const breath = Math.sin(this.tick / 30) * 1.5;
+
+                if(val === 1) {
+                    this.ctx.fillRect(drawX * 16, (drawY * 16) + breath, 16, 16);
+                }
+            }
+
+            // 4. Post-Render FX
+            const breath = Math.sin(this.tick / 30) * 1.5;
+            if (this.state === 'LOVE') {
+                this.ctx.fillStyle = '#111111';
+                const drawHeart = (ox, oy) => {
+                    const py = (oy*16) + breath;
+                    const px = ox*16;
+                    this.ctx.fillRect(px, py, 16, 16); 
+                    this.ctx.fillRect(px-16, py-16, 16, 16); 
+                    this.ctx.fillRect(px+16, py-16, 16, 16); 
+                };
+                drawHeart(3, 5); drawHeart(12, 5);
+            }
+            if (this.state === 'SLEEP') {
+                this.ctx.fillStyle = '#111111';
+                const py = (5*16) + breath;
+                this.ctx.fillRect(2*16, py, 48, 4); 
+                this.ctx.fillRect(11*16, py, 48, 4);
+                if(Math.floor(this.tick/30)%2===0) {
+                    this.ctx.font = "12px monospace";
+                    this.ctx.fillText("z", 220, 50 - (this.tick%30));
+                }
+            }
+        }
+
+        loop() {
+            this.tick++;
+            this.draw();
+            requestAnimationFrame(this.loop);
+        }
+    }
+
+    /* --- 3. INIT --- */
+    window.app = new MaestroEngine();
+
+    // Global Functions
+    window.toggle = (id, key) => {
+        const el = document.getElementById(id);
+        window.app.config[key] = !window.app.config[key];
+        el.classList.toggle('on');
+        if(key==='grid') document.getElementById('css-grid-overlay').style.opacity = window.app.config.grid ? '0.3' : '0';
+    };
+
+    // XY Pad Handling
+    const pad = document.getElementById('xy-pad');
+    const updatePad = (e) => {
+        const r = pad.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const x = (clientX - r.left) / r.width;
+        const y = (clientY - r.top) / r.height;
+        window.app.updateTargetGaze((x*2)-1, (y*2)-1);
+    };
+
+    let dragging = false;
+    pad.addEventListener('mousedown', (e) => { dragging=true; updatePad(e); });
+    window.addEventListener('mousemove', (e) => { 
+        if(dragging) updatePad(e);
+        else if(window.app.config.tracking && !window.app.isTyping) {
+            const stage = document.getElementById('stage-area').getBoundingClientRect();
+            const cx = stage.left + stage.width/2;
+            const cy = stage.top + stage.height/2;
+            window.app.updateTargetGaze((e.clientX-cx)/(stage.width/2), (e.clientY-cy)/(stage.height/2));
+        }
+    });
+    window.addEventListener('mouseup', () => dragging=false);
+    
+    pad.addEventListener('touchstart', (e) => { dragging=true; updatePad(e); e.preventDefault(); }, {passive:false});
+    pad.addEventListener('touchmove', (e) => { if(dragging) updatePad(e); e.preventDefault(); }, {passive:false});
+    window.addEventListener('touchend', () => dragging=false);
+
+    // Chat Input Logic (Typing Tracking)
+    const input = document.getElementById('user-input');
+    
+    input.addEventListener('focus', () => window.app.startTyping());
+    input.addEventListener('blur', () => window.app.stopTyping());
+    input.addEventListener('input', (e) => {
+        window.app.updateTypingProgress(input.value.length);
+        // Gentle signal pulse while typing
+        const lights = document.querySelectorAll('.signal-light');
+        const r = Math.floor(Math.random() * 2);
+        lights[r].classList.add('active');
+        setTimeout(()=>lights[r].classList.remove('active'), 100);
+    });
+
+    input.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') {
+            const v = input.value.trim().toUpperCase();
+            input.value = '';
+            // Reset gaze
+            window.app.updateTypingProgress(0);
+            
+            if(['HAPPY','SAD','ANGRY','LOVE'].includes(v)) window.app.setEmotion(v);
+            else window.app.setEmotion('TALKING');
+        }
+    });
+</script>
+</body>
+</html>
+
+
