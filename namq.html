@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pixel Puppet: Director's Cut v12</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <style>
+        /* --- THEME --- */
+        :root { --ink: #111111; --paper: #F4F4F0; --accent: #e5e5e0; }
+        
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #1a1a1a;
+            color: var(--ink);
+            overflow: hidden; 
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .bg-paper { background-color: var(--paper); }
+        
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            display: block;
+        }
+
+        /* --- CHAT STYLES --- */
+        .chat-scroll::-webkit-scrollbar { width: 4px; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        
+        .bubble {
+            position: relative;
+            padding: 8px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.4;
+            max-width: 85%;
+            box-shadow: 1px 1px 0px rgba(0,0,0,0.05);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            opacity: 0;
+            animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        
+        .bubble.bot {
+            background: white;
+            border: 1px solid var(--ink);
+            border-top-left-radius: 4px;
+            margin-left: 8px;
+        }
+
+        .bubble.user {
+            background: var(--ink);
+            color: white;
+            border-bottom-right-radius: 4px;
+            margin-right: 8px;
+        }
+
+        /* --- CONTROL TOOLBAR --- */
+        .control-bar {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding: 8px 4px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .control-bar::-webkit-scrollbar { display: none; }
+
+        .ctrl-pill {
+            flex-shrink: 0;
+            height: 36px;
+            padding: 0 14px;
+            background: white;
+            border: 1px solid var(--ink);
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: transform 0.05s, background-color 0.1s;
+            box-shadow: 2px 2px 0px var(--ink);
+            user-select: none;
+        }
+        .ctrl-pill:active, .ctrl-pill.active {
+            transform: translate(1px, 1px);
+            box-shadow: 1px 1px 0px var(--ink);
+            background: var(--ink);
+            color: white;
+        }
+
+        /* Mini XY Pad */
+        .xy-mini {
+            width: 44px; height: 36px;
+            background: white;
+            border: 1px solid var(--ink);
+            border-radius: 12px;
+            position: relative;
+            flex-shrink: 0;
+            box-shadow: 2px 2px 0px var(--ink);
+            overflow: hidden;
+        }
+        .xy-grid {
+            position: absolute; inset: 0; opacity: 0.1;
+            background-image: linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px);
+            background-size: 8px 8px;
+        }
+        .xy-dot {
+            width: 8px; height: 8px;
+            background: var(--ink);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            border: 1px solid white;
+            transition: all 0.1s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        /* Signal Lights */
+        .signal-light {
+            width: 6px; height: 6px;
+            background-color: var(--ink);
+            opacity: 0.15;
+            border-radius: 50%;
+            transition: opacity 0.1s, transform 0.1s;
+        }
+        .signal-light.active { opacity: 1; transform: scale(1.4); }
+
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- DEVICE FRAME -->
+    <div class="relative w-full max-w-[390px] h-[844px] max-h-[95vh] bg-paper rounded-[2.5rem] overflow-hidden border-[6px] border-[#111] shadow-2xl flex flex-col">
+        
+        <!-- NOTCH -->
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-[#111] rounded-b-xl z-50 pointer-events-none"></div>
+
+        <!-- 1. HEADER -->
+        <div class="h-[44px] w-full flex justify-between items-end px-4 pb-2 text-[10px] font-bold tracking-widest uppercase border-b border-ink bg-paper shrink-0 z-40">
+            <span class="opacity-50">DIRECTOR.V12</span>
+            <div class="flex gap-1 mb-0.5" id="signal-array">
+                <div class="signal-light"></div>
+                <div class="signal-light"></div>
+                <div class="signal-light"></div>
+            </div>
+        </div>
+
+        <!-- 2. STAGE (Puppet Face) -->
+        <div class="relative h-[280px] border-b border-ink flex flex-col items-center justify-center bg-paper overflow-hidden shrink-0" id="stage-area">
+            
+            <!-- Grid Overlay -->
+            <div id="css-grid-overlay" class="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-200" 
+                 style="background-image: linear-gradient(#f00 1px, transparent 1px), linear-gradient(90deg, #f00 1px, transparent 1px); background-size: 16px 16px; mix-blend-mode: multiply;">
+            </div>
+
+            <!-- THE FACE CANVAS -->
+            <div id="canvas-wrapper" class="relative transition-transform duration-100">
+                <canvas id="mainCanvas" width="256" height="256" style="width: 256px; height: 256px;" class="bg-transparent drop-shadow-sm"></canvas>
+            </div>
+            
+            <div class="absolute bottom-2 text-[9px] font-mono opacity-50 bg-white/50 px-2 rounded-full border border-black/5" id="coord-display">IDLE: MONITORING</div>
+        </div>
+
+        <!-- 3. CHAT INTERFACE -->
+        <div id="chat-container" class="flex-1 bg-[#f0f0ed] overflow-y-auto p-4 space-y-4 chat-scroll relative shadow-inner">
+             <!-- Chat starts empty -->
+        </div>
+
+        <!-- 4. CONTROLS (Interface) -->
+        <div class="w-full bg-paper border-t border-ink shrink-0 z-30 pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+            
+            <div class="px-2 pt-1 text-[8px] font-bold opacity-30 tracking-widest">CONTROL DECK</div>
+
+            <!-- Tools Drawer -->
+            <div class="control-bar border-b border-ink/10 bg-white/50">
+                <!-- Mini XY Pad -->
+                <div class="xy-mini" id="xy-pad">
+                    <div class="xy-grid"></div>
+                    <div class="xy-dot" id="xy-handle"></div>
+                </div>
+                
+                <button class="ctrl-pill" onclick="app.setEmotion('HAPPY')"><span>☺</span> JOY</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('SAD')"><span>☹</span> SAD</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('SURPRISED')"><span>!</span> SHOCK</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('ANGRY')"><span>ÒÓ</span> RAGE</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('LOVE')"><span>♥</span> LOVE</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('CONFUSED')"><span>?</span> HUH</button>
+                <button class="ctrl-pill" onclick="toggle('grid')"><span>#</span> GRID</button>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-3 flex items-end gap-2 bg-paper">
+                <div class="flex-1 bg-white border-2 border-ink rounded-xl flex items-center px-1 min-h-[44px] shadow-[2px_2px_0px_rgba(0,0,0,0.1)] focus-within:shadow-[3px_3px_0px_var(--ink)] transition-shadow">
+                    <span class="text-ink font-bold text-xs pl-2 pr-1 select-none">></span>
+                    <input type="text" id="user-input" 
+                           class="flex-1 bg-transparent border-none h-10 text-xs font-mono focus:outline-none text-ink placeholder-gray-400"
+                           placeholder="Ask about projects..." autocomplete="off">
+                </div>
+                <button id="send-btn" class="w-11 h-11 bg-ink text-white rounded-xl flex items-center justify-center font-bold text-lg hover:opacity-90 active:scale-95 transition-transform shadow-[2px_2px_0px_rgba(0,0,0,0.2)]">↵</button>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+    try {
+
+    /* --- 0. SOUND & HAPTICS ENGINE --- */
+    const Sound = {
+        ctx: null,
+        init: function() {
+            if (!this.ctx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if(AudioContext) this.ctx = new AudioContext();
+            }
+        },
+        play: function(type) {
+            if (!this.ctx) this.init();
+            if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+            if (!this.ctx) return;
+
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            const now = this.ctx.currentTime;
+            
+            if (type === 'type') {
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.05);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'send') {
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.15);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'click') {
+                osc.frequency.setValueAtTime(400, now);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                osc.start(now);
+                osc.stop(now + 0.03);
+            }
+        },
+        haptic: function(pattern) {
+            if (navigator.vibrate) navigator.vibrate(pattern || 5);
+        }
+    };
+
+    /* --- 1. DATA: SYMMETRIC 3x4 LENS --- */
+    
+    // VISUAL CONSTANTS
+    const MOUTH_SHAPES = {
+        NEUTRAL:    [{x:6,y:12},{x:7,y:12},{x:8,y:12}],
+        OPEN_S:     [{x:7,y:12}],
+        OPEN_M:     [{x:6,y:12},{x:7,y:12},{x:8,y:12},{x:7,y:13}],
+        OPEN_L:     [{x:6,y:11},{x:7,y:11},{x:8,y:11}, {x:6,y:12},{x:8,y:12}, {x:7,y:13}],
+        SMILE:      [{x:5,y:11},{x:9,y:11},{x:6,y:12},{x:7,y:12},{x:8,y:12}],
+        FROWN:      [{x:6,y:12},{x:7,y:12},{x:8,y:12},{x:5,y:13},{x:9,y:13}],
+        SMIRK:      [{x:5,y:12},{x:6,y:12},{x:7,y:12},{x:8,y:11}]
+    };
+
+    const CHAR_DATA = {
+        // GEOMETRY (16x16)
+        // Left Eye: Frame x1,x5. Lens x2,3,4. (Center x3)
+        // Right Eye: Frame x9,x13. Lens x10,11,12. (Center x11)
+        base: [
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,1,1,1,1,1,0,0,0,1,1,1,1,1,0,0, // Top Rim (x1-5, x9-13)
+            0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0, // Lens 1
+            0,1,0,0,0,1,1,1,1,1,0,0,0,1,0,0, // Lens 2 + Bridge
+            0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0, // Lens 3
+            0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0, // Lens 4
+            0,1,1,1,1,1,0,1,0,1,1,1,1,1,0,0, // Bot Rim
+            0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0, // Nose
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 
+            0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0, // Mouth Line (y12)
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        ],
+        
+        emotions: {
+            HAPPY:     { mouth: 'SMILE' },
+            SAD:       { mouth: 'FROWN' },
+            SURPRISED: { mouth: 'OPEN_S', y: 1, x: [1,2,3,4,5,9,10,11,12,13], val: 1 }, 
+            ANGRY:     { mouth: 'FROWN', y: 3, x: [2,3,4,5,10,11,12,13], val: 1 },
+            LOVE:      { mouth: 'SMILE' },
+            CONFUSED:  { mouth: 'SMIRK', y: 1, x: [1,2,3,4,5], val: 1 },
+            TALKING:   { mouth: 'TALK_ANIM' },
+            THINKING:  { mouth: 'NEUTRAL' } 
+        },
+        
+        blinkAreas: [
+            // Left (x2-4)
+            {x:2,y:3},{x:3,y:3},{x:4,y:3}, {x:2,y:4},{x:3,y:4},{x:4,y:4}, 
+            {x:2,y:5},{x:3,y:5},{x:4,y:5}, {x:2,y:6},{x:3,y:6},{x:4,y:6},
+            // Right (x10-12)
+            {x:10,y:3},{x:11,y:3},{x:12,y:3}, {x:10,y:4},{x:11,y:4},{x:12,y:4}, 
+            {x:10,y:5},{x:11,y:5},{x:12,y:5}, {x:10,y:6},{x:11,y:6},{x:12,y:6}
+        ]
+    };
+
+    /* --- 2. ENGINE --- */
+    class DirectorEngine {
+        constructor() {
+            this.canvas = document.getElementById('mainCanvas');
+            this.ctx = this.canvas.getContext('2d');
+            
+            this.state = 'IDLE';
+            this.config = { grid: false };
+            
+            // Gaze
+            this.currentX = 0; this.targetX = 0;
+            this.currentY = 0; this.targetY = 0;
+            this.isTyping = false;
+            
+            this.tick = 0;
+            this.blinkTimer = 0;
+            this.idleMoveTimer = 0;
+            this.nextBlinkTime = 200; 
+
+            // Mouth
+            this.mouthFrame = 'NEUTRAL';
+            this.talkTimer = 0;
+
+            this.loop = this.loop.bind(this);
+            this.draw();
+            requestAnimationFrame(this.loop);
+        }
+
+        setEmotion(emo) {
+            this.state = emo;
+            this.pulseSignal();
+            Sound.play('click');
+            Sound.haptic(10);
+            
+            if(emo === 'THINKING') {
+                this.updateTargetGaze(0.8, -0.8); // Look Up Right
+                document.getElementById('coord-display').innerText = "STATUS: PROCESSING...";
+            } else if (!['TALKING', 'SLEEP'].includes(emo)) {
+                setTimeout(() => { if(this.state === emo) this.state = 'IDLE'; }, 2000);
+            }
+        }
+
+        pulseSignal() {
+            const lights = document.querySelectorAll('.signal-light');
+            const r = Math.floor(Math.random() * 3);
+            lights[r].classList.add('active');
+            setTimeout(()=>lights[r].classList.remove('active'), 150);
+        }
+
+        updateTargetGaze(nx, ny) {
+            this.targetX = Math.max(-1, Math.min(1, nx));
+            this.targetY = Math.max(-1, Math.min(1, ny));
+            
+            const h = document.getElementById('xy-handle');
+            if(h) {
+                h.style.left = `${((this.targetX+1)/2)*100}%`;
+                h.style.top = `${((this.targetY+1)/2)*100}%`;
+            }
+        }
+
+        startTyping() { this.isTyping = true; this.updateTargetGaze(0, 0.8); }
+        stopTyping() { this.isTyping = false; this.updateTargetGaze(0, 0); }
+        
+        draw() {
+            if(!this.ctx) return;
+            this.ctx.fillStyle = '#F4F4F0';
+            this.ctx.fillRect(0, 0, 256, 256);
+
+            this.tick++;
+
+            // 1. IDLE Look Around Logic
+            if(this.state === 'IDLE' && !this.isTyping) {
+                this.idleMoveTimer++;
+                if(this.idleMoveTimer > 120) { 
+                    if(Math.random() > 0.5) { 
+                        const rx = (Math.random() * 2) - 1;
+                        const ry = (Math.random() * 2) - 1;
+                        this.updateTargetGaze(rx * 0.4, ry * 0.4); 
+                    } else {
+                        this.updateTargetGaze(0, 0);
+                    }
+                    this.idleMoveTimer = 0;
+                }
+            }
+
+            // 2. Physics (Smoothing)
+            this.currentX += (this.targetX - this.currentX) * 0.15;
+            this.currentY += (this.targetY - this.currentY) * 0.15;
+
+            // 3. Blink Logic
+            let isBlinking = false;
+            if(!['SLEEP', 'SURPRISED'].includes(this.state)) {
+                this.blinkTimer++;
+                if(this.blinkTimer > this.nextBlinkTime) {
+                    isBlinking = true;
+                    if(this.blinkTimer > this.nextBlinkTime + 8) { 
+                        this.blinkTimer = 0;
+                        this.nextBlinkTime = 150 + Math.random() * 300;
+                    }
+                }
+            }
+
+            // 4. Mouth Logic (Visemes)
+            let activeMouth = MOUTH_SHAPES.NEUTRAL;
+            const emo = CHAR_DATA.emotions[this.state];
+            
+            if (this.state === 'TALKING') {
+                this.talkTimer--;
+                if(this.talkTimer <= 0) {
+                    const shapes = ['NEUTRAL', 'OPEN_S', 'OPEN_M', 'OPEN_L', 'OPEN_S', 'NEUTRAL'];
+                    this.mouthFrame = shapes[Math.floor(Math.random() * shapes.length)];
+                    this.talkTimer = 4 + Math.floor(Math.random() * 6); 
+                    if(Math.random() > 0.6) this.pulseSignal();
+                }
+                activeMouth = MOUTH_SHAPES[this.mouthFrame];
+            } else if (emo && emo.mouth) {
+                activeMouth = MOUTH_SHAPES[emo.mouth] || MOUTH_SHAPES.NEUTRAL;
+            }
+
+            // 5. Render
+            this.ctx.fillStyle = '#111111';
+            
+            // Gaze Mapping (Normalized -1..1 to Local Coords 0,1,2)
+            // Range X: -1 to 1.
+            // lx=0 (Left), lx=1 (Center), lx=2 (Right)
+            let lx = 1; 
+            if(this.currentX < -0.3) lx = 0;
+            if(this.currentX > 0.3) lx = 2;
+
+            // Range Y: -1 to 1.
+            // ly=0 (Up), ly=1 (Mid-Up), ly=2 (Mid-Down), ly=3 (Down)
+            // Neutral should be ly=1 or ly=2?
+            // With a 4-pixel high lens (y3,4,5,6), centers are y4(1) and y5(2).
+            // Let's bias neutral to 1 (slightly looking up) or 2 (slightly down).
+            let ly = 1; 
+            if(this.currentY < -0.4) ly = 0; 
+            else if(this.currentY > 0.6) ly = 3;
+            else if(this.currentY > 0.1) ly = 2;
+
+            for(let y=0; y<16; y++) {
+                for(let x=0; x<16; x++) {
+                    let val = CHAR_DATA.base[y*16 + x];
+
+                    // --- FRAME OVERRIDES ---
+                    if (emo) {
+                        if (emo.x && emo.y && y===emo.y && emo.x.includes(x)) val = emo.val;
+                    }
+
+                    // --- PUPILS ---
+                    // Left Lens: x2-4 (Width 3). Local x: x-2.
+                    // Right Lens: x10-12 (Width 3). Local x: x-10.
+                    // Y: 3-6 (Height 4). Local y: y-3.
+                    
+                    const isLeftLens = (x>=2 && x<=4 && y>=3 && y<=6);
+                    const isRightLens = (x>=10 && x<=12 && y>=3 && y<=6);
+
+                    if(isLeftLens || isRightLens) {
+                        const localX = isLeftLens ? x-2 : x-10;
+                        const localY = y-3;
+                        
+                        // Draw pupil if matching local coord
+                        if (localX === lx && localY === ly) {
+                            val = 1; 
+                        }
+                    }
+
+                    // --- BLINK ---
+                    if (isBlinking && (isLeftLens || isRightLens)) val = 1;
+                    
+                    // --- MOUTH ---
+                    // Clear mouth area first (y10-13, x5-9)
+                    if(y>=10 && y<=13 && x>=5 && x<=9) {
+                        if(CHAR_DATA.base[y*16+x] === 1) val = 0; // Clear base
+                    }
+                    if (activeMouth.some(p => p.x === x && p.y === y)) {
+                        val = 1;
+                    }
+                    
+                    // --- SPECIAL FX CLEAR ---
+                    // For Love/Sleep, we clear the pupil/blink logic to draw custom shapes later
+                    if ((this.state === 'SLEEP' || this.state === 'LOVE') && (isLeftLens || isRightLens)) {
+                        val = 0; 
+                    }
+
+                    // DRAW
+                    if(val === 1) {
+                        const breath = Math.sin(this.tick / 40) * 1.5;
+                        this.ctx.fillRect(x * 16, (y * 16) + breath, 16, 16);
+                    }
+                }
+            }
+
+            // Post Render FX
+            const breath = Math.sin(this.tick / 40) * 1.5;
+            
+            // LOVE: 3x3 Hearts inside the lens
+            if(this.state === 'LOVE') {
+                this.ctx.fillStyle = '#111111';
+                const drawHeart = (originX, originY) => {
+                    // origin is top-left of the 3x3 area.
+                    // shape:
+                    // 1 0 1
+                    // 1 1 1
+                    // 0 1 0
+                    const py = originY + breath;
+                    // Row 1
+                    this.ctx.fillRect((originX)*16, (originY)*16 + breath, 16, 16);
+                    this.ctx.fillRect((originX+2)*16, (originY)*16 + breath, 16, 16);
+                    // Row 2
+                    this.ctx.fillRect((originX)*16, (originY+1)*16 + breath, 16, 16);
+                    this.ctx.fillRect((originX+1)*16, (originY+1)*16 + breath, 16, 16);
+                    this.ctx.fillRect((originX+2)*16, (originY+1)*16 + breath, 16, 16);
+                    // Row 3
+                    this.ctx.fillRect((originX+1)*16, (originY+2)*16 + breath, 16, 16);
+                };
+                // Left Lens starts x2, y3. Heart fits in x2-4, y4-6 (bottom 3 pixels)
+                // Right Lens starts x10, y3. Heart fits in x10-12, y4-6
+                drawHeart(2, 4); 
+                drawHeart(10, 4);
+            }
+            
+            if(this.state === 'SLEEP') {
+                this.ctx.fillStyle = '#111111';
+                const py = (5*16) + breath;
+                // Horizontal lines across lenses
+                this.ctx.fillRect(2*16, py, 48, 4); 
+                this.ctx.fillRect(10*16, py, 48, 4);
+                if(Math.floor(this.tick/40)%2===0) {
+                     this.ctx.font = "10px monospace";
+                     this.ctx.fillText("z", 220, 50 - (this.tick%30));
+                }
+            }
+        }
+
+        loop() {
+            this.tick++;
+            this.draw();
+            requestAnimationFrame(this.loop);
+        }
+    }
+
+    /* --- 3. INIT --- */
+    window.app = new DirectorEngine();
+
+    window.toggle = (key) => {
+        window.app.config[key] = !window.app.config[key];
+        if(key==='grid') document.getElementById('css-grid-overlay').style.opacity = window.app.config.grid ? '0.3' : '0';
+        Sound.play('click');
+        Sound.haptic(5);
+    };
+
+    // Chat Interaction
+    const input = document.getElementById('user-input');
+    const chat = document.getElementById('chat-container');
+    
+    input.addEventListener('focus', () => window.app.startTyping());
+    input.addEventListener('blur', () => window.app.stopTyping());
+    input.addEventListener('input', () => {
+        const progress = Math.min(input.value.length, 30) / 30; 
+        window.app.targetX = (progress * 1.6) - 0.8;
+        Sound.play('type');
+    });
+
+    const addMsg = (text, type) => {
+        const div = document.createElement('div');
+        div.className = `flex ${type==='user'?'justify-end':'justify-start'} msg-enter`;
+        let av = '';
+        if(type==='bot') {
+            const snap = window.app.canvas.toDataURL();
+            av = `<div class="w-8 h-8 border border-ink bg-white p-0.5 shrink-0 mr-2 rounded-lg shadow-sm"><img src="${snap}" class="w-full h-full" style="image-rendering:pixelated"></div>`;
+        }
+        div.innerHTML = `${type==='bot'?av:''}<div class="bubble ${type}">${text}</div>`;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+    };
+
+    const handleSend = () => {
+        const txt = input.value.trim();
+        if(!txt) return;
+        addMsg(txt, 'user');
+        input.value = '';
+        Sound.play('send');
+        Sound.haptic(20);
+        
+        window.app.setEmotion('THINKING');
+        
+        setTimeout(() => {
+            window.app.setEmotion('TALKING');
+            setTimeout(() => {
+                const r = ["Affirmative.", "Grid optimized.", "Visuals confirmed.", "Output rendered."];
+                addMsg(r[Math.floor(Math.random()*r.length)], 'bot');
+                Sound.haptic([10, 50, 10]);
+            }, 1000); 
+        }, 1500); 
+    };
+
+    document.getElementById('send-btn').onclick = handleSend;
+    input.onkeydown = (e) => { if(e.key==='Enter') handleSend(); };
+
+    // Initial greeting
+    setTimeout(() => addMsg("Director v12 Online.", "bot"), 500);
+
+    } catch(err) {
+        document.body.innerHTML = `<div class="p-4 text-red-500 font-mono">CRITICAL ERROR: ${err.message}</div>`;
+    }
+</script>
+</body>
+</html>
+
+
