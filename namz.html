@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pixel Puppet: Director's Cut v22</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <style>
+        /* --- THEME --- */
+        :root { --ink: #111111; --paper: #F4F4F0; --accent: #e5e5e0; }
+        
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #1a1a1a;
+            color: var(--ink);
+            overflow: hidden; 
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .bg-paper { background-color: var(--paper); }
+        
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            display: block;
+        }
+
+        /* --- MODALS --- */
+        .modal-overlay {
+            position: absolute; inset: 0;
+            background: rgba(244, 244, 240, 0.98);
+            z-index: 100;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 24px;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .modal-overlay.hidden-modal {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(1.05);
+        }
+
+        /* --- CHAT STYLES --- */
+        .chat-scroll::-webkit-scrollbar { width: 4px; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        
+        .bubble {
+            position: relative;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.4;
+            max-width: 85%;
+            box-shadow: 1px 1px 0px rgba(0,0,0,0.05);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            opacity: 0;
+            animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        
+        .bubble.bot {
+            background: white;
+            border: 1px solid var(--ink);
+            border-top-left-radius: 2px;
+            margin-left: 8px;
+        }
+
+        .bubble.user {
+            background: var(--ink);
+            color: white;
+            border-bottom-right-radius: 2px;
+            margin-right: 8px;
+        }
+
+        /* --- LAYOUT TRANSITIONS --- */
+        #stage-area { transition: flex-grow 0.4s cubic-bezier(0.4, 0, 0.2, 1), height 0.4s ease; position: relative; }
+        #app-header { transition: margin-top 0.4s ease, opacity 0.4s ease; }
+        
+        /* PUPPET MODE */
+        body.puppet-active #chat-container {
+            flex-grow: 0.0001; height: 0; padding: 0; opacity: 0; margin: 0;
+        }
+        body.puppet-active #stage-area {
+            flex-grow: 1;
+            background-color: #E0E0DC; 
+            cursor: crosshair; /* Indicate steering */
+        }
+        body.puppet-active #app-header {
+            margin-top: -60px; /* Hide header completely */
+            opacity: 0;
+        }
+
+        /* --- CONTROLS --- */
+        .control-bar {
+            display: flex; gap: 6px; overflow-x: auto; padding: 8px 4px;
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+        .control-bar::-webkit-scrollbar { display: none; }
+
+        .ctrl-pill {
+            flex-shrink: 0; height: 36px; padding: 0 14px;
+            background: white; border: 1px solid var(--ink); border-radius: 8px;
+            font-size: 11px; font-weight: 800;
+            display: flex; align-items: center; gap: 6px;
+            cursor: pointer; transition: transform 0.05s;
+            box-shadow: 2px 2px 0px var(--ink); user-select: none;
+        }
+        .ctrl-pill:active, .ctrl-pill.active {
+            transform: translate(1px, 1px);
+            box-shadow: 1px 1px 0px var(--ink);
+            background: var(--ink); color: white;
+        }
+
+        /* Mini XY Pad */
+        .xy-mini {
+            width: 44px; height: 36px; background: white;
+            border: 1px solid var(--ink); border-radius: 8px;
+            position: relative; flex-shrink: 0;
+            box-shadow: 2px 2px 0px var(--ink); overflow: hidden;
+        }
+        .xy-grid {
+            position: absolute; inset: 0; opacity: 0.1;
+            background-image: linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px);
+            background-size: 8px 8px;
+        }
+        .xy-dot {
+            width: 8px; height: 8px; background: var(--ink);
+            border-radius: 50%; position: absolute;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            pointer-events: none; border: 1px solid white;
+            transition: all 0.1s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        /* Signal Lights */
+        .signal-light {
+            width: 6px; height: 6px; background-color: var(--ink);
+            opacity: 0.15; border-radius: 50%;
+            transition: opacity 0.1s, transform 0.1s;
+        }
+        .signal-light.active { opacity: 1; transform: scale(1.4); background-color: #32CD32; }
+
+        /* HUD Overlay */
+        .hud-overlay {
+            position: absolute; bottom: 20px; left: 0; right: 0;
+            display: flex; justify-content: center;
+            pointer-events: none; z-index: 10;
+        }
+        .hud-text {
+            background: rgba(255,255,255,0.95); border: 2px solid black;
+            padding: 8px 16px; border-radius: 12px; font-weight: bold; font-size: 12px;
+            animation: popIn 0.3s forwards; box-shadow: 4px 4px 0 rgba(0,0,0,0.1);
+            text-align: center; max-width: 90%;
+        }
+
+        /* Reticle for Stage Steering */
+        #steering-reticle {
+            width: 20px; height: 20px;
+            border: 2px solid rgba(0,0,0,0.3);
+            border-radius: 50%;
+            position: absolute;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            display: none;
+            z-index: 15;
+        }
+        #steering-reticle::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            width: 4px; height: 4px; background: rgba(0,0,0,0.5);
+            transform: translate(-50%, -50%); border-radius: 50%;
+        }
+
+        /* SEND BUTTON */
+        .send-btn-large {
+            background: var(--ink); color: white;
+            height: 100%; padding: 0 20px;
+            border-radius: 8px; font-weight: 900; font-size: 12px;
+            letter-spacing: 1px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.1s;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+            border: 2px solid var(--ink);
+        }
+        .send-btn-large:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0 0 0 rgba(0,0,0,0);
+        }
+
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- SETTINGS / AUTH MODAL -->
+    <div id="settings-modal" class="modal-overlay hidden-modal" style="display: none;">
+        <div class="w-full max-w-sm bg-white border-4 border-ink p-6 rounded-3xl shadow-[8px_8px_0px_#111] flex flex-col gap-4 transform transition-all">
+            <h2 class="text-xl font-black tracking-tighter uppercase border-b-4 border-ink pb-2 flex justify-between items-center">
+                <span>SYSTEM CONFIG</span>
+                <span class="text-xs opacity-30">V22</span>
+            </h2>
+            
+            <!-- API Key -->
+            <div>
+                <label class="text-[10px] font-bold uppercase opacity-50 block mb-1">OpenAI API Key</label>
+                <input type="password" id="setting-api-key" class="w-full border-2 border-ink rounded-lg p-3 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-black" placeholder="sk-...">
+            </div>
+
+            <!-- System Prompt -->
+            <div>
+                <label class="text-[10px] font-bold uppercase opacity-50 block mb-1">System Instruction (Persona)</label>
+                <textarea id="setting-prompt" class="w-full border-2 border-ink rounded-lg p-3 text-xs font-mono h-24 resize-none focus:outline-none focus:ring-2 focus:ring-black" placeholder="You are a helpful assistant...">You are the Director, a cryptic but helpful digital puppet living in a retro terminal. Keep responses short, punchy, and slightly abstract. Max 20 words.</textarea>
+            </div>
+
+            <div class="text-[10px] opacity-60 leading-tight bg-gray-100 p-3 rounded-lg border border-ink/10">
+                <strong>PUPPETEER GUIDE:</strong><br>
+                • 🎭 <b>PUPPET MODE:</b> Expands face.<br>
+                • 👆 <b>TOUCH STEERING:</b> Drag on the face to look around.<br>
+                • ⚙️ <b>CONFIG:</b> Change personality instantly.<br>
+            </div>
+
+            <div class="flex gap-3 mt-2">
+                <button onclick="app.closeSettings(true)" class="flex-1 bg-ink text-white py-3 rounded-xl font-bold text-xs hover:opacity-90 transition-transform active:scale-95 shadow-md">SAVE & REBOOT</button>
+                <button onclick="app.closeSettings(false)" class="flex-1 border-2 border-ink py-3 rounded-xl font-bold text-xs hover:bg-gray-50 transition-transform active:scale-95">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DEVICE FRAME -->
+    <div class="relative w-full max-w-[390px] h-[844px] max-h-[95vh] bg-paper rounded-[2.5rem] overflow-hidden border-[6px] border-[#111] shadow-2xl flex flex-col" id="device-frame">
+        
+        <!-- NOTCH -->
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-[#111] rounded-b-xl z-50 pointer-events-none"></div>
+
+        <!-- 1. HEADER -->
+        <div id="app-header" class="h-[50px] w-full flex justify-between items-end px-5 pb-3 text-[10px] font-bold tracking-widest uppercase border-b-2 border-ink bg-paper shrink-0 z-40 relative">
+            <span class="opacity-50">DIRECTOR.V22</span>
+            
+            <div class="flex items-center gap-3 mb-0.5">
+                <!-- Signal Lights -->
+                <div class="flex gap-1" id="signal-array">
+                    <div class="signal-light"></div>
+                    <div class="signal-light"></div>
+                    <div class="signal-light"></div>
+                </div>
+                <!-- Settings Button -->
+                <button onclick="app.openSettings()" class="w-7 h-7 border-2 border-ink rounded-lg flex items-center justify-center hover:bg-ink hover:text-white transition-colors active:scale-90">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. STAGE -->
+        <div class="relative h-[280px] border-b-2 border-ink flex flex-col items-center justify-center bg-paper overflow-hidden shrink-0 transition-all duration-300" id="stage-area">
+            
+            <!-- Steering Reticle -->
+            <div id="steering-reticle"></div>
+
+            <!-- Grid Overlay -->
+            <div id="css-grid-overlay" class="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-200" 
+                 style="background-image: linear-gradient(#f00 1px, transparent 1px), linear-gradient(90deg, #f00 1px, transparent 1px); background-size: 16px 16px; mix-blend-mode: multiply;">
+            </div>
+
+            <!-- THE FACE CANVAS -->
+            <div id="canvas-wrapper" class="relative transition-transform duration-100 pointer-events-none">
+                <canvas id="mainCanvas" width="256" height="256" style="width: 256px; height: 256px;" class="bg-transparent drop-shadow-sm"></canvas>
+            </div>
+            
+            <div class="absolute bottom-2 text-[9px] font-mono opacity-50 bg-white/50 px-2 rounded-full border border-black/5" id="coord-display">IDLE: MONITORING</div>
+            
+            <!-- HUD for Puppet Mode -->
+            <div id="hud-overlay" class="hud-overlay"></div>
+        </div>
+
+        <!-- 3. CHAT INTERFACE -->
+        <div id="chat-container" class="flex-1 bg-[#f0f0ed] overflow-y-auto p-4 space-y-4 chat-scroll relative shadow-inner">
+             <!-- Chat starts empty -->
+        </div>
+
+        <!-- 4. CONTROLS -->
+        <div class="w-full bg-paper border-t-2 border-ink shrink-0 z-30 pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+            
+            <div class="px-3 pt-2 text-[9px] font-black opacity-30 tracking-widest uppercase">Input Deck</div>
+
+            <!-- Tools Drawer -->
+            <div class="control-bar border-b border-ink/10 bg-white/50">
+                <!-- Mini XY Pad -->
+                <div class="xy-mini" id="xy-pad">
+                    <div class="xy-grid"></div>
+                    <div class="xy-dot" id="xy-handle"></div>
+                </div>
+                
+                <button class="ctrl-pill" id="btn-puppet" onclick="toggle('puppet')"><span>🎭</span> PUPPET</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('HAPPY')"><span>☺</span> JOY</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('SAD')"><span>☹</span> SAD</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('SURPRISED')"><span>!</span> SHOCK</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('ANGRY')"><span>ÒÓ</span> RAGE</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('LOVE')"><span>♥</span> LOVE</button>
+                <button class="ctrl-pill" onclick="app.setEmotion('CONFUSED')"><span>?</span> HUH</button>
+                <button class="ctrl-pill" onclick="toggle('grid')"><span>#</span> GRID</button>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-3 flex items-stretch gap-2 bg-paper">
+                <div class="flex-1 bg-white border-2 border-ink rounded-lg flex items-center px-1 min-h-[48px] shadow-sm focus-within:shadow-[2px_2px_0px_var(--ink)] focus-within:border-black transition-all">
+                    <span class="text-ink font-bold text-xs pl-2 pr-1 select-none opacity-50">></span>
+                    <input type="text" id="user-input" 
+                           class="flex-1 bg-transparent border-none h-10 text-xs font-mono focus:outline-none text-ink placeholder-gray-400"
+                           placeholder="Enter command..." autocomplete="off">
+                </div>
+                <button id="send-btn" class="send-btn-large">SEND</button>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+    try {
+        if(window.lucide) {
+            try { lucide.createIcons(); } catch(e) { console.warn("Icons failed load"); }
+        }
+
+        /* --- 0. SOUND & HAPTICS --- */
+        const Sound = {
+            ctx: null,
+            init: function() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if(AudioContext) this.ctx = new AudioContext();
+                }
+            },
+            play: function(type) {
+                if (!this.ctx) this.init();
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+                if (!this.ctx) return;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                const now = this.ctx.currentTime;
+                
+                if (type === 'type') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.02, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                    osc.start(now); osc.stop(now + 0.03);
+                } else if (type === 'send') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(300, now);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+                } else if (type === 'click') {
+                    osc.type = 'square'; osc.frequency.setValueAtTime(600, now);
+                    gain.gain.setValueAtTime(0.02, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+                    osc.start(now); osc.stop(now + 0.02);
+                }
+            },
+            haptic: function(pattern) {
+                if (navigator.vibrate) navigator.vibrate(pattern || 5);
+            },
+            speak: function(text) {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const u = new SpeechSynthesisUtterance(text);
+                    u.rate = 1.1; u.pitch = 0.9; u.volume = 0.8;
+                    window.speechSynthesis.speak(u);
+                }
+            }
+        };
+
+        /* --- 1. DATA: CALIBRATED SYMMETRY --- */
+        const MOUTH_SHAPES = {
+            NEUTRAL:    [{x:6,y:12},{x:7,y:12},{x:8,y:12}],
+            OPEN_S:     [{x:7,y:12}],
+            OPEN_M:     [{x:6,y:12},{x:7,y:12},{x:8,y:12},{x:7,y:13}],
+            OPEN_L:     [{x:6,y:11},{x:7,y:11},{x:8,y:11}, {x:6,y:12},{x:8,y:12}, {x:7,y:13}],
+            SMILE:      [{x:5,y:11},{x:9,y:11},{x:6,y:12},{x:7,y:12},{x:8,y:12}],
+            FROWN:      [{x:6,y:12},{x:7,y:12},{x:8,y:12},{x:5,y:13},{x:9,y:13}],
+            SMIRK:      [{x:5,y:12},{x:6,y:12},{x:7,y:12},{x:8,y:11}]
+        };
+
+        const CHAR_DATA = {
+            base: [
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                0,1,1,1,1,1,0,0,0,1,1,1,1,1,0,0, // 2: Top Frame
+                0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0, // 3: Side Rims
+                0,1,0,0,0,1,1,1,1,1,0,0,0,1,0,0, // 4: Side Rims + Bridge
+                0,1,0,2,0,1,0,0,0,1,0,2,0,1,0,0, // 5: Pupils at x3, x11
+                0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0, // 6: Side Rims
+                0,1,1,1,1,1,0,0,0,1,1,1,1,1,0,0, // 7: Bot Frame (Bridge Clear)
+                0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0, // 8: Nose x7
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 
+                0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0, // 12: Default Mouth
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+            ],
+            emotions: {
+                HAPPY:     { mouth: 'SMILE' },
+                SAD:       { mouth: 'FROWN' },
+                SURPRISED: { mouth: 'OPEN_S', y: 1, x: [1,2,3,4,5,9,10,11,12,13], val: 1 }, 
+                ANGRY:     { mouth: 'FROWN', y: 3, x: [2,3,4,5,10,11,12,13], val: 1 },
+                LOVE:      { mouth: 'SMILE' },
+                CONFUSED:  { mouth: 'SMIRK', y: 1, x: [1,2,3,4,5], val: 1 },
+                TALKING:   { mouth: 'TALK_ANIM' },
+                THINKING:  { mouth: 'NEUTRAL' } 
+            }
+        };
+
+        /* --- 2. ENGINE --- */
+        class DirectorEngine {
+            constructor() {
+                this.canvas = document.getElementById('mainCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.state = 'IDLE';
+                this.config = { grid: false, puppetMode: false };
+                this.apiKey = null;
+                this.systemPrompt = document.getElementById('setting-prompt').value;
+                
+                // Gaze
+                this.currentX = 0; this.targetX = 0;
+                this.currentY = 0; this.targetY = 0;
+                this.isTyping = false;
+                
+                this.tick = 0;
+                this.blinkTimer = 0;
+                this.nextBlinkTime = 200; 
+
+                // Mouth
+                this.mouthFrame = 'NEUTRAL';
+                this.talkTimer = 0;
+
+                this.loop = this.loop.bind(this);
+                this.draw();
+                requestAnimationFrame(this.loop);
+            }
+
+            openSettings() {
+                document.getElementById('settings-modal').style.display = 'flex';
+                setTimeout(() => document.getElementById('settings-modal').classList.remove('hidden-modal'), 10);
+            }
+
+            closeSettings(save) {
+                const modal = document.getElementById('settings-modal');
+                modal.classList.add('hidden-modal');
+                setTimeout(() => modal.style.display = 'none', 300);
+
+                if(save) {
+                    const key = document.getElementById('setting-api-key').value.trim();
+                    const prompt = document.getElementById('setting-prompt').value.trim();
+                    if(key) this.apiKey = key;
+                    if(prompt) this.systemPrompt = prompt;
+                    addMsg("SYSTEM REBOOT. CONFIG UPDATED.", 'bot');
+                    Sound.play('click');
+                }
+            }
+
+            async getAIResponse(prompt) {
+                if(!this.apiKey) return null; 
+                try {
+                    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
+                        body: JSON.stringify({
+                            model: "gpt-3.5-turbo",
+                            messages: [
+                                {role: "system", content: this.systemPrompt},
+                                {role: "user", content: prompt}
+                            ],
+                            max_tokens: 60
+                        })
+                    });
+                    const data = await res.json();
+                    return data.choices[0].message.content;
+                } catch(e) {
+                    return "CONNECTION ERROR.";
+                }
+            }
+
+            setEmotion(emo) {
+                this.state = emo;
+                this.pulseSignal('active');
+                Sound.play('click');
+                Sound.haptic(10);
+                
+                if(emo === 'THINKING') {
+                    this.updateTargetGaze(0.8, -0.8);
+                    document.getElementById('coord-display').innerText = "PROCESSING...";
+                } else if (!['TALKING', 'SLEEP'].includes(emo)) {
+                    setTimeout(() => { if(this.state === emo) this.state = 'IDLE'; }, 2000);
+                }
+            }
+
+            pulseSignal(type) {
+                const lights = document.querySelectorAll('.signal-light');
+                const r = Math.floor(Math.random() * 3);
+                lights[r].classList.add('active');
+                setTimeout(()=>lights[r].classList.remove('active'), 150);
+            }
+
+            updateTargetGaze(nx, ny) {
+                this.targetX = Math.max(-1, Math.min(1, nx));
+                this.targetY = Math.max(-1, Math.min(1, ny));
+                
+                const h = document.getElementById('xy-handle');
+                if(h) {
+                    h.style.left = `${((this.targetX+1)/2)*100}%`;
+                    h.style.top = `${((this.targetY+1)/2)*100}%`;
+                }
+            }
+
+            startTyping() { this.isTyping = true; this.updateTargetGaze(0, 0.8); }
+            stopTyping() { this.isTyping = false; this.updateTargetGaze(0, 0); }
+            updateTypingProgress(len) {
+                const progress = Math.min(len, 30) / 30; 
+                this.updateTargetGaze((progress * 1.6) - 0.8, 0.8);
+            }
+
+            draw() {
+                if(!this.ctx) return;
+                this.ctx.fillStyle = '#F4F4F0';
+                this.ctx.fillRect(0, 0, 256, 256);
+
+                this.tick++;
+
+                // 1. IDLE Look Around
+                if(this.state === 'IDLE' && !this.isTyping) {
+                    this.idleMoveTimer++; 
+                    if(isNaN(this.idleMoveTimer)) this.idleMoveTimer = 0;
+                    
+                    if(this.idleMoveTimer > 120) { 
+                        if(Math.random() > 0.5) { 
+                            const rx = (Math.random() * 2) - 1;
+                            const ry = (Math.random() * 2) - 1;
+                            this.updateTargetGaze(rx * 0.4, ry * 0.4); 
+                        } else {
+                            this.updateTargetGaze(0, 0);
+                        }
+                        this.idleMoveTimer = 0;
+                    }
+                }
+
+                // 2. Physics
+                this.currentX += (this.targetX - this.currentX) * 0.15;
+                this.currentY += (this.targetY - this.currentY) * 0.15;
+
+                // 3. Blink
+                let isBlinking = false;
+                if(!['SLEEP', 'SURPRISED'].includes(this.state)) {
+                    this.blinkTimer++;
+                    if(this.blinkTimer > this.nextBlinkTime) {
+                        isBlinking = true;
+                        if(this.blinkTimer > this.nextBlinkTime + 8) { 
+                            this.blinkTimer = 0;
+                            this.nextBlinkTime = 150 + Math.random() * 300;
+                        }
+                    }
+                }
+
+                // 4. Mouth Logic
+                let activeMouth = MOUTH_SHAPES.NEUTRAL;
+                const emo = CHAR_DATA.emotions[this.state];
+                
+                if (this.state === 'TALKING') {
+                    this.talkTimer--;
+                    if(this.talkTimer <= 0) {
+                        const shapes = ['NEUTRAL', 'OPEN_S', 'OPEN_M', 'OPEN_L', 'OPEN_S', 'NEUTRAL'];
+                        this.mouthFrame = shapes[Math.floor(Math.random() * shapes.length)];
+                        this.talkTimer = 4 + Math.floor(Math.random() * 6); 
+                        if(Math.random() > 0.6) this.pulseSignal('active');
+                    }
+                    activeMouth = MOUTH_SHAPES[this.mouthFrame];
+                } else if (emo && emo.mouth) {
+                    activeMouth = MOUTH_SHAPES[emo.mouth] || MOUTH_SHAPES.NEUTRAL;
+                }
+
+                // 5. Render
+                this.ctx.fillStyle = '#111111';
+                
+                let lx = 1; 
+                if(this.currentX < -0.3) lx = 0;
+                if(this.currentX > 0.3) lx = 2;
+
+                let ly = 1; 
+                if(this.currentY < -0.4) ly = 0; 
+                else if(this.currentY > 0.6) ly = 3;
+                else if(this.currentY > 0.1) ly = 2;
+
+                for(let y=0; y<16; y++) {
+                    for(let x=0; x<16; x++) {
+                        let val = CHAR_DATA.base[y*16 + x];
+
+                        // Frames
+                        if (emo) {
+                            if (emo.x && emo.y && y===emo.y && emo.x.includes(x)) val = emo.val;
+                        }
+
+                        // Pupils
+                        const isLeftLens = (x>=2 && x<=4 && y>=3 && y<=6);
+                        const isRightLens = (x>=10 && x<=12 && y>=3 && y<=6);
+
+                        if(isLeftLens || isRightLens) {
+                            const localX = isLeftLens ? x-2 : x-10;
+                            const localY = y-3;
+                            if (localX === lx && localY === ly) val = 1; 
+                        }
+
+                        // Blink
+                        if (isBlinking && (isLeftLens || isRightLens)) val = 1;
+                        
+                        // Mouth
+                        if(y>=10 && y<=14 && x>=5 && x<=9) {
+                            if(CHAR_DATA.base[y*16+x] === 1) val = 0; 
+                        }
+                        if (activeMouth.some(p => p.x === x && p.y === y)) val = 1;
+                        
+                        // FX Clear
+                        if ((this.state === 'SLEEP' || this.state === 'LOVE') && (isLeftLens || isRightLens)) val = 0; 
+
+                        // Draw
+                        if(val === 1) {
+                            const breath = Math.sin(this.tick / 40) * 1.5;
+                            this.ctx.fillRect(x * 16, (y * 16) + breath, 16, 16);
+                        }
+                    }
+                }
+
+                // FX
+                const breath = Math.sin(this.tick / 40) * 1.5;
+                if(this.state === 'LOVE') {
+                    this.ctx.fillStyle = '#111111';
+                    const heart = (cx, cy) => {
+                        const py = cy*16 + breath; const px = cx*16;
+                        this.ctx.fillRect(px, py, 16, 16);
+                        this.ctx.fillRect(px-16, py-16, 16, 16);
+                        this.ctx.fillRect(px+16, py-16, 16, 16);
+                    };
+                    heart(3, 5); heart(11, 5);
+                }
+                if(this.state === 'SLEEP') {
+                    this.ctx.fillStyle = '#111111';
+                    const py = (5*16) + breath;
+                    this.ctx.fillRect(2*16, py, 48, 4); 
+                    this.ctx.fillRect(10*16, py, 48, 4);
+                    if(Math.floor(this.tick/40)%2===0) {
+                        this.ctx.font = "10px monospace";
+                        this.ctx.fillText("z", 220, 50 - (this.tick%30));
+                    }
+                }
+            }
+
+            loop() {
+                this.tick++;
+                this.draw();
+                requestAnimationFrame(this.loop);
+            }
+        }
+
+        /* --- 3. INIT --- */
+        window.app = new DirectorEngine();
+
+        window.toggle = (key) => {
+            window.app.config[key] = !window.app.config[key];
+            const el = document.getElementById('btn-puppet');
+            
+            if(key==='grid') document.getElementById('css-grid-overlay').style.opacity = window.app.config.grid ? '0.3' : '0';
+            
+            if(key==='puppet') {
+                document.body.classList.toggle('puppet-active');
+                el.classList.toggle('active');
+            }
+            Sound.play('click');
+            Sound.haptic(5);
+        };
+
+        // Chat
+        const input = document.getElementById('user-input');
+        const chat = document.getElementById('chat-container');
+        const hud = document.getElementById('hud-overlay');
+        const stage = document.getElementById('stage-area');
+        
+        // Stage Steering (Mouse/Touch)
+        const handleStageInput = (e) => {
+            const r = stage.getBoundingClientRect();
+            // Support Touch or Mouse
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            // Calc Center
+            const cx = r.left + r.width / 2;
+            const cy = r.top + r.height / 2;
+            
+            // Normalize (-1 to 1) based on half-width/height
+            // Clamp to stay within reasonable bounds
+            const nx = Math.max(-1, Math.min(1, (clientX - cx) / (r.width / 2)));
+            const ny = Math.max(-1, Math.min(1, (clientY - cy) / (r.height / 2)));
+            
+            window.app.updateTargetGaze(nx, ny);
+            
+            // Update Reticle
+            const ret = document.getElementById('steering-reticle');
+            ret.style.display = 'block';
+            ret.style.left = (clientX - r.left) + 'px';
+            ret.style.top = (clientY - r.top) + 'px';
+        };
+        
+        const endStageInput = () => {
+            document.getElementById('steering-reticle').style.display = 'none';
+        };
+
+        stage.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            handleStageInput(e);
+            stage.addEventListener('mousemove', handleStageInput);
+        });
+        window.addEventListener('mouseup', () => {
+            stage.removeEventListener('mousemove', handleStageInput);
+            endStageInput();
+        });
+        
+        stage.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Prevent scroll
+            handleStageInput(e);
+            stage.addEventListener('touchmove', handleStageInput);
+        }, {passive: false});
+        window.addEventListener('touchend', () => {
+            stage.removeEventListener('touchmove', handleStageInput);
+            endStageInput();
+        });
+
+        // Chat Input Logic
+        input.addEventListener('focus', () => window.app.startTyping());
+        input.addEventListener('blur', () => window.app.stopTyping());
+        input.addEventListener('input', (e) => {
+            window.app.updateTypingProgress(input.value.length);
+            Sound.play('type');
+        });
+
+        const addMsg = (text, type) => {
+            // Chat History
+            const div = document.createElement('div');
+            div.className = `flex ${type==='user'?'justify-end':'justify-start'} msg-enter`;
+            let av = '';
+            if(type==='bot') {
+                const snap = window.app.canvas.toDataURL();
+                av = `<div class="w-8 h-8 border border-ink bg-white p-0.5 shrink-0 mr-2 rounded-lg shadow-sm"><img src="${snap}" class="w-full h-full" style="image-rendering:pixelated"></div>`;
+                Sound.speak(text);
+                
+                // HUD
+                const hudBubble = document.createElement('div');
+                hudBubble.className = 'hud-text';
+                hudBubble.innerText = text;
+                hud.innerHTML = '';
+                hud.appendChild(hudBubble);
+                setTimeout(()=> { if(hud.firstChild===hudBubble) hud.innerHTML=''; }, 4000);
+            }
+            div.innerHTML = `${type==='bot'?av:''}<div class="bubble ${type}">${text}</div>`;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        };
+
+        const handleSend = async () => {
+            const txt = input.value.trim();
+            if(!txt) return;
+            addMsg(txt, 'user');
+            input.value = '';
+            Sound.play('send');
+            Sound.haptic(20);
+            
+            window.app.setEmotion('THINKING');
+            
+            let reply = "Processing...";
+            if(window.app.apiKey) {
+                const aiReply = await window.app.getAIResponse(txt);
+                reply = aiReply || "Connection failed.";
+            } else {
+                const r = ["I am currently in Demo Mode. Connect API Key for intelligence.", "Grid nominal.", "Visuals clear.", "Input acknowledged."];
+                reply = r[Math.floor(Math.random()*r.length)];
+            }
+
+            window.app.setEmotion('TALKING');
+            addMsg(reply, 'bot');
+            Sound.haptic([10, 50, 10]);
+        };
+
+        document.getElementById('send-btn').onclick = handleSend;
+        input.onkeydown = (e) => { if(e.key==='Enter') handleSend(); };
+
+        setTimeout(() => addMsg("Director v22 Online.", "bot"), 800);
+
+    } catch(err) {
+        document.body.innerHTML = `<div class="p-4 text-red-500 font-mono">CRITICAL ERROR: ${err.message}</div>`;
+    }
+</script>
+</body>
+</html>
+
