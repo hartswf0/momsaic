@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+    <title>Pixel Puppet: Director v78 Maestro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <style>
+        /* --- CORE THEME --- */
+        :root { 
+            --ink: #111111; 
+            --paper: #F4F4F0; 
+            --accent: #e5e5e0; 
+            --glow: #32CD32;
+            --alert: #FF3B30;
+        }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        html, body {
+            height: 100dvh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: var(--ink);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* --- THE IRONBOUND STRUCTURE --- */
+        #app-shell {
+            height: 100%;
+            width: 100%;
+            background-color: var(--paper);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 1. Header */
+        #main-header {
+            height: 60px;
+            flex-shrink: 0;
+            background: #fff;
+            border-bottom: 2px solid var(--ink);
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            z-index: 100;
+        }
+
+        /* 2. The Stage (RESILIENT) */
+        #puppet-stage {
+            height: 280px;
+            flex: 0 0 280px; 
+            background: var(--paper);
+            border-bottom: 2px solid var(--ink);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* 3. The Chat */
+        #chat-scroller {
+            flex-grow: 1;
+            overflow-y: auto;
+            background: #E8E8E5;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            scrollbar-width: none;
+            scroll-behavior: smooth;
+        }
+        #chat-scroller::-webkit-scrollbar { display: none; }
+
+        /* 4. The Deck */
+        #control-deck {
+            flex-shrink: 0;
+            background: #fff;
+            border-top: 2px solid var(--ink);
+            padding-bottom: env(safe-area-inset-bottom, 12px);
+            z-index: 100;
+        }
+
+        /* --- CLIPPY MODE (Deployment State) --- */
+        body.mode-deploy #puppet-stage {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            width: 120px;
+            height: 120px;
+            flex: 0 0 120px;
+            border: 3px solid var(--ink);
+            border-radius: 50%;
+            box-shadow: 6px 6px 0 var(--ink);
+            background: #fff;
+            z-index: 300;
+            transform: scale(1);
+        }
+        body.mode-deploy #canvas-wrapper { transform: scale(0.45); }
+        body.mode-deploy #main-header { opacity: 0.2; pointer-events: none; }
+
+        /* Mobile Keyboard optimization */
+        body.input-active:not(.mode-deploy) #puppet-stage { height: 140px; flex-basis: 140px; }
+        body.input-active #canvas-wrapper { transform: scale(0.5); }
+
+        /* --- OVERLAYS --- */
+        #deploy-overlay {
+            position: fixed; inset: 0;
+            background: #fff;
+            z-index: 250;
+            display: none;
+            flex-direction: column;
+            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        body.mode-deploy #deploy-overlay { display: flex; }
+        @keyframes slideUp { from { transform: translateY(100%); } }
+
+        /* UI COMPONENTS */
+        .btn-pad {
+            flex-shrink: 0; height: 44px; min-width: 50px; padding: 0 10px;
+            background: #fff; border: 2px solid var(--ink); border-radius: 10px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 9px; font-weight: 900; cursor: pointer;
+            box-shadow: 0 4px 0 var(--ink); transition: all 0.1s;
+        }
+        .btn-pad:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--ink); }
+        .btn-pad.active { background: var(--glow); transform: translateY(2px); box-shadow: 0 0 0 var(--ink); }
+
+        .chat-bubble {
+            max-width: 85%; padding: 12px 16px; border-radius: 16px; font-size: 12px; font-weight: 700;
+            border: 1px solid var(--ink); line-height: 1.4; box-shadow: 2px 2px 0 rgba(0,0,0,0.05);
+            background: #fff; animation: bubbleIn 0.3s forwards;
+        }
+        @keyframes bubbleIn { from { transform: scale(0.9); opacity: 0; } }
+        .chat-bubble.user { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 2px; }
+        .chat-bubble.bot { align-self: flex-start; border-top-left-radius: 2px; }
+
+        .dossier {
+            width: 100%; border: 3px solid var(--ink); background: #fff; border-radius: 4px; overflow: hidden;
+            box-shadow: 5px 5px 0 var(--ink); margin: 8px 0; border-style: double;
+            animation: dossierIn 0.4s ease;
+        }
+        .dossier-head { background: var(--ink); color: #fff; padding: 5px 10px; font-size: 8px; font-weight: 900; display: flex; justify-content: space-between; align-items: center; }
+        .dossier-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .dossier-title { font-size: 14px; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #eee; padding-bottom: 4px; }
+        
+        .action-btn {
+            width: 100%; padding: 10px; background: var(--ink); color: #fff; border: none;
+            border-radius: 8px; font-size: 10px; font-weight: 900; letter-spacing: 1px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .action-btn:hover { background: var(--glow); color: #000; }
+
+        #island {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            background: #000; color: #fff; height: 32px; padding: 0 20px; border-radius: 16px;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            font-size: 11px; font-weight: 900; z-index: 110; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+
+        /* Deploy View Controls */
+        .deploy-header { height: 50px; background: var(--ink); color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-size: 12px; font-weight: 900; }
+        
+        #canvas-wrapper { transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        
+        .scrape-reel {
+            width: 100%; height: 60px; background: #000; border-radius: 8px;
+            overflow: hidden; position: relative; border: 2px solid var(--ink);
+            margin: 10px 0; display: flex; flex-direction: column;
+        }
+        .reel-track { display: flex; flex-direction: column; animation: reelSpin 0.1s linear infinite; }
+        @keyframes reelSpin { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+        .reel-item { height: 60px; color: var(--glow); font-family: monospace; font-size: 14px; font-weight: 900; display: flex; align-items: center; justify-content: center; text-transform: uppercase; letter-spacing: 2px; }
+
+    </style>
+</head>
+<body>
+
+    <div id="app-shell">
+        <header id="main-header">
+            <div class="flex flex-col">
+                <span class="text-[10px] font-black opacity-30 tracking-tight uppercase">DIRECTOR_OS_v78</span>
+                <span class="text-xs font-black tracking-tight uppercase">Assistant_Deployment_Sync</span>
+            </div>
+            <div id="island" onclick="app.tapIsland()">
+                <div id="island-dot" class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
+                <span id="island-text">READY</span>
+            </div>
+            <div class="ml-auto">
+                <button onclick="app.toggleConfig()" class="bg-white border-2 border-ink px-4 py-1.5 rounded-lg text-[10px] font-black active:scale-95 shadow-sm">CONFIG</button>
+            </div>
+        </header>
+
+        <!-- STAGE (Minimize in Deploy) -->
+        <div id="puppet-stage">
+            <div id="canvas-wrapper">
+                <canvas id="mainCanvas" width="256" height="256" style="width: 240px; height: 240px;"></canvas>
+            </div>
+            <div class="absolute bottom-2 right-4 text-[8px] font-mono opacity-20" id="coord-display">--</div>
+        </div>
+
+        <!-- LOGS -->
+        <div id="chat-scroller">
+            <div id="chat-list" class="flex flex-col gap-3"></div>
+        </div>
+
+        <!-- DEPLOY PORTAL -->
+        <div id="deploy-overlay">
+            <div class="deploy-header">
+                <span class="flex items-center gap-2"><i data-lucide="monitor" class="w-4 h-4"></i> PORTFOLIO_LIVE_NODE</span>
+                <button onclick="app.closeDeploy()" class="text-[10px] bg-white text-black px-3 py-1 rounded hover:bg-red-500 hover:text-white transition-colors font-black uppercase tracking-widest">Disconnect</button>
+            </div>
+            <div id="iframe-container" class="flex-grow bg-white relative">
+                <!-- Iframes inject here -->
+            </div>
+        </div>
+
+        <!-- DECK -->
+        <div id="control-deck">
+            <div class="flex gap-2 p-2 overflow-x-auto bg-gray-50 border-b border-gray-200">
+                <button class="btn-pad" onclick="app.toggleFullView()"><i data-lucide="maximize" class="w-4 h-4"></i>VIEW</button>
+                <button class="btn-pad" onclick="app.triggerProjectScan()"><i data-lucide="folder-search" class="w-4 h-4"></i>SCRAPE</button>
+                <button class="btn-pad" onclick="app.setEmotion('HAPPY')"><i data-lucide="smile" class="w-4 h-4"></i>JOY</button>
+                <button class="btn-pad" onclick="app.setEmotion('SAD')"><i data-lucide="frown" class="w-4 h-4"></i>SAD</button>
+                <button class="btn-pad" onclick="app.setEmotion('SURPRISED')"><i data-lucide="zap" class="w-4 h-4"></i>WOW</button>
+                <button class="btn-pad" onclick="app.setEmotion('ANGRY')"><i data-lucide="skull" class="w-4 h-4"></i>MAD</button>
+                <button class="btn-pad" onclick="app.setEmotion('LOVE')"><i data-lucide="heart" class="w-4 h-4"></i>LUV</button>
+            </div>
+            <div class="p-4 flex gap-3">
+                <input type="text" id="user-input" class="flex-grow h-14 bg-gray-100 border-2 border-ink rounded-xl px-5 font-bold text-sm outline-none focus:bg-white shadow-inner" placeholder="COMMAND_NODE..." autocomplete="off">
+                <button class="w-14 h-14 bg-ink text-white rounded-xl flex items-center justify-center shadow-lg active:scale-90" onclick="app.handleSend()">↵</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONFIG -->
+    <div id="config-modal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:500; display:none; align-items:center; justify-content:center; padding:20px;">
+        <div class="bg-white w-full max-w-xs p-6 rounded-2xl border-4 border-ink flex flex-col gap-4 shadow-2xl">
+            <h3 class="font-black uppercase border-b-2 border-ink pb-1 text-sm">System Registry</h3>
+            <input type="password" id="api-key" class="w-full border-2 border-ink rounded-lg p-3 text-xs font-mono" placeholder="Gemini API Key...">
+            <textarea id="sys-prompt" class="w-full border-2 border-ink rounded-lg p-3 text-xs font-mono h-24 resize-none" placeholder="Persona description...">You are the Director, a high-intelligence digital construct.</textarea>
+            <button onclick="app.saveConfig()" class="bg-ink text-white py-4 rounded-xl font-black text-xs shadow-md uppercase">INIT_SYNC</button>
+            <button onclick="app.toggleConfig()" class="text-[10px] font-bold opacity-50 uppercase">Cancel</button>
+        </div>
+    </div>
+
+<script>
+/**
+ * DIRECTOR OS v78
+ */
+const app = (() => {
+    let apiKey = ""; 
+
+    const CHAR = {
+        base: [
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,1,1,1,1,1,0,0,0,1,1,1,1,1,0,0, // Frames
+            0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0, 
+            0,1,0,0,0,1,1,1,1,1,0,0,0,1,0,0, 
+            0,1,0,2,0,1,0,0,0,1,0,2,0,1,0,0, // Pupils x3, x11
+            0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0, 
+            0,1,1,1,1,1,0,1,0,1,1,1,1,1,0,0, // Bottom Frame
+            0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0, // Nose
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 
+            0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0, // Mouth y12
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+        ],
+        mouths: {
+            NEUTRAL: [{x:6,y:12},{x:7,y:12},{x:8,y:12}],
+            SMILE:   [{x:5,y:11},{x:9,y:11},{x:6,y:12},{x:7,y:12},{x:8,y:12}],
+            FROWN:   [{x:6,y:12},{x:7,y:12},{x:8,y:12},{x:5,y:13},{x:9,y:13}],
+            GRIT:    [{x:5,y:12},{x:6,y:12},{x:7,y:12},{x:8,y:12},{x:9,y:12}],
+            GASP:    [{x:6,y:11},{x:7,y:11},{x:8,y:11},{x:6,y:12},{x:7,y:12},{x:8,y:12},{x:7,y:13}]
+        },
+        brows: {
+            HAPPY: [{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},{x:5,y:1},{x:9,y:1},{x:10,y:1},{x:11,y:1},{x:12,y:1},{x:13,y:1}],
+            ANGRY: [{x:2,y:3},{x:3,y:4},{x:4,y:4},{x:11,y:4},{x:12,y:4},{x:13,y:3}],
+            WOW:   [{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:4,y:0},{x:5,y:0},{x:9,y:0},{x:10,y:0},{x:11,y:0},{x:12,y:0},{x:13,y:0}]
+        }
+    };
+
+    const state = {
+        emo: 'IDLE', gaze: { x:0, y:0, tx:0, ty:0 }, tick: 0,
+        blink: 0, nextBlink: 100, scanRow: 0, isFullView: false,
+        speaking: false, audioCtx: null, isTyping: false
+    };
+
+    let canvas, ctx;
+
+    const speakText = async (text) => {
+        if(!apiKey || state.speaking) return;
+        state.speaking = true; setEmotion('TALKING');
+        try {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: `Say sharply: ${text}` }] }],
+                    generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } } },
+                    model: "gemini-2.5-flash-preview-tts"
+                })
+            });
+            const data = await res.json();
+            const pcmBase64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+            if (pcmBase64) {
+                const audioBuffer = await decodePCM(pcmBase64);
+                playAudio(audioBuffer);
+            } else state.speaking = false;
+        } catch(e) { state.speaking = false; setEmotion('IDLE'); }
+    };
+
+    const decodePCM = async (base64) => {
+        const binary = atob(base64);
+        const buffer = new Int16Array(new ArrayBuffer(binary.length));
+        for(let i=0; i<binary.length/2; i++) buffer[i] = binary.charCodeAt(i*2) + (binary.charCodeAt(i*2+1) << 8);
+        const ctx = state.audioCtx || (state.audioCtx = new AudioContext());
+        const audioBuffer = ctx.createBuffer(1, buffer.length, 24000);
+        audioBuffer.getChannelData(0).set(Array.from(buffer).map(v => v / 32768));
+        return audioBuffer;
+    };
+
+    const playAudio = (buffer) => {
+        const source = state.audioCtx.createBufferSource();
+        source.buffer = buffer; source.connect(state.audioCtx.destination);
+        source.onended = () => { state.speaking = false; setEmotion('IDLE'); };
+        source.start();
+    };
+
+    const safeCreateIcons = () => { if (window.lucide && typeof lucide.createIcons === 'function') try { lucide.createIcons(); } catch(e) {} };
+
+    const init = () => {
+        canvas = document.getElementById('mainCanvas'); ctx = canvas.getContext('2d');
+        safeCreateIcons(); setupEvents(); requestAnimationFrame(loop);
+        addMsg("Registry Node 78 Online. Clippy Assistant Ready.", 'bot');
+    };
+
+    const loop = () => { state.tick++; update(); draw(); requestAnimationFrame(loop); };
+
+    const update = () => {
+        const factor = (state.emo === 'SEARCHING' || state.isTyping) ? 0.6 : 0.12;
+        state.gaze.x += (state.tx - state.gaze.x) * factor;
+        state.gaze.y += (state.ty - state.gaze.y) * factor;
+
+        if(!['SURPRISED','SEARCHING','LOVE'].includes(state.emo)) {
+            state.blink++;
+            if(state.blink > state.nextBlink) { if(state.blink > state.nextBlink + 6) { state.blink = 0; state.nextBlink = 150 + Math.random() * 300; } }
+        }
+
+        // BIOLOGICAL SCAN
+        if(state.emo === 'SEARCHING') {
+            const steps = 8, cycle = 150;
+            const p = (state.tick % cycle) / cycle;
+            const stepX = Math.floor(p * steps) / steps;
+            state.tx = (stepX * 2.4) - 1.2; 
+            if(p > 0.98) state.scanRow = (state.scanRow + 1) % 5;
+            state.ty = 0.5 + (state.scanRow * 0.08); 
+        }
+    };
+
+    const draw = () => {
+        ctx.fillStyle = '#F4F4F0'; ctx.fillRect(0,0,256,256); ctx.fillStyle = '#111111';
+        const blk = state.blink > state.nextBlink;
+        let ox = 0; if(state.gaze.x < -0.3) ox = -1; if(state.gaze.x > 0.3) ox = 1;
+        let oy = 1; if(state.gaze.y < -0.4) oy = 0; else if(state.gaze.y > 0.3) oy = 2;
+
+        let m = 'NEUTRAL', b = 'NEUTRAL';
+        if(state.emo === 'HAPPY') { m='SMILE'; b='HAPPY'; }
+        else if(state.emo === 'SAD') { m='FROWN'; }
+        else if(state.emo === 'ANGRY') { m='GRIT'; b='ANGRY'; }
+        else if(state.emo === 'SURPRISED') { m='GASP'; b='WOW'; }
+        else if(state.emo === 'TALKING') { m=(state.tick%12<6)?'GASP':'NEUTRAL'; }
+        else if(state.emo === 'LOVE') { b='HAPPY'; }
+
+        for(let y=0; y<16; y++) {
+            for(let x=0; x<16; x++) {
+                let val = CHAR.base[y*16+x];
+                const isL=(x>=2&&x<=4&&y>=3&&y<=6), isR=(x>=10&&x<=12&&y>=3&&y<=6);
+                if(isL || isR) {
+                    const lx=isL?x-2:x-10, ly=y-3;
+                    if(lx===1+ox && ly===oy) val=1;
+                    if(blk || state.emo==='SURPRISED') val=1;
+                    if(state.emo==='LOVE') val=0; 
+                }
+                if(y >= 10 && y <= 14 && x >= 5 && x <= 9) if(CHAR.base[y*16+x] === 1) val = 0;
+                if(CHAR.mouths[m].some(p => p.x === x && p.y === y)) val = 1;
+                if(CHAR.brows[b]?.some(p => p.x === x && p.y === y)) val = 1;
+
+                if(val === 1) {
+                    const breath = Math.sin(state.tick / 40) * 1.5;
+                    const bounce = (state.emo === 'HAPPY') ? Math.abs(Math.sin(state.tick * 0.1)) * 5 : 0;
+                    const jitter = (state.emo === 'ANGRY' || state.emo === 'SURPRISED') ? Math.sin(state.tick * 3.5) * 2.5 : 0;
+                    ctx.fillRect(x*16 + jitter, y*16 + breath + bounce, 16, 16);
+                }
+            }
+        }
+        if(state.emo === 'LOVE') {
+            const beat = (Math.floor(state.tick / 15) % 3 === 0) ? 6 : 0;
+            const h = (cx) => {
+                ctx.fillRect(cx*16, 5*16+beat, 16, 16);
+                ctx.fillRect((cx-1)*16, 4*16+beat, 16, 16); ctx.fillRect((cx+1)*16, 4*16+beat, 16, 16);
+                ctx.fillRect((cx-1)*16, 3*16+beat/2, 16, 16); ctx.fillRect((cx+1)*16, 3*16+beat/2, 16, 16);
+                ctx.fillRect(cx*16, 4*16+beat, 16, 16);
+            }; h(3); h(11);
+        }
+    };
+
+    const setupEvents = () => {
+        const stage = document.getElementById('puppet-stage'), input = document.getElementById('user-input');
+        const move = (e) => {
+            if(state.isTyping) return;
+            const cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
+            const r = stage.getBoundingClientRect();
+            state.tx = Math.max(-1, Math.min(1, (cx - (r.left + r.width/2))/(r.width/2)));
+            state.ty = Math.max(-1, Math.min(1, (cy - (r.top + r.height/2))/(r.height/2)));
+        };
+        window.addEventListener('mousemove', (e) => { if(e.target.closest('#puppet-stage') || state.isFullView) move(e); });
+        stage.addEventListener('touchmove', (e) => { e.preventDefault(); move(e); }, {passive:false});
+        
+        input.addEventListener('focus', () => { state.isTyping = true; document.body.classList.add('input-active'); state.ty = 0.8; });
+        input.addEventListener('blur', () => { state.isTyping = false; document.body.classList.remove('input-active'); state.ty = 0; });
+        input.addEventListener('input', () => { state.tx = (Math.min(input.value.length, 25) / 25 * 1.6) - 0.8; });
+        input.onkeydown = (e) => e.key === 'Enter' && handleSend();
+    };
+
+    const addMsg = (text, type, data = null) => {
+        const list = document.getElementById('chat-list'), div = document.createElement('div');
+        div.className = `chat-bubble ${type}`;
+        if(data) {
+            div.className = '';
+            div.innerHTML = `
+                <div class="dossier">
+                    <div class="dossier-head"><span>PORTFOLIO_NODE_0x${data.id}</span><span class="bg-green-500 text-black px-1 rounded text-[8px] font-black uppercase tracking-tighter">Secure</span></div>
+                    <div class="dossier-body">
+                        <div class="dossier-title">${data.name}</div>
+                        <button class="action-btn" onclick="app.deployNode('${data.url}')"><i data-lucide="monitor" class="w-3 h-3"></i> [LAUNCH_COMMAND]</button>
+                    </div>
+                </div>
+            `;
+            state.ty = 0.8; setTimeout(safeCreateIcons, 50);
+        } else { div.innerText = (type==='bot'?"> ":"") + text; }
+        list.appendChild(div);
+        document.getElementById('chat-scroller').scrollTop = document.getElementById('chat-scroller').scrollHeight;
+    };
+
+    const handleSend = () => {
+        const input = document.getElementById('user-input'), txt = input.value.trim(); if(!txt) return;
+        addMsg(txt, 'user'); input.value = ''; input.blur();
+        if(txt.toLowerCase().includes('work') || txt.toLowerCase().includes('scrape') || txt.toLowerCase().includes('portfolio')) triggerProjectScan();
+        else { setEmotion('THINKING'); setTimeout(()=> { setEmotion('HAPPY'); addMsg("Packet logged.", 'bot'); speakText("Input received."); }, 1200); }
+    };
+
+    const triggerProjectScan = async () => {
+        setEmotion('SEARCHING'); 
+        const reelDiv = document.createElement('div'); reelDiv.className = 'scrape-reel';
+        reelDiv.innerHTML = `<div class="reel-track"><div class="reel-item">NAMIT_HOME</div><div class="reel-item">NAMIT_ABOUT</div><div class="reel-item">NAMIT_EXPLORE</div><div class="reel-item">NAMIT_RESUME</div></div>`;
+        document.getElementById('chat-list').appendChild(reelDiv);
+        document.getElementById('chat-scroller').scrollTop = document.getElementById('chat-scroller').scrollHeight;
+
+        const projects = [
+            { id:"01", name: "NAMIT_HOME", url: "https://www.namit.me/" },
+            { id:"02", name: "NAMIT_ABOUT", url: "https://www.namit.me/about" },
+            { id:"03", name: "NAMIT_EXPLORE", url: "https://www.namit.me/explore" },
+            { id:"04", name: "NAMIT_RESUME", url: "https://www.namit.me/files/KapoorNamit_Resume.pdf" }
+        ];
+
+        for(let p of projects) {
+            await new Promise(r => setTimeout(r, 1800));
+            setEmotion('SURPRISED'); addMsg("", 'bot', p);
+        }
+        reelDiv.remove(); setEmotion('HAPPY'); speakText("Dossier archive recovered.");
+    };
+
+    const deployNode = (url) => { 
+        setEmotion('SURPRISED'); document.body.classList.add('mode-deploy');
+        document.getElementById('iframe-container').innerHTML = `<iframe src="${url}" class="w-full h-full border-none"></iframe>`;
+        speakText("Deploying interface portal."); 
+    };
+
+    const closeDeploy = () => { document.body.classList.remove('mode-deploy'); document.getElementById('iframe-container').innerHTML = ''; setEmotion('IDLE'); };
+    const toggleFullView = () => { document.body.classList.toggle('mode-fullview'); state.isFullView = document.body.classList.contains('mode-fullview'); };
+    const setEmotion = (e) => { state.emo = e; if(!['IDLE','SEARCHING','TALKING'].includes(e)) setTimeout(()=> {if(state.emo===e) state.emo='IDLE';}, 2500); };
+
+    return { 
+        init, setEmotion, handleSend, triggerProjectScan, toggleFullView, deployNode, closeDeploy, 
+        toggleConfig: () => { const m = document.getElementById('config-modal'); m.style.display = (m.style.display==='flex')?'none':'flex'; }, 
+        saveConfig: () => { apiKey = document.getElementById('api-key').value; addMsg("Matrix synced.", 'bot'); app.toggleConfig(); },
+        tapIsland: () => { setEmotion('HAPPY'); }
+    };
+})();
+window.onload = app.init;
+</script>
+</body>
+</html>
+
