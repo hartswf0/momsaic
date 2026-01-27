@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniAxis Spatio-Temporal Sequencer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@400;600;800&display=swap');
+
+        :root {
+            --bg-industrial: #18181b;
+            --panel-bg: #e5e5e7;
+            --border-color: #3f3f46;
+            --accent-blue: #007aff;
+            --accent-orange: #f97316;
+            --text-main: #1c1c1e;
+        }
+
+        body {
+            background-color: var(--bg-industrial);
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+            overflow: hidden;
+            height: 100vh;
+            margin: 0;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Industrial Frame System */
+        .industrial-frame {
+            border: 8px solid var(--border-color);
+            background: #09090b;
+            position: relative;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.5);
+            transition: border-color 0.1s;
+        }
+
+        /* Corner Decorations */
+        .corner-bracket {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 4px solid #71717a;
+            z-index: 50;
+            pointer-events: none;
+        }
+        .tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+        .tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+        .bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+        .br { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+        /* The physical reel interface */
+        .knob-outer {
+            width: 130px; 
+            height: 130px;
+            background: conic-gradient(from 0deg, #52525b, #a1a1aa, #52525b, #3f3f46, #52525b);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 4px 4px 15px rgba(0,0,0,0.5), inset 1px 1px 2px rgba(255,255,255,0.3);
+            cursor: grab;
+            position: relative;
+            border: 4px solid #27272a;
+            transition: transform 0.1s;
+            flex-shrink: 0;
+        }
+        
+        .knob-outer:active {
+            cursor: grabbing;
+            transform: scale(0.98);
+        }
+
+        .knob-inner {
+            width: 80px;
+            height: 80px;
+            background: #d4d4d8;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.1);
+            pointer-events: none;
+        }
+
+        .knob-indicator {
+            position: absolute;
+            top: 10px;
+            width: 6px;
+            height: 15px;
+            background: var(--accent-orange);
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        /* Canvas Containers */
+        #main-stage {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #main-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* Floating HUD Layer for Persona */
+        #persona-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 300px;
+            height: 300px;
+            z-index: 10;
+            pointer-events: none; 
+            background: radial-gradient(circle at center, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 70%);
+            border-radius: 50%;
+        }
+
+        #persona-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Control Deck */
+        #control-deck {
+            height: 160px;
+            background: #27272a;
+            border-top: 8px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0;
+            position: relative;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        /* Tech Grid Background */
+        .tech-grid {
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Custom Heavy Sliders */
+        .slider-track-container {
+            position: relative;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            background: #18181b;
+            border: 1px solid #52525b;
+            border-radius: 2px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+            padding: 0 4px;
+            width: 100%; 
+        }
+
+        /* Range Sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            position: relative;
+            z-index: 10;
+            cursor: pointer;
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 26px;
+            width: 40px; 
+            background: linear-gradient(to bottom, #52525b, #3f3f46);
+            border: 1px solid #71717a;
+            border-radius: 2px;
+            cursor: grab;
+            margin-top: -11px; 
+            box-shadow: 
+                0 0 0 1px #000,
+                inset 0 1px 0 rgba(255,255,255,0.2),
+                inset 0 0 0 4px #27272a; /* Thumb detail */
+            position: relative;
+        }
+        
+        input[type=range]:active::-webkit-slider-thumb {
+            cursor: grabbing;
+            background: #52525b;
+            border-color: #a1a1aa;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #27272a;
+            border-radius: 2px;
+            border: 1px solid #3f3f46;
+        }
+
+        /* Haptic Rumble (Vibration) */
+        @keyframes rumble {
+            0% { transform: translate(0, 0); }
+            20% { transform: translate(-1px, 1px); }
+            40% { transform: translate(-1px, -1px); }
+            60% { transform: translate(1px, 1px); }
+            80% { transform: translate(1px, -1px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        .rumbling {
+            animation: rumble 0.08s linear infinite;
+        }
+
+        /* Sonic Thud (Impact) */
+        @keyframes thud {
+            0% { transform: scale(1); filter: brightness(1); }
+            10% { transform: scale(0.995) translateY(2px); filter: brightness(1.2); } /* Heavy hit */
+            40% { transform: scale(1.002) translateY(-1px); } /* Recoil */
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+
+        .thud-active {
+            animation: thud 0.15s cubic-bezier(0.1, 0.7, 1.0, 0.1);
+        }
+        
+        .border-flash {
+            border-color: #71717a !important;
+        }
+
+    </style>
+</head>
+<body class="industrial-frame" id="main-body">
+
+    <!-- CORNER DECORATIONS -->
+    <div class="corner-bracket tl"></div>
+    <div class="corner-bracket tr"></div>
+    <div class="corner-bracket bl"></div>
+    <div class="corner-bracket br"></div>
+
+    <!-- MAIN VISUALIZATION STAGE -->
+    <div id="main-stage">
+        <canvas id="main-canvas"></canvas>
+
+        <div id="persona-layer">
+            <div class="absolute -top-4 left-0 text-[9px] text-zinc-500 font-bold tracking-widest">BEHAVIOR_TOPOLOGY // LOCAL</div>
+            <canvas id="persona-canvas"></canvas>
+             <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-3 opacity-60">
+                <div class="flex items-center gap-1"><div class="w-1 h-1 bg-blue-500 rounded-full"></div><span class="text-[8px] text-white mono">ORDER</span></div>
+                <div class="flex items-center gap-1"><div class="w-1 h-1 bg-orange-500 rounded-full"></div><span class="text-[8px] text-white mono">ENTROPY</span></div>
+            </div>
+        </div>
+
+        <div class="absolute top-6 right-6 text-right pointer-events-none z-20 flex flex-col items-end gap-4">
+            <div class="text-[12px] font-bold text-white tracking-widest bg-black/50 px-2 py-1 border border-white/20 inline-block backdrop-blur-sm">LIVE_FEED: OMNI_CORE</div>
+            
+            <div class="flex flex-col gap-1 text-[10px] text-zinc-400 font-mono bg-black/40 p-2 border-r-2 border-zinc-600">
+                <span>FPS: <span id="fps-counter" class="text-white">60</span></span>
+                <span>VEC_DENSITY: HIGH</span>
+                <div class="h-px bg-white/20 my-1"></div>
+                <div class="grid grid-cols-2 gap-x-4">
+                    <span>X_AXIS: <span id="val-x" class="text-white">0.42</span></span>
+                    <span>Y_AXIS: <span id="val-y" class="text-white">0.11</span></span>
+                    <span>Z_AXIS: <span id="val-z" class="text-white">0.89</span></span>
+                    <span>TEMP: <span class="text-orange-400">64C</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="absolute bottom-6 left-6 pointer-events-none z-20">
+             <div class="text-[40px] font-bold text-white/5 font-mono leading-none">01</div>
+        </div>
+    </div>
+
+    <!-- CONTROL DECK -->
+    <div id="control-deck" class="tech-grid">
+        
+        <!-- COLUMN 1: THE WHEEL -->
+        <div class="h-full flex flex-col justify-center items-center px-4 md:px-6 border-r border-zinc-700 bg-[#202023] relative shrink-0">
+            <div class="absolute top-2 left-2 text-[8px] text-zinc-500 font-bold hidden sm:block">MANUAL_OVERRIDE</div>
+            <div id="scrub-reel" class="knob-outer">
+                <div class="knob-inner">
+                    <div class="knob-indicator"></div>
+                    <div class="flex flex-col items-center select-none">
+                        <span class="mono text-[14px] font-bold tracking-widest text-zinc-800" id="time-display">00:00:00</span>
+                        <span class="text-[7px] text-zinc-500 uppercase">TC_MASTER</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-2 text-[7px] text-zinc-500 mono flex items-center gap-2">
+                <div class="w-1.5 h-1.5 bg-green-900 rounded-full" id="drive-light"></div>
+                HAPTIC_LINK
+            </div>
+        </div>
+
+        <!-- COLUMN 2: PARAMETERS + RECORD -->
+        <div class="flex-1 h-full px-4 md:px-6 py-2 flex items-center gap-4 min-w-0 overflow-hidden">
+            
+            <!-- Sliders Container -->
+            <div class="flex-1 flex flex-col justify-center gap-4 min-w-0">
+                
+                <!-- Divergence Control -->
+                <div class="flex flex-col gap-1 w-full">
+                    <div class="flex justify-between items-end">
+                        <span class="text-[9px] text-zinc-400 font-bold tracking-widest truncate">DIVERGENCE_THRESHOLD</span>
+                        <span id="divergence-val" class="text-[9px] font-bold text-blue-400 mono bg-blue-900/30 px-2 py-0.5 rounded border border-blue-900/50">0.00</span>
+                    </div>
+                    <div class="slider-track-container w-full">
+                        <div class="absolute left-0 top-0 bottom-0 w-full flex justify-between px-1 pointer-events-none">
+                            <div class="w-px h-full bg-zinc-700"></div>
+                            <div class="w-px h-2 bg-zinc-700 self-end"></div>
+                            <div class="w-px h-full bg-zinc-700"></div>
+                            <div class="w-px h-2 bg-zinc-700 self-end"></div>
+                            <div class="w-px h-full bg-zinc-700"></div>
+                        </div>
+                        <input type="range" id="divergence-slider" min="0" max="100" value="0" step="1" class="relative z-10 w-full">
+                    </div>
+                </div>
+
+                <!-- Density Control -->
+                <div class="flex flex-col gap-1 w-full">
+                    <div class="flex justify-between items-end">
+                        <span class="text-[9px] text-zinc-400 font-bold tracking-widest truncate">MESH_RESOLUTION</span>
+                        <span id="density-val" class="text-[9px] font-bold text-zinc-400 mono">HIGH</span>
+                    </div>
+                    <div class="slider-track-container w-full">
+                        <input type="range" id="density-slider" min="10" max="50" value="30" class="w-full">
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Record Button (SMALLER) -->
+            <div class="h-full flex items-center shrink-0 border-l border-zinc-700 pl-4 md:pl-6">
+                <button id="branch-btn" class="w-12 h-12 bg-zinc-800 border-2 border-zinc-600 hover:bg-zinc-700 active:border-red-500 active:bg-zinc-900 transition-all flex flex-col items-center justify-center gap-1 group shadow-lg active:shadow-inner rounded-md">
+                    <div class="w-3 h-3 rounded-full bg-red-900 group-hover:bg-red-600 group-active:shadow-[0_0_15px_red] transition-all border border-red-950"></div>
+                    <span class="text-[6px] font-bold text-zinc-400 group-hover:text-white tracking-widest">REC</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // AUDIO ENGINE (SONICATION)
+        // ==========================================
+        const AudioEngine = (() => {
+            let ctx = null;
+            let initialized = false;
+
+            const init = () => {
+                if (initialized) return;
+                try {
+                    ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    initialized = true;
+                } catch (e) {
+                    console.error("Audio Init Failed", e);
+                }
+            };
+
+            const playThud = () => {
+                if (!ctx) init();
+                if (!ctx) return;
+                if (ctx.state === 'suspended') ctx.resume();
+
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(60, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(10, ctx.currentTime + 0.15);
+
+                gain.gain.setValueAtTime(0.6, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start();
+                osc.stop(ctx.currentTime + 0.2);
+            };
+
+            const playClick = (pitch = 2000) => {
+                if (!ctx) init();
+                if (!ctx) return;
+                if (ctx.state === 'suspended') ctx.resume();
+
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                const filter = ctx.createBiquadFilter();
+
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(pitch, ctx.currentTime);
+                
+                filter.type = 'highpass';
+                filter.frequency.value = 1200;
+
+                gain.gain.setValueAtTime(0.04, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start();
+                osc.stop(ctx.currentTime + 0.04);
+            };
+
+            return { init, playThud, playClick };
+        })();
+
+        // Initialize Audio
+        window.addEventListener('mousedown', () => AudioEngine.init(), { once: true });
+        window.addEventListener('touchstart', () => AudioEngine.init(), { once: true });
+
+
+        // ==========================================
+        // SYSTEM STATE & UTILS
+        // ==========================================
+        const state = {
+            time: 0, divergence: 0, scrubbing: false,
+            reelVelocity: 0, reelRotation: 0, meshDensity: 30
+        };
+
+        const body = document.getElementById('main-body');
+        const driveLight = document.getElementById('drive-light');
+
+        const triggerVisualThud = () => {
+            body.classList.remove('thud-active');
+            body.classList.remove('border-flash');
+            void body.offsetWidth;
+            body.classList.add('thud-active');
+            body.classList.add('border-flash');
+            setTimeout(() => {
+                body.classList.remove('thud-active');
+                body.classList.remove('border-flash');
+            }, 150);
+        };
+
+        const triggerRumble = () => {
+            if(!body.classList.contains('rumbling')) {
+                body.classList.add('rumbling');
+                setTimeout(() => body.classList.remove('rumbling'), 80);
+            }
+        };
+
+        setInterval(() => {
+            document.getElementById('val-x').innerText = (Math.random()).toFixed(2);
+            document.getElementById('val-y').innerText = (Math.random()).toFixed(2);
+            document.getElementById('val-z').innerText = (Math.random()).toFixed(2);
+            document.getElementById('fps-counter').innerText = 58 + Math.floor(Math.random() * 4);
+        }, 150);
+
+        // ==========================================
+        // 1. PERSONA TOPOLOGY
+        // ==========================================
+        const initPersonaSpace = () => {
+            const canvas = document.getElementById('persona-canvas');
+            const ctx = canvas.getContext('2d');
+            const layer = document.getElementById('persona-layer');
+            let width, height;
+            let particles = [];
+            
+            for (let i = 0; i < 150; i++) {
+                particles.push({
+                    x: 0, y: 0, z: 0,
+                    baseX: (Math.random() - 0.5) * 200, baseY: (Math.random() - 0.5) * 200, baseZ: (Math.random() - 0.5) * 200,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+
+            const resize = () => { width = layer.clientWidth; height = layer.clientHeight; canvas.width = width; canvas.height = height; };
+            const project = (p, rx, ry) => {
+                let x1 = p.x * Math.cos(ry) - p.z * Math.sin(ry);
+                let z1 = p.z * Math.cos(ry) + p.x * Math.sin(ry);
+                let y1 = p.y * Math.cos(rx) - z1 * Math.sin(rx);
+                let z2 = z1 * Math.cos(rx) + p.y * Math.sin(rx);
+                let scale = 300 / (300 + z2);
+                return { x: x1 * scale + width / 2, y: y1 * scale + height / 2, scale: scale, z: z2 };
+            };
+
+            let autoRotateY = 0;
+            const animate = () => {
+                ctx.clearRect(0, 0, width, height);
+                autoRotateY += 0.005 + (state.reelVelocity * 0.2);
+                const chaos = state.divergence;
+                const time = Date.now() * 0.002;
+                const projectedParticles = [];
+
+                particles.forEach(p => {
+                    if (chaos < 0.5) {
+                        p.x += (Math.sin(p.phase + time) * 60 - p.x) * 0.05;
+                        p.y += (Math.cos(p.phase + time * 0.5) * 60 - p.y) * 0.05;
+                        p.z += (Math.sin(p.phase + time * 0.2) * 60 - p.z) * 0.05;
+                    } else {
+                        const noise = Math.sin(time * 5 + p.phase) * (chaos * 20);
+                        p.x += (p.baseX * (1 + chaos) - p.x) * 0.05 + noise;
+                        p.y += (p.baseY * (1 + chaos) - p.y) * 0.05 + noise;
+                        p.z += (p.baseZ * (1 + chaos) - p.z) * 0.05;
+                    }
+                    const proj = project(p, time * 0.2, autoRotateY);
+                    if (proj.scale > 0) projectedParticles.push(proj);
+                });
+
+                projectedParticles.sort((a, b) => b.z - a.z);
+                projectedParticles.forEach(p => {
+                    const alpha = Math.min(1, (p.scale - 0.2) * 2); 
+                    ctx.fillStyle = chaos > 0.6 ? `rgba(249,115,22,${alpha})` : `rgba(59,130,246,${alpha})`;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 2 * p.scale, 0, Math.PI * 2); ctx.fill();
+                    if (chaos < 0.3 && Math.random() > 0.95) {
+                        ctx.strokeStyle = `rgba(59,130,246,${alpha * 0.5})`;
+                        ctx.beginPath(); ctx.moveTo(width/2, height/2); ctx.lineTo(p.x, p.y); ctx.stroke();
+                    }
+                });
+                requestAnimationFrame(animate);
+            };
+            new ResizeObserver(resize).observe(layer);
+            resize(); animate();
+        };
+
+        // ==========================================
+        // 2. VECTOR FIELD
+        // ==========================================
+        const initVectorCanvas = () => {
+            const canvas = document.getElementById('main-canvas');
+            const ctx = canvas.getContext('2d');
+            const container = document.getElementById('main-stage');
+            let width, height;
+            let vectors = [];
+            
+            const initGrid = () => {
+                vectors = [];
+                const spacing = state.meshDensity; 
+                const cols = Math.ceil(width / spacing);
+                const rows = Math.ceil(height / spacing);
+                for(let y = 0; y < rows; y++) {
+                    for(let x = 0; x < cols; x++) {
+                        vectors.push({ x: x * spacing, y: y * spacing, ox: x * spacing, oy: y * spacing, vx: 0, vy: 0 });
+                    }
+                }
+            };
+            const resize = () => { width = container.clientWidth; height = container.clientHeight; canvas.width = width; canvas.height = height; initGrid(); };
+
+            const draw = () => {
+                ctx.fillStyle = 'rgba(5, 5, 5, 0.3)'; ctx.fillRect(0, 0, width, height);
+                const t = Date.now() * 0.001;
+                const chaos = state.divergence; 
+                const scrubSpeed = state.reelVelocity * 20;
+
+                ctx.lineWidth = 1;
+                vectors.forEach(v => {
+                    let noiseAngle = chaos < 0.4 ? Math.cos(v.ox * 0.005 + t) * 0.3 : Math.sin(v.ox * 0.01 + t * 2) * Math.cos(v.oy * 0.01 + t) * (chaos * 8);
+                    v.vx = Math.cos(noiseAngle) * 2 + scrubSpeed * 0.2;
+                    v.vy = Math.sin(noiseAngle) * 2;
+                    ctx.beginPath(); ctx.moveTo(v.x, v.y);
+                    const len = 12 + (chaos * 20) + Math.abs(scrubSpeed);
+                    ctx.lineTo(v.x + Math.cos(noiseAngle) * len, v.y + Math.sin(noiseAngle) * len);
+                    ctx.strokeStyle = chaos > 0.6 ? `rgba(249,115,22,0.5)` : `rgba(50,150,200,0.3)`;
+                    ctx.stroke();
+                    v.x += v.vx; v.y += v.vy;
+                    if(v.x > width) v.x = 0; if(v.x < 0) v.x = width; if(v.y > height) v.y = 0; if(v.y < 0) v.y = height;
+                    if(Math.abs(v.x - v.ox) > 60 || Math.abs(v.y - v.oy) > 60) { v.x += (v.ox - v.x) * 0.05; v.y += (v.oy - v.y) * 0.05; }
+                });
+                requestAnimationFrame(draw);
+            };
+            new ResizeObserver(resize).observe(container);
+            draw();
+            window.updateDensity = (val) => { state.meshDensity = 60 - val; initGrid(); };
+        };
+
+
+        // ==========================================
+        // 3. UI LOGIC
+        // ==========================================
+        const initUI = () => {
+            const dSlider = document.getElementById('divergence-slider');
+            const dLabel = document.getElementById('divergence-val');
+            dSlider.addEventListener('input', (e) => {
+                const val = e.target.value;
+                state.divergence = val / 100;
+                dLabel.innerText = state.divergence.toFixed(2);
+                triggerRumble();
+                AudioEngine.playClick(2200); 
+                if(val == 0 || val == 100 || val == 50) { triggerVisualThud(); AudioEngine.playThud(); }
+                dLabel.className = state.divergence > 0.6 ? "text-[10px] font-bold text-orange-400 mono bg-orange-900/30 px-2 py-0.5 rounded border border-orange-900/50" : "text-[10px] font-bold text-blue-400 mono bg-blue-900/30 px-2 py-0.5 rounded border border-blue-900/50";
+            });
+
+            document.getElementById('density-slider').addEventListener('input', (e) => {
+                window.updateDensity(parseInt(e.target.value));
+                triggerRumble(); AudioEngine.playClick(2200);
+            });
+
+            const reel = document.getElementById('scrub-reel');
+            const timeDisplay = document.getElementById('time-display');
+            let isDragging = false, lastAngle = 0, lastClickAngle = 0, velocity = 0, currentRot = 0, animId = null;
+
+            const getAngle = (e) => {
+                const rect = reel.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                return Math.atan2(clientY - cy, clientX - cx);
+            };
+
+            const updateVisuals = (rot) => {
+                reel.style.transform = `rotate(${rot}rad)`;
+                const tf = Math.floor(Math.abs(rot * 50));
+                timeDisplay.innerText = `${Math.floor(tf/1800).toString().padStart(2,'0')}:${(Math.floor(tf/30)%60).toString().padStart(2,'0')}:${(tf%30).toString().padStart(2,'0')}`;
+            };
+
+            const startDrag = (e) => {
+                if(e.type === 'touchstart') e.preventDefault();
+                AudioEngine.init();
+                isDragging = true;
+                velocity = 0;
+                lastAngle = getAngle(e);
+                reel.style.cursor = 'grabbing';
+                driveLight.className = "w-1.5 h-1.5 bg-green-500 rounded-full shadow-[0_0_5px_lime]";
+                if(animId) cancelAnimationFrame(animId);
+                
+                // Add window listeners only when dragging starts
+                window.addEventListener('mousemove', moveDrag);
+                window.addEventListener('mouseup', endDrag);
+                window.addEventListener('touchmove', moveDrag, {passive: false});
+                window.addEventListener('touchend', endDrag);
+            };
+
+            const moveDrag = (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                const newAngle = getAngle(e);
+                let delta = newAngle - lastAngle;
+                if(delta > Math.PI) delta -= Math.PI*2; if(delta < -Math.PI) delta += Math.PI*2;
+                currentRot += delta; velocity = delta; lastAngle = newAngle; state.reelVelocity = velocity;
+                if(Math.abs(velocity) > 0.15) body.classList.add('rumbling'); else body.classList.remove('rumbling');
+                if(Math.abs(currentRot - lastClickAngle) > 0.2) { AudioEngine.playClick(1500); lastClickAngle = currentRot; }
+                updateVisuals(currentRot);
+            };
+
+            const endDrag = () => {
+                isDragging = false;
+                reel.style.cursor = 'grab';
+                body.classList.remove('rumbling');
+                
+                // Remove window listeners
+                window.removeEventListener('mousemove', moveDrag);
+                window.removeEventListener('mouseup', endDrag);
+                window.removeEventListener('touchmove', moveDrag);
+                window.removeEventListener('touchend', endDrag);
+                
+                inertia();
+            };
+            
+            const inertia = () => {
+                if(Math.abs(velocity) > 0.002) {
+                    velocity *= 0.95; currentRot += velocity; state.reelVelocity = velocity;
+                    if(Math.abs(currentRot - lastClickAngle) > 0.2) { AudioEngine.playClick(1500); lastClickAngle = currentRot; }
+                    updateVisuals(currentRot); animId = requestAnimationFrame(inertia);
+                } else {
+                    if(Math.abs(velocity) > 0) { triggerVisualThud(); AudioEngine.playThud(); driveLight.className = "w-1.5 h-1.5 bg-green-900 rounded-full"; }
+                    velocity = 0; state.reelVelocity = 0;
+                }
+            };
+
+            // Only attach start listeners to the reel
+            reel.addEventListener('mousedown', startDrag);
+            reel.addEventListener('touchstart', startDrag, {passive: false});
+        };
+
+        window.onload = () => { initPersonaSpace(); initVectorCanvas(); initUI(); };
+    </script>
+</body>
+</html>
+
+
