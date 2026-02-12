@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ripple Simulator: Elige tu Piedra</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-red: #ff2a2a;
+            --neon-yellow: #fbbf24;
+            --neon-emerald: #10b981;
+            --neon-cyan: #06b6d4;
+            --concrete: #262626;
+        }
+
+        body {
+            background-color: #050505;
+            color: #f4f4f4;
+            font-family: 'Space Mono', monospace;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, .impact-text {
+            font-family: 'Bebas Neue', sans-serif;
+            letter-spacing: 0.05em;
+        }
+
+        /* Ambient Ripples (Fondo) */
+        .ambient-ripple-container {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .ambient-ripple {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 50vmax; height: 50vmax;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.03);
+            transform: translate(-50%, -50%) scale(0);
+            animation: ambient-expand 12s linear infinite;
+        }
+        
+        .ambient-ripple:nth-child(2) { animation-delay: 4s; }
+        .ambient-ripple:nth-child(3) { animation-delay: 8s; }
+
+        @keyframes ambient-expand {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; border-width: 8px; }
+            100% { transform: translate(-50%, -50%) scale(3); opacity: 0; border-width: 1px; }
+        }
+
+        /* Interactive Click Ripple */
+        .click-ripple {
+            position: fixed;
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            animation: screen-wipe 1.2s cubic-bezier(0.8, 0, 0.2, 1) forwards;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        @keyframes screen-wipe {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0.9; }
+            50% { opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(150); opacity: 0; } /* Escala masiva para cubrir pantalla */
+        }
+
+        /* Zine Textures & Effects */
+        .noise-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.04;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        .scanline {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 10vh;
+            background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.05), transparent);
+            opacity: 0.5;
+            animation: scan 6s linear infinite;
+            pointer-events: none;
+            z-index: 49;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(-10vh); }
+            100% { transform: translateY(110vh); }
+        }
+
+        /* Reveal Animations */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Glitch Effect */
+        .glitch-wrapper { position: relative; }
+        .glitch { position: relative; color: white; z-index: 1; }
+        .glitch::before, .glitch::after {
+            content: attr(data-text);
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #050505;
+        }
+        .glitch::before {
+            left: 2px; text-shadow: -1px 0 red; clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim 5s infinite linear alternate-reverse; z-index: -1;
+        }
+        .glitch::after {
+            left: -2px; text-shadow: -1px 0 blue; clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim2 5s infinite linear alternate-reverse; z-index: -2;
+        }
+
+        @keyframes glitch-anim { 0% { clip: rect(10px, 9999px, 83px, 0); } 20% { clip: rect(32px, 9999px, 14px, 0); } 40% { clip: rect(85px, 9999px, 53px, 0); } 60% { clip: rect(21px, 9999px, 92px, 0); } 80% { clip: rect(6px, 9999px, 2px, 0); } 100% { clip: rect(98px, 9999px, 34px, 0); } }
+        @keyframes glitch-anim2 { 0% { clip: rect(65px, 9999px, 100px, 0); } 20% { clip: rect(12px, 9999px, 58px, 0); } 40% { clip: rect(94px, 9999px, 25px, 0); } 60% { clip: rect(43px, 9999px, 76px, 0); } 80% { clip: rect(81px, 9999px, 19px, 0); } 100% { clip: rect(3px, 9999px, 88px, 0); } }
+
+        /* Helpers */
+        .tape { background-color: #f4f4f4; color: #050505; padding: 0.2rem 0.5rem; transform: rotate(-2deg); display: inline-block; font-weight: bold; }
+        .therefore-arrow { display: flex; justify-content: center; align-items: center; height: 4rem; font-size: 2rem; animation: pulse-down 2s infinite; }
+        @keyframes pulse-down { 0%, 100% { transform: translateY(0); opacity: 0.5; } 50% { transform: translateY(10px); opacity: 1; } }
+
+        .progress-container { position: fixed; top: 0; left: 0; width: 5px; height: 100vh; background: #222; z-index: 100; }
+        .progress-bar { width: 100%; height: 0%; transition: height 0.1s; background-color: white; }
+        
+        @keyframes shake {
+            0%, 100% { transform: translate(-50%, 0); }
+            25% { transform: translate(calc(-50% - 10px), 0); }
+            75% { transform: translate(calc(-50% + 10px), 0); }
+        }
+        .animate-shake {
+            animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-neutral-800 selection:text-white">
+
+    <!-- Ambient Ripples -->
+    <div class="ambient-ripple-container">
+        <div class="ambient-ripple"></div>
+        <div class="ambient-ripple"></div>
+        <div class="ambient-ripple"></div>
+    </div>
+
+    <div class="noise-bg"></div>
+    <div class="scanline"></div>
+    
+    <div class="progress-container hidden" id="progress-ui">
+        <div class="progress-bar" id="myBar"></div>
+    </div>
+
+    <!-- Floating POV Switcher -->
+    <div id="pov-switcher" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-black/90 border border-neutral-700 rounded-full px-6 py-3 flex items-center gap-6 z-50 hidden backdrop-blur-sm cursor-pointer hover:border-white transition-colors shadow-2xl" onclick="requestPOVChange('toggle')">
+        <span class="animate-pulse text-neutral-500 text-lg hidden md:inline">&larr;</span>
+        <div class="flex flex-col items-center">
+            <span class="text-[10px] text-neutral-400 uppercase tracking-widest mb-1">Punto de Vista</span>
+            <span class="text-sm font-bold text-white uppercase whitespace-nowrap"><span id="pov-label-a" class="text-red-500 inline-block transition-all duration-300">Miedo</span> <span class="text-neutral-600 mx-2">|</span> <span id="pov-label-b" class="text-neutral-600 inline-block transition-all duration-300">Encuentro</span></span>
+        </div>
+        <span class="animate-pulse text-neutral-500 text-lg hidden md:inline">&rarr;</span>
+        <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 text-[10px] text-neutral-400 whitespace-nowrap md:hidden animate-bounce">
+            ← Desliza o Toca →
+        </div>
+    </div>
+
+    <!-- META HEADER -->
+    <header class="p-6 border-b border-neutral-800 text-xs text-neutral-500 sticky top-0 bg-[#050505]/90 backdrop-blur z-40 relative">
+        <div class="flex justify-between items-start mb-2">
+            <span class="text-yellow-500 font-bold">&lt;Meta&gt;</span>
+            <span class="text-right">ROL.SISTEMA: <br><span class="text-white">ARQUITECTO_DE_ONDAS</span></span>
+        </div>
+        <div>MOTOR: <span class="text-white">Simulador_de_Ondas_Tchaikovsky</span></div>
+        <div class="mt-2 text-white/50" id="header-rule">ESPERANDO INPUT...</div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- PANTALLA DE SELECCIÓN                      -->
+    <!-- ========================================== -->
+    <div id="selector-screen" class="max-w-md mx-auto relative min-h-[80vh] flex flex-col justify-center p-6 z-10">
+        <h1 class="text-6xl impact-text text-center mb-12">ESCOGE LA <span class="text-white glitch" data-text="PIEDRA">PIEDRA</span></h1>
+        
+        <div class="space-y-8">
+            <!-- Opción 1 -->
+            <button onclick="triggerRipple(event, 'var(--neon-red)', 'sim-miedo')" class="w-full text-left group relative border border-neutral-800 bg-neutral-950 p-6 hover:border-red-500 transition-all duration-300">
+                <div class="text-xs text-red-500 font-mono mb-2 tracking-widest uppercase">Escenario A // Fricción Alta</div>
+                <h3 class="text-2xl impact-text text-white mb-2 group-hover:text-red-500 transition-colors">"La Cultura es Gasto Simbólico"</h3>
+                <p class="text-sm text-neutral-400 font-mono">El arte no es esencial para la seguridad.</p>
+                <div class="absolute inset-0 bg-red-500/10 scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-300"></div>
+            </button>
+
+            <!-- Opción 2 -->
+            <button onclick="triggerRipple(event, 'var(--neon-emerald)', 'sim-encuentro')" class="w-full text-left group relative border border-neutral-800 bg-neutral-950 p-6 hover:border-emerald-500 transition-all duration-300">
+                <div class="text-xs text-emerald-500 font-mono mb-2 tracking-widest uppercase">Escenario B // Redistribución</div>
+                <h3 class="text-2xl impact-text text-white mb-2 group-hover:text-emerald-500 transition-colors">"La Cultura es Infraestructura"</h3>
+                <p class="text-sm text-neutral-400 font-mono">El arte es primario para la estabilidad territorial.</p>
+                <div class="absolute inset-0 bg-emerald-500/10 scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-300"></div>
+            </button>
+        </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- SIMULACIÓN 1: ARQUITECTURA DEL MIEDO       -->
+    <!-- ========================================== -->
+    <main id="sim-miedo" class="max-w-md mx-auto relative pb-24 hidden z-10">
+        
+        <!-- LAYER 0: THE STONE -->
+        <section class="min-h-[90vh] flex flex-col justify-center p-6 relative">
+            <div class="absolute top-10 left-6 text-xs text-neutral-600 tracking-widest uppercase">Capa de Entrada // Acción</div>
+            <div class="reveal active">
+                <h1 class="text-7xl impact-text leading-none mb-6">LA <br><span class="text-red-500">PIEDRA</span></h1>
+                <div class="border-4 border-white p-5 bg-neutral-900 mb-8 transform -rotate-1 relative">
+                    <div class="absolute -bottom-2 -right-2 w-full h-full border-2 border-red-500 -z-10"></div>
+                    <p class="text-xl font-bold leading-relaxed">
+                        “La cultura comunitaria es un <span class="text-red-400">gasto simbólico</span>, 
+                        no una infraestructura esencial para la seguridad y la estabilidad territorial.”
+                    </p>
+                </div>
+                <div class="text-xs text-neutral-500 border-l-2 border-yellow-500 pl-3">
+                    [RESTRICCIÓN] Única violación permitida del marco estructural.
+                </div>
+            </div>
+            <div class="absolute bottom-10 left-0 w-full flex justify-center opacity-50"><span class="animate-bounce font-mono text-sm">↓ RIPPLE EXPANDIÉNDOSE ↓</span></div>
+        </section>
+
+        <!-- RIPPLE 1 -->
+        <section class="min-h-screen p-6 py-20 border-t border-neutral-800 relative reveal">
+            <div class="text-xs text-red-500 mb-8 font-bold tracking-widest">ONDA 1 // BIOLÓGICA</div>
+            <h2 class="text-5xl impact-text mb-6">REALIDADES FÍSICAS</h2>
+            <p class="text-lg mb-8 text-neutral-300">Si la cultura es irrelevante, entonces se reducen espacios culturales seguros.</p>
+            
+            <div class="bg-neutral-900 p-4 border-l-4 border-red-500 mb-6 font-mono text-sm space-y-3">
+                <div class="flex items-center gap-3"><span class="text-red-500 font-bold">↓</span> <span>Espacios de expresión</span></div>
+                <div class="flex items-center gap-3"><span class="text-red-500 font-bold">↓</span> <span>Regulación emocional colectiva</span></div>
+                <div class="flex items-center gap-3"><span class="text-yellow-500 font-bold">↑</span> <span class="text-white">Estrés crónico juvenil</span></div>
+            </div>
+            <div class="therefore-arrow text-red-500">↓ POR LO TANTO ↓</div>
+            <div class="bg-red-950 p-6 rounded-sm mb-6 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-2 text-red-500 opacity-20 text-6xl font-black">!</div>
+                <ul class="space-y-4 relative z-10 text-lg">
+                    <li><span class="text-red-400 font-bold">↑</span> Cortisol sostenido</li>
+                    <li><span class="text-red-400 font-bold">↑</span> Impulsividad</li>
+                    <li><span class="text-red-400 font-bold">↑</span> Violencia interpersonal</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- RIPPLE 2 -->
+        <section class="min-h-screen p-6 py-20 border-t border-neutral-800 relative reveal">
+            <div class="text-xs text-yellow-500 mb-8 font-bold tracking-widest">ONDA 2 // INFRAESTRUCTURA</div>
+            <h2 class="text-5xl impact-text mb-6 text-neutral-400">ARQUITECTURA DEL MIEDO</h2>
+            <p class="text-lg mb-8">Porque la Onda 1 aumenta la violencia...</p>
+            <div class="therefore-arrow text-yellow-500">↓ POR LO TANTO ↓</div>
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <div class="border border-neutral-700 p-4">
+                    <div class="text-xs text-neutral-500 mb-2">PRESUPUESTO PRIORIZA:</div>
+                    <ul class="text-sm space-y-2 text-white font-bold">
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-red-500 rounded-full"></span>Seguridad armada</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-red-500 rounded-full"></span>Vigilancia</li>
+                    </ul>
+                </div>
+                <div class="border border-neutral-800 bg-neutral-900 p-4 opacity-70">
+                    <div class="text-xs text-neutral-500 mb-2">Y REDUCE:</div>
+                    <ul class="text-sm space-y-2 text-neutral-400 line-through">
+                        <li>Casas culturales</li>
+                        <li>Talleres artísticos</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="therefore-arrow text-yellow-500">↓ POR LO TANTO ↓</div>
+            <div class="p-6 bg-gradient-to-b from-neutral-800 to-black text-center border-x-4 border-neutral-600">
+                <p class="text-xl font-black mb-2 uppercase">La ciudad se construye como fortaleza.</p>
+                <p class="text-neutral-400">Muros más altos. Rejas más gruesas.</p>
+            </div>
+        </section>
+
+        <!-- RIPPLE 3 -->
+        <section class="min-h-screen p-6 py-20 border-t border-neutral-800 relative reveal">
+            <div class="text-xs text-blue-500 mb-8 font-bold tracking-widest">ONDA 3 // SOCIOPOLÍTICA</div>
+            <h2 class="text-5xl impact-text mb-6">DINÁMICAS DE PODER</h2>
+            <p class="text-lg mb-8 text-neutral-300">Porque la Onda 2 redistribuye recursos hacia el control coercitivo...</p>
+            <div class="therefore-arrow text-blue-500">↓ POR LO TANTO ↓</div>
+            <div class="mb-8">
+                <div class="flex items-stretch min-h-[8rem] mb-4">
+                    <div class="w-2/3 bg-red-900/50 border border-red-800 p-4 flex flex-col justify-center">
+                        <div class="text-xs text-red-300 font-bold mb-1 uppercase">Ganan Poder</div>
+                        <div class="text-sm font-bold text-white leading-tight">Actores armados<br>Empresas de seguridad<br>Políticos punitivos</div>
+                    </div>
+                    <div class="w-1/3 bg-neutral-900 border border-neutral-800 p-4 flex flex-col justify-end text-right">
+                        <div class="text-[10px] text-neutral-600 uppercase">Pierden</div>
+                        <div class="text-xs text-neutral-500">Juventudes<br>Hip Hop<br>Gestores</div>
+                    </div>
+                </div>
+            </div>
+            <div class="therefore-arrow text-blue-500">↓ POR LO TANTO ↓</div>
+            <div class="border-2 border-red-500 p-6 relative">
+                <div class="absolute -top-3 left-4 bg-black px-2 text-red-500 text-xs font-bold uppercase">ALERTA</div>
+                <p class="text-2xl font-black uppercase mb-4 text-center">El arte urbano es etiquetado como <span class="text-red-500">riesgo</span>.</p>
+                <p class="text-center text-neutral-400">El joven artista es vigilado, no apoyado.</p>
+                <p class="text-center text-yellow-500 mt-4 text-sm font-bold">El poder se concentra donde hay control.</p>
+            </div>
+        </section>
+
+        <!-- RIPPLE 4 -->
+        <section class="min-h-screen p-6 py-20 border-t border-neutral-800 relative reveal">
+            <div class="text-xs text-neutral-400 mb-8 font-bold tracking-widest">ONDA 4 // PSICOLÓGICA</div>
+            <h2 class="text-5xl impact-text mb-6 text-neutral-600">EL INDIVIDUO COMÚN</h2>
+            <p class="text-lg mb-8 text-neutral-400">Porque la Onda 3 define el orden social, el joven del barrio internaliza:</p>
+            <div class="flex justify-center mb-10">
+                <div class="tape text-2xl font-black text-center">
+                    “Mi voz no protege.<br>Mi cultura no importa.”
+                </div>
+            </div>
+            <div class="therefore-arrow text-neutral-500">↓ POR LO TANTO ↓</div>
+            <div class="text-center space-y-6 mt-8">
+                <p class="text-3xl text-neutral-500 font-bold transition-all hover:text-white">Siente vergüenza territorial.</p>
+                <p class="text-2xl text-neutral-600 font-bold transition-all hover:text-white">Ansiedad constante.</p>
+                <p class="text-xl text-neutral-700 font-bold transition-all hover:text-white">Resignación anticipada.</p>
+            </div>
+            <div class="mt-16 text-center border-t border-neutral-800 pt-8">
+                <p class="text-sm text-neutral-500 uppercase tracking-widest">La identidad se contrae.</p>
+            </div>
+        </section>
+
+        <!-- FRACTURE POINT -->
+        <section class="min-h-[100vh] p-6 py-20 border-t-4 border-red-600 bg-red-950/20 relative flex flex-col justify-center reveal">
+            <div class="relative z-10">
+                <div class="flex justify-between items-center mb-10">
+                    <div class="text-xs bg-red-600 text-white px-2 py-1 font-bold animate-pulse">CAPA_DE_SALIDA</div>
+                    <div class="text-xs text-red-400 font-mono text-right">PUNTO_DE_RUPTURA</div>
+                </div>
+                <h2 class="text-6xl impact-text mb-12 text-white glitch-wrapper"><span class="glitch" data-text="PUNTO DE RUPTURA">PUNTO DE RUPTURA</span></h2>
+                <div class="space-y-6 text-lg font-medium leading-relaxed mb-12 text-neutral-300 relative border-l border-red-500/30 pl-4">
+                    <p class="text-white bg-black/50 p-2">Cancelan el festival comunitario por “seguridad”.</p>
+                    <p>A dos cuadras, inauguran un nuevo retén armado.</p>
+                    <p class="text-red-400">La sirena atraviesa el aire. Motores aceleran.</p>
+                    <div class="tape bg-yellow-400 text-black text-sm my-4">UNA CACOFONÍA DE PÁNICO.</div>
+                    <p>Siente el pecho comprimido. No por miedo. Sino por comprensión estructural.</p>
+                </div>
+                <div class="text-center mt-16 p-6 border border-red-500 bg-black shadow-[0_0_30px_rgba(255,0,0,0.2)]">
+                    <p class="text-3xl impact-text text-white mb-2">La ciudad eligió blindaje.</p>
+                    <p class="text-3xl impact-text text-red-500 mb-8">No eligió beat.</p>
+                </div>
+            </div>
+        </section>
+        <footer class="p-6 text-center border-t border-neutral-800">
+            <button onclick="resetSimulator()" class="border border-neutral-600 px-6 py-3 font-mono text-sm hover:bg-white hover:text-black transition-colors">Volver a tirar la piedra</button>
+        </footer>
+    </main>
+
+
+    <!-- ========================================== -->
+    <!-- SIMULACIÓN 2: ARQUITECTURA DEL ENCUENTRO   -->
+    <!-- ========================================== -->
+    <main id="sim-encuentro" class="max-w-md mx-auto relative pb-24 hidden z-10">
+        
+        <!-- LAYER 0: THE STONE -->
+        <section class="min-h-[90vh] flex flex-col justify-center p-6 relative">
+            <div class="absolute top-10 left-6 text-xs text-neutral-600 tracking-widest uppercase">Capa de Entrada // Acción</div>
+            <div class="reveal active">
+                <h1 class="text-7xl impact-text leading-none mb-6">NUEVA <br><span class="text-emerald-500">PIEDRA</span></h1>
+                <div class="border-4 border-white p-5 bg-neutral-900 mb-8 transform -rotate-1 relative">
+                    <div class="absolute -bottom-2 -right-2 w-full h-full border-2 border-emerald-500 -z-10"></div>
+                    <p class="text-xl font-bold leading-relaxed">
+                        “La cultura comunitaria es <span class="text-emerald-400">infraestructura primaria</span> 
+                        de seguridad humana y estabilidad territorial.”
+                    </p>
+                </div>
+                <div class="text-xs text-neutral-500 border-l-2 border-emerald-500 pl-3">
+                    [RESTRICCIÓN] Única alteración estructural permitida.
+                </div>
+            </div>
+            <div class="absolute bottom-10 left-0 w-full flex justify-center opacity-50"><span class="animate-bounce font-mono text-sm">↓ RIPPLE EXPANDIÉNDOSE ↓</span></div>
+        </section>
+
+        <!-- RIPPLE 1 -->
+        <section class="min-h-screen p-6 py-20 border-t border-neutral-800 relative reveal">
+            <div class="text-xs text-emerald-500 mb-8 font-bold tracking-widest">ONDA 1 // BIOLÓGICA</div>
+            <h2 class="text-5xl impact-text mb-6">REALIDADES FÍSICAS</h2>
+            <p class="text-lg mb-8 text-neutral-300">Si la cultura es infraestructura, se garantizan espacios seguros y accesibles.</p>
+            
+            <div class="bg-neutral-900 p-4 border-l-4 border-emerald-500 mb-6 font-mono text-sm space-y-3">
+                <div class="flex items-center gap-3"><span class="text-emerald-500 font-bold">↑</span> <span>Interacción positiva</span></div>
+                <div class="flex items-center gap-3"><span class="text-emerald-500 font-bold">↑</span> <span>Regulación emocional</span></div>
+                <div class="flex items-center gap-3"><span class="text-emerald-500 font-bold">↓</span> <span class="text-white">Estrés crónico juvenil</span></div>
+            </div>
+            <div class="therefore-arrow text-emerald-500">↓ POR LO TANTO ↓</div>
+            <div class="bg-emerald-950/30 border border-emerald-900 p-6 rounded-sm mb-6 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-2 text-emerald-500 opacity-20 text-6xl font-black">+</div>
+                <ul class="space-y-4 relative z-10 text-lg">
+                    <li><span class="text-emerald-400 font-bold">↓</span> Cortisol sostenido</li>
+                    <li><span class="text-emerald-400 font-bold">↓</span> Impulsividad</li>
+                    <li><span class="text-emerald-400 font-bold">↓</span> Violencia interpersonal</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- RIPPLE 2 -->
+        <section class="min-h-screen p-6 py-20 border-t border-neutral-800 relative reveal">
+            <div class="text-xs text-yellow-500 mb-8 font-bold tracking-widest">ONDA 2 // INFRAESTRUCTURA</div>
+            <h2 class="text-5xl impact-text mb-6 text-neutral-400">ARQUITECTURA DEL ENCUENTRO</h2>
+            <p class="text-lg mb-8">Porque la Onda 1 reduce la violencia...</p>
+            <div class="therefore-arrow text-emerald-500">↓ POR LO TANTO ↓</div>
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <div class="border border-emerald-700 bg-emerald-900/20 p-4">
+                    <div class="text-xs text-neutral-500 mb-2">PRESUPUESTO PRIORIZA:</div>
+                    <ul class="text-sm space-y-2 text-white font-bold">
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span>Casas culturales</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span>Plazas públicas</li>
+                    </ul>
+                </div>
+                <div class="border border-neutral-800 bg-neutral-900 p-4 opacity-70">
+                    <div class="text-xs text-neutral-500 mb-2">Y REDUCE:</div>
+                    <ul class="text-sm space-y-2 text-neutral-400 line-through">
+                        <li>Expansión carcelaria</li>
+                        <li>Militarización</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="therefore-arrow text-emerald-500">↓ POR LO TANTO ↓</div>
+            <div class="p-6 bg-gradient-to-b from-neutral-800 to-black text-center border-x-4 border-emerald-600">
+                <p class="text-xl font-black mb-2 uppercase text-emerald-400">La ciudad se construye como red de plazas.</p>
+                <p class="text-neutral-400">No como sistema de muros.</p>
+            </div>
+        </section>
+
+        <!-- RIPPLE 3 -->
+        <section class="min-h-screen p-6 py-20 border-t border-neutral-800 relative reveal">
+            <div class="text-xs text-cyan-500 mb-8 font-bold tracking-widest">ONDA 3 // SOCIOPOLÍTICA</div>
+            <h2 class="text-5xl impact-text mb-6">DINÁMICAS DE PODER</h2>
+            <p class="text-lg mb-8 text-neutral-300">Porque la Onda 2 redistribuye recursos hacia la cultura...</p>
+            <div class="therefore-arrow text-cyan-500">↓ POR LO TANTO ↓</div>
+            <div class="mb-8">
+                <div class="flex items-stretch min-h-[8rem] mb-4">
+                    <div class="w-2/3 bg-cyan-900/40 border border-cyan-800 p-4 flex flex-col justify-center">
+                        <div class="text-xs text-cyan-300 font-bold mb-1 uppercase">Ganan Poder</div>
+                        <div class="text-sm font-bold text-white leading-tight">Juventudes organizadas<br>Gestores culturales<br>Liderazgos artísticos</div>
+                    </div>
+                    <div class="w-1/3 bg-neutral-900 border border-neutral-800 p-4 flex flex-col justify-end text-right">
+                        <div class="text-[10px] text-neutral-600 uppercase">Pierden Centralidad</div>
+                        <div class="text-xs text-neutral-500">Economías del miedo<br>Estructuras violentas</div>
+                    </div>
+                </div>
+            </div>
+            <div class="therefore-arrow text-cyan-500">↓ POR LO TANTO ↓</div>
+            <div class="border-2 border-cyan-500 p-6 relative">
+                <div class="absolute -top-3 left-4 bg-black px-2 text-cyan-500 text-xs font-bold uppercase">NUEVO CONSENSO</div>
+                <p class="text-2xl font-black uppercase mb-4 text-center">El Hip Hop es reconocido como <span class="text-cyan-400">política pública</span>.</p>
+                <p class="text-center text-neutral-400">El arte urbano es legitimado como herramienta de cohesión.</p>
+                <p class="text-center text-yellow-500 mt-4 text-sm font-bold">El poder circula donde hay creación.</p>
+            </div>
+        </section>
+
+        <!-- RIPPLE 4 -->
+        <section class="min-h-screen p-6 py-20 border-t border-neutral-800 relative reveal">
+            <div class="text-xs text-emerald-500 mb-8 font-bold tracking-widest">ONDA 4 // PSICOLÓGICA</div>
+            <h2 class="text-5xl impact-text mb-6 text-neutral-400">EL INDIVIDUO COMÚN</h2>
+            <p class="text-lg mb-8 text-neutral-400">Porque la Onda 3 redefine el orden social, el joven del barrio internaliza:</p>
+            <div class="flex justify-center mb-10">
+                <div class="tape text-2xl font-black text-center border-l-4 border-cyan-500">
+                    “Mi voz protege.<br>Mi cultura construye territorio.”
+                </div>
+            </div>
+            <div class="therefore-arrow text-emerald-500">↓ POR LO TANTO ↓</div>
+            <div class="text-center space-y-6 mt-8">
+                <p class="text-3xl text-emerald-400 font-bold transition-all hover:text-white">Siente orgullo identitario.</p>
+                <p class="text-2xl text-cyan-400 font-bold transition-all hover:text-white">Agencia personal.</p>
+                <p class="text-xl text-yellow-400 font-bold transition-all hover:text-white">Pertenencia activa.</p>
+            </div>
+            <div class="mt-16 text-center border-t border-neutral-800 pt-8">
+                <p class="text-sm text-neutral-500 uppercase tracking-widest">Su identidad se expande.</p>
+            </div>
+        </section>
+
+        <!-- FRACTURE POINT -->
+        <section class="min-h-[100vh] p-6 py-20 border-t-4 border-yellow-600 bg-yellow-950/20 relative flex flex-col justify-center reveal">
+            <div class="relative z-10">
+                <div class="flex justify-between items-center mb-10">
+                    <div class="text-xs bg-yellow-600 text-black px-2 py-1 font-bold animate-pulse">CAPA_DE_SALIDA</div>
+                    <div class="text-xs text-yellow-500 font-mono text-right">PUNTO_DE_FRICCIÓN</div>
+                </div>
+                <h2 class="text-6xl impact-text mb-12 text-white glitch-wrapper"><span class="glitch" data-text="PUNTO DE FRICCIÓN">PUNTO DE FRICCIÓN</span></h2>
+                <div class="space-y-6 text-lg font-medium leading-relaxed mb-12 text-neutral-300 relative border-l border-yellow-500/50 pl-4">
+                    <p class="text-white bg-black/50 p-2">Noche de festival.</p>
+                    <p>El escenario vibra con bajos profundos. Jóvenes llenan la plaza iluminada.</p>
+                    <p class="text-neutral-400 italic">Pero en las sombras, actores desplazados del antiguo orden murmuran amenazas.</p>
+                    <div class="tape bg-yellow-400 text-black text-sm my-4">UNA CACOFONÍA DE PÁNICO Y BEATS.</div>
+                    <p>Sabe que cada verso redistribuye poder. Sabe que alguien escucha con rabia.</p>
+                </div>
+                <div class="text-center mt-16 p-6 border border-yellow-500 bg-black shadow-[0_0_30px_rgba(250,204,21,0.1)]">
+                    <p class="text-3xl impact-text text-white mb-2">El beat no se detiene.</p>
+                    <p class="text-3xl impact-text text-yellow-500 mb-8">Tampoco la fricción.</p>
+                </div>
+            </div>
+        </section>
+        <footer class="p-6 text-center border-t border-neutral-800">
+            <button onclick="resetSimulator()" class="border border-neutral-600 px-6 py-3 font-mono text-sm hover:bg-white hover:text-black transition-colors">Volver a tirar la piedra</button>
+        </footer>
+    </main>
+
+    <script>
+        // Lógica de progreso global
+        window.onscroll = function() {
+            let winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            let height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            let scrolled = height > 0 ? (winScroll / height) * 100 : 0;
+            document.getElementById("myBar").style.height = scrolled + "%";
+        };
+
+        // Variables de observer
+        let observer;
+
+        function initObserver() {
+            if (observer) observer.disconnect();
+            
+            observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                    }
+                });
+            }, { threshold: 0.15 });
+
+            // Solo observar los elementos reveal que están visibles actualmente
+            document.querySelectorAll('main:not(.hidden) .reveal').forEach(el => {
+                el.classList.remove('active'); // reset
+                observer.observe(el);
+            });
+            
+            // Forzar el primer elemento a revelarse de inmediato
+            const firstReveal = document.querySelector('main:not(.hidden) .reveal');
+            if(firstReveal) firstReveal.classList.add('active');
+        }
+
+        // Lógica de Swipe / Cambio de POV
+        let touchstartX = 0;
+        let touchendX = 0;
+        let isAnimating = false;
+
+        document.addEventListener('touchstart', e => {
+            touchstartX = e.changedTouches[0].screenX;
+        });
+
+        document.addEventListener('touchend', e => {
+            touchendX = e.changedTouches[0].screenX;
+            const dx = touchendX - touchstartX;
+            
+            if (dx < -50) {
+                // Swipe izquierda -> Ir hacia la derecha (Encuentro)
+                requestPOVChange('right');
+            } else if (dx > 50) {
+                // Swipe derecha -> Ir hacia la izquierda (Miedo)
+                requestPOVChange('left');
+            }
+        });
+
+        function requestPOVChange(direction = 'toggle') {
+            if (!document.getElementById('selector-screen').classList.contains('hidden')) return;
+            if (isAnimating) return;
+
+            const isMiedo = !document.getElementById('sim-miedo').classList.contains('hidden');
+            
+            // Feedback físico si intenta deslizar fuera de los límites de las dimensiones
+            if (direction === 'left' && isMiedo) return shakePOV();
+            if (direction === 'right' && !isMiedo) return shakePOV();
+
+            togglePOV(direction);
+        }
+
+        function shakePOV() {
+            const switcher = document.getElementById('pov-switcher');
+            switcher.classList.add('animate-shake');
+            setTimeout(() => switcher.classList.remove('animate-shake'), 300);
+        }
+
+        function togglePOV(swipeDir = 'toggle') {
+            if (!document.getElementById('selector-screen').classList.contains('hidden')) return;
+            isAnimating = true;
+            
+            const isMiedo = !document.getElementById('sim-miedo').classList.contains('hidden');
+            const currentSim = isMiedo ? document.getElementById('sim-miedo') : document.getElementById('sim-encuentro');
+            const targetSim = isMiedo ? document.getElementById('sim-encuentro') : document.getElementById('sim-miedo');
+            const targetColor = isMiedo ? 'var(--neon-emerald)' : 'var(--neon-red)';
+            const targetId = isMiedo ? 'sim-encuentro' : 'sim-miedo';
+            
+            // Dirección visual del barrido
+            const wipeFromRight = (swipeDir === 'right' || (swipeDir === 'toggle' && isMiedo));
+
+            // Efecto de barrido (Wipe dimensional) con 'Sauce'
+            const wipe = document.createElement('div');
+            wipe.className = 'fixed top-0 w-full h-full z-[9999] pointer-events-none transition-transform duration-500';
+            wipe.style.backgroundColor = targetColor;
+            wipe.style.transitionTimingFunction = 'cubic-bezier(0.8, 0, 0.2, 1)';
+            
+            if (wipeFromRight) {
+                wipe.style.right = '0';
+                wipe.style.transformOrigin = 'right';
+            } else {
+                wipe.style.left = '0';
+                wipe.style.transformOrigin = 'left';
+            }
+            wipe.style.transform = 'scaleX(0)';
+            
+            document.body.appendChild(wipe);
+
+            // Animar salida del contenido actual (shrink y slide)
+            currentSim.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+            currentSim.style.opacity = '0';
+            currentSim.style.transform = wipeFromRight ? 'translateX(-50px) scale(0.95)' : 'translateX(50px) scale(0.95)';
+            
+            // Disparar la ola que cubre la pantalla
+            requestAnimationFrame(() => {
+                wipe.style.transform = 'scaleX(1)';
+            });
+            
+            // Mitad de la animación: Cambiar contenidos ocultos
+            setTimeout(() => {
+                currentSim.classList.add('hidden');
+                targetSim.classList.remove('hidden');
+                
+                document.getElementById('header-rule').style.color = targetColor;
+                document.getElementById('myBar').style.backgroundColor = targetColor;
+                updatePovLabels(targetId);
+                
+                // Mantener el porcentaje de scroll
+                const maxScrollCurrent = Math.max(1, currentSim.scrollHeight - window.innerHeight);
+                const scrollPercent = window.scrollY / maxScrollCurrent;
+                const maxScrollTarget = Math.max(1, targetSim.scrollHeight - window.innerHeight);
+                window.scrollTo(0, scrollPercent * maxScrollTarget);
+                initObserver();
+                
+                // Preparar entrada del nuevo contenido desplazado hacia el lado opuesto
+                targetSim.style.transition = 'none';
+                targetSim.style.opacity = '0';
+                targetSim.style.transform = wipeFromRight ? 'translateX(50px) scale(0.95)' : 'translateX(-50px) scale(0.95)';
+
+                // Cambiar el pivote del barrido para que la ola salga hacia el otro lado
+                wipe.style.transformOrigin = wipeFromRight ? 'left' : 'right';
+
+                requestAnimationFrame(() => {
+                    // La ola se retira
+                    wipe.style.transform = 'scaleX(0)';
+                    
+                    // Animar entrada del nuevo contenido con rebote (bounce/sauce)
+                    targetSim.style.transition = 'all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.1)';
+                    targetSim.style.opacity = '1';
+                    targetSim.style.transform = 'translateX(0) scale(1)';
+                });
+
+                // Limpieza de estilos temporales
+                setTimeout(() => {
+                    wipe.remove();
+                    currentSim.style.transform = '';
+                    targetSim.style.transform = '';
+                    isAnimating = false;
+                }, 500);
+            }, 500);
+        }
+
+        function updatePovLabels(activeId) {
+            const labelA = document.getElementById('pov-label-a');
+            const labelB = document.getElementById('pov-label-b');
+            
+            if (activeId === 'sim-miedo') {
+                labelA.className = 'text-red-500 font-black transition-all duration-300 scale-125 inline-block drop-shadow-[0_0_8px_rgba(255,42,42,0.8)]';
+                labelB.className = 'text-neutral-600 font-normal transition-all duration-300 scale-90 inline-block opacity-50';
+            } else {
+                labelA.className = 'text-neutral-600 font-normal transition-all duration-300 scale-90 inline-block opacity-50';
+                labelB.className = 'text-emerald-500 font-black transition-all duration-300 scale-125 inline-block drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]';
+            }
+        }
+
+        // Lógica interactiva inicial (Ripples)
+        function triggerRipple(e, colorString, targetSimId) {
+            // Actualizar regla de UI
+            document.getElementById('header-rule').innerText = "REGLA: NO SALTAR PASOS.";
+            document.getElementById('header-rule').style.color = colorString;
+            document.getElementById('progress-ui').classList.remove('hidden');
+            document.getElementById('myBar').style.backgroundColor = colorString;
+
+            // Mostrar el switcher de POV
+            document.getElementById('pov-switcher').classList.remove('hidden');
+            updatePovLabels(targetSimId);
+
+            // Crear onda de clic
+            const ripple = document.createElement('div');
+            ripple.className = 'click-ripple';
+            ripple.style.backgroundColor = colorString;
+            ripple.style.left = e.clientX + 'px';
+            ripple.style.top = e.clientY + 'px';
+            document.body.appendChild(ripple);
+
+            // Transición a la simulación
+            setTimeout(() => {
+                document.getElementById('selector-screen').classList.add('hidden');
+                document.getElementById('sim-miedo').classList.add('hidden');
+                document.getElementById('sim-encuentro').classList.add('hidden');
+                
+                document.getElementById(targetSimId).classList.remove('hidden');
+                
+                window.scrollTo(0, 0);
+                initObserver();
+                
+                // Limpiar onda
+                setTimeout(() => ripple.remove(), 500);
+            }, 600); // Mitad de la animación
+        }
+
+        // Reiniciar
+        function resetSimulator() {
+            window.scrollTo(0, 0);
+            document.getElementById('sim-miedo').classList.add('hidden');
+            document.getElementById('sim-encuentro').classList.add('hidden');
+            document.getElementById('selector-screen').classList.remove('hidden');
+            document.getElementById('progress-ui').classList.add('hidden');
+            document.getElementById('pov-switcher').classList.add('hidden');
+            document.getElementById('header-rule').innerText = "ESPERANDO INPUT...";
+            document.getElementById('header-rule').style.color = "rgba(255,255,255,0.5)";
+        }
+    </script>
+</body>
+</html>
+
+
+
+
