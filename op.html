@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VALENTINE'S FORAGING DOSSIER 2026</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'tactical-black': '#0a0a0a',
+                        'tactical-gray': '#1c1c1c',
+                        'bauhaus-red': '#cc2828',
+                        'bauhaus-yellow': '#eab308',
+                        'bauhaus-purple': '#7c3aed',
+                        'bauhaus-cream': '#ebe5ce',
+                    },
+                    fontFamily: {
+                        'head': ['"Archivo Black"', 'sans-serif'],
+                        'body': ['"Space Grotesk"', 'sans-serif'],
+                        'mono': ['"JetBrains Mono"', 'monospace'],
+                    },
+                    boxShadow: {
+                        'hard-red': '3px 3px 0px 0px #cc2828',
+                        'hard-yellow': '3px 3px 0px 0px #eab308',
+                        'hard-purple': '3px 3px 0px 0px #7c3aed',
+                        'hard-cream': '3px 3px 0px 0px #ebe5ce',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Minimalist Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; }
+
+        /* Map Styles */
+        .leaflet-popup-content-wrapper {
+            background: #ebe5ce;
+            border-radius: 0;
+            border: 1px solid #000;
+            box-shadow: 4px 4px 0px 0px #000;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .leaflet-popup-tip { background: #000; }
+        
+        /* CRT Scanline Effect (Subtle) */
+        .scanline {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0.05));
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+
+        .tab-active-alpha { background: #cc2828; color: #ebe5ce; border-color: #cc2828; }
+        .tab-active-beta { background: #eab308; color: #000; border-color: #eab308; }
+        .tab-active-gamma { background: #7c3aed; color: #ebe5ce; border-color: #7c3aed; }
+        .tab-active-data { background: #ebe5ce; color: #000; border-color: #ebe5ce; }
+
+        .tab-inactive {
+            background: transparent;
+            color: #666;
+            border-color: #333;
+        }
+        .tab-inactive:hover { color: #ebe5ce; border-color: #ebe5ce; }
+        
+        a.link-underline {
+            text-decoration: underline;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 4px;
+        }
+    </style>
+</head>
+<body class="bg-tactical-black text-bauhaus-cream font-body overflow-x-hidden relative selection:bg-bauhaus-red selection:text-white">
+
+    <div class="fixed inset-0 scanline z-50"></div>
+
+    <!-- HEADER -->
+    <header class="p-4 border-b border-gray-800 bg-tactical-black/95 backdrop-blur-sm sticky top-0 z-40 flex justify-between items-center">
+        <div>
+            <h1 class="font-head text-lg uppercase tracking-tighter leading-none text-white">Midtown<span class="text-bauhaus-red">.</span>Foraging<span class="text-bauhaus-red">.</span>Op</h1>
+            <p class="font-mono text-[10px] text-gray-500 tracking-widest mt-1">2026.02.14 // ATL_GA</p>
+        </div>
+        <div class="text-[9px] font-mono border border-gray-700 px-2 py-1 text-gray-400">
+            RADIUS: 0.8 MI
+        </div>
+    </header>
+
+    <!-- OPERATIONAL PHILOSOPHY (Collapsible) -->
+    <section class="border-b border-gray-800">
+        <button onclick="toggleDetails()" class="w-full text-left px-4 py-3 flex justify-between items-center hover:bg-tactical-gray transition group">
+            <span class="font-mono text-[10px] uppercase text-gray-500 group-hover:text-white tracking-widest">>> 1.0 Operational Framework</span>
+            <span id="arrow" class="font-mono text-[10px] text-gray-500 transform transition-transform">+</span>
+        </button>
+        <div id="manifesto" class="hidden px-4 pb-4 bg-tactical-gray/50 text-xs border-t border-gray-800 text-gray-400 leading-relaxed font-mono">
+            <p class="my-2"><strong class="text-white">THE DOCTRINE:</strong> Reject the "Prix-Fixe Trap." The city is not a destination; it is a contiguous, harvestable landscape.</p>
+            <p class="my-2"><strong class="text-white">THE STRATEGY:</strong> "Adjacency Clusters." If a location is stagnant, pivot immediately to an adjacent resource. Total independence from the reservation industrial complex.</p>
+            <p class="my-2"><strong class="text-white">THE TARGET:</strong> "Transient Zones"—bar seats, listening lounges, standing-room pockets.</p>
+        </div>
+    </section>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="sticky top-[69px] z-30 bg-tactical-black border-b border-gray-800 py-3 px-4 overflow-x-auto whitespace-nowrap scrollbar-hide flex gap-3">
+        <button onclick="switchRoute('alpha')" id="btn-alpha" class="px-3 py-1 border font-mono text-[10px] uppercase font-bold tracking-widest transition-all shadow-hard-red tab-active-alpha">
+            01_NOIR
+        </button>
+        <button onclick="switchRoute('beta')" id="btn-beta" class="px-3 py-1 border font-mono text-[10px] uppercase font-bold tracking-widest transition-all tab-inactive">
+            02_NEON
+        </button>
+        <button onclick="switchRoute('gamma')" id="btn-gamma" class="px-3 py-1 border font-mono text-[10px] uppercase font-bold tracking-widest transition-all tab-inactive">
+            03_VELVET
+        </button>
+        <button onclick="switchRoute('data')" id="btn-data" class="px-3 py-1 border font-mono text-[10px] uppercase font-bold tracking-widest transition-all tab-inactive">
+            DATA
+        </button>
+    </nav>
+
+    <!-- MAP INTERFACE -->
+    <section id="map-section" class="h-60 w-full border-b border-gray-800 relative grayscale hover:grayscale-0 transition-all duration-700">
+        <div id="map" class="h-full w-full bg-gray-900"></div>
+    </section>
+
+    <!-- DYNAMIC CONTENT -->
+    <main class="min-h-screen bg-tactical-black pb-24" id="content-area">
+        <!-- Injected via JS -->
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="fixed bottom-0 w-full bg-tactical-black/90 backdrop-blur text-gray-500 py-3 text-center z-50 border-t border-gray-800">
+        <p class="font-mono text-[10px] uppercase tracking-[0.3em] hover:text-bauhaus-red transition-colors cursor-default">THE CITY AWAITS</p>
+    </footer>
+
+    <script>
+        // --- DATA DOSSIER ---
+        const routes = {
+            alpha: {
+                id: 'alpha',
+                name: "The Architectural Noir",
+                theme: "High Design / Vinyl / Shadows",
+                accent: "text-bauhaus-red",
+                border: "border-bauhaus-red",
+                shadow: "shadow-hard-red",
+                stops: [
+                    {
+                        title: "Visual Prelude",
+                        venue: "SCAD FASH Museum",
+                        url: "https://www.scadfash.org/events/experience-tailored-excellence-extended-hours-scad-fash",
+                        time: "1730 - 1830",
+                        coords: [33.7972, -84.3925],
+                        desc: "Engage in 'Parallel Play'. Dark galleries, haute couture (André Leon Talley). No consumption pressure.",
+                        action: "Walk through display. Establish aesthetic vocabulary.",
+                        pivot: "High Museum Piazza (Wind Sculpture)",
+                    },
+                    {
+                        title: "Auditory Lounge",
+                        venue: "Aveline (Kimpton Shane)",
+                        url: "https://www.avelinebaratl.com/menus",
+                        time: "1845 - 1945",
+                        coords: [33.7925, -84.3875],
+                        desc: "Mezzanine level. 'Listening Lounge' activation with JB’s Record Lounge. Select vinyl together.",
+                        action: "Order: Winter Citrus Gin + Shishito Peppers.",
+                        pivot: "Hotel Lobby Bar",
+                    },
+                    {
+                        title: "Subterranean Descent",
+                        venue: "May Peel",
+                        url: "https://granadaatlanta.com/dine/may-peel/",
+                        time: "2000 - 2115",
+                        coords: [33.7898, -84.3868],
+                        desc: "Hotel Granada basement. 'No Joy in Mudville'. Dark woods, bunker mentality.",
+                        action: "Order: 'No Joy in Mudville' (Bitter/Stirred) + Croquetas.",
+                        pivot: "Pom Court (Upstairs Courtyard)",
+                    },
+                    {
+                        title: "Kinetic Finale",
+                        venue: "Bar Margot",
+                        url: "http://barmargotatl.com/",
+                        time: "2130 - 2300",
+                        coords: [33.7865, -84.3835],
+                        desc: "Four Seasons. Power and pleasure. Live DJ. The 'Release' phase.",
+                        action: "Order: Gin Margot + Late Night Burger (Split).",
+                        pivot: "Park 75",
+                    }
+                ]
+            },
+            beta: {
+                id: 'beta',
+                name: "The Neon Garden",
+                theme: "Rooftop / Retro / Kinetic",
+                accent: "text-bauhaus-yellow",
+                border: "border-bauhaus-yellow",
+                shadow: "shadow-hard-yellow",
+                stops: [
+                    {
+                        title: "Aerial Perspective",
+                        venue: "Virtue Rooftop",
+                        url: "https://www.k5hospitality.com/virtuerooftop",
+                        time: "1800 - 1915",
+                        coords: [33.7885, -84.3835],
+                        desc: "Embedded in skyline. 'Skyline & Sweethearts' event. Fire pits. No cover.",
+                        action: "Secure fire pit. Order: Valentine’s Spritz + Flatbread.",
+                        pivot: "Establishment Patio",
+                    },
+                    {
+                        title: "Texture Hunt",
+                        venue: "Politan Row",
+                        url: "https://roughdraftatlanta.com/2024/01/26/food-hall-politan-row-at-ashford-lane-opens-dunwoody/", 
+                        time: "1930 - 2030",
+                        coords: [33.7882, -84.3832],
+                        desc: "Design-forward food hall. Kinetic energy. DIY Tasting Menu.",
+                        action: "Order: Pretty Little Tacos (Birria) + Bun Mi Grill (Banh Mi).",
+                        pivot: "Back corner nooks",
+                    },
+                    {
+                        title: "Time Travel",
+                        venue: "JoJo's Beloved",
+                        url: "https://jojos-beloved-cocktail-lounge.menu-world.com/",
+                        time: "2045 - 2200",
+                        coords: [33.7882, -84.3832],
+                        desc: "70s/80s seedy glamour. Hidden in back corridor. Target 'Roselight Room' (Walk-in).",
+                        action: "Order: Bluetsy Collins (Neon/Retro).",
+                        pivot: "Moxy 'High Note' Bar",
+                    },
+                    {
+                        title: "Gothic Anchor",
+                        venue: "Establishment",
+                        url: "https://establishmentatlanta.com/",
+                        time: "2215 - CLOSE",
+                        coords: [33.7880, -84.3838],
+                        desc: "Reclaimed wood, taxidermy, wealthy eccentric vibe.",
+                        action: "Order: Smoked Old Fashioned + Mac & Cheese.",
+                        pivot: "N/A",
+                    }
+                ]
+            },
+            gamma: {
+                id: 'gamma',
+                name: "The Velvet Underground",
+                theme: "History / Romance / Culinary",
+                accent: "text-bauhaus-purple",
+                border: "border-bauhaus-purple",
+                shadow: "shadow-hard-purple",
+                stops: [
+                    {
+                        title: "The Culinary Loophole",
+                        venue: "Lyla Lila",
+                        url: "https://blog.resy.com/2022/03/how-to-get-a-table-at-lyla-lila-and-what-to-order/",
+                        time: "1700 SHARP",
+                        coords: [33.7735, -84.3855],
+                        desc: "Southern European. Arrive at opening. Head directly to bar seats (FCFS).",
+                        action: "Order: Skin-Contact Wine + Crispy Duck Lasagna.",
+                        pivot: "Publik Draft House",
+                    },
+                    {
+                        title: "Historic Cellar",
+                        venue: "Edgar's Proof & Provision",
+                        url: "https://thegeorgianterrace.com/edgars-menu/",
+                        time: "1845 - 2000",
+                        coords: [33.7725, -84.3845],
+                        desc: "Basement of Georgian Terrace. Exposed brick. Bunker feel.",
+                        action: "Order: 'Edgar's Truth' (Bourbon) + Truffle Grilled Cheese.",
+                        pivot: "Georgian Terrace Lobby",
+                    },
+                    {
+                        title: "Dessert Lab",
+                        venue: "Bar ANA",
+                        url: "https://blog.resy.com/2025/11/bar-ana-atlanta/",
+                        time: "2030 - 2200",
+                        coords: [33.7735, -84.3645],
+                        desc: "Basement of El Ponce. Latin Soul. Plated desserts.",
+                        action: "Order: Dessert Martini + Venezuelan Quesillo Tart.",
+                        pivot: "Bon Ton (Myrtle St)",
+                    }
+                ]
+            }
+        };
+
+        const intelSources = [
+            { name: "Skyline & Sweethearts Event", url: "https://www.eventbrite.com/e/skyline-sweethearts-atlanta-valentines-day-rooftop-party-tickets-1980029768338" },
+            { name: "Hotel Granada Dining", url: "https://www.marriott.com/en-us/hotels/atlgn-hotel-granada-a-member-of-design-hotels/dining/" },
+            { name: "Resy: Lyla Lila Guide", url: "https://blog.resy.com/2022/03/how-to-get-a-table-at-lyla-lila-and-what-to-order/" },
+            { name: "Resy: JoJo's Beloved", url: "https://resy.com/cities/atlanta-ga/venues/jojos-beloved-cocktail-lounge" },
+            { name: "SCAD FASH Hours", url: "https://www.scadfash.org/events/experience-tailored-excellence-extended-hours-scad-fash" },
+            { name: "Aveline Bar Menus", url: "https://www.avelinebaratl.com/menus" },
+            { name: "Bar Margot", url: "http://barmargotatl.com/" },
+            { name: "Virtue Rooftop", url: "https://www.k5hospitality.com/virtuerooftop" },
+            { name: "Establishment Midtown", url: "https://establishmentatlanta.com/" },
+            { name: "Pretty Little Tacos", url: "https://prettylittletacos.com/prettymidtown" },
+            { name: "Edgar's Proof & Provision", url: "https://thegeorgianterrace.com/edgars-menu/" },
+            { name: "Resy: Bar ANA", url: "https://blog.resy.com/2025/11/bar-ana-atlanta/" }
+        ];
+
+        // --- MAP INIT ---
+        let map;
+        let markers = [];
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false, attributionControl: false }).setView([33.785, -84.385], 14);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                subdomains: 'abcd', maxZoom: 19
+            }).addTo(map);
+            switchRoute('alpha');
+        }
+
+        // --- RENDER LOGIC ---
+        function renderRoute(routeKey) {
+            const container = document.getElementById('content-area');
+            const route = routes[routeKey];
+            
+            let html = `
+                <div class="px-4 py-6 border-b border-gray-800">
+                    <h2 class="font-head text-2xl uppercase text-white tracking-tight">${route.name}</h2>
+                    <p class="font-mono text-xs uppercase ${route.accent} mt-1">${route.theme}</p>
+                    
+                    <div class="mt-4 grid grid-cols-2 gap-4 text-[10px] font-mono text-gray-400">
+                        <div class="border-l border-gray-700 pl-2">
+                            <span class="block text-gray-600">COST EST.</span>
+                            <span class="text-white text-lg">$145-175</span>
+                        </div>
+                        <div class="border-l border-gray-700 pl-2">
+                            <span class="block text-gray-600">WALKING</span>
+                            <span class="text-white text-lg">~0.6 MI</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            route.stops.forEach((stop, index) => {
+                html += `
+                    <div class="relative pl-6 pr-4 py-6 border-l border-gray-800 ml-6 group hover:bg-white/5 transition duration-500">
+                        <!-- Node Marker -->
+                        <div class="absolute -left-[5px] top-8 w-2.5 h-2.5 bg-black border ${route.border} rotate-45 group-hover:bg-white transition"></div>
+                        
+                        <div class="flex justify-between items-baseline mb-2">
+                            <span class="font-mono text-[10px] ${route.accent} tracking-widest uppercase">Node 0${index + 1} // ${stop.time}</span>
+                        </div>
+                        
+                        <h3 class="text-xl font-head text-white leading-none mb-2">
+                            <a href="${stop.url}" target="_blank" class="hover:${route.accent} decoration-1 underline decoration-gray-700 hover:decoration-current transition underline-offset-4">
+                                ${stop.venue} ↗
+                            </a>
+                        </h3>
+                        
+                        <p class="text-sm text-gray-400 font-body leading-relaxed mb-3 max-w-prose">
+                            ${stop.desc}
+                        </p>
+                        
+                        <div class="bg-gray-900/50 border-l-2 ${route.border} p-3 mt-2">
+                            <div class="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-1">Execution</div>
+                            <p class="text-xs text-gray-300 font-mono">${stop.action}</p>
+                        </div>
+
+                        <div class="mt-3 flex items-center gap-2 text-[10px] font-mono text-gray-600">
+                            <span class="text-red-900">⚠</span> PIVOT: ${stop.pivot}
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Footer Spacer
+            html += `<div class="h-12 flex items-center justify-center pt-8 opacity-30">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <rect x="9" y="0" width="1" height="20" fill="white"/>
+                    <rect x="0" y="9" width="20" height="1" fill="white"/>
+                </svg>
+            </div>`;
+
+            container.innerHTML = html;
+        }
+
+        function renderData() {
+            const container = document.getElementById('content-area');
+            let html = `
+                <div class="p-4">
+                    <h2 class="font-head text-xl text-white uppercase mb-6">Mission Logistics</h2>
+
+                    <!-- Budget Matrix -->
+                    <div class="mb-8">
+                        <h3 class="font-mono text-[10px] text-bauhaus-red uppercase tracking-widest mb-2">>> Cost Analysis (2 PAX)</h3>
+                        <table class="w-full text-xs font-mono text-left text-gray-400 border-collapse">
+                            <tr class="border-b border-gray-800 text-white">
+                                <th class="py-2">ROUTE</th>
+                                <th class="py-2">COST</th>
+                                <th class="py-2">RISK</th>
+                            </tr>
+                            <tr class="border-b border-gray-800">
+                                <td class="py-2">ALPHA (Noir)</td>
+                                <td class="py-2">$175</td>
+                                <td class="py-2 text-green-500">LOW</td>
+                            </tr>
+                            <tr class="border-b border-gray-800">
+                                <td class="py-2">BETA (Neon)</td>
+                                <td class="py-2">$155</td>
+                                <td class="py-2 text-yellow-500">MED</td>
+                            </tr>
+                            <tr class="border-b border-gray-800">
+                                <td class="py-2">GAMMA (Velvet)</td>
+                                <td class="py-2">$145</td>
+                                <td class="py-2 text-red-500">HIGH</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Intel Sources -->
+                    <div class="mb-8">
+                        <h3 class="font-mono text-[10px] text-bauhaus-red uppercase tracking-widest mb-3">>> Intel Sources</h3>
+                        <ul class="space-y-3 font-mono text-xs">
+            `;
+
+            intelSources.forEach(source => {
+                html += `
+                    <li class="flex items-start gap-2 group">
+                        <span class="text-gray-600 group-hover:text-bauhaus-red transition">-></span>
+                        <a href="${source.url}" target="_blank" class="text-gray-400 group-hover:text-white underline decoration-gray-700 underline-offset-4 transition">
+                            ${source.name}
+                        </a>
+                    </li>
+                `;
+            });
+
+            html += `
+                        </ul>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        // --- CONTROLLER ---
+        function switchRoute(id) {
+            // Style Tabs
+            const buttons = ['alpha', 'beta', 'gamma', 'data'];
+            buttons.forEach(btnId => {
+                const btn = document.getElementById(`btn-${btnId}`);
+                if (btnId === id) {
+                    btn.className = `px-3 py-1 border font-mono text-[10px] uppercase font-bold tracking-widest transition-all shadow-hard-${id === 'data' ? 'cream' : (id === 'alpha' ? 'red' : (id === 'beta' ? 'yellow' : 'purple'))} tab-active-${id}`;
+                } else {
+                    btn.className = "px-3 py-1 border font-mono text-[10px] uppercase font-bold tracking-widest transition-all tab-inactive";
+                }
+            });
+
+            if (id === 'data') {
+                renderData();
+                return;
+            }
+
+            renderRoute(id);
+            updateMap(routes[id]);
+        }
+
+        function updateMap(routeData) {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            
+            const latlngs = [];
+            const colorMap = { alpha: '#cc2828', beta: '#eab308', gamma: '#7c3aed' };
+            const color = colorMap[routeData.id];
+
+            routeData.stops.forEach((stop, i) => {
+                const icon = L.divIcon({
+                    html: `<div style="background:${color}; width:16px; height:16px; border:2px solid #ebe5ce; box-shadow:2px 2px 0 #000;"></div>`,
+                    className: 'bg-transparent',
+                    iconSize: [16, 16]
+                });
+                
+                const marker = L.marker(stop.coords, {icon}).addTo(map)
+                    .bindPopup(`<b>${i+1}. ${stop.venue}</b>`);
+                
+                markers.push(marker);
+                latlngs.push(stop.coords);
+            });
+
+            if(latlngs.length) map.fitBounds(latlngs, {padding: [30, 30]});
+        }
+
+        function toggleDetails() {
+            const el = document.getElementById('manifesto');
+            const arrow = document.getElementById('arrow');
+            if (el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+                arrow.innerText = "-";
+            } else {
+                el.classList.add('hidden');
+                arrow.innerText = "+";
+            }
+        }
+
+        // Boot
+        window.onload = initMap;
+    </script>
+</body>
+</html>
+
