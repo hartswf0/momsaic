@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Periodic Table of Urban Experience | Atlanta</title>
+    
+    <!-- LEAFLET CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <style>
+        :root {
+            --bg: #f4f4f0; /* Alabaster */
+            --text: #111111; /* Carbon */
+            --red: #e01b2f; /* Love Red */
+            --blue: #002fa7; /* Klein Blue */
+            --yellow: #ffcc00; /* Signal Yellow */
+            --pink: #ff99cc; /* Soft Pink for delight */
+            --grid-line: #ccc;
+            --font-main: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            cursor: crosshair; /* Lab feel */
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font-main);
+            line-height: 1.4;
+            overflow-x: hidden;
+            min-height: 100vh;
+            padding-bottom: 150px;
+        }
+
+        /* --- PARTICLES CANVAS --- */
+        #reaction-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* --- TYPOGRAPHY --- */
+        h1, h2, h3, h4 {
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: -0.05em;
+        }
+
+        h1 {
+            font-size: clamp(3rem, 7vw, 6rem);
+            line-height: 0.9;
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            font-size: 2rem;
+            border-bottom: 2px solid var(--text);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        p {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            text-align: justify;
+            max-width: 65ch;
+        }
+
+        a {
+            color: var(--blue);
+            text-decoration: none;
+            border-bottom: 1px solid var(--blue);
+            transition: all 0.2s;
+            font-weight: 700;
+        }
+
+        a:hover {
+            background-color: var(--blue);
+            color: var(--bg);
+        }
+
+        /* --- LAYOUT GRID --- */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            border-right: 1px solid var(--grid-line);
+            border-left: 1px solid var(--grid-line);
+            background: var(--bg);
+            position: relative;
+            z-index: 2;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            border-bottom: 2px solid var(--text);
+            padding-bottom: 4rem;
+            margin-bottom: 4rem;
+        }
+
+        /* --- HERO SECTION --- */
+        header {
+            padding: 6rem 0;
+            border-bottom: 4px solid var(--text);
+        }
+
+        .meta-data {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid var(--text);
+            border-bottom: 1px solid var(--text);
+            padding: 0.5rem 0;
+            margin-bottom: 2rem;
+        }
+
+        /* --- PERIODIC TABLE --- */
+        .periodic-section {
+            margin-bottom: 6rem;
+            scroll-margin-top: 2rem;
+        }
+
+        .periodic-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 8px;
+        }
+
+        .element {
+            border: 1px solid var(--text);
+            padding: 8px;
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            position: relative;
+            background: #fff;
+        }
+
+        .element:hover {
+            transform: scale(1.1);
+            box-shadow: 6px 6px 0 var(--text);
+            z-index: 10;
+            border-color: var(--red);
+        }
+
+        .element.locked {
+            background-color: var(--text) !important;
+            color: var(--bg) !important;
+            border-color: var(--red);
+            box-shadow: inset 0 0 0 2px var(--red);
+            animation: pulse-border 2s infinite;
+        }
+
+        .el-code {
+            font-weight: 700;
+            font-size: 1.4rem;
+        }
+
+        .el-name {
+            font-size: 0.65rem;
+            line-height: 1.1;
+            font-family: var(--font-mono);
+            word-wrap: break-word;
+        }
+
+        /* Element Groups Colors for bottom border */
+        .grp-a { border-bottom: 4px solid #333; } /* Movement */
+        .grp-b { border-bottom: 4px solid var(--blue); } /* Beverage */
+        .grp-c { border-bottom: 4px solid var(--yellow); } /* Food */
+        .grp-d { border-bottom: 4px solid var(--red); } /* Atmosphere */
+        .grp-e { border-bottom: 4px solid #888; } /* Psych */
+
+        /* --- STICKY DATA FOOTER --- */
+        #element-readout {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--text);
+            color: var(--bg);
+            border-top: 4px solid var(--red);
+            padding: 0;
+            height: 140px; 
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Bouncy entry */
+            z-index: 1000;
+            display: grid;
+            grid-template-columns: 140px 1fr 200px 200px;
+            gap: 0;
+            box-shadow: 0 -10px 40px rgba(205, 33, 42, 0.15);
+            overflow: hidden;
+        }
+
+        #element-readout.active {
+            transform: translateY(0);
+        }
+
+        #readout-code-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a1a;
+            border-right: 1px solid #333;
+        }
+
+        #readout-code {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--red);
+            font-family: var(--font-mono);
+            line-height: 0.9;
+        }
+        
+        #volatility-label {
+            font-size: 0.6rem;
+            color: #666;
+            margin-top: 5px;
+            text-transform: uppercase;
+            font-family: var(--font-mono);
+        }
+
+        #readout-content {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        #readout-content h4 {
+            font-family: var(--font-mono);
+            color: var(--red);
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #readout-content h4::after {
+            content: '';
+            flex-grow: 1;
+            height: 1px;
+            background: #333;
+            max-width: 100px;
+        }
+
+        #readout-desc {
+            font-size: 1rem;
+            max-width: 800px;
+            line-height: 1.3;
+        }
+
+        #readout-actions {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            border-left: 1px solid #333;
+            background: #151515;
+        }
+
+        #readout-link-btn {
+            background: transparent;
+            color: var(--bg);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            font-weight: 700;
+            text-decoration: none;
+            padding: 10px 20px;
+            font-size: 0.8rem;
+            border: 1px solid var(--red);
+            transition: all 0.2s;
+            text-align: center;
+            display: none; 
+            border-radius: 20px;
+        }
+
+        #readout-link-btn:hover {
+            background: var(--red);
+            color: white;
+            box-shadow: 0 0 15px var(--red);
+        }
+
+        #readout-map-container {
+            position: relative;
+            background: #222;
+            border-left: 1px solid #333;
+        }
+
+        #mini-map {
+            width: 100%;
+            height: 100%;
+            opacity: 0.9;
+            transition: opacity 0.2s;
+            filter: grayscale(100%) contrast(1.2);
+        }
+        
+        #mini-map:hover {
+            filter: none;
+            opacity: 1;
+        }
+
+        /* --- SPLIT SCREEN LAB INTERFACE --- */
+        .lab-interface {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            border-top: 4px solid var(--text);
+            border-bottom: 4px solid var(--text);
+            background: white;
+            position: relative;
+        }
+
+        .compounds-col {
+            padding: 0 2rem 2rem 0;
+            border-right: 4px solid var(--text);
+        }
+
+        .map-col {
+            position: relative;
+        }
+
+        .sticky-map-wrapper {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #e5e5e5;
+            z-index: 1;
+        }
+
+        /* --- COMPOUNDS (COURSES) --- */
+        .compound-card {
+            border-bottom: 1px solid #ddd;
+            padding: 3rem 2rem;
+            transition: background 0.2s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .compound-card:hover {
+            background: #fff0f2; /* Very light pink hover */
+        }
+        
+        .compound-card.active-compound {
+            background: #fff0f2;
+        }
+
+        .compound-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            background: var(--red);
+            transform: scaleY(0);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .compound-card:hover::before, .compound-card.active-compound::before {
+            transform: scaleY(1);
+        }
+
+        .formula-box {
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            color: var(--blue);
+            margin-bottom: 0.5rem;
+            border: 1px solid var(--blue);
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            background: white;
+        }
+
+        .compound-details ul {
+            list-style: none;
+            margin-top: 1rem;
+            border-left: 2px solid var(--red);
+            padding-left: 1rem;
+        }
+
+        .compound-details li {
+            margin-bottom: 0.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+        }
+
+        /* --- FOOTER --- */
+        footer {
+            background: var(--text);
+            color: var(--bg);
+            padding: 4rem 2rem;
+            margin-top: 0; 
+        }
+
+        .citations {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .citations a {
+            color: var(--bg);
+            border-color: #555;
+            display: block;
+            margin-bottom: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes pulse-border {
+            0% { border-color: var(--red); }
+            50% { border-color: var(--pink); }
+            100% { border-color: var(--red); }
+        }
+        
+        @keyframes heartbeat {
+            0% { transform: scale(1); opacity: 0.8; }
+            15% { transform: scale(1.15); opacity: 1; }
+            30% { transform: scale(1); opacity: 0.8; }
+            45% { transform: scale(1.15); opacity: 1; }
+            60% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        .heartbeat-icon {
+            animation: heartbeat 2s infinite;
+        }
+
+        /* Leaflet Tweaks */
+        .leaflet-popup-content-wrapper {
+            border-radius: 0;
+            background: var(--bg);
+            border: 2px solid var(--red);
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            font-family: var(--font-mono);
+        }
+        .leaflet-popup-content { margin: 10px; color: var(--text); }
+        .popup-title { font-weight: 700; text-transform: uppercase; border-bottom: 1px solid var(--red); margin-bottom: 5px; color: var(--red); }
+        .popup-link { display: inline-block; margin-top: 5px; font-size: 0.8rem; color: var(--blue); }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 900px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            h1 { font-size: 3rem; }
+            .container { padding: 1rem; border: none;}
+            .lab-interface { display: flex; flex-direction: column-reverse; }
+            .map-col { height: 400px; width: 100%; z-index: 50; }
+            .sticky-map-wrapper { position: relative; height: 100%; }
+            .compounds-col { border-right: none; padding-right: 0; }
+            #element-readout {
+                height: auto;
+                grid-template-columns: 100px 1fr;
+                grid-template-rows: auto auto;
+                padding: 0;
+            }
+            #readout-code-box { grid-row: 1 / 3; }
+            #readout-content { grid-column: 2; padding: 1rem; }
+            #readout-actions { grid-row: 2; grid-column: 2; flex-direction: row; border-left: none; padding: 0.5rem; justify-content: flex-start; background: transparent; }
+            #readout-map-container { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- REACTION CANVAS -->
+    <canvas id="reaction-canvas"></canvas>
+
+    <div class="container">
+        <header>
+            <div class="meta-data">
+                <span>LOC: ATLANTA, GA</span>
+                <span>STATUS: EXPERIMENTAL</span>
+                <span>LAT/LONG: 33.7490° N, 84.3880° W</span>
+            </div>
+            <h1>The Periodic Table of<br><span style="color: var(--red);">Romantic Chemistry.</span></h1>
+            <div class="grid-2" style="margin-top: 3rem; border-bottom: none; margin-bottom: 0;">
+                <div>
+                    <h3>Abstract</h3>
+                    <p>The city is not a static map; it is a reactive chemical substrate. To navigate it linearly is to fail. Valentine's Night requires molecular assembly—the precise fusion of kinetic movement, atmospheric pressure, and caloric intake to precipitate specific emotional states.</p>
+                </div>
+                <div>
+                    <h3>Laboratory Protocols</h3>
+                    <p><strong>1. Agitate Elements:</strong> Hover over tiles to trigger catalytic potential.<br>
+                    <strong>2. Synthesize Vector:</strong> Select a compound to visualize the city's pulse.</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- PERIODIC TABLE VISUALIZER -->
+        <section class="periodic-section">
+            <h2 style="border:none; margin-bottom: 1rem;">01. Elemental Inventory</h2>
+            <div class="periodic-grid">
+                <!-- Group A: Movement -->
+                <div class="element grp-a" data-code="A2" data-title="Cemetery Edge Walk" data-desc="Navigating the border between silence and soil. A botanical memento mori to lower the heart rate." data-lat="33.7483" data-lng="-84.3739" data-link="https://www.oaklandcemetery.com/"><span class="el-code">A2</span><span class="el-name">Cemetery Walk</span></div>
+                <div class="element grp-a" data-code="A4" data-title="Rooftop Vertical Ascent" data-desc="Escaping the street-level datum. The elevator acts as a compression chamber for the ego." data-lat="33.7876" data-lng="-84.3879" data-link="https://www.1231rooftopbar.com/"><span class="el-code">A4</span><span class="el-name">Vertical Ascent</span></div>
+                <div class="element grp-a" data-code="A5" data-title="MARTA Micro-Journey" data-desc="A subterranean pause. The necessary void between two high-density sensory events." data-lat="33.7538" data-lng="-84.3915" data-link="https://itsmarta.com/"><span class="el-code">A5</span><span class="el-name">MARTA Hop</span></div>
+                <div class="element grp-a" data-code="A6" data-title="Historic Facade Orbit" data-desc="Tactile verification of the past. Touching 1890s masonry to ground the present moment." data-lat="33.7566" data-lng="-84.3893" data-link="https://en.wikipedia.org/wiki/Fairlie%E2%80%93Poplar,_Atlanta"><span class="el-code">A6</span><span class="el-name">Facade Orbit</span></div>
+                <div class="element grp-a" data-code="A7" data-title="Food Hall Drift" data-desc="Surrendering to entropy. Rapid, aimless movement through high-noise vector fields." data-link="https://poncecitymarket.com/"><span class="el-code">A7</span><span class="el-name">Hall Drift</span></div>
+                <div class="element grp-a" data-code="A8" data-title="Alley / Side Street" data-desc="Bypassing the main feed. Navigating the back-of-house infrastructure to find the signal." data-link="https://www.midtownatl.com/"><span class="el-code">A8</span><span class="el-name">Alley Nav</span></div>
+
+                <!-- Group B: Beverage -->
+                <div class="element grp-b" data-code="B1" data-title="Craft Cocktail Lab" data-desc="Liquid treated as a controlled substance. High technique, high viscosity, low lighting." data-lat="33.7766" data-lng="-84.3826" data-link="https://www.thelawrenceatlanta.com/"><span class="el-code">B1</span><span class="el-name">Cocktail Lab</span></div>
+                <div class="element grp-b" data-code="B2" data-title="Hotel Lobby Bar" data-desc="Transient luxury. A space designed for departures and arrivals, not permanency." data-lat="33.7573" data-lng="-84.3886" data-link="https://www.bygeorgeatl.com/"><span class="el-code">B2</span><span class="el-name">Lobby Bar</span></div>
+                <div class="element grp-b" data-code="B3" data-title="The Dive Bar" data-desc="The great equalizer. Sticky floors as a grounding mechanism for high-altitude romance." data-lat="33.7824" data-lng="-84.3524" data-link="https://moesandjoes.com/"><span class="el-code">B3</span><span class="el-name">Dive Bar</span></div>
+                <div class="element grp-b" data-code="B4" data-title="Rooftop Bar" data-desc="Atmospheric dominance. Consuming the skyline as a visual backdrop." data-link="https://glennsskylounge.com/"><span class="el-code">B4</span><span class="el-name">Rooftop</span></div>
+                <div class="element grp-b" data-code="B5" data-title="Wine Corner" data-desc="Fermentation and focus. A quiet zone for the extraction of truth." data-link="https://www.elvinedolocal.com/"><span class="el-code">B5</span><span class="el-name">Wine Bar</span></div>
+                <div class="element grp-b" data-code="B6" data-title="Tiki / Thematic" data-desc="Aggressive escapism. Drinks are props in a theatrical performance of the unreal." data-lat="33.7543" data-lng="-84.3735" data-link="https://www.instagram.com/mambozombi/"><span class="el-code">B6</span><span class="el-name">Thematic</span></div>
+
+                <!-- Group C: Food -->
+                <div class="element grp-c" data-code="C1" data-title="Counter-Only" data-desc="Removing the barrier of the table. Side-by-side consumption aligns the line of sight." data-lat="33.7766" data-lng="-84.3886" data-link="https://www.elvinedolocal.com/"><span class="el-code">C1</span><span class="el-name">Counter</span></div>
+                <div class="element grp-c" data-code="C2" data-title="Split-Dinner" data-desc="A tactical maneuver. Decoupling the course structure to maintain kinetic energy." data-link="https://atlanta.eater.com/"><span class="el-code">C2</span><span class="el-name">Split Meal</span></div>
+                <div class="element grp-c" data-code="C3" data-title="Late-Night Kitchen" data-desc="Caloric intake post-2300 hours. High social entropy and grease." data-link="https://www.rthomasdeluxegrill.net/"><span class="el-code">C3</span><span class="el-name">Late Night</span></div>
+                <div class="element grp-c" data-code="C5" data-title="Small Plates" data-desc="Low commitment, high variety. A sampling algorithm for the indecisive." data-link="https://www.iberianpigatl.com/"><span class="el-code">C5</span><span class="el-name">Sm. Plates</span></div>
+                <div class="element grp-c" data-code="C6" data-title="Absurd Single Item" data-desc="Pursuit of the icon. Rejecting the menu in favor of the singular, definitive artifact." data-lat="33.7715" data-lng="-84.3892" data-link="https://thevarsity.com/"><span class="el-code">C6</span><span class="el-name">The Icon</span></div>
+                <div class="element grp-c" data-code="C7" data-title="Intl. Specialist" data-desc="Authenticity as currency. Immersion in a specific geographic flavor profile." data-lat="33.7460" data-lng="-84.3680" data-link="https://estrellitaatlanta.com/"><span class="el-code">C7</span><span class="el-name">Specialist</span></div>
+
+                <!-- Group D: Atmosphere -->
+                <div class="element grp-d" data-code="D1" data-title="Dim Velvet" data-desc="Photonic absorption. A space where the outside world dissolves into soft focus." data-lat="33.7735" data-lng="-84.3845" data-link="https://www.justkeepwaitingroom.com/"><span class="el-code">D1</span><span class="el-name">Dim Velvet</span></div>
+                <div class="element grp-d" data-code="D2" data-title="Concrete Modern" data-desc="Brutalist purity. Hard surfaces reflecting the cold logic of the metropolis." data-link="https://www.westsideprovisions.com/"><span class="el-code">D2</span><span class="el-name">Concrete</span></div>
+                <div class="element grp-d" data-code="D3" data-title="Historic Ornate" data-desc="Gilded Age residue. Marble and brass acting as status multipliers." data-link="https://www.thefox.org/"><span class="el-code">D3</span><span class="el-name">Ornate</span></div>
+                <div class="element grp-d" data-code="D4" data-title="Retro Neon" data-desc="Nostalgic radiation. Synth-pop energy frozen in gas and glass." data-link="https://www.clermontlounge.net/"><span class="el-code">D4</span><span class="el-name">Neon</span></div>
+                <div class="element grp-d" data-code="D6" data-title="Chaotic Dive" data-desc="Acoustic saturation. High decibels forcing physical proximity." data-link="https://www.northsidetavern.com/"><span class="el-code">D6</span><span class="el-name">Chaos</span></div>
+                <div class="element grp-d" data-code="D7" data-title="Garden Botanical" data-desc="Oxygen-rich environment. Organic matter acting as a buffer against the concrete." data-link="https://atlantabg.org/"><span class="el-code">D7</span><span class="el-name">Garden</span></div>
+
+                 <!-- Group E: Psych -->
+                 <div class="element grp-e" data-code="E1" data-title="High-Low Contrast" data-desc="The dialectic of grit and glam. Champagne paired with fried chicken." data-link="https://atlanta.eater.com/"><span class="el-code">E1</span><span class="el-name">Hi-Lo</span></div>
+                 <div class="element grp-e" data-code="E2" data-title="Anti-Valentine Irony" data-desc="Subversive operations. Doing the precise opposite of the cultural mandate." data-link="https://www.vortexbarandgrill.com/"><span class="el-code">E2</span><span class="el-name">Irony</span></div>
+                 <div class="element grp-e" data-code="E3" data-title="Liminal Espionage" data-desc="Operating undercover. The thrill of being a secret agent in your own city." data-lat="33.7735" data-lng="-84.3845" data-link="https://www.redphonebooth.com/"><span class="el-code">E3</span><span class="el-name">Espionage</span></div>
+                 <div class="element grp-e" data-code="E5" data-title="Slow Burn" data-desc="Delayed gratification. Letting the environment settle before the reveal." data-link="https://www.ticonderogaclub.com/"><span class="el-code">E5</span><span class="el-name">Slow Burn</span></div>
+                 <div class="element grp-e" data-code="E6" data-title="Architectural Awe" data-desc="Scale distortion. Feeling small against the built environment triggers wonder." data-link="https://www.atlantadowntown.com/"><span class="el-code">E6</span><span class="el-name">Awe</span></div>
+                 <div class="element grp-e" data-code="E7" data-title="Culinary Curiosity" data-desc="Intellectual stimulation via the palate. Decoding the meal together." data-link="https://www.bufordhighwayfarmersmarket.com/"><span class="el-code">E7</span><span class="el-name">Curiosity</span></div>
+            </div>
+        </section>
+
+        <!-- SPLIT INTERFACE -->
+        <section class="lab-interface">
+            <!-- LEFT: SCROLLABLE COMPOUNDS -->
+            <div class="compounds-col">
+                <div style="padding: 2rem;">
+                    <h2>02. The Compounds</h2>
+                    <p style="font-size: 0.9rem; color: #666; margin-bottom: 0;">Initiate a card to stimulate the map reaction.</p>
+                </div>
+                
+                <div class="compounds-list">
+                    <!-- Compound 1 -->
+                    <article class="compound-card" id="compound-1" onmouseenter="highlightMapRoute(1)">
+                        <div class="formula-box">A5 + B2 + C5 + D3 + E3</div>
+                        <h3>The Subterranean Espionage</h3>
+                        <p style="font-size: 0.9rem;"><strong>ZONE:</strong> Five Points <-> Midtown</p>
+                        <div class="compound-details">
+                            <p>For those who appreciate the narrative of the "secret agent" operating in plain sight. A study in subterranean luxury and transit-based anonymity.</p>
+                            <ul>
+                                <li><strong>Infiltrate:</strong> <a href="https://www.bygeorgeatl.com/" target="_blank">By George</a> (Candler Hotel) for extraction.</li>
+                                <li><strong>Transit:</strong> Engage MARTA Red/Gold Line. Destination: Midtown.</li>
+                                <li><strong>Rendezvous:</strong> <a href="https://www.justkeepwaitingroom.com/" target="_blank">The Waiting Room</a>. Secure the booth.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <!-- Compound 2 -->
+                    <article class="compound-card" id="compound-2" onmouseenter="highlightMapRoute(2)">
+                        <div class="formula-box">A2 + B6 + C7 + D7 + E5</div>
+                        <h3>The Necromantic Slow-Burn</h3>
+                        <p style="font-size: 0.9rem;"><strong>ZONE:</strong> Grant Park / Oakland</p>
+                        <div class="compound-details">
+                            <p>A sequence of environmental contrasts. Moving from the silence of history to a vibrant celebration of the undead.</p>
+                            <ul>
+                                <li><strong>Survey:</strong> <a href="https://www.oaklandcemetery.com/plan-your-visit" target="_blank">Oakland Cemetery</a>. Observe the sunset vector.</li>
+                                <li><strong>Consume:</strong> <a href="https://atlanta.com/kw/restaurant/grant-park-atlanta-restaurants" target="_blank">Estrellita</a>. Caloric warmth.</li>
+                                <li><strong>Celebrate:</strong> <a href="https://www.instagram.com/mambozombi/" target="_blank">Mambo Zombi</a>. Raise the dead.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <!-- Compound 3 -->
+                    <article class="compound-card" id="compound-3" onmouseenter="highlightMapRoute(3)">
+                        <div class="formula-box">A4 + B4 + C2 + D2 + E1</div>
+                        <h3>The High-Low Vertical Axis</h3>
+                        <p style="font-size: 0.9rem;"><strong>ZONE:</strong> GA Tech / Midtown</p>
+                        <div class="compound-details">
+                            <p>Manipulating the vertical dimension. Pairing sleek, high-altitude modernism with subterranean grit.</p>
+                            <ul>
+                                <li><strong>Ascend:</strong> <a href="https://www.1231rooftopbar.com/" target="_blank">1231 Rooftop</a>. Capture the skyline.</li>
+                                <li><strong>Descend:</strong> Transit to street level via North Ave.</li>
+                                <li><strong>Ground:</strong> <a href="https://www.tripadvisor.com/Restaurant_Review-g60898-d477884-Reviews-Eleventh_Street_Pub-Atlanta_Georgia.html" target="_blank">Eleventh Street Pub</a>. Initialize dive protocol.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <!-- Compound 4 -->
+                    <article class="compound-card" id="compound-4" onmouseenter="highlightMapRoute(4)">
+                        <div class="formula-box">A6 + B5 + C6 + D4 + E6</div>
+                        <h3>The Historic Facade Orbit</h3>
+                        <p style="font-size: 0.9rem;"><strong>ZONE:</strong> Fairlie-Poplar</p>
+                        <div class="compound-details">
+                            <p>A walking tour of the Chicago-style grid, concluding with an absurd, high-calorie artifact.</p>
+                            <ul>
+                                <li><strong>Patrol:</strong> Fairlie-Poplar District. Verify 1890s masonry.</li>
+                                <li><strong>Hydrate:</strong> Downtown Wine Corner.</li>
+                                <li><strong>Feast:</strong> <a href="https://thevarsity.com/" target="_blank">The Varsity</a>. Consume the Icon.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                     <!-- Compound 5 -->
+                     <article class="compound-card" id="compound-5" onmouseenter="highlightMapRoute(5)">
+                        <div class="formula-box">A8 + B1 + C1 + D2 + E7</div>
+                        <h3>The Post-Industrial Curiosity</h3>
+                        <p style="font-size: 0.9rem;"><strong>ZONE:</strong> Tech Square</p>
+                        <div class="compound-details">
+                            <p>Industrial concrete aesthetics meets South American micro-specialization. For the modern intellectual.</p>
+                            <ul>
+                                <li><strong>Explore:</strong> Navigate Tech Square alleyways.</li>
+                                <li><strong>Analyze:</strong> <a href="https://www.elvinedolocal.com/" target="_blank">El Viñedo Local</a>. Sample the varietals.</li>
+                                <li><strong>Experiment:</strong> <a href="https://www.thelawrenceatlanta.com/" target="_blank">The Lawrence</a>. Cocktail chemistry.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                     <!-- Compound 6 -->
+                     <article class="compound-card" id="compound-6" onmouseenter="highlightMapRoute(6)">
+                        <div class="formula-box">A7 + B3 + C3 + D6 + E2</div>
+                        <h3>The Un-Valentine’s Paradox</h3>
+                        <p style="font-size: 0.9rem;"><strong>ZONE:</strong> Virginia-Highland</p>
+                        <div class="compound-details">
+                            <p>Prioritizing the communal, the loud, and the chaotic. A complete subversion of the holiday mandate.</p>
+                            <ul>
+                                <li><strong>Drift:</strong> Southern Feedstore. Absorb the noise.</li>
+                                <li><strong>Dive:</strong> <a href="https://moesandjoes.com/" target="_blank">Moe’s and Joe’s</a>. PBR saturation.</li>
+                                <li><strong>Disrupt:</strong> <a href="https://www.darkhorseatlanta.com/" target="_blank">Dark Horse Tavern</a>. Vocalize chaos.</li>
+                            </ul>
+                        </div>
+                    </article>
+                </div>
+            </div>
+
+            <!-- RIGHT: STICKY MAP -->
+            <div class="map-col">
+                <div class="sticky-map-wrapper">
+                    <div id="map"></div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <footer>
+        <div class="container">
+            <h4>Works Cited & Resources</h4>
+            <div class="citations">
+                <a href="https://itsmarta.com/train-stations-and-schedules.aspx">MARTA Train Schedules</a>
+                <a href="https://www.bygeorgeatl.com/">By George Restaurant</a>
+                <a href="https://www.oaklandcemetery.com/">Oakland Cemetery</a>
+                <a href="https://creativeloafing.com/little-five-points-bars-and-nightlife">Little Five Points Nightlife</a>
+                <a href="https://www.midtownatl.com/go/1231-rooftop-bar">1231 Rooftop Bar</a>
+                <a href="https://discoveratlanta.com/explore/neighborhoods/downtown/fairlie-poplar/">Fairlie-Poplar Guide</a>
+                <a href="https://www.elvinedolocal.com/">El Viñedo Local</a>
+                <a href="https://moesandjoes.com/">Moe's & Joe's</a>
+                <a href="https://www.darkhorseatlanta.com/">Dark Horse Tavern</a>
+            </div>
+            <p style="margin-top: 2rem; font-size: 0.8rem; opacity: 0.6;">&copy; 2026 Urban Experience Chemist. Atlanta, GA.</p>
+        </div>
+    </footer>
+
+    <!-- STICKY DATA READOUT BAR -->
+    <div id="element-readout">
+        <div id="readout-code-box">
+            <div id="readout-code">00</div>
+            <div id="volatility-label">Inert</div>
+        </div>
+        
+        <div id="readout-content">
+            <h4 id="readout-title">HOVER AN ELEMENT</h4>
+            <div id="readout-desc">The periodic table above defines the atoms of the night. Hover to decode. Click to lock the definition.</div>
+        </div>
+
+        <div id="readout-actions">
+            <a href="#" id="readout-link-btn" target="_blank">Access Node</a>
+        </div>
+
+        <div id="readout-map-container">
+            <div id="mini-map"></div>
+        </div>
+    </div>
+
+    <!-- LEAFLET JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <script>
+        // --- 0. DELIGHTFUL PARTICLES SYSTEM ---
+        const canvas = document.getElementById('reaction-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height;
+        let particles = [];
+        
+        function resizeCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type; // 'heart' or 'bubble'
+                this.size = Math.random() * 8 + 4;
+                this.speedX = Math.random() * 2 - 1;
+                this.speedY = Math.random() * -3 - 1;
+                this.color = Math.random() > 0.5 ? '#e01b2f' : '#ff99cc';
+                this.alpha = 1;
+                this.decay = Math.random() * 0.02 + 0.01;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.alpha -= this.decay;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                if(this.type === 'heart') {
+                    // Draw Heart
+                    ctx.beginPath();
+                    const topCurveHeight = this.size * 0.3;
+                    ctx.moveTo(this.x, this.y + topCurveHeight);
+                    ctx.bezierCurveTo(this.x, this.y, this.x - this.size / 2, this.y, this.x - this.size / 2, this.y + topCurveHeight);
+                    ctx.bezierCurveTo(this.x - this.size / 2, this.y + (this.size + topCurveHeight) / 2, this.x, this.y + (this.size + topCurveHeight) / 2, this.x, this.y + this.size);
+                    ctx.bezierCurveTo(this.x, this.y + (this.size + topCurveHeight) / 2, this.x + this.size / 2, this.y + (this.size + topCurveHeight) / 2, this.x + this.size / 2, this.y + topCurveHeight);
+                    ctx.bezierCurveTo(this.x + this.size / 2, this.y, this.x, this.y, this.x, this.y + topCurveHeight);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    // Draw Bubble
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size/2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, width, height);
+            for(let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+                if(particles[i].alpha <= 0) {
+                    particles.splice(i, 1);
+                    i--;
+                }
+            }
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        function emitParticles(x, y, count) {
+            for(let i=0; i<count; i++) {
+                particles.push(new Particle(x, y, Math.random() > 0.7 ? 'heart' : 'bubble'));
+            }
+        }
+
+
+        // --- 1. SETUP MINI MAP ---
+        const miniMap = L.map('mini-map', {
+            zoomControl: false,
+            attributionControl: false,
+            dragging: false,
+            scrollWheelZoom: false
+        }).setView([33.76, -84.38], 14);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 20 }).addTo(miniMap);
+        let miniMarker = null;
+
+        // --- 2. PERIODIC TABLE INTERACTION ---
+        const elements = document.querySelectorAll('.element');
+        const readout = document.getElementById('element-readout');
+        const rCode = document.getElementById('readout-code');
+        const rTitle = document.getElementById('readout-title');
+        const rDesc = document.getElementById('readout-desc');
+        const rLinkBtn = document.getElementById('readout-link-btn');
+        const rMapContainer = document.getElementById('readout-map-container');
+        const rVol = document.getElementById('volatility-label');
+
+        let locked = false;
+
+        elements.forEach(el => {
+            el.addEventListener('mouseenter', (e) => {
+                // PARTICLE EFFECT
+                const rect = el.getBoundingClientRect();
+                emitParticles(rect.left + rect.width/2, rect.top, 5);
+
+                if(!locked) {
+                    updateReadout(el);
+                    readout.classList.add('active');
+                }
+            });
+            
+            // Interaction: Pulse on click
+            el.addEventListener('click', (e) => {
+                const rect = el.getBoundingClientRect();
+                emitParticles(rect.left + rect.width/2, rect.top, 20); // Boom!
+                
+                e.stopPropagation();
+                if (locked && el.classList.contains('locked')) {
+                    locked = false;
+                    el.classList.remove('locked');
+                } else {
+                    elements.forEach(e => e.classList.remove('locked'));
+                    locked = true;
+                    el.classList.add('locked');
+                    updateReadout(el);
+                    readout.classList.add('active');
+                }
+            });
+        });
+
+        document.body.addEventListener('click', () => {
+            if(locked) {
+                locked = false;
+                elements.forEach(e => e.classList.remove('locked'));
+                readout.classList.remove('active');
+            }
+        });
+
+        function updateReadout(el) {
+            rCode.innerText = el.getAttribute('data-code');
+            rTitle.innerText = el.getAttribute('data-title');
+            rDesc.innerText = el.getAttribute('data-desc');
+            
+            // Volatility Score Math (Random but consistent based on char code)
+            const score = (el.getAttribute('data-code').charCodeAt(1) * 3) % 40 + 60;
+            rVol.innerText = `Volatility: ${score}%`;
+            
+            rCode.style.color = window.getComputedStyle(el).borderBottomColor;
+
+            const link = el.getAttribute('data-link');
+            if(link) {
+                rLinkBtn.href = link;
+                rLinkBtn.style.display = 'block';
+            } else {
+                rLinkBtn.style.display = 'none';
+            }
+
+            const lat = el.getAttribute('data-lat');
+            const lng = el.getAttribute('data-lng');
+            if(lat && lng) {
+                rMapContainer.style.display = 'block';
+                miniMap.invalidateSize();
+                miniMap.setView([lat, lng], 16);
+                if(miniMarker) miniMap.removeLayer(miniMarker);
+                const color = window.getComputedStyle(el).borderBottomColor;
+                miniMarker = L.circleMarker([lat, lng], {
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 1,
+                    radius: 8,
+                    className: 'heartbeat-icon' // Pulse animation
+                }).addTo(miniMap);
+            } else {
+                rMapContainer.style.display = 'none';
+            }
+        }
+
+        // --- 3. MAIN MAP LOGIC ---
+        const locs = {
+            candler: { lat: 33.7573, lng: -84.3886, name: "The Candler Hotel (By George)" },
+            fivePoints: { lat: 33.7538, lng: -84.3915, name: "Five Points MARTA" },
+            waitingRoom: { lat: 33.7735, lng: -84.3845, name: "The Waiting Room" },
+            oakland: { lat: 33.7483, lng: -84.3739, name: "Oakland Cemetery" },
+            estrellita: { lat: 33.7460, lng: -84.3680, name: "Estrellita" },
+            mambo: { lat: 33.7543, lng: -84.3735, name: "Mambo Zombi" },
+            rooftop1231: { lat: 33.7876, lng: -84.3879, name: "1231 Rooftop" },
+            eleventh: { lat: 33.7828, lng: -84.3880, name: "Eleventh Street Pub" },
+            flatiron: { lat: 33.7566, lng: -84.3893, name: "Flatiron Building" },
+            varsity: { lat: 33.7715, lng: -84.3892, name: "The Varsity" },
+            elvinedo: { lat: 33.7766, lng: -84.3886, name: "El Viñedo Local" },
+            moes: { lat: 33.7824, lng: -84.3524, name: "Moe's & Joe's" },
+            darkhorse: { lat: 33.7827, lng: -84.3521, name: "Dark Horse Tavern" }
+        };
+
+        const map = L.map('map').setView([33.76, -84.38], 13);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 20 }).addTo(map);
+
+        const createIcon = (color) => {
+            return L.divIcon({
+                className: 'custom-pin',
+                html: `<div style="background-color: ${color}; width: 14px; height: 14px; border: 2px solid black; border-radius: 50%;"></div>`,
+                iconSize: [18, 18],
+                iconAnchor: [9, 9]
+            });
+        };
+
+        const routes = {
+            1: [locs.candler, locs.fivePoints, locs.waitingRoom],
+            2: [locs.oakland, locs.estrellita, locs.mambo],
+            3: [locs.rooftop1231, locs.eleventh],
+            4: [locs.flatiron, locs.candler, locs.varsity],
+            5: [locs.elvinedo, {lat: 33.772, lng: -84.388}],
+            6: [locs.moes, locs.darkhorse]
+        };
+
+        const markerLayer = L.layerGroup().addTo(map);
+        const routeLayer = L.layerGroup().addTo(map);
+
+        Object.values(locs).forEach(loc => {
+            const marker = L.marker([loc.lat, loc.lng], { icon: createIcon('#e01b2f') }).addTo(markerLayer);
+            marker.bindPopup(`
+                <div class="popup-title">${loc.name}</div>
+                <a href="https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}" target="_blank" class="popup-link">Get Directions -></a>
+            `);
+        });
+
+        function highlightMapRoute(id) {
+            routeLayer.clearLayers();
+            const pathData = routes[id];
+            if(!pathData) return;
+            
+            document.querySelectorAll('.compound-card').forEach(c => c.classList.remove('active-compound'));
+            const activeCard = document.getElementById('compound-'+id);
+            if(activeCard) activeCard.classList.add('active-compound');
+
+            const latlngs = pathData.map(p => [p.lat, p.lng]);
+            
+            // DELIGHTFUL PATH: A living, breathing line
+            const path = L.polyline(latlngs, {
+                color: '#e01b2f',
+                weight: 6,
+                opacity: 0.8,
+                dashArray: '15, 15',
+                className: 'heartbeat-icon' // Applies the pulse animation to the SVG line
+            }).addTo(routeLayer);
+
+            map.flyToBounds(latlngs, { padding: [50, 50], maxZoom: 15, duration: 0.8 });
+        }
+    </script>
+</body>
+</html>
+
+
