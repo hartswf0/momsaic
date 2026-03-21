@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Congaree Non-Lottery Firefly Field Interface 2026 - Real Map Edition">
+    <title>CONGAREE FIREFLY FIELD | 2026 MAP</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <style>
+        :root {
+            --forest-dark: #1a2f1a;
+            --forest-mid: #2f3e2f;
+            --sage: #5a7247;
+            --sand: #d4c4a8;
+            --tan: #8b7355;
+            --slate: #3a5f6f;
+            --rust: #c75b39;
+            --amber: #f4a261;
+            --cream: #f5f1e8;
+            --charcoal: #2b2b2b;
+            --night-red: #8b0000;
+            --white: #ffffff;
+            --shadow: rgba(0,0,0,0.4);
+            
+            --tap-min: 44px;
+            --dock-height: 72px;
+            --header-height: 52px;
+            --threshold-height: 60px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html {
+            font-size: 16px;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--charcoal);
+            color: var(--charcoal);
+            height: 100vh;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
+        
+        *:focus {
+            outline: 3px solid var(--amber);
+            outline-offset: 2px;
+        }
+        
+        button {
+            font-family: inherit;
+            border: none;
+            background: none;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        
+        /* Map Container - Full Screen Base */
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: var(--sand);
+        }
+        
+        /* Floating UI Layer */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .ui-element {
+            pointer-events: auto;
+        }
+        
+        /* Top Status Bar */
+        .top-status {
+            height: var(--header-height);
+            background: rgba(26, 47, 26, 0.95);
+            color: var(--cream);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-bottom: 2px solid var(--sage);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        
+        .trip-id {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            opacity: 0.9;
+        }
+        
+        .live-clock {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            background: rgba(0,0,0,0.4);
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--sage);
+            font-weight: 700;
+        }
+        
+        /* Threshold Strip */
+        .threshold-strip {
+            height: var(--threshold-height);
+            background: linear-gradient(90deg, rgba(47, 62, 47, 0.95), rgba(90, 114, 71, 0.95));
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            font-weight: 600;
+            border-bottom: 3px solid var(--amber);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+        }
+        
+        .threshold-strip.critical {
+            background: linear-gradient(90deg, rgba(199, 91, 57, 0.95), rgba(139, 58, 31, 0.95));
+            animation: pulse-border 2s infinite;
+        }
+        
+        @keyframes pulse-border {
+            0%, 100% { border-bottom-color: var(--amber); }
+            50% { border-bottom-color: var(--white); }
+        }
+        
+        .threshold-info {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+        
+        .threshold-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            opacity: 0.9;
+            letter-spacing: 0.05em;
+        }
+        
+        .threshold-value {
+            font-size: 1.1rem;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .countdown {
+            font-size: 1.5rem;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            background: rgba(0,0,0,0.5);
+            padding: 6px 14px;
+            border-radius: 6px;
+            min-width: 120px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        /* Map Controls Overlay */
+        .map-controls {
+            position: absolute;
+            top: calc(var(--header-height) + var(--threshold-height) + 12px);
+            right: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .map-btn {
+            width: 48px;
+            height: 48px;
+            background: rgba(255,255,255,0.95);
+            border: 2px solid var(--forest-mid);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            box-shadow: 0 3px 8px var(--shadow);
+            color: var(--forest-dark);
+        }
+        
+        .map-btn:active {
+            background: var(--sage);
+            color: var(--white);
+        }
+        
+        /* Location Indicator */
+        .loc-indicator {
+            position: absolute;
+            bottom: calc(var(--dock-height) + 100px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26, 47, 26, 0.9);
+            color: var(--white);
+            padding: 10px 20px;
+            border-radius: 24px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 2px solid var(--amber);
+            display: none;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        
+        .loc-indicator.active {
+            display: flex;
+        }
+        
+        .gps-pulse {
+            width: 12px;
+            height: 12px;
+            background: var(--amber);
+            border-radius: 50%;
+            animation: gps-pulse 2s infinite;
+        }
+        
+        @keyframes gps-pulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        
+        /* Bottom Sheet */
+        .bottom-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--cream);
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px var(--shadow);
+            transform: translateY(calc(100% - 80px));
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .bottom-sheet.expanded {
+            transform: translateY(0);
+        }
+        
+        .sheet-handle {
+            width: 100%;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .handle-bar {
+            width: 40px;
+            height: 4px;
+            background: #999;
+            border-radius: 2px;
+        }
+        
+        .sheet-header {
+            padding: 16px 20px;
+            border-bottom: 2px solid var(--sand);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--white);
+            border-radius: 20px 20px 0 0;
+        }
+        
+        .sheet-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--forest-dark);
+        }
+        
+        .sheet-close {
+            font-size: 1.8rem;
+            color: var(--rust);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .sheet-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .sheet-tabs {
+            display: flex;
+            border-bottom: 2px solid var(--sand);
+            background: var(--white);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .sheet-tab {
+            flex: 1;
+            padding: 16px 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .sheet-tab.active {
+            color: var(--forest-dark);
+            border-bottom-color: var(--amber);
+            background: rgba(244, 162, 97, 0.1);
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 16px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Stone Cards in Sheet */
+        .stone-card {
+            background: var(--white);
+            border-left: 5px solid var(--sage);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            text-align: left;
+        }
+        
+        .stone-card.critical {
+            border-left-color: var(--rust);
+            background: linear-gradient(90deg, #fff5f0, var(--white));
+        }
+        
+        .stone-card.warning {
+            border-left-color: var(--amber);
+            background: linear-gradient(90deg, #fff8f0, var(--white));
+        }
+        
+        .stone-card.blocked {
+            border-left-color: #999;
+            opacity: 0.7;
+            background: #f5f5f5;
+        }
+        
+        .stone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .stone-title {
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: var(--forest-dark);
+            flex: 1;
+            line-height: 1.3;
+        }
+        
+        .stone-status {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 700;
+            margin-left: 8px;
+            white-space: nowrap;
+        }
+        
+        .status-critical { background: var(--rust); color: white; }
+        .status-warning { background: var(--amber); color: var(--charcoal); }
+        .status-available { background: var(--sage); color: white; }
+        .status-blocked { background: #999; color: white; }
+        
+        .stone-meta {
+            font-size: 0.9rem;
+            color: #555;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        
+        .stone-time {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            color: var(--rust);
+            font-size: 0.95rem;
+        }
+        
+        .stone-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            flex: 1;
+            min-width: 120px;
+            text-align: center;
+        }
+        
+        .action-primary {
+            background: var(--forest-mid);
+            color: var(--white);
+        }
+        
+        .action-secondary {
+            background: var(--sand);
+            color: var(--forest-dark);
+            border: 2px solid var(--tan);
+        }
+        
+        .action-btn:disabled {
+            background: #ccc;
+            color: #666;
+            border: none;
+        }
+        
+        /* Fallback Cards */
+        .fallback-card {
+            background: var(--white);
+            border: 2px solid var(--amber);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .fallback-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .fallback-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--forest-dark);
+        }
+        
+        .fallback-dist {
+            background: var(--amber);
+            color: var(--charcoal);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        
+        /* Bottom Dock */
+        .bottom-dock {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: var(--dock-height);
+            background: rgba(26, 47, 26, 0.98);
+            display: flex;
+            border-top: 3px solid var(--sage);
+            z-index: 1001;
+            backdrop-filter: blur(8px);
+        }
+        
+        .dock-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--cream);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border-right: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.2s;
+            min-height: var(--tap-min);
+            gap: 4px;
+        }
+        
+        .dock-btn:last-child {
+            border-right: none;
+        }
+        
+        .dock-btn:active, .dock-btn.active {
+            background: var(--sage);
+            color: var(--white);
+        }
+        
+        .dock-icon {
+            font-size: 1.6rem;
+            line-height: 1;
+        }
+        
+        /* Emergency Button */
+        .emergency-btn {
+            position: absolute;
+            bottom: calc(var(--dock-height) + 20px);
+            right: 16px;
+            width: 64px;
+            height: 64px;
+            background: var(--rust);
+            color: var(--white);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.75rem;
+            text-align: center;
+            line-height: 1.1;
+            box-shadow: 0 6px 16px var(--shadow);
+            border: 3px solid var(--white);
+            z-index: 999;
+            letter-spacing: 0.02em;
+        }
+        
+        /* Distance Badge */
+        .distance-badge {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 2px solid var(--amber);
+            pointer-events: none;
+            display: none;
+        }
+        
+        /* Leaflet Customization */
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        .leaflet-popup-content {
+            margin: 0;
+            padding: 16px;
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+        
+        .leaflet-popup-content h3 {
+            margin: 0 0 8px 0;
+            color: var(--forest-dark);
+            font-size: 1.1rem;
+        }
+        
+        .popup-action {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            background: var(--forest-mid);
+            color: white;
+            text-align: center;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        
+        /* Night Mode */
+        body.night-mode #map {
+            filter: invert(100%) hue-rotate(180deg) brightness(0.8) contrast(1.2);
+        }
+        
+        body.night-mode .ui-element {
+            filter: sepia(100%) hue-rotate(-50deg) saturate(300%);
+        }
+        
+        /* Utility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            border: 0;
+        }
+        
+        @media (min-width: 768px) {
+            .bottom-sheet {
+                max-width: 480px;
+                left: 50%;
+                transform: translateX(-50%) translateY(calc(100% - 80px));
+            }
+            .bottom-sheet.expanded {
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; transition: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Real Map Container -->
+    <div id="map" role="application" aria-label="Interactive map of Congaree National Park firefly access"></div>
+    
+    <!-- Distance Indicator -->
+    <div class="distance-badge" id="distBadge"></div>
+
+    <!-- UI Layer -->
+    <div class="ui-layer">
+        
+        <!-- Top Status -->
+        <header class="top-status ui-element" role="banner">
+            <div class="trip-id">CONGAREE 2026</div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span id="phaseBadge" style="background: var(--amber); color: var(--charcoal); padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;">PREPARATION</span>
+                <time class="live-clock" id="liveClock" aria-live="polite">--:-- ET</time>
+            </div>
+        </header>
+
+        <!-- Threshold Strip -->
+        <div class="threshold-strip ui-element" id="thresholdStrip" role="alert" aria-live="assertive">
+            <div class="threshold-info">
+                <span class="threshold-label">Next Critical Threshold</span>
+                <span class="threshold-value" id="thresholdName">Reservation Release</span>
+            </div>
+            <div class="countdown" id="countdownDisplay">--:--:--</div>
+        </div>
+
+        <!-- Map Controls -->
+        <div class="map-controls ui-element">
+            <button class="map-btn ui-element" onclick="locateUser()" aria-label="Center on my location" title="My Location">
+                <span style="font-size: 1.6rem;">📍</span>
+            </button>
+            <button class="map-btn ui-element" onclick="zoomToRoute()" aria-label="Show full route" title="Show Route">
+                <span style="font-size: 1.4rem;">🗺️</span>
+            </button>
+            <button class="map-btn ui-element" onclick="toggleNightMode()" aria-label="Toggle night mode" title="Night Mode">
+                <span style="font-size: 1.4rem;">🌙</span>
+            </button>
+        </div>
+
+        <!-- Location Indicator -->
+        <div class="loc-indicator ui-element" id="locIndicator">
+            <div class="gps-pulse"></div>
+            <span>GPS Active</span>
+        </div>
+
+        <!-- Emergency Fallback -->
+        <button class="emergency-btn ui-element" onclick="showTab('fallbacks')" aria-label="Emergency fallback options">
+            <span style="font-size: 1.2rem;">🛡️</span>
+            <span>FALL<br>BACK</span>
+        </button>
+
+        <!-- Bottom Sheet -->
+        <div class="bottom-sheet ui-element" id="bottomSheet">
+            <div class="sheet-handle" onclick="toggleSheet()">
+                <div class="handle-bar"></div>
+            </div>
+            
+            <div class="sheet-header">
+                <h2 class="sheet-title" id="sheetTitle">Field Operations</h2>
+                <button class="sheet-close" onclick="collapseSheet()" aria-label="Collapse panel">×</button>
+            </div>
+            
+            <div class="sheet-tabs">
+                <button class="sheet-tab active" onclick="showTab('stones')" data-tab="stones">Stones</button>
+                <button class="sheet-tab" onclick="showTab('current')" data-tab="current">Status</button>
+                <button class="sheet-tab" onclick="showTab('fallbacks')" data-tab="fallbacks">Fallbacks</button>
+                <button class="sheet-tab" onclick="showTab('bookings')" data-tab="bookings">Bookings</button>
+            </div>
+            
+            <div class="sheet-content" id="sheetContent">
+                
+                <!-- Stones Tab -->
+                <div class="tab-content active" id="tab-stones">
+                    <div id="stonesList"></div>
+                </div>
+                
+                <!-- Current Status Tab -->
+                <div class="tab-content" id="tab-current">
+                    <div style="background: var(--white); padding: 16px; border-radius: 8px; margin-bottom: 16px; border-left: 5px solid var(--amber);">
+                        <h3 style="margin: 0 0 8px 0; color: var(--forest-dark);">Current Phase</h3>
+                        <p id="currentPhaseDesc" style="margin: 0; color: #555; line-height: 1.5;">
+                            Preparation phase. Reservation release countdown active. Ensure Recreation.gov account access and payment method ready.
+                        </p>
+                    </div>
+                    <div id="currentStones"></div>
+                </div>
+                
+                <!-- Fallbacks Tab -->
+                <div class="tab-content" id="tab-fallbacks">
+                    <div style="background: rgba(199, 91, 57, 0.1); padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 2px solid var(--rust);">
+                        <strong style="color: var(--rust);">Failure Recovery Active</strong><br>
+                        <span style="font-size: 0.9rem; color: #555;">If primary access fails, these regional alternatives preserve mission value.</span>
+                    </div>
+                    <div id="fallbacksList"></div>
+                </div>
+                
+                <!-- Bookings Tab -->
+                <div class="tab-content" id="tab-bookings">
+                    <div id="bookingsList"></div>
+                </div>
+                
+            </div>
+        </div>
+
+        <!-- Bottom Dock -->
+        <nav class="bottom-dock ui-element" role="navigation" aria-label="Main navigation">
+            <button class="dock-btn active" onclick="showTab('stones')" aria-label="Stepping stones">
+                <span class="dock-icon">🪜</span>
+                <span>Stones</span>
+            </button>
+            <button class="dock-btn" onclick="showTab('current')" aria-label="Current status">
+                <span class="dock-icon">📍</span>
+                <span>Status</span>
+            </button>
+            <button class="dock-btn" onclick="showTab('fallbacks')" aria-label="Fallback options">
+                <span class="dock-icon">🛡️</span>
+                <span>Fallback</span>
+            </button>
+            <button class="dock-btn" onclick="showTab('bookings')" aria-label="Bookings and links">
+                <span class="dock-icon">🎫</span>
+                <span>Links</span>
+            </button>
+            <button class="dock-btn" onclick="toggleSheet()" aria-label="Expand or collapse details">
+                <span class="dock-icon">☰</span>
+                <span>Menu</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <script>
+        // Real Geographic Data
+        const locations = {
+            columbia: { lat: 34.0007, lng: -81.0348, name: "Columbia, SC", type: "staging", desc: "Supply hub and staging area" },
+            entrance: { lat: 33.7918, lng: -80.7716, name: "Park Entrance", type: "gate", desc: "16:30 closure threshold - CRITICAL" },
+            longleaf: { lat: 33.8286, lng: -80.8208, name: "Longleaf Campground", type: "campground", desc: "Primary occupancy anchor - walk-to sites" },
+            longleafParking: { lat: 33.8290, lng: -80.8215, name: "Longleaf Parking", type: "parking", desc: "Vehicle hold position before 16:30" },
+            bluff: { lat: 33.8375, lng: -80.8150, name: "Bluff Campground", type: "campground", desc: "Hike-in fallback - 1 mile carry" },
+            bluffTrail: { lat: 33.8330, lng: -80.8180, name: "Bluff Trailhead", type: "trail", desc: "16:30 trail clearance deadline" },
+            visitorCenter: { lat: 33.8303, lng: -80.8238, name: "Harry Hampton VC", type: "facility", desc: "Boardwalk access node" },
+            boardwalk: { lat: 33.8320, lng: -80.8250, name: "Boardwalk Viewing", type: "viewing", desc: "Peak window: 20:45-21:30" },
+            southLanding: { lat: 33.8150, lng: -80.7850, name: "South Cedar Creek", type: "launch", desc: "Guided paddle access" },
+            beidler: { lat: 33.1200, lng: -80.2980, name: "Francis Beidler Forest", type: "fallback", desc: "Ticketed fallback - 45 min NW" },
+            poinsett: { lat: 33.7880, lng: -80.5350, name: "Poinsett State Park", type: "fallback", desc: "Camping fallback - 1 hr NE" },
+            congareeCreek: { lat: 33.9500, lng: -81.0800, name: "Congaree Creek Heritage", type: "fallback", desc: "Urban fallback - 30 min SE" }
+        };
+
+        // Trip Data Model
+        const tripData = {
+            targetDate: "2026-05-20",
+            reservationRelease: "2025-11-21T10:00:00",
+            timezone: "America/New_York",
+            
+            stones: [
+                {
+                    id: "reservation",
+                    name: "Book Longleaf Campground",
+                    time: "Nov 21, 2025 10:00 AM ET",
+                    type: "critical",
+                    location: "Recreation.gov",
+                    coords: locations.longleaf,
+                    condition: "Inventory competition - 180 day release",
+                    url: "https://www.recreation.gov/camping/campgrounds/10190876",
+                    description: "Primary non-lottery strategy. Secures legal overnight presence inside park boundary.",
+                    action: "Open Recreation.gov"
+                },
+                {
+                    id: "bluffBook",
+                    name: "Book Bluff Campground (Fallback)",
+                    time: "Nov 21, 2025 10:00 AM ET",
+                    type: "warning",
+                    location: "Recreation.gov",
+                    coords: locations.bluff,
+                    condition: "If Longleaf inventory fails",
+                    url: "https://www.recreation.gov/camping/campgrounds/10191039",
+                    description: "Hike-in alternative 1 mile from parking. Higher darkness, higher exertion.",
+                    action: "Open Recreation.gov"
+                },
+                {
+                    id: "staging",
+                    name: "Columbia Staging & Supply",
+                    time: "Trip Day 10:00-13:00",
+                    type: "available",
+                    location: "Columbia, SC",
+                    coords: locations.columbia,
+                    condition: "Procure red lights, repellent",
+                    description: "Final supply run. Apply repellent BEFORE park entry. Acquire red light/headlamp.",
+                    action: "View Supply List"
+                },
+                {
+                    id: "occupancy",
+                    name: "Establish Longleaf Occupancy",
+                    time: "Trip Day 13:00-16:00",
+                    type: "warning",
+                    location: "Longleaf Campground",
+                    coords: locations.longleaf,
+                    condition: "Check in, set camp, position vehicle",
+                    description: "Transform from day-use to overnight status. Park vehicle inside campground before sweep.",
+                    action: "Show on Map"
+                },
+                {
+                    id: "gate",
+                    name: "SURVIVE GATE CLOSURE",
+                    time: "Trip Day 16:30 SHARP",
+                    type: "critical",
+                    location: "Entrance Gate",
+                    coords: locations.entrance,
+                    condition: "MUST be inside boundary",
+                    description: "HARD THRESHOLD. Road closes to day use. Non-lottery strategy requires pre-positioning.",
+                    action: "Show Gate Location"
+                },
+                {
+                    id: "observation",
+                    name: "Peak Firefly Observation",
+                    time: "Trip Day 20:45-21:30",
+                    type: "available",
+                    location: "Boardwalk Zone",
+                    coords: locations.boardwalk,
+                    condition: "Dark adaptation, red light only, >65°F",
+                    description: "Photuris frontalis synchronous display. White light prohibited. Rain suppresses activity.",
+                    action: "Show Boardwalk"
+                }
+            ],
+            
+            fallbacks: [
+                {
+                    name: "Francis Beidler Forest",
+                    type: "ticketed",
+                    coords: locations.beidler,
+                    distance: "45 miles NW",
+                    time: "Alternate dates",
+                    url: "https://beidler.audubon.org/home/firefly-nights",
+                    description: "Audubon ticketed event. Strict darkness protocol. Strongest structural alternative to lottery.",
+                    action: "View Tickets"
+                },
+                {
+                    name: "Poinsett State Park",
+                    type: "camping",
+                    coords: locations.poinsett,
+                    distance: "60 miles NE",
+                    time: "Same season",
+                    description: "Sandhills edge habitat. Preserves camping trip structure without Congaree access pressure.",
+                    action: "Show on Map"
+                },
+                {
+                    name: "Congaree Creek Heritage Park",
+                    type: "urban",
+                    coords: locations.congareeCreek,
+                    distance: "25 miles SE",
+                    time: "Evening access",
+                    description: "Low-barrier urban floodplain alternative. Lower display certainty but accessible.",
+                    action: "Show on Map"
+                }
+            ],
+            
+            bookings: [
+                {
+                    name: "Longleaf Campground",
+                    provider: "Recreation.gov",
+                    date: "Nov 21, 2025 10:00 AM ET",
+                    url: "https://www.recreation.gov/camping/campgrounds/10190876",
+                    critical: true,
+                    coords: locations.longleaf
+                },
+                {
+                    name: "Bluff Campground",
+                    provider: "Recreation.gov",
+                    date: "Nov 21, 2025 10:00 AM ET",
+                    url: "https://www.recreation.gov/camping/campgrounds/10191039",
+                    critical: true,
+                    coords: locations.bluff
+                },
+                {
+                    name: "Beidler Firefly Nights",
+                    provider: "Audubon Society",
+                    date: "Spring 2026 (TBA)",
+                    url: "https://beidler.audubon.org/home/firefly-nights",
+                    critical: false,
+                    coords: locations.beidler
+                }
+            ]
+        };
+
+        // Map Initialization
+        let map;
+        let markers = {};
+        let userMarker = null;
+        let routeLine = null;
+
+        function initMap() {
+            // Center on Congaree with Columbia context
+            map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([33.85, -80.75], 11);
+
+            // Add tile layers
+            const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19,
+                attribution: '© Esri'
+            });
+
+            // Layer control
+            const baseMaps = {
+                "Topographic": osm,
+                "Satellite": satellite
+            };
+            
+            L.control.layers(baseMaps, null, {
+                position: 'bottomleft',
+                collapsed: true
+            }).addTo(map);
+
+            // Custom zoom control
+            L.control.zoom({
+                position: 'bottomright'
+            }).addTo(map);
+
+            // Add markers
+            addMarkers();
+            
+            // Add route line
+            addRouteLine();
+            
+            // Attempt geolocation
+            locateUser();
+        }
+
+        function addMarkers() {
+            // Custom icons
+            const icons = {
+                staging: L.divIcon({
+                    className: 'custom-marker',
+                    html: '<div style="background:#5A7247;width:28px;height:28px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:14px;">S</div>',
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14]
+                }),
+                gate: L.divIcon({
+                    className: 'custom-marker',
+                    html: '<div style="background:#C75B39;width:32px;height:32px;border-radius:4px;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:12px;">!</div>',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                }),
+                campground: L.divIcon({
+                    className: 'custom-marker',
+                    html: '<div style="background:#2F3E2F;width:26px;height:26px;clip-path:polygon(50% 0%, 100% 100%, 0% 100%);border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>',
+                    iconSize: [26, 26],
+                    iconAnchor: [13, 26]
+                }),
+                viewing: L.divIcon({
+                    className: 'custom-marker',
+                    html: '<div style="background:#1a2f1a;width:32px;height:32px;border-radius:50%;border:3px solid #F4A261;box-shadow:0 2px 8px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#F4A261;font-size:16px;">✦</div>',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                }),
+                fallback: L.divIcon({
+                    className: 'custom-marker',
+                    html: '<div style="background:#F4A261;width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:#2F3E2F;font-weight:bold;font-size:10px;">FB</div>',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                })
+            };
+
+            // Add all locations
+            Object.entries(locations).forEach(([key, loc]) => {
+                let icon = icons.campground;
+                if (loc.type === 'staging') icon = icons.staging;
+                if (loc.type === 'gate') icon = icons.gate;
+                if (loc.type === 'viewing') icon = icons.viewing;
+                if (loc.type === 'fallback') icon = icons.fallback;
+
+                const marker = L.marker([loc.lat, loc.lng], { icon: icon })
+                    .addTo(map)
+                    .bindPopup(`
+                        <h3>${loc.name}</h3>
+                        <p>${loc.desc}</p>
+                        ${loc.type === 'campground' || loc.type === 'fallback' ? 
+                            `<a href="#" class="popup-action" onclick="zoomTo(${loc.lat}, ${loc.lng}, 16); return false;">Zoom In</a>` : ''}
+                    `);
+                
+                markers[key] = marker;
+            });
+        }
+
+        function addRouteLine() {
+            // Primary route: Columbia -> Entrance -> Longleaf -> Boardwalk
+            const routeCoords = [
+                [locations.columbia.lat, locations.columbia.lng],
+                [locations.entrance.lat, locations.entrance.lng],
+                [locations.longleaf.lat, locations.longleaf.lng],
+                [locations.boardwalk.lat, locations.boardwalk.lng]
+            ];
+            
+            routeLine = L.polyline(routeCoords, {
+                color: '#F4A261',
+                weight: 4,
+                opacity: 0.8,
+                dashArray: '10, 10'
+            }).addTo(map);
+            
+            // Fallback route to Bluff
+            const bluffRoute = [
+                [locations.entrance.lat, locations.entrance.lng],
+                [locations.bluffTrail.lat, locations.bluffTrail.lng],
+                [locations.bluff.lat, locations.bluff.lng]
+            ];
+            
+            L.polyline(bluffRoute, {
+                color: '#8B7355',
+                weight: 3,
+                opacity: 0.6,
+                dashArray: '5, 10'
+            }).addTo(map);
+        }
+
+        function locateUser() {
+            if (!navigator.geolocation) {
+                alert("Geolocation not supported");
+                return;
+            }
+            
+            document.getElementById('locIndicator').classList.add('active');
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    if (userMarker) {
+                        map.removeLayer(userMarker);
+                    }
+                    
+                    userMarker = L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            className: 'user-location',
+                            html: '<div style="background:#3B82F6;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 4px rgba(59,130,246,0.4);"></div>',
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        })
+                    }).addTo(map).bindPopup("You are here");
+                    
+                    map.setView([lat, lng], 13);
+                    
+                    // Calculate distance to gate
+                    const dist = calculateDistance(lat, lng, locations.entrance.lat, locations.entrance.lng);
+                    document.getElementById('distBadge').textContent = `${dist.toFixed(1)} mi to Gate`;
+                    document.getElementById('distBadge').style.display = 'block';
+                    document.getElementById('distBadge').style.bottom = '200px';
+                    document.getElementById('distBadge').style.left = '50%';
+                    document.getElementById('distBadge').style.transform = 'translateX(-50%)';
+                },
+                (error) => {
+                    console.error("Geolocation error:", error);
+                    document.getElementById('locIndicator').classList.remove('active');
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 3959; // Earth radius in miles
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function zoomTo(lat, lng, zoom) {
+            map.setView([lat, lng], zoom);
+        }
+
+        function zoomToRoute() {
+            map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+        }
+
+        function toggleNightMode() {
+            document.body.classList.toggle('night-mode');
+        }
+
+        // UI Functions
+        let sheetExpanded = false;
+
+        function toggleSheet() {
+            const sheet = document.getElementById('bottomSheet');
+            sheetExpanded = !sheetExpanded;
+            if (sheetExpanded) {
+                sheet.classList.add('expanded');
+            } else {
+                sheet.classList.remove('expanded');
+            }
+        }
+
+        function collapseSheet() {
+            document.getElementById('bottomSheet').classList.remove('expanded');
+            sheetExpanded = false;
+        }
+
+        function showTab(tabName) {
+            // Update tabs
+            document.querySelectorAll('.sheet-tab').forEach(t => {
+                t.classList.remove('active');
+                if (t.dataset.tab === tabName) t.classList.add('active');
+            });
+            
+            // Update content
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            
+            // Update dock
+            document.querySelectorAll('.dock-btn').forEach((b, i) => {
+                b.classList.remove('active');
+                if (i < 4) { // First 4 buttons correspond to tabs
+                    const tabs = ['stones', 'current', 'fallbacks', 'bookings'];
+                    if (tabs[i] === tabName) b.classList.add('active');
+                }
+            });
+            
+            // Ensure sheet is open
+            if (!sheetExpanded) toggleSheet();
+            
+            // Update title
+            const titles = {
+                stones: 'Critical Path Stones',
+                current: 'Current Status',
+                fallbacks: 'Recovery Options',
+                bookings: 'Bookings & Resources'
+            };
+            document.getElementById('sheetTitle').textContent = titles[tabName];
+        }
+
+        // Rendering Functions
+        function renderStones() {
+            const container = document.getElementById('stonesList');
+            container.innerHTML = tripData.stones.map(stone => `
+                <div class="stone-card ${stone.type}">
+                    <div class="stone-header">
+                        <div class="stone-title">${stone.name}</div>
+                        <span class="stone-status status-${stone.type}">${stone.type}</span>
+                    </div>
+                    <div class="stone-meta">
+                        <div class="stone-time">${stone.time}</div>
+                        <div style="margin-top: 4px;"><strong>${stone.location}</strong></div>
+                        <div style="margin-top: 4px; color: #666;">${stone.description}</div>
+                    </div>
+                    <div class="stone-actions">
+                        ${stone.url ? `<button class="action-btn action-primary" onclick="window.open('${stone.url}', '_blank')">${stone.action}</button>` : ''}
+                        ${stone.coords ? `<button class="action-btn action-secondary" onclick="zoomTo(${stone.coords.lat}, ${stone.coords.lng}, 15)">Show on Map</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderCurrent() {
+            const container = document.getElementById('currentStones');
+            const critical = tripData.stones.filter(s => s.type === 'critical' || s.type === 'warning');
+            
+            container.innerHTML = critical.map(stone => `
+                <div class="stone-card ${stone.type}">
+                    <div class="stone-header">
+                        <div class="stone-title">${stone.name}</div>
+                        <span class="stone-status status-${stone.type}">${stone.type}</span>
+                    </div>
+                    <div class="stone-meta">
+                        <div class="stone-time">${stone.time}</div>
+                        <div style="margin-top: 4px;">${stone.condition}</div>
+                    </div>
+                    ${stone.coords ? `<button class="action-btn action-secondary" onclick="zoomTo(${stone.coords.lat}, ${stone.coords.lng}, 15)" style="width: 100%; margin-top: 8px;">Navigate to Location</button>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderFallbacks() {
+            const container = document.getElementById('fallbacksList');
+            container.innerHTML = tripData.fallbacks.map(fb => `
+                <div class="fallback-card">
+                    <div class="fallback-header">
+                        <div class="fallback-title">${fb.name}</div>
+                        <div class="fallback-dist">${fb.distance}</div>
+                    </div>
+                    <div style="font-size: 0.9rem; color: #555; margin-bottom: 12px; line-height: 1.5;">
+                        ${fb.description}
+                    </div>
+                    <div class="stone-actions">
+                        ${fb.url ? `<button class="action-btn action-primary" onclick="window.open('${fb.url}', '_blank')">${fb.action}</button>` : ''}
+                        <button class="action-btn action-secondary" onclick="zoomTo(${fb.coords.lat}, ${fb.coords.lng}, 14)">Show on Map</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderBookings() {
+            const container = document.getElementById('bookingsList');
+            container.innerHTML = tripData.bookings.map(bk => `
+                <div class="stone-card ${bk.critical ? 'critical' : ''}">
+                    <div class="stone-header">
+                        <div class="stone-title">${bk.name}</div>
+                        ${bk.critical ? '<span class="stone-status status-critical">Critical</span>' : ''}
+                    </div>
+                    <div class="stone-meta">
+                        <div><strong>Provider:</strong> ${bk.provider}</div>
+                        <div class="stone-time" style="margin-top: 4px;">${bk.date}</div>
+                    </div>
+                    <button class="action-btn action-primary" onclick="window.open('${bk.url}', '_blank')" style="width: 100%; margin-top: 12px;">
+                        Open Booking Site
+                    </button>
+                    <button class="action-btn action-secondary" onclick="zoomTo(${bk.coords.lat}, ${bk.coords.lng}, 15)" style="width: 100%; margin-top: 8px;">
+                        View Location
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Clock and Countdown
+        function updateClock() {
+            const now = new Date();
+            const etOptions = { 
+                timeZone: 'America/New_York', 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+            };
+            const etTime = now.toLocaleTimeString('en-US', etOptions);
+            document.getElementById('liveClock').textContent = etTime + ' ET';
+            
+            // Countdown to next threshold
+            const target = new Date(tripData.reservationRelease);
+            const diff = target - now;
+            
+            if (diff > 0) {
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                let text = '';
+                if (days > 0) text += `${days}d `;
+                text += `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+                document.getElementById('countdownDisplay').textContent = text;
+                
+                if (diff < 1000 * 60 * 60 * 2) {
+                    document.getElementById('thresholdStrip').classList.add('critical');
+                }
+            } else {
+                document.getElementById('countdownDisplay').textContent = "RELEASE ACTIVE";
+                document.getElementById('thresholdStrip').classList.add('critical');
+                document.getElementById('thresholdName').textContent = "Booking Window Open";
+            }
+        }
+
+        // Initialize
+        window.onload = function() {
+            initMap();
+            renderStones();
+            renderCurrent();
+            renderFallbacks();
+            renderBookings();
+            setInterval(updateClock, 1000);
+            updateClock();
+            
+            // Expand sheet initially to show content
+            setTimeout(() => toggleSheet(), 500);
+        };
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (map) map.invalidateSize();
+        });
+    </script>
+</body>
+</html>
