@@ -91,13 +91,19 @@
         /* UI Elements */
         .tl-frame {
             position: relative; flex-shrink: 0; cursor: pointer;
-            border: 2px solid transparent; background: #111; height: 48px; width: 85px;
+            border: 2px solid transparent; background: #111; height: 36px; width: 64px;
             display: flex; align-items: center; justify-content: center; overflow: hidden;
             transition: all 0.1s;
         }
+        @media (min-width: 640px) {
+            .tl-frame { height: 48px; width: 85px; }
+        }
         .tl-frame.active { border-color: var(--accent); transform: scale(1.05); z-index: 10; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
         .tl-thumb { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
-        .tl-num { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); color: #aaa; font-size: 9px; font-weight: bold; text-align: center; padding: 2px 0; }
+        .tl-num { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); color: #aaa; font-size: 8px; font-weight: bold; text-align: center; padding: 1px 0; }
+        @media (min-width: 640px) {
+            .tl-num { font-size: 9px; padding: 2px 0; }
+        }
         .tl-frame.active .tl-num { background: var(--accent); color: #fff; }
 
         .tool-btn.active { background: var(--text); color: var(--bg); }
@@ -154,14 +160,16 @@
             display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
             padding: 8px 12px; background: #121212; border-bottom: 1px solid #262626;
             flex-shrink: 0; min-height: 0;
-            max-height: 35vh;
+            max-height: 20vh;
             overflow-y: auto;
         }
         .header-drawer.hidden { display: none; }
         @media (max-width: 640px) {
-            .header-drawer { gap: 8px; padding: 6px 10px; }
+            .header-drawer { gap: 6px; padding: 6px 8px; max-height: 15vh; }
             .drawer-group { gap: 4px; }
             .control-chip { font-size: 9px; padding: 2px 6px; }
+            .drawer-note { display: none; }
+            .drawer-label { font-size: 9px; }
         }
         .drawer-group {
             display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -228,7 +236,7 @@
         }
     </style>
 </head>
-<body class="w-full h-screen relative overflow-hidden">
+<body class="w-full h-[100dvh] relative overflow-hidden">
 
     <!-- SCRIPT BACKDROP (Mobile) -->
     <div id="script-backdrop" onclick="toggleScript()"></div>
@@ -280,7 +288,7 @@ SHF 2 0 23</textarea>
     </div>
 
     <!-- RIGHT PANEL: FILM DESK & TIMELINE (FULL SCREEN) -->
-    <div class="w-full h-full flex flex-col bg-neutral-950 relative overflow-hidden">
+    <div class="w-full h-full flex flex-col bg-neutral-950 relative overflow-hidden max-h-[100dvh]">
         
         <!-- Top Toolbar -->
         <header class="h-12 bg-neutral-900 border-b border-neutral-800 flex items-center px-2 sm:px-4 gap-2 shrink-0 justify-between z-30 relative">
@@ -392,16 +400,16 @@ SHF 2 0 23</textarea>
             <div class="sprocket-track left" id="sprocket-left"></div>
             
             <!-- Continuous Film Strip -->
-            <div id="film-strip" class="flex flex-col gap-4 items-center transition-none">
-                <div class="frame-container opacity-80"><canvas id="prev-canvas"></canvas></div>
+            <div id="film-strip" class="flex flex-col gap-2 sm:gap-4 items-center justify-center h-full transition-none">
+                <div class="frame-container opacity-80 hidden sm:block"><canvas id="prev-canvas"></canvas></div>
                 
-                <div id="canvas-wrapper">
+                <div id="canvas-wrapper" class="max-h-[50vh] sm:max-h-none">
                     <div id="grid-overlay" class="grid-overlay"></div>
                     <div class="grain-overlay"></div>
                     <canvas id="main-canvas"></canvas>
                 </div>
                 
-                <div class="frame-container opacity-80"><canvas id="next-canvas"></canvas></div>
+                <div class="frame-container opacity-80 hidden sm:block"><canvas id="next-canvas"></canvas></div>
             </div>
             
             <div class="sprocket-track right" id="sprocket-right"></div>
@@ -413,18 +421,18 @@ SHF 2 0 23</textarea>
         </main>
 
         <!-- Timeline Deck -->
-        <section class="h-[80px] sm:h-[100px] bg-neutral-900 border-t border-neutral-800 flex flex-col shrink-0 z-30 relative pb-[var(--safe-bottom)]">
-            <div class="h-7 sm:h-8 bg-neutral-950 flex items-center px-3 gap-2 border-b border-neutral-800">
-                <button id="btn-play" class="px-3 py-0.5 bg-neutral-800 text-white text-[10px] font-bold uppercase tracking-widest border border-neutral-700 hover:bg-neutral-700" onclick="togglePlay()">▶ PLAY</button>
-                <div class="w-px h-4 bg-neutral-700 mx-1"></div>
-                <button class="px-2 py-0.5 text-neutral-400 text-[10px] hover:text-white uppercase font-bold" onclick="addFrame()">+ Add</button>
-                <button class="px-2 py-0.5 text-neutral-400 text-[10px] hover:text-white uppercase font-bold" onclick="cloneFrame()">⧉ Clone</button>
-                <div class="flex-grow text-right text-[10px] font-bold text-neutral-500 tracking-widest uppercase flex items-center justify-end gap-3">
+        <section class="h-[60px] sm:h-[100px] bg-neutral-900 border-t border-neutral-800 flex flex-col shrink-0 z-30 relative pb-[var(--safe-bottom)]">
+            <div class="h-6 sm:h-8 bg-neutral-950 flex items-center px-2 sm:px-3 gap-1 sm:gap-2 border-b border-neutral-800">
+                <button id="btn-play" class="px-2 sm:px-3 py-0.5 bg-neutral-800 text-white text-[9px] sm:text-[10px] font-bold uppercase tracking-widest border border-neutral-700 hover:bg-neutral-700" onclick="togglePlay()">▶ PLAY</button>
+                <div class="w-px h-3 sm:h-4 bg-neutral-700 mx-1"></div>
+                <button class="px-1.5 sm:px-2 py-0.5 text-neutral-400 text-[9px] sm:text-[10px] hover:text-white uppercase font-bold" onclick="addFrame()">+</button>
+                <button class="px-1.5 sm:px-2 py-0.5 text-neutral-400 text-[9px] sm:text-[10px] hover:text-white uppercase font-bold" onclick="cloneFrame()">⧉</button>
+                <div class="flex-grow text-right text-[9px] sm:text-[10px] font-bold text-neutral-500 tracking-widest uppercase flex items-center justify-end gap-2 sm:gap-3">
                     <span id="tl-mode" class="hidden sm:block text-neutral-400">Script mode</span>
-                    <span id="tl-info">FRM_01</span>
+                    <span id="tl-info">01</span>
                 </div>
             </div>
-            <div id="tl-strip" class="flex-grow flex items-center px-4 gap-3 overflow-x-auto bg-black">
+            <div id="tl-strip" class="flex-grow flex items-center px-2 sm:px-4 gap-2 sm:gap-3 overflow-x-auto bg-black">
                 <!-- Thumbs -->
             </div>
         </section>
@@ -577,6 +585,7 @@ const W = 320, H = 180;
 const GRID_COLS = 64, GRID_ROWS = 36; 
 const BLOCK_SZ = 5; 
 const PREVIEW_FPS = 12;
+const MAX_PREVIEW_FRAMES = 300; // ~25 seconds at 12fps
 const EXPORT_FPS = 12;
 const PHOSPHOR_ALPHA = 0.18;
 const FILM_PULL_START = 0.88;
@@ -1017,7 +1026,7 @@ function playLoop(now) {
         
         const frames = document.querySelectorAll('.tl-frame');
         frames.forEach((el, i) => el.classList.toggle('active', i === state.cur));
-        document.getElementById('tl-info').textContent = `FRM_${String(state.cur+1).padStart(2,'0')}`;
+        document.getElementById('tl-info').textContent = `${state.cur+1}/${state.frames.length}`;
         
         if (state.cur === 0 || frames[state.cur].offsetLeft > document.getElementById('tl-strip').scrollLeft + document.getElementById('tl-strip').clientWidth - 100) {
             frames[state.cur].scrollIntoView({ inline: 'center', block: 'nearest' });
@@ -1581,7 +1590,7 @@ async function extractVideoFrames(file) {
     await new Promise(r => { vid.onloadeddata = r; });
     
     const duration = vid.duration;
-    const numFrames = Math.min(60, Math.max(12, Math.floor(duration * PREVIEW_FPS))); 
+    const numFrames = Math.min(MAX_PREVIEW_FRAMES, Math.max(12, Math.floor(duration * PREVIEW_FPS))); 
     const step = duration / numFrames;
     
     state.frames = []; 
