@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>B·FLIX · COMPUTATIONAL CELLULOID</title>
+<style>
+:root {
+    --bg: #050505;
+    --film-base: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --surface3: #2a2a2a;
+    --border: #2e2e2e;
+    --border2: #444;
+    --text: #f0f0f0;
+    --muted: #999;
+    --dim: #666;
+    --accent: #e63333;
+    --accent2: #ff6b35;
+    --gold: #c9a84c;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+}
+
+*, *::before, *::after {
+    box-sizing: border-box; margin: 0; padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+*:not(.color-swatch):not(.comp-dot) { border-radius: 0 !important; }
+
+html, body {
+    height: 100%; background: var(--bg); color: var(--text);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px; overflow: hidden; overscroll-behavior: none;
+    user-select: none; -webkit-user-select: none;
+}
+
+#app {
+    display: flex; flex-direction: column;
+    height: 100dvh; padding-top: var(--safe-top);
+}
+
+/* ── TOPBAR ── */
+#topbar {
+    display: flex; align-items: center;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    height: 46px; flex-shrink: 0; padding: 0 10px; gap: 4px;
+    position: relative; z-index: 10;
+}
+#app-name {
+    font-size: 15px; font-weight: 900; letter-spacing: 0.12em;
+    color: var(--text); flex-shrink: 0; display: flex; align-items: center; gap: 5px;
+}
+#app-name .v { color: var(--accent); font-size: 9px; border: 1px solid var(--accent); padding: 1px 4px; letter-spacing: 0.15em; }
+.spacer { flex: 1; }
+.top-btn {
+    height: 30px; border: 1px solid var(--border2); background: var(--surface2);
+    color: var(--muted); display: flex; align-items: center;
+    justify-content: center; cursor: pointer; flex-shrink: 0;
+    padding: 0 10px; gap: 5px; font-size: 9px; font-weight: 900; letter-spacing: 0.08em;
+    font-family: inherit; transition: color 0.1s, background 0.1s;
+}
+.top-btn:active, .top-btn.on { background: var(--text); color: var(--bg); }
+.top-btn.accent { color: var(--bg); background: var(--text); border-color: var(--text); font-weight: 900; }
+.top-btn.accent:active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.top-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: square; flex-shrink: 0; }
+.top-btn.active-state { color: var(--gold); border-color: var(--gold); }
+
+#undo-btn { opacity: 0.3; pointer-events: none; }
+#undo-btn.can-undo { opacity: 1; pointer-events: all; }
+
+/* ── GATE ── */
+#gate-container {
+    flex: 1; display: flex;
+    background: #030303; position: relative; overflow: hidden;
+    justify-content: center; align-items: center;
+    min-height: 0;
+}
+
+#hud {
+    position: absolute; top: 8px; left: 12px; right: 12px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    pointer-events: none; z-index: 100;
+}
+.hud-tag {
+    font-size: 9px; font-weight: 900; color: var(--muted);
+    letter-spacing: 0.18em; text-transform: uppercase;
+    background: rgba(0,0,0,0.6); padding: 3px 6px;
+    border: 1px solid var(--border);
+}
+.hud-tag.bright { color: var(--text); }
+
+#film-bg {
+    background: var(--film-base);
+    height: 100%; width: 100%;
+    display: flex; flex-direction: row; align-items: center; justify-content: center;
+    box-shadow: inset 0 0 80px rgba(0,0,0,0.9);
+    position: relative;
+}
+
+.sprocket-track {
+    position: absolute; top: 0; bottom: 0; width: 18px;
+    background-image: repeating-linear-gradient(
+        180deg,
+        rgba(0,0,0,0.85) 0px, rgba(0,0,0,0.85) 12px,
+        transparent 12px, transparent 24px
+    );
+    background-size: 100% 24px;
+    border-left: 1px solid #000; border-right: 1px solid #000;
+}
+.sprocket-track.left { left: 8px; }
+.sprocket-track.right { right: 8px; }
+
+#canvas-wrapper {
+    position: relative; line-height: 0;
+    box-shadow: 0 0 0 1px #000, 0 12px 48px rgba(0,0,0,0.9);
+    overflow: hidden; transform: translateZ(0);
+}
+
+#grain-overlay {
+    position: absolute; inset: 0; pointer-events: none; z-index: 50;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E");
+    opacity: 0.25; mix-blend-mode: overlay;
+    animation: grainShift 0.1s steps(2) infinite;
+}
+@keyframes grainShift {
+    0% { transform: translate(0,0); }
+    50% { transform: translate(-1px, 2px); }
+    100% { transform: translate(1px, -1px); }
+}
+
+/* GRID: rendered as SVG overlay so it's always canvas-relative */
+#grid-svg {
+    position: absolute; inset: 0; pointer-events: none;
+    display: none; z-index: 20;
+}
+#grid-svg.on { display: block; }
+
+canvas {
+    image-rendering: pixelated; touch-action: none;
+    display: block; position: relative; z-index: 10;
+}
+
+/* ── EMPTY STATE ── */
+#empty-state {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+    pointer-events: none; z-index: 200;
+    transition: opacity 0.3s;
+}
+#empty-state.hidden { opacity: 0; pointer-events: none; }
+.es-icon { color: var(--border2); }
+.es-icon svg { width: 48px; height: 48px; stroke: currentColor; fill: none; stroke-width: 1; stroke-linecap: square; }
+.es-title { font-size: 11px; font-weight: 900; letter-spacing: 0.2em; color: var(--muted); }
+.es-sub { font-size: 9px; color: var(--dim); letter-spacing: 0.12em; }
+.es-tap {
+    pointer-events: all; cursor: pointer;
+    margin-top: 8px; padding: 10px 20px;
+    border: 1px solid var(--border2); background: var(--surface2);
+    color: var(--text); font-size: 10px; font-weight: 900; letter-spacing: 0.15em;
+    font-family: inherit; text-transform: uppercase;
+    transition: background 0.1s, color 0.1s;
+}
+.es-tap:active { background: var(--text); color: var(--bg); }
+.es-hint { font-size: 9px; color: var(--dim); letter-spacing: 0.1em; }
+
+/* ── TIMELINE DECK ── */
+#timeline-deck {
+    height: 106px; background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; flex-shrink: 0;
+}
+#tl-controls {
+    display: flex; height: 34px; border-bottom: 1px solid var(--border);
+    background: var(--surface2); align-items: center; padding: 0 10px; gap: 5px;
+}
+.tl-btn {
+    background: transparent; border: 1px solid var(--border2); color: var(--muted);
+    font-size: 9px; font-weight: 900; cursor: pointer; padding: 0 8px;
+    display: flex; align-items: center; justify-content: center; height: 22px;
+    letter-spacing: 0.1em; text-transform: uppercase; font-family: inherit;
+}
+.tl-btn:active { background: var(--text); color: var(--bg); }
+.tl-btn.play { color: #ccc; background: #222; border-color: #555; }
+.tl-btn.play.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.tl-btn.compute {
+    background: #050505; color: var(--gold); border-color: var(--gold);
+    box-shadow: 0 0 6px rgba(201,168,76,0.2);
+}
+.tl-btn.compute:active { background: var(--gold); color: #000; }
+.tl-sep { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
+#tl-info { flex: 1; text-align: right; font-size: 9px; color: var(--dim); font-weight: 900; letter-spacing: 0.15em; }
+#fps-display { font-size: 9px; color: var(--dim); font-weight: 900; letter-spacing: 0.1em; margin-right: 4px; }
+
+#tl-strip {
+    flex: 1; display: flex; align-items: center; overflow-x: auto;
+    padding: 0 18px; gap: 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    background: #080808;
+}
+#tl-strip::-webkit-scrollbar { display: none; }
+
+.tl-frame {
+    position: relative; flex-shrink: 0; cursor: pointer;
+    border: 1px solid #1e1e1e; background: #181818;
+    height: 42px; width: 74px; overflow: hidden;
+}
+.tl-frame.active { border-color: var(--accent); box-shadow: 0 0 8px rgba(230,51,51,0.4); }
+.tl-thumb { display: block; image-rendering: pixelated; width: 100%; height: 100%; object-fit: cover; }
+.tl-num {
+    position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.75);
+    color: #555; font-size: 7px; font-weight: 900; padding: 2px 0; text-align: center; letter-spacing: 0.08em;
+}
+.tl-frame.active .tl-num { background: var(--accent); color: #000; }
+
+/* ── BOTTOM TOOLBAR ── */
+#toolbar {
+    background: var(--surface2); border-top: 1px solid var(--border);
+    flex-shrink: 0; padding-bottom: var(--safe-bottom);
+}
+#tool-row {
+    display: flex; align-items: stretch; height: 46px;
+    border-bottom: 1px solid var(--border);
+}
+.tool-btn {
+    flex: 1; border: none; border-right: 1px solid var(--border); background: transparent;
+    color: var(--dim); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3px;
+    cursor: pointer; font-family: inherit;
+}
+.tool-btn:last-child { border-right: none; }
+.tool-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: square; }
+.tool-btn span { font-size: 7px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+.tool-btn.active { color: var(--text); background: var(--surface); box-shadow: inset 0 2px 0 var(--text); }
+.tool-btn:active { background: #fff; color: #000; }
+
+#options-row {
+    display: flex; align-items: center; height: 46px; padding: 0 12px; gap: 12px;
+}
+#colors { display: flex; gap: 7px; align-items: center; flex: 1; overflow-x: auto; scrollbar-width: none; }
+.color-swatch {
+    width: 22px; height: 22px; flex-shrink: 0; cursor: pointer;
+    border: 2px solid transparent; transition: transform 0.1s;
+    border-radius: 50% !important;
+}
+.color-swatch.active { border-color: #fff; transform: scale(1.25); }
+
+#size-group { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+#size-slider {
+    -webkit-appearance: none; appearance: none; width: 64px; height: 2px;
+    background: var(--border2); outline: none; cursor: pointer;
+}
+#size-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px;
+    border-radius: 50% !important; background: #fff; cursor: pointer;
+}
+#size-label { font-size: 8px; color: var(--muted); font-weight: 900; letter-spacing: 0.12em; }
+
+/* ── MODAL BASE ── */
+.modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 1000;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.modal-overlay.show { opacity: 1; pointer-events: all; }
+.modal-panel {
+    background: var(--surface); border: 1px solid var(--border2);
+    width: 100%; max-width: 480px; padding: 0;
+    box-shadow: 0 -20px 60px rgba(0,0,0,1);
+    max-height: 90dvh; overflow-y: auto;
+}
+.modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--surface); z-index: 5;
+}
+.modal-title { font-size: 12px; font-weight: 900; letter-spacing: 0.15em; color: var(--gold); display: flex; align-items: center; gap: 8px; }
+.modal-title svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: square; }
+.modal-close {
+    width: 28px; height: 28px; border: 1px solid var(--border2); background: transparent;
+    color: var(--muted); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+    font-family: inherit;
+}
+.modal-close:active { background: var(--text); color: var(--bg); }
+.modal-body { padding: 16px 18px; }
+
+.field-label {
+    font-size: 8px; font-weight: 900; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 6px; display: block;
+}
+.field-select, .field-input {
+    width: 100%; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border2); padding: 10px 12px;
+    font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700;
+    outline: none; appearance: none; margin-bottom: 14px;
+}
+.field-desc { font-size: 9px; color: var(--dim); letter-spacing: 0.05em; margin-bottom: 14px; line-height: 1.6; }
+.modal-actions { display: flex; gap: 8px; padding-top: 4px; }
+.modal-btn {
+    flex: 1; padding: 13px; font-size: 10px; font-weight: 900;
+    background: var(--bg); color: var(--text); border: 1px solid var(--border2);
+    cursor: pointer; text-transform: uppercase; letter-spacing: 0.12em; font-family: inherit;
+}
+.modal-btn:active { background: var(--text); color: var(--bg); }
+.modal-btn.run { background: var(--gold); color: #000; border-color: var(--gold); }
+.modal-btn.run:active { background: var(--text); }
+.modal-btn.danger { color: var(--accent); border-color: var(--accent); }
+.modal-btn.danger:active { background: var(--accent); color: #fff; }
+
+/* ── MACRO GRID ── */
+.macro-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;
+}
+.macro-tile {
+    border: 1px solid var(--border2); background: var(--bg); padding: 12px;
+    cursor: pointer; display: flex; flex-direction: column; gap: 6px;
+    transition: border-color 0.15s, background 0.15s;
+}
+.macro-tile.selected { border-color: var(--gold); background: rgba(201,168,76,0.08); }
+.macro-tile:active { background: var(--surface3); }
+.mt-icon { font-size: 18px; }
+.mt-name { font-size: 9px; font-weight: 900; letter-spacing: 0.12em; color: var(--text); text-transform: uppercase; }
+.mt-desc { font-size: 8px; color: var(--muted); letter-spacing: 0.05em; line-height: 1.5; }
+
+/* ── BFLIX COMMAND PANEL ── */
+#bflix-panel .modal-panel { max-height: 80dvh; }
+#cmd-editor {
+    width: 100%; background: #000; color: #c9a84c;
+    border: 1px solid var(--border2); padding: 12px;
+    font-family: 'Courier New', monospace; font-size: 11px;
+    outline: none; resize: none; height: 160px; line-height: 1.7;
+    letter-spacing: 0.03em; margin-bottom: 10px;
+}
+.cmd-ref {
+    background: var(--bg); border: 1px solid var(--border);
+    padding: 10px 12px; margin-bottom: 10px;
+}
+.cmd-ref-title { font-size: 8px; font-weight: 900; color: var(--dim); letter-spacing: 0.2em; margin-bottom: 8px; }
+.cmd-ref table { width: 100%; border-collapse: collapse; }
+.cmd-ref td { font-size: 9px; padding: 3px 6px; color: var(--muted); vertical-align: top; }
+.cmd-ref td:first-child { color: var(--gold); white-space: nowrap; width: 40%; font-weight: 900; letter-spacing: 0.05em; }
+
+/* ── EXPORT PANEL ── */
+.export-opt {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.export-opt:last-child { border-bottom: none; }
+.eo-info { display: flex; flex-direction: column; gap: 3px; }
+.eo-name { font-size: 10px; font-weight: 900; color: var(--text); letter-spacing: 0.1em; }
+.eo-desc { font-size: 8px; color: var(--muted); }
+.eo-btn {
+    padding: 8px 14px; border: 1px solid var(--border2); background: var(--surface2);
+    color: var(--text); font-size: 9px; font-weight: 900; letter-spacing: 0.1em;
+    font-family: inherit; cursor: pointer; flex-shrink: 0;
+}
+.eo-btn:active { background: var(--text); color: var(--bg); }
+
+/* ── DRAG OVERLAY ── */
+#drag-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    border: 3px dashed var(--gold); z-index: 2000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    opacity: 0; pointer-events: none; transition: opacity 0.15s;
+}
+#drag-overlay.active { opacity: 1; }
+.drag-text { color: var(--gold); font-size: 20px; font-weight: 900; letter-spacing: 0.2em; }
+.drag-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.15em; }
+
+/* ── TOAST ── */
+#toast {
+    position: fixed; top: calc(54px + var(--safe-top)); left: 50%; transform: translateX(-50%);
+    background: var(--text); color: var(--bg);
+    font-size: 9px; font-weight: 900; letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 6px 14px; opacity: 0; transition: opacity 0.15s; pointer-events: none; z-index: 3000;
+    white-space: nowrap;
+}
+#toast.on { opacity: 1; }
+
+#file-input { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ── COMPUTE MODAL ── -->
+<div id="compute-panel" class="modal-overlay">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        BEFLIX BATCH MACRO
+      </div>
+      <button class="modal-close" onclick="closeModal('compute-panel')">✕</button>
+    </div>
+    <div class="modal-body">
+      <span class="field-label">GENERATOR · SELECT ALGORITHM</span>
+      <div class="macro-grid" id="macro-grid">
+        <!-- Populated by JS -->
+      </div>
+      <span class="field-label">MOTION VECTOR</span>
+      <select id="macro-motion" class="field-select">
+        <option value="left-right">DRIFT · LEFT TO RIGHT</option>
+        <option value="right-left">DRIFT · RIGHT TO LEFT</option>
+        <option value="up-down">DRIFT · TOP TO BOTTOM</option>
+        <option value="down-up">DRIFT · BOTTOM TO TOP</option>
+        <option value="center-jitter">JITTER · CENTER HOLD</option>
+        <option value="arc">TRAJECTORY · ARC SWING</option>
+        <option value="static">STATIC · NO MOVEMENT</option>
+      </select>
+      <span class="field-label">FRAME RANGE</span>
+      <select id="macro-range" class="field-select">
+        <option value="all">ALL FRAMES</option>
+        <option value="current">CURRENT FRAME ONLY</option>
+        <option value="odd">ODD FRAMES ONLY</option>
+        <option value="even">EVEN FRAMES ONLY</option>
+      </select>
+      <div class="modal-actions">
+        <button class="modal-btn" onclick="closeModal('compute-panel')">CANCEL</button>
+        <button class="modal-btn run" onclick="executeCompute()">▶ EXECUTE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── BFLIX COMMAND PANEL ── -->
+<div id="bflix-panel" class="modal-overlay">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        BEFLIX COMMAND LANGUAGE
+      </div>
+      <button class="modal-close" onclick="closeModal('bflix-panel')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="cmd-ref">
+        <div class="cmd-ref-title">LANGUAGE REFERENCE</div>
+        <table>
+          <tr><td>DOT r x y</td><td>Circle, radius r, at x,y</td></tr>
+          <tr><td>BOX x1 y1 x2 y2</td><td>Hollow rectangle</td></tr>
+          <tr><td>LINE x1 y1 x2 y2</td><td>Line segment</td></tr>
+          <tr><td>FILL x y r</td><td>Filled circle</td></tr>
+          <tr><td>SCRATCH n</td><td>n vertical scratches</td></tr>
+          <tr><td>WASH c x y</td><td>Color wash blob (c=R/G/B/Y)</td></tr>
+          <tr><td>CLEAR</td><td>Erase all ink on frame</td></tr>
+          <tr><td>FRAME n</td><td>Jump to frame n</td></tr>
+          <tr><td>REPEAT n { }</td><td>Loop n times</td></tr>
+        </table>
+      </div>
+      <span class="field-label">PROGRAM · ENTER COMMANDS</span>
+      <textarea id="cmd-editor" spellcheck="false" placeholder="// BEFLIX program
+// Runs on current frame
+
+DOT 20 160 90
+BOX 20 20 140 70
+WASH R 80 40"></textarea>
+      <div class="field-desc">Commands execute on the current frame's ink layer. Coordinates are in canvas space (320×180). Each command on a new line.</div>
+      <div class="modal-actions">
+        <button class="modal-btn" onclick="closeModal('bflix-panel')">CANCEL</button>
+        <button class="modal-btn" onclick="beflixClear()">CLEAR</button>
+        <button class="modal-btn run" onclick="executeBeflix()">▶ RUN</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── EXPORT PANEL ── -->
+<div id="export-panel" class="modal-overlay">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        EXPORT / OUTPUT
+      </div>
+      <button class="modal-close" onclick="closeModal('export-panel')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="export-opt">
+        <div class="eo-info">
+          <div class="eo-name">EXPORT FRAME · PNG</div>
+          <div class="eo-desc">Current frame, composite (base + ink)</div>
+        </div>
+        <button class="eo-btn" onclick="exportFrame()">EXPORT</button>
+      </div>
+      <div class="export-opt">
+        <div class="eo-info">
+          <div class="eo-name">EXPORT STRIP · PNG</div>
+          <div class="eo-desc">All frames as contact sheet</div>
+        </div>
+        <button class="eo-btn" onclick="exportStrip()">EXPORT</button>
+      </div>
+      <div class="export-opt">
+        <div class="eo-info">
+          <div class="eo-name">EXPORT INK ONLY · PNG</div>
+          <div class="eo-desc">Current frame ink layer (transparent bg)</div>
+        </div>
+        <button class="eo-btn" onclick="exportInkOnly()">EXPORT</button>
+      </div>
+      <div class="export-opt">
+        <div class="eo-info">
+          <div class="eo-name">EXPORT ANIMATED GIF</div>
+          <div class="eo-desc">All frames as looping animation (via download)</div>
+        </div>
+        <button class="eo-btn" onclick="exportGifFrames()">EXPORT</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DRAG OVERLAY ── -->
+<div id="drag-overlay">
+  <div class="drag-text">MOUNT MEDIA</div>
+  <div class="drag-sub">DROP IMAGE OR VIDEO</div>
+</div>
+
+<!-- ── MAIN ── -->
+<div id="app">
+  <header id="topbar">
+    <div id="app-name">B·FLIX<span class="v">PRO</span></div>
+    <div class="spacer"></div>
+    <button class="top-btn" id="undo-btn" onclick="undo()" title="Undo last stroke">
+      <svg viewBox="0 0 24 24"><path d="M3 7h10a6 6 0 0 1 0 12H5"/><polyline points="3 7 7 3 3 7 7 11"/></svg>
+    </button>
+    <button class="top-btn" id="grid-btn" onclick="toggleGrid()" title="Toggle Grid">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+    </button>
+    <button class="top-btn" onclick="openModal('bflix-panel')" title="BEFLIX Command Language">
+      <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+    </button>
+    <button class="top-btn" onclick="openModal('export-panel')" title="Export">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
+    <label for="file-input" class="top-btn accent" title="Mount image or video" style="cursor:pointer">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      MOUNT
+    </label>
+  </header>
+
+  <main id="gate-container">
+    <div id="hud">
+      <span class="hud-tag" id="status-tool">PEN · RED</span>
+      <span class="hud-tag bright" id="status-coords">000,000</span>
+    </div>
+    <div id="film-bg">
+      <div class="sprocket-track left" id="sprocket-left"></div>
+      <div id="canvas-wrapper">
+        <svg id="grid-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div id="grain-overlay"></div>
+        <canvas id="main-canvas"></canvas>
+        <!-- Empty state rendered inside canvas-wrapper so it overlays correctly -->
+      </div>
+      <div id="empty-state">
+        <div class="es-icon">
+          <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+        </div>
+        <div class="es-title">NO MEDIA MOUNTED</div>
+        <div class="es-sub">LOAD IMAGE OR VIDEO TO BEGIN</div>
+        <label for="file-input" class="es-tap" style="cursor:pointer">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px;margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          TAP TO MOUNT MEDIA
+        </label>
+        <div class="es-hint">OR DRAG &amp; DROP · OR PASTE FROM CLIPBOARD</div>
+      </div>
+      <div class="sprocket-track right" id="sprocket-right"></div>
+    </div>
+  </main>
+
+  <section id="timeline-deck">
+    <div id="tl-controls">
+      <button class="tl-btn play" id="btn-play" onclick="togglePlay()">▶ PLAY</button>
+      <button class="tl-btn compute" onclick="openModal('compute-panel')">∑ MACRO</button>
+      <div class="tl-sep"></div>
+      <button class="tl-btn" onclick="addFrame()">+ ADD</button>
+      <button class="tl-btn" onclick="cloneFrame()">⧉ CLONE</button>
+      <button class="tl-btn" onclick="deleteFrame()" id="del-btn">✕ DEL</button>
+      <div class="spacer"></div>
+      <span id="fps-display">10fps</span>
+      <div id="tl-info">FRM 01/01</div>
+    </div>
+    <div id="tl-strip"></div>
+  </section>
+
+  <footer id="toolbar">
+    <div id="tool-row">
+      <button class="tool-btn active" data-tool="pen" onclick="setTool('pen')">
+        <svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+        <span>Draw</span>
+      </button>
+      <button class="tool-btn" data-tool="line" onclick="setTool('line')">
+        <svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"/></svg>
+        <span>Line</span>
+      </button>
+      <button class="tool-btn" data-tool="rect" onclick="setTool('rect')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/></svg>
+        <span>Box</span>
+      </button>
+      <button class="tool-btn" data-tool="circ" onclick="setTool('circ')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+        <span>Dot</span>
+      </button>
+      <button class="tool-btn" data-tool="fill" onclick="setTool('fill')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.3"/><circle cx="12" cy="12" r="10"/></svg>
+        <span>Fill</span>
+      </button>
+      <button class="tool-btn" data-tool="erase" onclick="setTool('erase')">
+        <svg viewBox="0 0 24 24"><path d="M20 20H7L3 16l10-10 7 7-2.5 2.5"/><path d="m6.5 17.5 3-3"/></svg>
+        <span>Scrub</span>
+      </button>
+    </div>
+    <div id="options-row">
+      <div id="colors"></div>
+      <div id="size-group">
+        <input type="range" id="size-slider" min="1" max="16" value="4" step="1" oninput="setSize(this.value)">
+        <div id="size-label">SZ·04</div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- File input MUST be visible & label-driven to work in sandboxed iframes -->
+<label id="file-label" for="file-input" style="display:none"></label>
+<input type="file" id="file-input" accept="image/*,video/*" style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0" onchange="handleMediaUpload(event)">
+<div id="toast"></div>
+
+<script>
+// ── CONFIG ──
+const W = 320, H = 180;
+const FPS_OPTIONS = [6, 8, 10, 12, 16, 24];
+let currentFPS = 10;
+
+const PAL = [
+    { hex: '#000000', rgba: [0,0,0,220], name: 'BLK' },
+    { hex: '#d91c1c', rgba: [217,28,28,200], name: 'RED' },
+    { hex: '#196127', rgba: [25,97,39,200], name: 'GRN' },
+    { hex: '#1d4ed8', rgba: [29,78,216,200], name: 'BLU' },
+    { hex: '#facc15', rgba: [250,204,21,160], name: 'YLW' },
+    { hex: '#ffffff', rgba: [255,255,255,255], name: 'WHT' },
+    { hex: '#c9a84c', rgba: [201,168,76,200], name: 'GLD' },
+];
+
+const MACROS = [
+    { id: 'tracking-dot', icon: '⬤', name: 'Tracking Dot', desc: 'Animated red dot overlaid per frame' },
+    { id: 'tracking-box', icon: '□', name: 'Tracking Box', desc: 'Hollow marker box, frame-by-frame' },
+    { id: 'film-scratch', icon: '⫿', name: 'Film Scratch', desc: 'Vertical scratch lines + dirt' },
+    { id: 'color-wash', icon: '◍', name: 'Color Wash', desc: 'Large translucent blobs, all frames' },
+    { id: 'punch-register', icon: '⊕', name: 'Punch Register', desc: 'Registration cross per frame' },
+    { id: 'optical-wipe', icon: '◧', name: 'Optical Wipe', desc: 'Progressive scan line wipe' },
+    { id: 'frame-number', icon: '#', name: 'Frame Number', desc: 'Burn-in frame counter each cell' },
+    { id: 'clear-ink', icon: '◻', name: 'Clear Ink', desc: 'Erase all annotation on range' },
+];
+
+let selectedMacro = 'tracking-dot';
+
+let state = {
+    frames: [], cur: 0, prev: 0, playing: false,
+    tool: 'pen', color: 1, size: 4, gridOn: false,
+    drag: false, d0: [0,0], d1: [0,0],
+    transitionOffset: 0, sprocketPos: 0,
+    hasMedia: false,
+};
+
+const canvas = document.getElementById('main-canvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const inkBuffer = document.createElement('canvas');
+inkBuffer.width = W; inkBuffer.height = H;
+const inkCtx = inkBuffer.getContext('2d', { willReadFrequently: true });
+
+let AC;
+let tlThumbs = [];
+let playRAF;
+let lastFrameTime = 0;
+
+// ── MODAL SYSTEM ──
+function openModal(id) {
+    haptic(10);
+    document.getElementById(id).classList.add('show');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+}
+// Close on backdrop tap
+document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', e => { if (e.target === el) el.classList.remove('show'); });
+});
+
+// ── HAPTICS / AUDIO ──
+function haptic(d = 15) {
+    if (navigator.vibrate) { try { navigator.vibrate(d); } catch(e){} }
+}
+function initAudio() {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+}
+function beep(f=150, d=0.02, v=0.01, t='square') {
+    if (!AC || AC.state === 'suspended') return;
+    const o = AC.createOscillator(); const g = AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.type = t; o.frequency.setValueAtTime(f, AC.currentTime);
+    g.gain.setValueAtTime(v, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.00001, AC.currentTime + d);
+    o.start(); o.stop(AC.currentTime + d);
+}
+
+// ── INIT ──
+window.onload = () => {
+    buildColors();
+    buildMacroGrid();
+    addFrame(true);
+    resize();
+    window.addEventListener('resize', resize);
+    requestAnimationFrame(weaveLoop);
+    
+    // FPS label tap cycles fps
+    document.getElementById('fps-display').addEventListener('click', cycleFPS);
+};
+
+function resize() {
+    const wrapper = document.getElementById('canvas-wrapper');
+    const container = document.getElementById('gate-container');
+    const maxW = container.clientWidth - 44;
+    const maxH = container.clientHeight - 24;
+    const scale = Math.min(maxW / W, maxH / H);
+    const viewW = Math.floor(W * scale);
+    const viewH = Math.floor(H * scale);
+    wrapper.style.width = `${viewW}px`;
+    wrapper.style.height = `${viewH}px`;
+    canvas.style.width = `${viewW}px`;
+    canvas.style.height = `${viewH}px`;
+    canvas.width = W; canvas.height = H;
+    buildGridSVG(viewW, viewH, scale);
+    renderFrame();
+}
+
+// ── GRID: SVG-based, always correct ──
+function buildGridSVG(viewW, viewH, scale) {
+    const svg = document.getElementById('grid-svg');
+    svg.setAttribute('width', viewW);
+    svg.setAttribute('height', viewH);
+    svg.setAttribute('viewBox', `0 0 ${viewW} ${viewH}`);
+    
+    const step = 10 * scale; // 10 canvas units per cell
+    let paths = '';
+    for (let x = 0; x <= viewW; x += step) {
+        paths += `<line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${viewH}" />`;
+    }
+    for (let y = 0; y <= viewH; y += step) {
+        paths += `<line x1="0" y1="${y.toFixed(1)}" x2="${viewW}" y2="${y.toFixed(1)}" />`;
+    }
+    svg.innerHTML = `<g stroke="rgba(255,255,255,0.12)" stroke-width="0.5">${paths}</g>
+        <g stroke="rgba(255,255,255,0.22)" stroke-width="0.5">
+            <line x1="${(viewW/2).toFixed(1)}" y1="0" x2="${(viewW/2).toFixed(1)}" y2="${viewH}"/>
+            <line x1="0" y1="${(viewH/2).toFixed(1)}" x2="${viewW}" y2="${(viewH/2).toFixed(1)}"/>
+        </g>`;
+}
+
+function toggleGrid() {
+    state.gridOn = !state.gridOn;
+    document.getElementById('grid-svg').classList.toggle('on', state.gridOn);
+    document.getElementById('grid-btn').classList.toggle('active-state', state.gridOn);
+    haptic(10); beep(300, 0.02);
+}
+
+// ── WEAVE ──
+function weaveLoop(time) {
+    if (!state.playing && !state.drag) {
+        const wx = Math.sin(time / 1000) * 0.4;
+        const wy = Math.cos(time / 1300) * 0.4;
+        canvas.style.transform = `translate(${wx}px, ${wy}px)`;
+    } else {
+        canvas.style.transform = `translate(0,0)`;
+    }
+    requestAnimationFrame(weaveLoop);
+}
+
+function cycleFPS() {
+    const idx = FPS_OPTIONS.indexOf(currentFPS);
+    currentFPS = FPS_OPTIONS[(idx + 1) % FPS_OPTIONS.length];
+    document.getElementById('fps-display').textContent = `${currentFPS}fps`;
+    haptic(10);
+}
+
+// ── RENDER — pre-allocated offscreen canvases, zero allocation in hot path ──
+const offA = document.createElement('canvas'); offA.width=W; offA.height=H;
+const offACtx = offA.getContext('2d');
+const offB = document.createElement('canvas'); offB.width=W; offB.height=H;
+const offBCtx = offB.getContext('2d');
+
+function renderComposite(frameObj, targetCtx) {
+    targetCtx.clearRect(0, 0, W, H);
+    if (frameObj.baseImg) {
+        targetCtx.drawImage(frameObj.baseImg, 0, 0, W, H);
+    } else {
+        targetCtx.fillStyle = '#222';
+        targetCtx.fillRect(0, 0, W, H);
+    }
+    inkCtx.putImageData(new ImageData(frameObj.inkData, W, H), 0, 0);
+    if (state.drag && state.tool !== 'pen' && state.tool !== 'erase' && state.tool !== 'fill') {
+        const tempInk = new Uint8ClampedArray(frameObj.inkData);
+        const col = PAL[state.color].rgba;
+        if (state.tool === 'rect') drawRect(tempInk, state.d0[0], state.d0[1], state.d1[0], state.d1[1], col, state.size);
+        if (state.tool === 'circ') drawCirc(tempInk, state.d0[0], state.d0[1], state.d1[0], state.d1[1], col, false);
+        if (state.tool === 'line') drawLine(tempInk, state.d0[0], state.d0[1], state.d1[0], state.d1[1], col, state.size);
+        inkCtx.putImageData(new ImageData(tempInk, W, H), 0, 0);
+    }
+    targetCtx.drawImage(inkBuffer, 0, 0);
+}
+
+function renderFrame() {
+    const f = state.frames[state.cur];
+    if (!f) return;
+    if (state.transitionOffset <= 0) {
+        ctx.clearRect(0, 0, W, H);
+        renderComposite(f, ctx);
+    } else {
+        const yOff = (1.0 - state.transitionOffset) * H;
+        ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+        if (state.frames[state.prev]) {
+            renderComposite(state.frames[state.prev], offACtx);
+            ctx.drawImage(offA, 0, yOff);
+        }
+        renderComposite(f, offBCtx);
+        ctx.drawImage(offB, 0, yOff - H);
+        if (Math.random() > 0.5) { ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.fillRect(0,0,W,H); }
+    }
+    const sp = state.cur * 24 + (1 - state.transitionOffset) * 24;
+    document.getElementById('sprocket-left').style.backgroundPositionY = `${sp}px`;
+    document.getElementById('sprocket-right').style.backgroundPositionY = `${sp}px`;
+    syncActiveThumbnail();
+}
+
+// ── PLAYBACK ──
+function playLoop(now) {
+    if (!state.playing) return;
+    playRAF = requestAnimationFrame(playLoop);
+    const elapsed = now - lastFrameTime;
+    const frameDur = 1000 / currentFPS;
+    if (elapsed >= frameDur) {
+        state.prev = state.cur;
+        state.cur = (state.cur + 1) % state.frames.length;
+        lastFrameTime = now - (elapsed % frameDur);
+        state.transitionOffset = 0; // Direct cut during playback — no jitter
+        beep(80, 0.015, 0.03, 'sawtooth'); haptic(3);
+        // Update timeline highlight without full DOM rebuild
+        document.querySelectorAll('.tl-frame').forEach((el, i) => el.classList.toggle('active', i === state.cur));
+        document.getElementById('tl-info').textContent = `FRM ${String(state.cur+1).padStart(2,'0')}/${String(state.frames.length).padStart(2,'0')}`;
+    }
+    renderFrame();
+}
+
+function togglePlay() {
+    state.playing = !state.playing;
+    const btn = document.getElementById('btn-play');
+    if (state.playing) {
+        btn.textContent = '■ STOP'; btn.classList.add('on');
+        lastFrameTime = performance.now(); state.transitionOffset = 0;
+        initAudio(); haptic(20);
+        playRAF = requestAnimationFrame(playLoop);
+    } else {
+        btn.textContent = '▶ PLAY'; btn.classList.remove('on');
+        cancelAnimationFrame(playRAF); state.transitionOffset = 0;
+        haptic(20); renderFrame(); rebuildTimelineDOM();
+    }
+}
+
+// ── INK DRAWING ──
+function createEmptyInk() { return new Uint8ClampedArray(W * H * 4); }
+
+function setPixel(data, x, y, col) {
+    if (x < 0 || x >= W || y < 0 || y >= H) return;
+    const i = (y * W + x) * 4;
+    if (col === 'erase') { data[i+3] = 0; return; }
+    const eA = data[i+3]/255; const nA = col[3]/255;
+    const oA = nA + eA*(1-nA);
+    if (oA > 0) {
+        data[i]   = Math.round((col[0]*nA + data[i]*eA*(1-nA))/oA);
+        data[i+1] = Math.round((col[1]*nA + data[i+1]*eA*(1-nA))/oA);
+        data[i+2] = Math.round((col[2]*nA + data[i+2]*eA*(1-nA))/oA);
+        data[i+3] = Math.round(oA*255);
+    }
+}
+function drawBrush(data, x, y, col, sz) {
+    const r = sz/2;
+    for (let iy=-Math.ceil(r); iy<=Math.ceil(r); iy++)
+        for (let ix=-Math.ceil(r); ix<=Math.ceil(r); ix++)
+            if (ix*ix+iy*iy <= r*r) setPixel(data, Math.round(x+ix), Math.round(y+iy), col);
+}
+function drawLine(data, x0, y0, x1, y1, col, sz) {
+    let dx=Math.abs(x1-x0), dy=Math.abs(y1-y0);
+    let sx=x0<x1?1:-1, sy=y0<y1?1:-1, err=dx-dy;
+    while(true) {
+        drawBrush(data, x0, y0, col, sz);
+        if (x0===x1 && y0===y1) break;
+        let e2=2*err;
+        if (e2>-dy){err-=dy; x0+=sx;}
+        if (e2<dx){err+=dx; y0+=sy;}
+    }
+}
+function drawRect(data, x0, y0, x1, y1, col, sz) {
+    drawLine(data, x0, y0, x1, y0, col, sz);
+    drawLine(data, x1, y0, x1, y1, col, sz);
+    drawLine(data, x1, y1, x0, y1, col, sz);
+    drawLine(data, x0, y1, x0, y0, col, sz);
+}
+function drawCirc(data, x0, y0, x1, y1, col, filled) {
+    const r = Math.sqrt((x1-x0)**2 + (y1-y0)**2);
+    for (let y=-r; y<=r; y++) for (let x=-r; x<=r; x++) {
+        const d = x*x + y*y;
+        if (filled ? d<=r*r : d<=r*r && d>=(r-2)**2)
+            setPixel(data, Math.round(x0+x), Math.round(y0+y), col);
+    }
+}
+function drawCross(data, x, y, col) {
+    drawLine(data, x-10, y, x+10, y, col, 1);
+    drawLine(data, x, y-10, x, y+10, col, 1);
+    drawCirc(data, x, y, x+5, y, col, false);
+}
+function renderText(data, x, y, text, col) {
+    // Simple bitmap numbers via canvas (off-screen)
+    const fc = document.createElement('canvas'); fc.width=W; fc.height=H;
+    const fx = fc.getContext('2d');
+    fx.font = 'bold 10px monospace';
+    fx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${col[3]/255})`;
+    fx.fillText(text, x, y+10);
+    const id = fx.getImageData(0,0,W,H);
+    for (let i=0; i<id.data.length; i+=4) {
+        if (id.data[i+3] > 10) {
+            const px = (i/4) % W; const py = Math.floor((i/4)/W);
+            setPixel(data, px, py, [id.data[i], id.data[i+1], id.data[i+2], id.data[i+3]]);
+        }
+    }
+}
+
+// ── POINTER EVENTS ──
+function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    let x = Math.floor((cx - rect.left) / rect.width * W);
+    let y = Math.floor((cy - rect.top) / rect.height * H);
+    return [Math.max(0, Math.min(W-1,x)), Math.max(0, Math.min(H-1,y))];
+}
+
+canvas.addEventListener('pointerdown', e => {
+    if (state.playing) return;
+    initAudio(); haptic(8); saveHistory();
+    state.drag = true;
+    state.d0 = getPos(e); state.d1 = state.d0;
+    if (state.tool === 'pen' || state.tool === 'erase' || state.tool === 'fill') {
+        const col = state.tool === 'erase' ? 'erase' : PAL[state.color].rgba;
+        if (state.tool === 'fill') {
+            drawCirc(state.frames[state.cur].inkData, state.d0[0], state.d0[1], state.d0[0]+state.size*2, state.d0[1], col, true);
+        } else {
+            drawBrush(state.frames[state.cur].inkData, state.d0[0], state.d0[1], col, state.size);
+        }
+        renderFrame();
+    }
+    canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener('pointermove', e => {
+    if (!state.drag || state.playing) return;
+    const prev = state.d1;
+    state.d1 = getPos(e);
+    document.getElementById('status-coords').textContent =
+        `${String(state.d1[0]).padStart(3,'0')},${String(state.d1[1]).padStart(3,'0')}`;
+    if (state.tool === 'pen' || state.tool === 'erase') {
+        const col = state.tool === 'erase' ? 'erase' : PAL[state.color].rgba;
+        drawLine(state.frames[state.cur].inkData, prev[0], prev[1], state.d1[0], state.d1[1], col, state.size);
+    }
+    renderFrame();
+});
+
+canvas.addEventListener('pointerup', e => {
+    if (!state.drag || state.playing) return;
+    const col = PAL[state.color].rgba;
+    const f = state.frames[state.cur].inkData;
+    if (state.tool === 'rect') drawRect(f, state.d0[0], state.d0[1], state.d1[0], state.d1[1], col, state.size);
+    if (state.tool === 'circ') drawCirc(f, state.d0[0], state.d0[1], state.d1[0], state.d1[1], col, false);
+    if (state.tool === 'line') drawLine(f, state.d0[0], state.d0[1], state.d1[0], state.d1[1], col, state.size);
+    state.drag = false; haptic(4); renderFrame();
+});
+
+// ── HISTORY / UNDO ──
+function saveHistory() {
+    const f = state.frames[state.cur];
+    f.undoStack.push(new Uint8ClampedArray(f.inkData));
+    if (f.undoStack.length > 12) f.undoStack.shift();
+    updateUndoUI();
+}
+function undo() {
+    const f = state.frames[state.cur];
+    if (f.undoStack.length > 0) {
+        f.inkData.set(f.undoStack.pop());
+        renderFrame(); updateUndoUI();
+        haptic(10); beep(200, 0.05);
+    }
+}
+function updateUndoUI() {
+    document.getElementById('undo-btn').classList.toggle('can-undo', state.frames[state.cur].undoStack.length > 0);
+}
+
+// ── UI ──
+function setTool(t) {
+    state.tool = t;
+    document.querySelectorAll('.tool-btn').forEach(el => el.classList.toggle('active', el.dataset.tool === t));
+    updateHUD(); haptic(10); beep(400, 0.01);
+}
+
+function updateHUD() {
+    document.getElementById('status-tool').textContent = `${state.tool.toUpperCase()} · ${PAL[state.color].name}`;
+}
+
+function buildColors() {
+    const c = document.getElementById('colors');
+    PAL.forEach((p, i) => {
+        const s = document.createElement('div');
+        s.className = 'color-swatch' + (i === state.color ? ' active' : '');
+        s.style.background = p.hex;
+        if (p.hex === '#000000') s.style.border = '1px solid #555';
+        s.onclick = () => {
+            state.color = i;
+            document.querySelectorAll('.color-swatch').forEach((el, j) => el.classList.toggle('active', j===i));
+            if (state.tool === 'erase') setTool('pen');
+            updateHUD(); haptic(10);
+        };
+        c.appendChild(s);
+    });
+}
+
+function buildMacroGrid() {
+    const g = document.getElementById('macro-grid');
+    MACROS.forEach(m => {
+        const t = document.createElement('div');
+        t.className = 'macro-tile' + (m.id === selectedMacro ? ' selected' : '');
+        t.dataset.id = m.id;
+        t.innerHTML = `<div class="mt-icon">${m.icon}</div><div class="mt-name">${m.name}</div><div class="mt-desc">${m.desc}</div>`;
+        t.onclick = () => {
+            selectedMacro = m.id;
+            document.querySelectorAll('.macro-tile').forEach(el => el.classList.toggle('selected', el.dataset.id === m.id));
+            haptic(10);
+        };
+        g.appendChild(t);
+    });
+}
+
+function setSize(v) {
+    state.size = parseInt(v);
+    document.getElementById('size-label').textContent = `SZ·${String(state.size).padStart(2,'0')}`;
+    haptic(4);
+}
+
+// ── TIMELINE ──
+function rebuildTimelineDOM() {
+    const strip = document.getElementById('tl-strip');
+    strip.innerHTML = ''; tlThumbs = [];
+    state.frames.forEach((f, i) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'tl-frame' + (i === state.cur ? ' active' : '');
+        wrap.onclick = () => {
+            if (state.playing) return;
+            state.prev = state.cur; state.cur = i; state.transitionOffset = 1.0;
+            haptic(12); beep(150, 0.02);
+            rebuildTimelineDOM(); renderFrame(); updateUndoUI();
+            wrap.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        };
+        const thumb = document.createElement('canvas');
+        thumb.className = 'tl-thumb'; thumb.width = W; thumb.height = H;
+        const tCtx = thumb.getContext('2d');
+        renderComposite(f, tCtx); tlThumbs[i] = tCtx;
+        const num = document.createElement('div');
+        num.className = 'tl-num';
+        num.textContent = String(i+1).padStart(2,'0');
+        wrap.appendChild(thumb); wrap.appendChild(num);
+        strip.appendChild(wrap);
+    });
+    document.getElementById('tl-info').textContent = `FRM ${String(state.cur+1).padStart(2,'0')}/${String(state.frames.length).padStart(2,'0')}`;
+    document.getElementById('del-btn').style.opacity = state.frames.length > 1 ? '1' : '0.3';
+    document.getElementById('del-btn').style.pointerEvents = state.frames.length > 1 ? 'all' : 'none';
+}
+
+function syncActiveThumbnail() {
+    if (tlThumbs[state.cur] && state.frames[state.cur]) {
+        renderComposite(state.frames[state.cur], tlThumbs[state.cur]);
+    }
+}
+
+function addFrame(initial = false) {
+    state.frames.splice(state.cur + 1, 0, { baseImg: null, inkData: createEmptyInk(), undoStack: [] });
+    if (!initial) { state.prev = state.cur; state.cur++; state.transitionOffset = 1.0; haptic(20); beep(300, 0.05); }
+    rebuildTimelineDOM(); renderFrame(); updateUndoUI();
+}
+
+function cloneFrame() {
+    const cf = state.frames[state.cur];
+    state.frames.splice(state.cur + 1, 0, { baseImg: cf.baseImg, inkData: new Uint8ClampedArray(cf.inkData), undoStack: [] });
+    state.prev = state.cur; state.cur++; state.transitionOffset = 1.0;
+    haptic(20); beep(300, 0.05); rebuildTimelineDOM(); renderFrame(); updateUndoUI(); toast('FRAME CLONED');
+}
+
+function deleteFrame() {
+    if (state.frames.length <= 1) return;
+    state.frames.splice(state.cur, 1);
+    state.cur = Math.max(0, state.cur - 1);
+    haptic(30); rebuildTimelineDOM(); renderFrame(); updateUndoUI(); toast('FRAME DELETED');
+}
+
+// ── MEDIA HANDLING ──
+async function handleMediaUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    await processMediaFile(file);
+    e.target.value = '';
+}
+
+async function processMediaFile(file) {
+    haptic(30);
+    if (file.type.startsWith('video/')) { await extractVideoFrames(file); }
+    else if (file.type.startsWith('image/')) { mountImage(file); }
+    else { toast('UNSUPPORTED FILE TYPE'); }
+}
+
+function drawMediaToBase(src, sw, sh) {
+    const tc = document.createElement('canvas'); tc.width=W; tc.height=H;
+    const tx = tc.getContext('2d');
+    tx.fillStyle = '#111'; tx.fillRect(0,0,W,H);
+    const aspect = sw/sh; const ca = W/H;
+    let sx=0, sy=0, ssw=sw, ssh=sh;
+    if (aspect > ca) { ssw = ssh*ca; sx = (sw-ssw)/2; }
+    else { ssh = ssw/ca; sy = (sh-ssh)/2; }
+    tx.drawImage(src, sx, sy, ssw, ssh, 0, 0, W, H);
+    return tc;
+}
+
+function mountImage(file) {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = url;
+    img.onload = () => {
+        saveHistory();
+        state.frames[state.cur].baseImg = drawMediaToBase(img, img.naturalWidth, img.naturalHeight);
+        state.hasMedia = true;
+        checkEmptyState();
+        renderFrame(); rebuildTimelineDOM(); haptic(20); toast('IMAGE MOUNTED');
+    };
+}
+
+async function extractVideoFrames(file) {
+    toast('PROCESSING REEL...');
+    const url = URL.createObjectURL(file);
+    const vid = document.createElement('video');
+    vid.muted = true; vid.playsInline = true; vid.src = url;
+    await new Promise(r => { vid.onloadeddata = r; });
+    const dur = vid.duration;
+    const MAX = 48;
+    const n = Math.min(MAX, Math.max(8, Math.floor(dur * currentFPS)));
+    const step = dur / n;
+    state.frames = [];
+    for (let i=0; i<n; i++) {
+        vid.currentTime = i * step;
+        await new Promise(r => {
+            const fn = () => { vid.removeEventListener('seeked', fn); r(); };
+            vid.addEventListener('seeked', fn);
+            setTimeout(() => { vid.removeEventListener('seeked', fn); r(); }, 400);
+        });
+        const base = drawMediaToBase(vid, vid.videoWidth, vid.videoHeight);
+        state.frames.push({ baseImg: base, inkData: createEmptyInk(), undoStack: [] });
+    }
+    state.cur = 0; state.prev = 0; state.transitionOffset = 0;
+    state.hasMedia = true;
+    checkEmptyState();
+    rebuildTimelineDOM(); renderFrame(); haptic([10,50,10]);
+    toast(`${n} FRAMES EXTRACTED`);
+}
+
+function checkEmptyState() {
+    const hasAny = state.frames.some(f => f.baseImg !== null);
+    document.getElementById('empty-state').classList.toggle('hidden', hasAny);
+}
+
+// ── DRAG & DROP ──
+const dragOverlay = document.getElementById('drag-overlay');
+document.body.addEventListener('dragover', e => { e.preventDefault(); dragOverlay.classList.add('active'); });
+document.body.addEventListener('dragleave', e => { e.preventDefault(); dragOverlay.classList.remove('active'); });
+document.body.addEventListener('drop', e => {
+    e.preventDefault(); dragOverlay.classList.remove('active');
+    if (e.dataTransfer.files?.length > 0) processMediaFile(e.dataTransfer.files[0]);
+});
+window.addEventListener('paste', e => {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (const item of Object.values(items)) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) processMediaFile(item.getAsFile());
+    }
+});
+
+// ── BATCH MACROS — async chunked, never blocks main thread ──
+function applyMacroToFrame(f, i, total, type, motion) {
+    const prog = total > 1 ? i/(total-1) : 0.5;
+    let bx = W/2, by = H/2;
+    if (motion === 'left-right')    bx = W*0.15 + W*0.7*prog;
+    if (motion === 'right-left')    bx = W*0.85 - W*0.7*prog;
+    if (motion === 'up-down')       by = H*0.15 + H*0.7*prog;
+    if (motion === 'down-up')       by = H*0.85 - H*0.7*prog;
+    if (motion === 'arc')         { bx = W/2 + Math.cos(prog*Math.PI*2)*W*0.3; by = H/2 + Math.sin(prog*Math.PI)*H*0.3; }
+    const jx = motion === 'static' ? 0 : (Math.random()-0.5)*8;
+    const jy = motion === 'static' ? 0 : (Math.random()-0.5)*8;
+    const fx = bx+jx, fy = by+jy;
+    const data = f.inkData;
+    const redCol = PAL[1].rgba, blkCol = PAL[0].rgba;
+    const ylwCol = PAL[4].rgba, gldCol = PAL[6].rgba, whtCol = PAL[5].rgba;
+
+    if (type === 'tracking-dot') {
+        drawCirc(data, fx, fy, fx+32+Math.random()*4, fy, redCol, true);
+    } else if (type === 'tracking-box') {
+        const sz = 28+Math.random()*6;
+        drawRect(data, fx-sz, fy-sz, fx+sz, fy+sz, blkCol, 3);
+    } else if (type === 'film-scratch') {
+        const n = Math.floor(Math.random()*3)+1;
+        for (let s=0; s<n; s++) {
+            const sx = Math.random()*W;
+            drawLine(data, sx, 0, sx+(Math.random()-0.5)*10, H, blkCol, Math.random()*2+0.5);
+        }
+        if (Math.random()>0.4) drawCirc(data, Math.random()*W, Math.random()*H, 0, 0, blkCol, true);
+    } else if (type === 'color-wash') {
+        const cols = [ylwCol, redCol, [29,78,216,120], [25,97,39,120]];
+        const wCol = cols[i%cols.length];
+        drawCirc(data, fx+(Math.random()-0.5)*W*0.4, fy+(Math.random()-0.5)*H*0.4, 0, 0, wCol.map((v,k)=>k===3?150:v), true);
+    } else if (type === 'punch-register') {
+        drawCross(data, fx, fy, blkCol);
+    } else if (type === 'optical-wipe') {
+        const lineY = Math.floor(H * prog);
+        drawLine(data, 0, lineY, W, lineY, whtCol, 2);
+    } else if (type === 'frame-number') {
+        renderText(data, 6, 4, String(i+1).padStart(3,'0'), gldCol);
+    } else if (type === 'clear-ink') {
+        // Must reassign on frame object, not local var
+        f.inkData = createEmptyInk();
+    }
+}
+
+function executeCompute() {
+    closeModal('compute-panel');
+    haptic([20,20,50]);
+    const type = selectedMacro;
+    const motion = document.getElementById('macro-motion').value;
+    const range = document.getElementById('macro-range').value;
+    const total = state.frames.length;
+
+    // Save undo snapshot for all frames before mutating
+    state.frames.forEach(f => f.undoStack.push(new Uint8ClampedArray(f.inkData)));
+
+    function shouldProcess(i) {
+        if (range === 'current') return i === state.cur;
+        if (range === 'odd')    return i % 2 === 1;
+        if (range === 'even')   return i % 2 === 0;
+        return true;
+    }
+
+    // Build index list of frames to process
+    const toProcess = [];
+    for (let i=0; i<total; i++) if (shouldProcess(i)) toProcess.push(i);
+
+    let done = 0;
+    const CHUNK = 4; // frames per chunk — keeps main thread free
+
+    toast(`COMPUTING 0/${toProcess.length}...`);
+
+    function processChunk() {
+        const end = Math.min(done + CHUNK, toProcess.length);
+        for (let k=done; k<end; k++) {
+            const i = toProcess[k];
+            applyMacroToFrame(state.frames[i], i, total, type, motion);
+        }
+        done = end;
+
+        // Update just the current frame preview live
+        renderFrame();
+        document.getElementById('tl-info').textContent =
+            `COMPUTING ${done}/${toProcess.length}`;
+
+        if (done < toProcess.length) {
+            requestAnimationFrame(processChunk);
+        } else {
+            // All done — now rebuild thumbnails lazily
+            rebuildTimelineDOM();
+            updateUndoUI();
+            haptic([10,10,10,10]);
+            toast('MACRO COMPLETE');
+        }
+    }
+
+    requestAnimationFrame(processChunk);
+}
+
+// ── BEFLIX COMMAND LANGUAGE ──
+function beflixClear() {
+    document.getElementById('cmd-editor').value = '';
+}
+
+function executeBeflix() {
+    const src = document.getElementById('cmd-editor').value;
+    const lines = src.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//'));
+    const f = state.frames[state.cur];
+    saveHistory();
+    let errors = 0;
+    lines.forEach(line => {
+        const parts = line.split(/\s+/);
+        const cmd = parts[0].toUpperCase();
+        const nums = parts.slice(1).map(Number);
+        const col = PAL[state.color].rgba;
+        try {
+            if (cmd === 'DOT') {
+                const [r, x, y] = nums;
+                drawCirc(f.inkData, x, y, x+r, y, col, false);
+            } else if (cmd === 'FILL') {
+                const [x, y, r] = nums;
+                drawCirc(f.inkData, x, y, x+r, y, col, true);
+            } else if (cmd === 'BOX') {
+                const [x1, y1, x2, y2] = nums;
+                drawRect(f.inkData, x1, y1, x2, y2, col, state.size);
+            } else if (cmd === 'LINE') {
+                const [x1, y1, x2, y2] = nums;
+                drawLine(f.inkData, x1, y1, x2, y2, col, state.size);
+            } else if (cmd === 'SCRATCH') {
+                const [n] = nums;
+                for (let s=0; s<(n||1); s++) {
+                    const sx = Math.random()*W;
+                    drawLine(f.inkData, sx, 0, sx+(Math.random()-0.5)*12, H, PAL[0].rgba, 1);
+                }
+            } else if (cmd === 'WASH') {
+                const cChar = parts[1]?.toUpperCase();
+                const [, x, y] = nums;
+                const cMap = { R: PAL[1].rgba, G: PAL[2].rgba, B: PAL[3].rgba, Y: PAL[4].rgba, W: PAL[5].rgba };
+                const wc = cMap[cChar] || col;
+                drawCirc(f.inkData, x||W/2, y||H/2, (x||W/2)+60, y||H/2, wc.map((v,k)=>k===3?140:v), true);
+            } else if (cmd === 'CLEAR') {
+                f.inkData = createEmptyInk();
+            } else if (cmd === 'FRAME') {
+                const [n] = nums;
+                if (n >= 1 && n <= state.frames.length) { state.cur = n-1; }
+            }
+        } catch(e) { errors++; }
+    });
+    closeModal('bflix-panel');
+    renderFrame(); rebuildTimelineDOM();
+    haptic([10,20,10]);
+    toast(errors ? `RAN WITH ${errors} ERROR(S)` : 'PROGRAM EXECUTED');
+}
+
+// ── EXPORT ──
+function getCompositeCanvas(frameIdx) {
+    const c = document.createElement('canvas'); c.width=W; c.height=H;
+    renderComposite(state.frames[frameIdx], c.getContext('2d'));
+    return c;
+}
+
+function exportFrame() {
+    const c = getCompositeCanvas(state.cur);
+    const a = document.createElement('a');
+    a.download = `bflix_frame_${String(state.cur+1).padStart(3,'0')}.png`;
+    a.href = c.toDataURL('image/png'); a.click();
+    toast('FRAME EXPORTED'); closeModal('export-panel');
+}
+
+function exportStrip() {
+    const cols = Math.min(state.frames.length, 8);
+    const rows = Math.ceil(state.frames.length / cols);
+    const c = document.createElement('canvas'); c.width=W*cols; c.height=H*rows;
+    const cx = c.getContext('2d');
+    cx.fillStyle = '#000'; cx.fillRect(0,0,c.width,c.height);
+    state.frames.forEach((f, i) => {
+        const fc = getCompositeCanvas(i);
+        cx.drawImage(fc, (i%cols)*W, Math.floor(i/cols)*H);
+    });
+    const a = document.createElement('a');
+    a.download = `bflix_strip_${state.frames.length}fr.png`;
+    a.href = c.toDataURL('image/png'); a.click();
+    toast('STRIP EXPORTED'); closeModal('export-panel');
+}
+
+function exportInkOnly() {
+    const c = document.createElement('canvas'); c.width=W; c.height=H;
+    const cx = c.getContext('2d');
+    cx.putImageData(new ImageData(state.frames[state.cur].inkData, W, H), 0, 0);
+    const a = document.createElement('a');
+    a.download = `bflix_ink_${String(state.cur+1).padStart(3,'0')}.png`;
+    a.href = c.toDataURL('image/png'); a.click();
+    toast('INK LAYER EXPORTED'); closeModal('export-panel');
+}
+
+function exportGifFrames() {
+    // Export each frame as a numbered PNG for post-processing
+    state.frames.forEach((f, i) => {
+        setTimeout(() => {
+            const c = getCompositeCanvas(i);
+            const a = document.createElement('a');
+            a.download = `bflix_seq_${String(i+1).padStart(3,'0')}.png`;
+            a.href = c.toDataURL('image/png'); a.click();
+        }, i * 100);
+    });
+    toast(`EXPORTING ${state.frames.length} FRAMES`); closeModal('export-panel');
+}
+
+// ── TOAST ──
+let toastTO;
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('on');
+    clearTimeout(toastTO);
+    toastTO = setTimeout(() => t.classList.remove('on'), 2200);
+}
+</script>
+</body>
+</html>
