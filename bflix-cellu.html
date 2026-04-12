@@ -1,0 +1,1793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>B·FLIX · COMPUTATIONAL CELLULOID</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='black'/%3E%3Ctext x='32' y='44' text-anchor='middle' font-size='40' fill='white' font-family='monospace'%3EB%3C/text%3E%3C/svg%3E">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg: #0a0a0a;
+            --surface: #171717;
+            --surface2: #262626;
+            --border: #404040;
+            --text: #f5f5f5;
+            --muted: #a3a3a3;
+            --accent: #ef4444; 
+            --accent-green: #22c55e;
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        body.light-mode {
+            --bg: #e5e5e5;
+            --surface: #ffffff;
+            --surface2: #f5f5f5;
+            --border: #cccccc;
+            --text: #111111;
+            --muted: #666666;
+        }
+
+        body { 
+            margin: 0; background-color: var(--bg); color: var(--text); 
+            font-family: 'Space Mono', monospace; overflow: hidden;
+            user-select: none; -webkit-user-select: none;
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--surface); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+        textarea {
+            user-select: text; -webkit-user-select: text;
+            font-family: 'Space Mono', monospace;
+            caret-color: var(--accent);
+        }
+        textarea:focus { outline: none; border-color: var(--muted); }
+
+        body.light-mode .film-strip-bg { background: #d4d4d4; box-shadow: inset 0 0 60px rgba(0,0,0,0.1); }
+        body.light-mode .sprocket-track { border-color: #999; background-image: repeating-linear-gradient(180deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 12px, transparent 12px, transparent 24px); }
+        body.light-mode .tl-frame { background: #e5e5e5; border-color: #aaa; }
+        body.light-mode .tl-num { background: rgba(255,255,255,0.9); color: #333; }
+        body.light-mode #canvas-wrapper { box-shadow: 0 0 0 2px #555, 0 10px 40px rgba(0,0,0,0.3); }
+
+        /* ─ FILM GATE (CANVAS) ─ */
+        .film-strip-bg {
+            background: #050505; 
+            position: relative; display: flex; align-items: center; justify-content: center;
+        }
+
+        .sprocket-track {
+            position: absolute; top: 0; bottom: 0; width: 24px;
+            background-image: repeating-linear-gradient(180deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 12px, transparent 12px, transparent 24px);
+            background-size: 100% 24px; z-index: 5;
+        }
+        .sprocket-track.left { left: 6px; border-right: 1px solid #222; }
+        .sprocket-track.right { right: 6px; border-left: 1px solid #222; }
+        
+        @media (min-width: 640px) {
+            .sprocket-track.left { left: 16px; }
+            .sprocket-track.right { right: 16px; }
+        }
+
+        #film-strip {
+            will-change: transform;
+        }
+
+        .frame-container canvas {
+            image-rendering: pixelated; touch-action: none; display: block; background: #cccccc;
+            box-shadow: 0 0 0 2px #222;
+        }
+        
+        #canvas-wrapper {
+            position: relative; line-height: 0; z-index: 10;
+            box-shadow: 0 0 0 2px #222, 0 15px 50px rgba(0,0,0,0.9);
+            background: #cccccc;
+        }
+
+        .grid-overlay {
+            position: absolute; inset: 0; pointer-events: none; z-index: 20; display: none;
+            background-image: linear-gradient(to right, rgba(0,0,0,0.2) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(0,0,0,0.2) 1px, transparent 1px);
+        }
+        .grid-overlay.on { display: block; }
+
+        .grain-overlay {
+            position: absolute; inset: 0; pointer-events: none; z-index: 50;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.25'/%3E%3C/svg%3E");
+            opacity: 0.18; mix-blend-mode: multiply; animation: grain 0.45s steps(2) infinite;
+        }
+        @keyframes grain { 0% { transform: translate(0, 0); } 50% { transform: translate(-1px, 1px); } 100% { transform: translate(1px, -1px); } }
+
+        /* UI Elements */
+        .tl-frame {
+            position: relative; flex-shrink: 0; cursor: pointer;
+            border: 2px solid transparent; background: #111; height: 48px; width: 85px;
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
+            transition: all 0.1s;
+        }
+        .tl-frame.active { border-color: var(--accent); transform: scale(1.05); z-index: 10; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
+        .tl-thumb { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+        .tl-num { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.8); color: #aaa; font-size: 9px; font-weight: bold; text-align: center; padding: 2px 0; }
+        .tl-frame.active .tl-num { background: var(--accent); color: #fff; }
+
+        .tool-btn.active { background: var(--text); color: var(--bg); }
+        .color-swatch { border-radius: 50%; border: 2px solid transparent; transition: transform 0.1s; cursor: pointer; }
+        .color-swatch.active { border-color: #fff; transform: scale(1.2); }
+        
+        .btn-press:active { transform: translateY(2px); }
+
+        #toast {
+            position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+            background: var(--text); color: var(--bg); font-weight: bold; font-size: 12px;
+            padding: 8px 16px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 9999;
+            text-transform: uppercase; letter-spacing: 0.1em; box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+        #toast.on { opacity: 1; }
+        
+        /* Script Overlay Mask */
+        #script-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 40;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        #script-backdrop.on { opacity: 1; pointer-events: all; }
+
+        .modal-shell {
+            position: fixed; inset: 0; z-index: 60; display: none;
+            align-items: center; justify-content: center; padding: 1rem;
+            background: rgba(0,0,0,0.82); backdrop-filter: blur(6px);
+        }
+        .modal-shell.on { display: flex; }
+        .modal-card {
+            width: min(920px, 100%); max-height: 88vh; overflow: auto;
+            background: #f5f5f5; color: #171717; border: 3px solid #171717;
+            box-shadow: 0 20px 80px rgba(0,0,0,0.8);
+        }
+        .modal-copy {
+            font-family: 'Space Mono', monospace; font-size: 12px; line-height: 1.5;
+        }
+        .btn-disabled {
+            opacity: 0.45; pointer-events: none;
+        }
+        .header-tabs {
+            display: flex; gap: 8px; padding: 8px 12px;
+            background: #0f0f0f; border-bottom: 1px solid #262626;
+        }
+        .header-tab {
+            border: 1px solid #404040; background: #171717; color: #a3a3a3;
+            padding: 6px 12px; font-size: 10px; font-weight: 700;
+            letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer;
+        }
+        .header-tab.active {
+            background: #f5f5f5; color: #111; border-color: #f5f5f5;
+        }
+        .header-drawer {
+            display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+            padding: 10px 12px; background: #121212; border-bottom: 1px solid #262626;
+        }
+        .header-drawer.hidden { display: none; }
+        .drawer-group {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        }
+        .drawer-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 0.16em;
+            text-transform: uppercase; color: #737373;
+        }
+        .control-chip {
+            border: 1px solid #404040; background: #171717; color: #d4d4d4;
+            padding: 7px 10px; font-size: 10px; font-weight: 700;
+            letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer;
+        }
+        .control-chip.active {
+            background: #f5f5f5; color: #111; border-color: #f5f5f5;
+        }
+        .swatch-row {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        }
+        .range-compact {
+            accent-color: #ef4444;
+        }
+        .drawer-note {
+            font-size: 10px; line-height: 1.5; text-transform: uppercase;
+            letter-spacing: 0.12em; color: #737373;
+        }
+        .deck-overlay {
+            position: absolute; inset: 0; z-index: 40;
+            display: flex; align-items: center; justify-content: center;
+            background:
+                radial-gradient(circle at center, rgba(120,120,120,0.12), rgba(0,0,0,0.92) 70%),
+                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.15));
+            opacity: 0; pointer-events: none; transition: opacity 0.28s ease;
+        }
+        .deck-overlay.on { opacity: 1; }
+        .deck-card {
+            width: min(520px, calc(100% - 48px));
+            border: 1px solid rgba(255,255,255,0.16);
+            background: rgba(10,10,10,0.9);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+            padding: 26px 24px 22px;
+        }
+        .deck-brand {
+            color: #ef4444; font-size: 11px; font-weight: 700;
+            letter-spacing: 0.35em; text-transform: uppercase;
+        }
+        .deck-title {
+            margin-top: 10px; color: #fafafa; font-size: clamp(24px, 4vw, 42px);
+            line-height: 0.95; font-weight: 700; letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .deck-sub {
+            margin-top: 10px; color: #a3a3a3; font-size: 12px;
+            letter-spacing: 0.18em; text-transform: uppercase;
+        }
+        .deck-progress {
+            margin-top: 18px; height: 8px; background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12); overflow: hidden;
+        }
+        .deck-progress-bar {
+            width: 0%; height: 100%;
+            background: linear-gradient(90deg, #ef4444, #fafafa 72%, #ef4444);
+            transition: width 0.16s linear;
+        }
+    </style>
+</head>
+<body class="w-full h-screen relative overflow-hidden">
+
+    <!-- SCRIPT BACKDROP (Mobile) -->
+    <div id="script-backdrop" onclick="toggleScript()"></div>
+
+    <!-- LEFT PANEL: BEFLIX SCRIPT ENGINE (SLIDING HUD) -->
+    <div id="script-panel" class="absolute inset-y-0 left-0 z-50 w-full sm:w-[400px] flex flex-col border-r-2 border-neutral-700 bg-neutral-900 transform -translate-x-full transition-transform duration-300 ease-out shadow-2xl">
+        <div class="bg-neutral-950 text-neutral-300 px-4 py-3 text-xs uppercase tracking-widest flex justify-between items-center border-b border-neutral-800 shrink-0">
+            <span class="font-bold text-white flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"></path><polygon points="18 2 22 6 12 16 8 16 8 12 18 2"></polygon></svg>
+                BEFLIX-64 Compiler
+            </span>
+            <div class="flex items-center gap-4">
+                <span>Col: <span id="col-counter" class="text-white">0</span></span>
+                <button class="text-neutral-500 hover:text-white px-2 text-lg font-bold" onclick="toggleScript()">✕</button>
+            </div>
+        </div>
+        
+        <div class="flex-grow flex flex-col p-4 gap-4 overflow-hidden">
+            <div class="flex-grow relative border-2 border-neutral-700 focus-within:border-neutral-400 bg-black flex flex-col">
+                <div class="absolute top-0 right-0 bg-neutral-800 text-neutral-400 text-[10px] px-2 py-1 uppercase z-10 pointer-events-none">Grid: 64x36</div>
+                <textarea id="code-input" class="w-full h-full bg-transparent text-neutral-300 text-sm p-4 resize-none" spellcheck="false">
+C -- TRACKING MARKER MACRO --
+C Format: 64x36. Val: 0(Clear) to 7
+C 1=BLK, 2=RED, 3=GRN, 4=BLU, 5=YLW, 6=WHT
+
+CLR 0
+
+C Inject Red Box at start
+PNT 4 10 8 8 2
+C Inject Green Core
+PNT 6 12 4 4 3
+
+C Commit Frame 1
+REC 1
+
+C Shift Right by 2 pixels for 23 frames
+SHF 2 0 23</textarea>
+            </div>
+            
+            <div class="flex flex-col gap-2 shrink-0 pb-safe">
+                <div id="console-log" class="bg-neutral-950 border border-neutral-800 text-neutral-500 font-mono text-[11px] uppercase p-2 min-h-[40px] max-h-[60px] overflow-y-auto break-words flex items-center">
+                    SYSTEM IDLE. AWAITING MACRO INSTRUCTION.
+                </div>
+                <button id="compile-btn" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 text-sm uppercase tracking-widest transition-colors btn-press shadow-[4px_4px_0_0_rgba(0,0,0,0.5)] border border-red-400">
+                    Execute Script
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL: FILM DESK & TIMELINE (FULL SCREEN) -->
+    <div class="w-full h-full flex flex-col bg-neutral-950 relative overflow-hidden">
+        
+        <!-- Top Toolbar -->
+        <header class="h-12 bg-neutral-900 border-b border-neutral-800 flex items-center px-2 sm:px-4 gap-2 shrink-0 justify-between z-30 relative">
+            <div class="text-neutral-400 font-bold text-sm tracking-widest flex items-center gap-3">
+                <span>B·FLIX<span class="text-red-500">PRO</span></span>
+                <button class="px-2 sm:px-3 py-1 bg-red-900/30 text-red-400 border border-red-900 hover:bg-red-900/50 btn-press uppercase flex items-center gap-1 text-[10px] sm:text-xs font-bold transition-colors" onclick="toggleScript()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    SCRIPT
+                </button>
+                <button class="px-2 sm:px-3 py-1 bg-neutral-800 text-neutral-200 border border-neutral-700 hover:bg-neutral-700 btn-press uppercase flex items-center gap-1 text-[10px] sm:text-xs font-bold transition-colors" onclick="openHelpModal()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    HELP
+                </button>
+            </div>
+            <div class="flex gap-2">
+                <button class="px-2 sm:px-3 py-1 bg-neutral-800 text-[10px] sm:text-xs text-white border border-neutral-700 hover:bg-neutral-700 btn-press uppercase flex items-center gap-1" onclick="toggleGrid()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+                    <span class="hidden sm:inline">Grid</span>
+                </button>
+                <button class="px-2 sm:px-3 py-1 bg-white text-black text-[10px] sm:text-xs font-bold hover:bg-neutral-200 btn-press uppercase flex items-center gap-1" onclick="document.getElementById('file-input').click();">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    Mount <span class="hidden sm:inline">Media</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="header-tabs">
+            <button id="tab-script" class="header-tab active" onclick="setHeaderTab('script')">Script</button>
+            <button id="tab-tools" class="header-tab" onclick="setHeaderTab('tools')">Tools</button>
+            <button id="tab-output" class="header-tab" onclick="setHeaderTab('output')">Output</button>
+        </div>
+
+        <div id="drawer-script" class="header-drawer">
+            <div class="drawer-group">
+                <span class="drawer-label">Compiler</span>
+                <button class="control-chip" onclick="toggleScript()">Open Script Panel</button>
+                <button class="control-chip" onclick="document.getElementById('compile-btn').click()">Compile Now</button>
+            </div>
+            <div class="drawer-group">
+                <span class="drawer-label">System Memory</span>
+                <span class="drawer-note">10,000 Frame Buffer · Unlimited Syntax Length</span>
+            </div>
+        </div>
+
+        <div id="drawer-tools" class="header-drawer hidden">
+            <div class="drawer-group">
+                <span class="drawer-label">Tools</span>
+                <button class="control-chip tool-btn active" data-tool="pen" onclick="setTool('pen')">Pen</button>
+                <button class="control-chip tool-btn" data-tool="rect" onclick="setTool('rect')">Box</button>
+                <button class="control-chip tool-btn" data-tool="circ" onclick="setTool('circ')">Circle</button>
+                <button class="control-chip tool-btn" data-tool="fill" onclick="setTool('fill')">Fill</button>
+                <button class="control-chip tool-btn" data-tool="erase" onclick="setTool('erase')">Erase</button>
+            </div>
+            <div class="drawer-group">
+                <span class="drawer-label">Palette</span>
+                <div id="colors" class="swatch-row"></div>
+            </div>
+            <div class="drawer-group">
+                <span class="drawer-label">Brush</span>
+                <input id="size-slider" class="range-compact" type="range" min="1" max="24" value="5" oninput="setSize(this.value)">
+                <span id="size-label" class="drawer-note">SZ 5</span>
+            </div>
+            <div class="drawer-group">
+                <span class="drawer-label">Note</span>
+                <span class="drawer-note">Pen and box can echo into script. Circle and fill are sketch tools for the optical desk.</span>
+            </div>
+        </div>
+
+        <div id="drawer-output" class="header-drawer hidden">
+            <div class="drawer-group">
+                <span class="drawer-label">Export</span>
+                <button class="control-chip" onclick="openExportModal()">Open Export Options</button>
+                <button class="control-chip" onclick="exportCurrentFrame()">PNG Frame</button>
+            </div>
+            <div class="drawer-group">
+                <span class="drawer-label">Formats</span>
+                <span class="drawer-note">WebM is the most reliable. MP4 depends on browser support. GIF is best at lower fps and scale.</span>
+            </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <main id="gate-container" class="flex-grow film-strip-bg relative overflow-hidden">
+            <!-- Light Table Vignette -->
+            <div class="absolute inset-0 pointer-events-none z-30 shadow-[inset_0_50px_60px_-20px_rgba(0,0,0,1),inset_0_-50px_60px_-20px_rgba(0,0,0,1)]"></div>
+            
+            <div class="absolute top-3 left-4 right-4 flex justify-between text-[10px] font-bold text-neutral-500 uppercase tracking-widest z-20 pointer-events-none">
+                <span id="status-tool">SCRIPT MODE</span>
+                <span id="status-coords">64x36 GRID</span>
+            </div>
+
+            <div id="deck-overlay" class="deck-overlay on">
+                <div class="deck-card">
+                    <div class="deck-brand">B·FLIX PRO</div>
+                    <div id="deck-title" class="deck-title">Computational Celluloid</div>
+                    <div id="deck-sub" class="deck-sub">Booting The Optical Desk</div>
+                    <div class="deck-progress">
+                        <div id="deck-progress-bar" class="deck-progress-bar"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sprocket-track left" id="sprocket-left"></div>
+            
+            <!-- Continuous Film Strip -->
+            <div id="film-strip" class="flex flex-col gap-4 items-center transition-none">
+                <div class="frame-container opacity-80"><canvas id="prev-canvas"></canvas></div>
+                
+                <div id="canvas-wrapper">
+                    <div id="grid-overlay" class="grid-overlay"></div>
+                    <div class="grain-overlay"></div>
+                    <canvas id="main-canvas"></canvas>
+                </div>
+                
+                <div class="frame-container opacity-80"><canvas id="next-canvas"></canvas></div>
+            </div>
+            
+            <div class="sprocket-track right" id="sprocket-right"></div>
+            
+            <!-- Drag Overlay -->
+            <div id="drag-overlay" class="absolute inset-0 bg-red-900/80 border-4 border-dashed border-red-400 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity">
+                <div class="text-white font-bold text-2xl tracking-widest">DROP MEDIA</div>
+            </div>
+        </main>
+
+        <!-- Timeline Deck -->
+        <section class="h-[80px] sm:h-[100px] bg-neutral-900 border-t border-neutral-800 flex flex-col shrink-0 z-30 relative">
+            <div class="h-8 bg-neutral-950 flex items-center px-3 gap-2 border-b border-neutral-800">
+                <button id="btn-play" class="px-3 py-0.5 bg-neutral-800 text-white text-[10px] font-bold uppercase tracking-widest border border-neutral-700 hover:bg-neutral-700" onclick="togglePlay()">▶ PLAY</button>
+                <button id="btn-open-export" class="px-3 py-0.5 bg-white text-black text-[10px] font-bold uppercase tracking-widest border border-neutral-200 hover:bg-neutral-200" onclick="openExportModal()">Export</button>
+                <div class="w-px h-4 bg-neutral-700 mx-1"></div>
+                <button class="px-2 py-0.5 text-neutral-400 text-[10px] hover:text-white uppercase font-bold" onclick="addFrame()">+ Add</button>
+                <button class="px-2 py-0.5 text-neutral-400 text-[10px] hover:text-white uppercase font-bold" onclick="cloneFrame()">⧉ Clone</button>
+                <div class="flex-grow text-right text-[10px] font-bold text-neutral-500 tracking-widest uppercase" id="tl-info">FRM_01</div>
+            </div>
+            <div id="tl-strip" class="flex-grow flex items-center px-4 gap-3 overflow-x-auto bg-black">
+                <!-- Thumbs -->
+            </div>
+        </section>
+
+        <!-- Script-Only Status Rail -->
+        <footer class="h-14 sm:h-16 bg-neutral-900 border-t border-neutral-800 flex items-center shrink-0 z-30 relative pb-[var(--safe-bottom)]">
+            <div class="flex w-full items-center justify-between gap-4 px-4 text-[10px] uppercase tracking-widest text-neutral-500">
+                <div id="footer-mode" class="font-bold text-neutral-300">Optical desk armed · script plus manual mark-up</div>
+                <div id="footer-hint" class="hidden md:block">Tool drawer restored in header · export modal handles still, video, and GIF output</div>
+            </div>
+        </footer>
+    </div>
+
+</div>
+
+<input type="file" id="file-input" accept="image/*,video/*" style="display:none" onchange="handleMediaUpload(event)">
+<div id="toast">SYSTEM READY</div>
+
+<div id="help-modal" class="modal-shell" onclick="if(event.target===this) closeHelpModal()">
+    <div class="modal-card">
+        <div class="sticky top-0 flex items-center justify-between gap-4 border-b border-neutral-300 bg-neutral-100 px-5 py-4">
+            <div>
+                <div class="text-xs font-bold uppercase tracking-[0.25em] text-neutral-500">Operations Manual</div>
+                <div class="text-xl font-bold uppercase tracking-tight">BFLIX as Computational Celluloid</div>
+            </div>
+            <button class="border border-neutral-400 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] hover:bg-neutral-200" onclick="closeHelpModal()">Close</button>
+        </div>
+        <div class="space-y-5 p-5 modal-copy">
+            <div class="border-l-4 border-neutral-800 bg-neutral-900 p-4 text-neutral-100">
+                <div class="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-neutral-400">Operational Paradigm</div>
+                <p class="italic text-neutral-300">Recognizable images can be assembled under severe constraints. BFLIX is not about painting reality directly. It is about constructing odd building blocks that force perception to finish the image.</p>
+                <p class="mt-3 text-sm text-neutral-200"><strong>Rule:</strong> Think in discrete blocks, trajectories, holds, and shifts. The blur belongs to the viewer, not the script.</p>
+            </div>
+            <div class="grid gap-5 md:grid-cols-2">
+                <div class="border border-neutral-300 bg-white p-4">
+                    <div class="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-neutral-500">Grid Constraints</div>
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li>Logical grid is <strong>64 columns by 36 rows</strong>.</li>
+                        <li>Origin is top-left: <code>0,0</code>.</li>
+                        <li>Values map to palette ids <code>0-7</code>.</li>
+                        <li><strong>No Line Length Limit:</strong> The archaic 80-column punch card limit is disabled. Feel free to inject massive commands.</li>
+                        <li><strong>Buffer Limit:</strong> The compiler now supports up to <strong>10,000 frames</strong> in a single sequence.</li>
+                    </ul>
+                </div>
+                <div class="border border-neutral-300 bg-white p-4">
+                    <div class="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-neutral-500">Command Set</div>
+                    <ul class="space-y-1">
+                        <li><code>CLR v</code> clears the matrix to a value.</li>
+                        <li><code>PNT x y w h v</code> paints a block.</li>
+                        <li><code>LIN x1 y1 x2 y2 v</code> draws a line.</li>
+                        <li><code>REC n</code> records the current frame <code>n</code> times (passing <code>0</code> prevents timeline recording while retaining logic shifts).</li>
+                        <li><code>SHF dx dy n</code> shifts the whole matrix over <code>n</code> frames (passing <code>0</code> shifts the logic grid without recording a frame).</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border border-blue-200 bg-blue-50 p-4">
+                <div class="mb-2 flex items-center justify-between gap-4">
+                    <div>
+                        <div class="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">LLM Prompt</div>
+                        <div class="text-sm text-blue-900">Use this to ask another model for raw BFLIX script output.</div>
+                    </div>
+                    <button id="copy-prompt-btn" class="border border-blue-500 bg-blue-600 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-white hover:bg-blue-700 transition-colors">Copy Prompt</button>
+                </div>
+                <textarea id="llm-prompt-text" class="h-48 w-full resize-y border border-blue-300 bg-white p-3 text-xs text-neutral-700 font-mono" readonly>Act as a strict BFLIX / BEFLIX-64 compiler for a 64x36 discrete image matrix.
+
+Output only raw code. No markdown. No explanations.
+
+Constraints:
+- X ranges from 0 to 63.
+- Y ranges from 0 to 35.
+- Values range from 0 to 7.
+- Unlimited line length allowed (ignore legacy 80 column rule).
+- Up to 10,000 frames supported.
+- Think in bold graphic masses, trajectories, holds, wipes, and shifts.
+- Build recognizable forms from constrained block logic rather than naturalistic drawing.
+
+Available commands:
+CLR v
+PNT x y w h v
+LIN x1 y1 x2 y2 v
+REC n
+SHF dx dy n
+
+Goal:
+[INSERT REQUEST HERE]</textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="export-modal" class="modal-shell" onclick="if(event.target===this) closeExportModal()">
+    <div class="modal-card">
+        <div class="sticky top-0 flex items-center justify-between gap-4 border-b border-neutral-300 bg-neutral-100 px-5 py-4">
+            <div>
+                <div class="text-xs font-bold uppercase tracking-[0.25em] text-neutral-500">Output</div>
+                <div class="text-xl font-bold uppercase tracking-tight">Export Options</div>
+            </div>
+            <button class="border border-neutral-400 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] hover:bg-neutral-200" onclick="closeExportModal()">Close</button>
+        </div>
+        <div class="space-y-4 p-5 modal-copy">
+            <div class="border border-neutral-300 bg-white p-4">
+                <div class="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-neutral-500">Still Images</div>
+                <div class="flex flex-wrap gap-2">
+                    <button class="border border-neutral-400 bg-neutral-900 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-white hover:bg-black" onclick="exportCurrentFrame(); closeExportModal()">Current Frame PNG</button>
+                    <button class="border border-neutral-400 bg-neutral-900 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-white hover:bg-black" onclick="exportStrip(); closeExportModal()">Contact Sheet PNG</button>
+                </div>
+            </div>
+            <div class="border border-neutral-300 bg-white p-4">
+                <div class="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-neutral-500">Motion Formats</div>
+                <div class="mb-3 text-sm text-neutral-600">Exports are visual-only. No audio is embedded.</div>
+                <div class="mb-4 grid gap-3 md:grid-cols-2">
+                    <label class="text-xs font-bold uppercase tracking-[0.14em] text-neutral-500">FPS
+                        <select id="export-fps" class="mt-1 w-full border border-neutral-300 bg-white px-2 py-2 text-xs text-neutral-900">
+                            <option value="8">8 fps</option>
+                            <option value="12" selected>12 fps</option>
+                            <option value="24">24 fps</option>
+                        </select>
+                    </label>
+                    <label class="text-xs font-bold uppercase tracking-[0.14em] text-neutral-500">Scale
+                        <select id="export-scale" class="mt-1 w-full border border-neutral-300 bg-white px-2 py-2 text-xs text-neutral-900">
+                            <option value="1">1x</option>
+                            <option value="2" selected>2x</option>
+                            <option value="3">3x</option>
+                        </select>
+                    </label>
+                    <label class="text-xs font-bold uppercase tracking-[0.14em] text-neutral-500">GIF Step
+                        <select id="export-gif-step" class="mt-1 w-full border border-neutral-300 bg-white px-2 py-2 text-xs text-neutral-900">
+                            <option value="1" selected>Every frame</option>
+                            <option value="2">Every 2nd frame</option>
+                            <option value="3">Every 3rd frame</option>
+                        </select>
+                    </label>
+                    <label class="flex items-center gap-2 pt-5 text-xs font-bold uppercase tracking-[0.14em] text-neutral-700">
+                        <input id="export-leader" type="checkbox" checked>
+                        Include B·FLIX Leader
+                    </label>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button class="border border-neutral-400 bg-neutral-900 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-white hover:bg-black" onclick="closeExportModal(); exportVideo('webm')">WebM Video</button>
+                    <button id="btn-export-mp4" class="border border-neutral-400 bg-neutral-900 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-white hover:bg-black" onclick="closeExportModal(); exportVideo('mp4')">MP4 Video</button>
+                    <button id="btn-export-gif" class="border border-neutral-400 bg-neutral-900 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-white hover:bg-black" onclick="closeExportModal(); exportGif()">Animated GIF</button>
+                </div>
+                <div id="export-format-note" class="mt-3 text-xs uppercase tracking-[0.14em] text-neutral-500">Checking browser export support…</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- SYSTEM CONFIG ---
+const W = 320, H = 180; 
+const GRID_COLS = 64, GRID_ROWS = 36; 
+const BLOCK_SZ = 5; 
+const PREVIEW_FPS = 12;
+const EXPORT_FPS = 12;
+const PHOSPHOR_ALPHA = 0.18;
+const FILM_PULL_START = 0.88;
+const FILM_PULL_STRENGTH = 0.12;
+const MANUAL_EDITING_ENABLED = true;
+const GIF_WORKER_URL = 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js';
+
+// Marker Colors mapping to 0-7 for BEFLIX
+const PAL = [
+    { id: 0, hex: '#000000', rgba: [0, 0, 0, 0], name: 'CLR' },     
+    { id: 1, hex: '#000000', rgba: [0, 0, 0, 220], name: 'BLK' },   
+    { id: 2, hex: '#d91c1c', rgba: [217, 28, 28, 200], name: 'RED' },
+    { id: 3, hex: '#196127', rgba: [25, 97, 39, 200], name: 'GRN' },
+    { id: 4, hex: '#1d4ed8', rgba: [29, 78, 216, 200], name: 'BLU' },
+    { id: 5, hex: '#facc15', rgba: [250, 204, 21, 160], name: 'YLW' },
+    { id: 6, hex: '#ffffff', rgba: [255, 255, 255, 255], name: 'WHT' },
+    { id: 7, hex: '#111111', rgba: [17, 17, 17, 255], name: 'INK' } 
+];
+
+let state = {
+    frames: [], cur: 0, prev: 0, playing: false,
+    tool: 'pen', color: 2, size: 5, gridOn: false,
+    drag: false, d0: [0,0], d1: [0,0],
+    transitionOffset: 0, sprocketPos: 0, scriptOpen: false,
+    exporting: false, headerTab: 'script'
+};
+
+// Canvas References
+const canvas = document.getElementById('main-canvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const prevCanvas = document.getElementById('prev-canvas');
+const ctxPrev = prevCanvas.getContext('2d', { willReadFrequently: true });
+const nextCanvas = document.getElementById('next-canvas');
+const ctxNext = nextCanvas.getContext('2d', { willReadFrequently: true });
+
+const inkBuffer = document.createElement('canvas');
+inkBuffer.width = W; inkBuffer.height = H;
+const inkCtx = inkBuffer.getContext('2d', { willReadFrequently: true });
+
+let AC;
+let tlThumbs = []; 
+let playRAF;
+let lastFrameTime = 0;
+const frameComposite = document.createElement('canvas');
+frameComposite.width = W; frameComposite.height = H;
+const frameCompositeCtx = frameComposite.getContext('2d', { willReadFrequently: true });
+const persistenceCanvas = document.createElement('canvas');
+persistenceCanvas.width = W; persistenceCanvas.height = H;
+const persistenceCtx = persistenceCanvas.getContext('2d', { willReadFrequently: true });
+let hasPersistenceFrame = false;
+
+// --- HAPTICS & AUDIO ---
+function haptic(duration = 15) {
+    if (navigator.vibrate) try { navigator.vibrate(duration); } catch(e){}
+}
+
+function initAudio() {
+    if(!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    if(AC.state === 'suspended') AC.resume();
+}
+
+function beep(f=150, d=0.02, v=0.01, type='square') {
+    if (!AC || AC.state === 'suspended') return;
+    const o = AC.createOscillator();
+    const g = AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.type = type;
+    o.frequency.setValueAtTime(f, AC.currentTime);
+    g.gain.setValueAtTime(v, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.00001, AC.currentTime + d);
+    o.start(); o.stop(AC.currentTime + d);
+}
+
+function logConsole(msg, isError = false) {
+    const cons = document.getElementById('console-log');
+    cons.textContent = msg;
+    cons.className = `font-mono text-[11px] uppercase p-2 min-h-[40px] max-h-[60px] overflow-y-auto break-words flex items-center border ${isError ? 'bg-red-950/50 text-red-400 border-red-900' : 'bg-green-950/30 text-green-400 border-green-900'}`;
+}
+
+const helpModal = document.getElementById('help-modal');
+const exportModal = document.getElementById('export-modal');
+const copyPromptBtn = document.getElementById('copy-prompt-btn');
+const llmPromptText = document.getElementById('llm-prompt-text');
+const exportOpenBtn = document.getElementById('btn-open-export');
+const exportMp4Btn = document.getElementById('btn-export-mp4');
+const exportGifBtn = document.getElementById('btn-export-gif');
+const exportFormatNote = document.getElementById('export-format-note');
+const exportFpsInput = document.getElementById('export-fps');
+const exportScaleInput = document.getElementById('export-scale');
+const exportGifStepInput = document.getElementById('export-gif-step');
+const exportLeaderInput = document.getElementById('export-leader');
+const deckOverlay = document.getElementById('deck-overlay');
+const deckTitle = document.getElementById('deck-title');
+const deckSub = document.getElementById('deck-sub');
+const deckProgressBar = document.getElementById('deck-progress-bar');
+
+function openHelpModal() { helpModal.classList.add('on'); }
+function closeHelpModal() { helpModal.classList.remove('on'); }
+function openExportModal() {
+    if (state.exporting || !state.frames.length) return;
+    setHeaderTab('output');
+    exportModal.classList.add('on');
+}
+function closeExportModal() { exportModal.classList.remove('on'); }
+
+function setHeaderTab(tab) {
+    state.headerTab = tab;
+    ['script', 'tools', 'output'].forEach((name) => {
+        document.getElementById(`tab-${name}`).classList.toggle('active', name === tab);
+        document.getElementById(`drawer-${name}`).classList.toggle('hidden', name !== tab);
+    });
+    updateGateLabels();
+}
+
+function setDeck(title, sub, progress = null) {
+    deckTitle.textContent = title;
+    deckSub.textContent = sub;
+    if (progress !== null) deckProgressBar.style.width = `${Math.max(0, Math.min(1, progress)) * 100}%`;
+    deckOverlay.classList.add('on');
+}
+
+function clearDeck(delay = 0) {
+    window.setTimeout(() => { deckOverlay.classList.remove('on'); }, delay);
+}
+
+function getExportSettings() {
+    return {
+        fps: Math.max(1, parseInt(exportFpsInput?.value || EXPORT_FPS, 10)),
+        scale: Math.max(1, parseInt(exportScaleInput?.value || 1, 10)),
+        gifStep: Math.max(1, parseInt(exportGifStepInput?.value || 1, 10)),
+        leader: Boolean(exportLeaderInput?.checked)
+    };
+}
+
+function isVideoExportSupported(format = 'webm') {
+    if (!window.MediaRecorder) return false;
+    if (format === 'mp4') return pickVideoMimeType('mp4') !== '';
+    return pickVideoMimeType('webm') !== '';
+}
+
+function updateExportUI() {
+    exportOpenBtn.classList.toggle('btn-disabled', state.exporting || state.frames.length === 0);
+    exportOpenBtn.textContent = state.exporting ? 'Exporting…' : 'Export';
+    if (exportMp4Btn) exportMp4Btn.classList.toggle('btn-disabled', !isVideoExportSupported('mp4'));
+    if (exportGifBtn) exportGifBtn.classList.toggle('btn-disabled', typeof GIF === 'undefined');
+    if (exportFormatNote) {
+        const notes = [];
+        notes.push(isVideoExportSupported('mp4') ? 'MP4 available' : 'MP4 limited');
+        notes.push(isVideoExportSupported('webm') ? 'WebM available' : 'WebM unavailable');
+        notes.push(typeof GIF !== 'undefined' ? 'GIF available' : 'GIF unavailable');
+        exportFormatNote.textContent = notes.join(' · ');
+    }
+}
+
+function clearPersistence() {
+    persistenceCtx.clearRect(0, 0, W, H);
+    hasPersistenceFrame = false;
+}
+
+async function copyPromptToClipboard() {
+    const text = llmPromptText.value;
+    try {
+        if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+        else {
+            llmPromptText.select();
+            document.execCommand('copy');
+        }
+        const prev = copyPromptBtn.textContent;
+        copyPromptBtn.textContent = 'Copied';
+        setTimeout(() => { copyPromptBtn.textContent = prev; }, 1200);
+    } catch (err) {
+        toast('COPY FAILED');
+    }
+}
+
+// --- INITIALIZATION ---
+window.onload = () => {
+    addFrame(true); 
+    rebuildTimelineDOM();
+    buildColors();
+    setHeaderTab('script');
+    resize();
+    window.addEventListener('resize', resize);
+    requestAnimationFrame(weaveLoop);
+    updateExportUI();
+    document.getElementById('code-input').dispatchEvent(new Event('input'));
+    copyPromptBtn.addEventListener('click', copyPromptToClipboard);
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeHelpModal();
+            closeExportModal();
+        }
+    });
+    openHelpModal();
+    updateGateLabels();
+    setDeck('Computational Celluloid', 'Booting The Optical Desk', 0.24);
+    setTimeout(() => {
+        setDeck('Computational Celluloid', 'Desk Ready', 1);
+        clearDeck(850);
+    }, 240);
+    toast('SYSTEM READY');
+};
+
+function resize() {
+    const wrapper = document.getElementById('canvas-wrapper');
+    const container = document.getElementById('gate-container');
+    const margin = window.innerWidth < 640 ? 30 : 60;
+    const maxW = container.clientWidth - margin; 
+    const maxH = container.clientHeight * 0.45; 
+    const scale = Math.min(maxW / W, maxH / H);
+    
+    const viewW = Math.floor(W * scale);
+    const viewH = Math.floor(H * scale);
+    
+    ['main-canvas', 'prev-canvas', 'next-canvas'].forEach(id => {
+        const cvs = document.getElementById(id);
+        cvs.style.width = `${viewW}px`;
+        cvs.style.height = `${viewH}px`;
+        cvs.width = W; 
+        cvs.height = H;
+    });
+    
+    wrapper.style.width = `${viewW}px`;
+    wrapper.style.height = `${viewH}px`;
+    
+    const grid = document.getElementById('grid-overlay');
+    grid.style.backgroundSize = `${scale * BLOCK_SZ}px ${scale * BLOCK_SZ}px`;
+    renderFrame();
+}
+
+// HUD TOGGLE
+function toggleScript() {
+    state.scriptOpen = !state.scriptOpen;
+    setHeaderTab('script');
+    const panel = document.getElementById('script-panel');
+    const backdrop = document.getElementById('script-backdrop');
+    
+    if (state.scriptOpen) {
+        panel.classList.remove('-translate-x-full');
+        backdrop.classList.add('on');
+    } else {
+        panel.classList.add('-translate-x-full');
+        backdrop.classList.remove('on');
+    }
+    haptic(15); beep(400, 0.05);
+}
+
+function updateStripTransform(time = performance.now()) {
+    const strip = document.getElementById('film-strip');
+    if (!strip) return;
+    
+    const viewH = canvas.offsetHeight;
+    const gap = 16; 
+    const yOff = state.transitionOffset * (viewH + gap); 
+
+    strip.style.transform = `translate(0px, ${-yOff}px)`;
+    
+    const baseSprocket = (state.cur * 24); 
+    const pullSprocket = (state.transitionOffset) * 24; 
+    state.sprocketPos = baseSprocket + pullSprocket;
+    document.getElementById('sprocket-left').style.backgroundPositionY = `${-state.sprocketPos}px`;
+    document.getElementById('sprocket-right').style.backgroundPositionY = `${-state.sprocketPos}px`;
+}
+
+function weaveLoop(time) {
+    if (!state.playing) {
+        updateStripTransform(time);
+    }
+    requestAnimationFrame(weaveLoop);
+}
+
+// --- RENDERING ENGINE ---
+function renderComposite(frameObj, targetCtx, isActive = false) {
+    targetCtx.clearRect(0, 0, W, H);
+    
+    if (frameObj.baseImg) {
+        targetCtx.drawImage(frameObj.baseImg, 0, 0, W, H);
+    } else {
+        targetCtx.fillStyle = '#cccccc'; 
+        targetCtx.fillRect(0, 0, W, H);
+    }
+
+    inkCtx.putImageData(new ImageData(frameObj.inkData, W, H), 0, 0);
+    
+    if (isActive && state.drag) {
+        const tempInk = new Uint8ClampedArray(frameObj.inkData);
+        const col = state.tool === 'erase' ? PAL[0].rgba : PAL[state.color].rgba;
+        
+        if (state.tool === 'rect') drawRect(tempInk, state.d0[0], state.d0[1], state.d1[0], state.d1[1], col, state.size);
+        else if (state.tool === 'circ') drawEllipse(tempInk, state.d0[0], state.d0[1], state.d1[0], state.d1[1], col, state.size);
+        else if (state.tool === 'pen' || state.tool === 'erase') drawLine(tempInk, state.d0[0], state.d0[1], state.d1[0], state.d1[1], col, state.size);
+        
+        inkCtx.putImageData(new ImageData(tempInk, W, H), 0, 0);
+    }
+
+    targetCtx.drawImage(inkBuffer, 0, 0);
+}
+
+function renderMainFrame(frameObj, isActive = false, withPersistence = false) {
+    renderComposite(frameObj, frameCompositeCtx, isActive);
+    ctx.clearRect(0, 0, W, H);
+    if (withPersistence && hasPersistenceFrame) {
+        ctx.save();
+        ctx.globalAlpha = PHOSPHOR_ALPHA;
+        ctx.drawImage(persistenceCanvas, 0, 0);
+        ctx.restore();
+    }
+    ctx.drawImage(frameComposite, 0, 0);
+    persistenceCtx.clearRect(0, 0, W, H);
+    persistenceCtx.drawImage(canvas, 0, 0);
+    hasPersistenceFrame = true;
+}
+
+function renderFrame() {
+    const f = state.frames[state.cur];
+    if (!f) return;
+    
+    // Draw Current
+    renderMainFrame(f, true, state.playing || state.exporting);
+    
+    // Draw Strip Neighbors
+    if (state.frames.length > 1) {
+        const p = state.frames[(state.cur - 1 + state.frames.length) % state.frames.length];
+        const n = state.frames[(state.cur + 1) % state.frames.length];
+        
+        renderComposite(p, ctxPrev, false);
+        renderComposite(n, ctxNext, false);
+        
+        prevCanvas.parentElement.style.visibility = 'visible';
+        nextCanvas.parentElement.style.visibility = 'visible';
+    } else {
+        prevCanvas.parentElement.style.visibility = 'hidden';
+        nextCanvas.parentElement.style.visibility = 'hidden';
+    }
+    
+    updateStripTransform();
+    syncActiveThumbnail();
+}
+
+// --- PLAYBACK ---
+function playLoop(now) {
+    if (!state.playing) return;
+    playRAF = requestAnimationFrame(playLoop);
+    
+    const elapsed = now - lastFrameTime;
+    const frameDuration = 1000 / PREVIEW_FPS;
+    let phase = elapsed / frameDuration;
+    
+    if (phase >= 1.0) {
+        state.prev = state.cur;
+        state.cur = (state.cur + 1) % state.frames.length;
+        lastFrameTime = now - (elapsed % frameDuration);
+        phase = 0;
+        
+        beep(80, 0.02, 0.05, 'sawtooth');
+        
+        const frames = document.querySelectorAll('.tl-frame');
+        frames.forEach((el, i) => el.classList.toggle('active', i === state.cur));
+        document.getElementById('tl-info').textContent = `FRM_${String(state.cur+1).padStart(2,'0')}`;
+        
+        if (state.cur === 0 || frames[state.cur].offsetLeft > document.getElementById('tl-strip').scrollLeft + document.getElementById('tl-strip').clientWidth - 100) {
+            frames[state.cur].scrollIntoView({ inline: 'center', block: 'nearest' });
+        }
+    }
+    
+    if (phase > FILM_PULL_START) {
+        let p = (phase - FILM_PULL_START) / (1 - FILM_PULL_START);
+        let eased = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        state.transitionOffset = eased * FILM_PULL_STRENGTH;
+    } else {
+        state.transitionOffset = 0;
+    }
+    renderFrame();
+}
+
+function togglePlay() {
+    if (state.exporting) return;
+    state.playing = !state.playing;
+    const btn = document.getElementById('btn-play');
+    if (state.playing) {
+        btn.textContent = '■ STOP'; btn.classList.add('bg-red-600', 'text-white', 'border-red-500'); btn.classList.remove('text-neutral-400');
+        lastFrameTime = performance.now();
+        state.transitionOffset = 0;
+        clearPersistence();
+        initAudio(); haptic(10);
+        playRAF = requestAnimationFrame(playLoop);
+    } else {
+        btn.textContent = '▶ PLAY'; btn.classList.remove('bg-red-600', 'text-white', 'border-red-500'); btn.classList.add('text-neutral-400');
+        cancelAnimationFrame(playRAF);
+        state.transitionOffset = 0;
+        clearPersistence();
+        haptic(10); renderFrame(); rebuildTimelineDOM();
+    }
+}
+
+// --- PIXEL MATH FOR INK LAYER ---
+function createEmptyInk() { return new Uint8ClampedArray(W * H * 4); }
+
+function setPixel(data, x, y, col) {
+    if (x < 0 || x >= W || y < 0 || y >= H) return;
+    const i = (y * W + x) * 4;
+    if (col[3] === 0) {
+        data[i] = 0; data[i+1] = 0; data[i+2] = 0; data[i+3] = 0;
+        return;
+    }
+    
+    const eA = data[i+3] / 255;
+    const nA = col[3] / 255;
+    const oA = nA + eA * (1 - nA);
+    if (oA > 0) {
+        data[i]   = Math.round((col[0] * nA + data[i] * eA * (1 - nA)) / oA);
+        data[i+1] = Math.round((col[1] * nA + data[i+1] * eA * (1 - nA)) / oA);
+        data[i+2] = Math.round((col[2] * nA + data[i+2] * eA * (1 - nA)) / oA);
+        data[i+3] = Math.round(oA * 255);
+    }
+}
+
+function drawBrush(data, x, y, col, sz) {
+    const r = sz / 2;
+    for(let iy=-Math.ceil(r); iy<=Math.ceil(r); iy++) {
+        for(let ix=-Math.ceil(r); ix<=Math.ceil(r); ix++) {
+            if (ix*ix + iy*iy <= r*r) setPixel(data, Math.round(x+ix), Math.round(y+iy), col);
+        }
+    }
+}
+
+function drawLine(data, x0, y0, x1, y1, col, sz) {
+    let dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+    let sx = (x0 < x1) ? 1 : -1, sy = (y0 < y1) ? 1 : -1;
+    let err = dx - dy;
+    while(true) {
+        drawBrush(data, x0, y0, col, sz);
+        if ((x0 === x1) && (y0 === y1)) break;
+        let e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x0 += sx; }
+        if (e2 < dx) { err += dx; y0 += sy; }
+    }
+}
+
+function drawRect(data, x0, y0, x1, y1, col, sz) {
+    drawLine(data, x0, y0, x1, y0, col, sz);
+    drawLine(data, x1, y0, x1, y1, col, sz);
+    drawLine(data, x1, y1, x0, y1, col, sz);
+    drawLine(data, x0, y1, x0, y0, col, sz);
+}
+
+function drawEllipse(data, x0, y0, x1, y1, col, sz) {
+    const cx = (x0 + x1) / 2;
+    const cy = (y0 + y1) / 2;
+    const rx = Math.max(1, Math.abs(x1 - x0) / 2);
+    const ry = Math.max(1, Math.abs(y1 - y0) / 2);
+    const steps = Math.max(24, Math.ceil(2 * Math.PI * Math.max(rx, ry)));
+    for (let i = 0; i <= steps; i++) {
+        const theta = (i / steps) * Math.PI * 2;
+        const px = Math.round(cx + Math.cos(theta) * rx);
+        const py = Math.round(cy + Math.sin(theta) * ry);
+        drawBrush(data, px, py, col, sz);
+    }
+}
+
+function getPixel(data, x, y) {
+    const i = (y * W + x) * 4;
+    return [data[i], data[i + 1], data[i + 2], data[i + 3]];
+}
+
+function samePixel(a, b) {
+    return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
+}
+
+function floodFill(data, x, y, col) {
+    const target = getPixel(data, x, y);
+    if (samePixel(target, col)) return 0;
+    const stack = [[x, y]];
+    let count = 0;
+    while (stack.length) {
+        const [cx, cy] = stack.pop();
+        if (cx < 0 || cx >= W || cy < 0 || cy >= H) continue;
+        if (!samePixel(getPixel(data, cx, cy), target)) continue;
+        setPixel(data, cx, cy, col);
+        count++;
+        stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+    }
+    return count;
+}
+
+// --- CODE RECORDER HELPER ---
+function appendBeflixCommand(cmd, withComment = false) {
+    const textarea = document.getElementById('code-input');
+    let val = textarea.value;
+    if (withComment) {
+        if (val && !val.endsWith('\n')) val += '\n';
+        val += `C -- [F${String(state.cur + 1).padStart(2, '0')}] MANUAL INJECTION --\n`;
+    }
+    val += `${cmd}\n`;
+    textarea.value = val;
+    textarea.scrollTop = textarea.scrollHeight;
+    textarea.dispatchEvent(new Event('input')); 
+}
+
+// --- BEFLIX-64 SCRIPT ENGINE ---
+document.getElementById('code-input').addEventListener('input', (e) => {
+    const cursor = e.target.selectionStart;
+    const linesBefore = e.target.value.substring(0, cursor).split('\n');
+    const cursorCol = linesBefore[linesBefore.length - 1].length;
+    const colCounter = document.getElementById('col-counter');
+    colCounter.innerText = cursorCol;
+    colCounter.className = cursorCol > 80 ? 'text-amber-400 font-bold' : 'text-white';
+});
+
+document.getElementById('compile-btn').addEventListener('click', () => {
+    if (state.playing) togglePlay();
+    const source = document.getElementById('code-input').value;
+    const btn = document.getElementById('compile-btn');
+    
+    btn.disabled = true; btn.textContent = 'COMPUTING...'; btn.classList.add('opacity-50');
+    haptic(20);
+    setDeck('Weaving Macro', 'Compiling Script Array', 0.18);
+
+    setTimeout(() => {
+        try {
+            const compileMeta = executeBeflixScript(source);
+            const warningText = compileMeta.longLineCount ? ` · ${compileMeta.longLineCount} LONG LINE(S) ALLOWED` : '';
+            logConsole(`SUCCESS: ${compileMeta.frameCount} FRAMES PROCESSED${warningText}.`);
+            setDeck('Weaving Macro', 'Array Committed To Film Desk', 1);
+            toast('COMPUTATION SUCCESS');
+            haptic([10, 20, 10]);
+        } catch(e) {
+            logConsole(e.message, true);
+            setDeck('System Halt', e.message, 1);
+            haptic([50, 50]);
+            toast('SYNTAX ERROR');
+        }
+        btn.disabled = false; btn.textContent = 'EXECUTE SCRIPT'; btn.classList.remove('opacity-50');
+        rebuildTimelineDOM(); renderFrame();
+        clearDeck(900);
+    }, 50);
+});
+
+function executeBeflixScript(source) {
+    let scriptMatrix = Array(GRID_ROWS).fill().map(() => Array(GRID_COLS).fill(0));
+    let compiledRoll = [];
+    const lines = source.toUpperCase().split('\n');
+    const MAX_FRAMES = 10000; // Expanded Memory Limit Buffer
+    let longLineCount = 0;
+    let longestLine = 0;
+    
+    const cloneMatrix = (mat) => mat.map(row => [...row]);
+
+    for (let i = 0; i < lines.length; i++) {
+        longestLine = Math.max(longestLine, lines[i].length);
+        let line = lines[i].trim();
+        if (line.length === 0 || line.startsWith('C')) continue; 
+        if (lines[i].length > 80) longLineCount++;
+        
+        const parts = line.split(/\s+/);
+        const cmd = parts[0];
+        const args = parts.slice(1).map(Number);
+        
+        if (args.some(isNaN)) throw new Error(`HALT: LINE ${i+1}: INVALID NUMERIC IN '${cmd}'`);
+
+        switch(cmd) {
+            case 'CLR': 
+                const vC = Math.max(0, Math.min(7, args[0]));
+                for(let y=0; y<GRID_ROWS; y++) for(let x=0; x<GRID_COLS; x++) scriptMatrix[y][x] = vC;
+                break;
+            case 'PNT': 
+                const [px, py, pw, ph, pv] = args;
+                const vP = Math.max(0, Math.min(7, pv));
+                for(let iy = Math.max(0, py); iy < Math.min(GRID_ROWS, py + ph); iy++) {
+                    for(let ix = Math.max(0, px); ix < Math.min(GRID_COLS, px + pw); ix++) {
+                        scriptMatrix[iy][ix] = vP;
+                    }
+                }
+                break;
+            case 'LIN':
+                const [lx1, ly1, lx2, ly2, lv] = args;
+                const vL = Math.max(0, Math.min(7, lv));
+                let dx = Math.abs(lx2 - lx1), sx = lx1 < lx2 ? 1 : -1;
+                let dy = -Math.abs(ly2 - ly1), sy = ly1 < ly2 ? 1 : -1;
+                let err = dx + dy, e2;
+                let cx = lx1, cy = ly1;
+                while (true) {
+                    if (cx >= 0 && cx < GRID_COLS && cy >= 0 && cy < GRID_ROWS) scriptMatrix[cy][cx] = vL;
+                    if (cx === lx2 && cy === ly2) break;
+                    e2 = 2 * err;
+                    if (e2 >= dy) { err += dy; cx += sx; }
+                    if (e2 <= dx) { err += dx; cy += sy; }
+                }
+                break;
+            case 'REC':
+                const frames = args[0] !== undefined ? Math.max(0, parseInt(args[0])) : 1;
+                for(let f=0; f<frames; f++) {
+                    if(compiledRoll.length >= MAX_FRAMES) throw new Error(`HALT: MEMORY BUFFER LIMIT EXCEEDED (${MAX_FRAMES})`);
+                    compiledRoll.push(cloneMatrix(scriptMatrix));
+                }
+                break;
+            case 'SHF':
+                const [sdx, sdy, sframes] = args;
+                const sf = sframes !== undefined ? Math.max(0, parseInt(sframes)) : 1;
+                if (sf === 0) {
+                    let newMat = Array(GRID_ROWS).fill().map(() => Array(GRID_COLS).fill(0));
+                    for(let y=0; y<GRID_ROWS; y++) {
+                        for(let x=0; x<GRID_COLS; x++) {
+                            let nx = x - sdx, ny = y - sdy;
+                            if (nx >= 0 && nx < GRID_COLS && ny >= 0 && ny < GRID_ROWS) newMat[y][x] = scriptMatrix[ny][nx];
+                        }
+                    }
+                    scriptMatrix = newMat;
+                } else {
+                    for(let f=0; f<sf; f++) {
+                        if(compiledRoll.length >= MAX_FRAMES) throw new Error(`HALT: MEMORY BUFFER LIMIT EXCEEDED (${MAX_FRAMES})`);
+                        let newMat = Array(GRID_ROWS).fill().map(() => Array(GRID_COLS).fill(0));
+                        for(let y=0; y<GRID_ROWS; y++) {
+                            for(let x=0; x<GRID_COLS; x++) {
+                                let nx = x - sdx, ny = y - sdy;
+                                if (nx >= 0 && nx < GRID_COLS && ny >= 0 && ny < GRID_ROWS) newMat[y][x] = scriptMatrix[ny][nx];
+                            }
+                        }
+                        scriptMatrix = newMat;
+                        compiledRoll.push(cloneMatrix(scriptMatrix));
+                    }
+                }
+                break;
+            default: throw new Error(`HALT: LINE ${i+1}: UNKNOWN INSTRUCTION '${cmd}'`);
+        }
+    }
+    
+    if (compiledRoll.length === 0) compiledRoll.push(cloneMatrix(scriptMatrix));
+    applyScriptToFrames(compiledRoll);
+    return { frameCount: compiledRoll.length, longLineCount, longestLine };
+}
+
+function applyScriptToFrames(compiledRoll) {
+    while(state.frames.length < compiledRoll.length) addFrame(false, true);
+
+    compiledRoll.forEach((mat, fIdx) => {
+        if (fIdx >= state.frames.length) return;
+        const ink = state.frames[fIdx].inkData;
+        for(let i=0; i<ink.length; i++) ink[i] = 0;
+
+        for(let y=0; y<GRID_ROWS; y++) {
+            for(let x=0; x<GRID_COLS; x++) {
+                const val = mat[y][x];
+                if (val === 0) continue; 
+                
+                const col = PAL.find(p => p.id === val)?.rgba || PAL[1].rgba;
+                for(let by=0; by<BLOCK_SZ; by++) {
+                    for(let bx=0; bx<BLOCK_SZ; bx++) {
+                        const px = x*BLOCK_SZ + bx;
+                        const py = y*BLOCK_SZ + by;
+                        if(px < W && py < H) setPixel(ink, px, py, col);
+                    }
+                }
+            }
+        }
+    });
+}
+
+// --- MANUAL INTERACTION ---
+function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    let x = Math.floor((cx - rect.left) / rect.width * W);
+    let y = Math.floor((cy - rect.top) / rect.height * H);
+    return [Math.max(0, Math.min(W-1, x)), Math.max(0, Math.min(H-1, y))];
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+    if (state.playing || !MANUAL_EDITING_ENABLED) return;
+    initAudio(); haptic(10);
+    state.drag = true;
+    state.d0 = getPos(e); state.d1 = state.d0;
+    document.getElementById('status-coords').textContent = `${String(state.d0[0]).padStart(3,'0')},${String(state.d0[1]).padStart(3,'0')}`;
+    
+    if (state.tool === 'fill') {
+        const filled = floodFill(state.frames[state.cur].inkData, state.d0[0], state.d0[1], PAL[state.color].rgba);
+        appendBeflixCommand(`C FILL ${Math.floor(state.d0[0] / BLOCK_SZ)} ${Math.floor(state.d0[1] / BLOCK_SZ)} ${state.color}`, true);
+        state.drag = false;
+        logConsole(`SKETCH FILL APPLIED: ${filled} PX`);
+        renderFrame();
+        return;
+    }
+
+    if (state.tool === 'pen' || state.tool === 'erase') {
+        const col = state.tool === 'erase' ? PAL[0].rgba : PAL[state.color].rgba;
+        drawBrush(state.frames[state.cur].inkData, state.d0[0], state.d0[1], col, state.size);
+        appendBeflixCommand(`C ${state.tool.toUpperCase()} STROKE`, true); 
+        renderFrame();
+    }
+});
+
+window.addEventListener('pointermove', (e) => {
+    if (!state.drag || state.playing || !MANUAL_EDITING_ENABLED) return;
+    const prev = state.d1;
+    state.d1 = getPos(e);
+    document.getElementById('status-coords').textContent = `${String(state.d1[0]).padStart(3,'0')},${String(state.d1[1]).padStart(3,'0')}`;
+    
+    if (state.tool === 'pen' || state.tool === 'erase') {
+        const c_id = state.tool === 'erase' ? 0 : state.color;
+        const col = state.tool === 'erase' ? PAL[0].rgba : PAL[state.color].rgba;
+        
+        drawLine(state.frames[state.cur].inkData, prev[0], prev[1], state.d1[0], state.d1[1], col, state.size);
+        
+        const gx0 = Math.floor(prev[0] / BLOCK_SZ);
+        const gy0 = Math.floor(prev[1] / BLOCK_SZ);
+        const gx1 = Math.floor(state.d1[0] / BLOCK_SZ);
+        const gy1 = Math.floor(state.d1[1] / BLOCK_SZ);
+        
+        if (gx0 !== gx1 || gy0 !== gy1) {
+            appendBeflixCommand(`LIN ${gx0} ${gy0} ${gx1} ${gy1} ${c_id}`);
+        }
+    }
+    renderFrame();
+});
+
+window.addEventListener('pointerup', () => {
+    if (!state.drag || state.playing || !MANUAL_EDITING_ENABLED) return;
+    const c_id = state.tool === 'erase' ? 0 : state.color;
+    const col = PAL[state.color].rgba;
+    const f = state.frames[state.cur].inkData;
+    
+    if (state.tool === 'rect') {
+        drawRect(f, state.d0[0], state.d0[1], state.d1[0], state.d1[1], col, state.size);
+        
+        const gx0 = Math.floor(state.d0[0] / BLOCK_SZ);
+        const gy0 = Math.floor(state.d0[1] / BLOCK_SZ);
+        const gx1 = Math.floor(state.d1[0] / BLOCK_SZ);
+        const gy1 = Math.floor(state.d1[1] / BLOCK_SZ);
+        const minX = Math.min(gx0, gx1);
+        const minY = Math.min(gy0, gy1);
+        const maxX = Math.max(gx0, gx1);
+        const maxY = Math.max(gy0, gy1);
+        
+        appendBeflixCommand(`C BOX OUTLINE`, true);
+        appendBeflixCommand(`LIN ${minX} ${minY} ${maxX} ${minY} ${c_id}`);
+        appendBeflixCommand(`LIN ${maxX} ${minY} ${maxX} ${maxY} ${c_id}`);
+        appendBeflixCommand(`LIN ${maxX} ${maxY} ${minX} ${maxY} ${c_id}`);
+        appendBeflixCommand(`LIN ${minX} ${maxY} ${minX} ${minY} ${c_id}`);
+    }
+
+    if (state.tool === 'circ') {
+        drawEllipse(f, state.d0[0], state.d0[1], state.d1[0], state.d1[1], col, state.size);
+        appendBeflixCommand(`C CIRCLE ${Math.floor(state.d0[0] / BLOCK_SZ)} ${Math.floor(state.d0[1] / BLOCK_SZ)} ${Math.floor(state.d1[0] / BLOCK_SZ)} ${Math.floor(state.d1[1] / BLOCK_SZ)} ${c_id}`, true);
+    }
+    
+    state.drag = false;
+    document.getElementById('status-coords').textContent = '64x36 GRID';
+    haptic(5); renderFrame();
+});
+
+// --- UI INTERACTIONS ---
+function setTool(t) {
+    if (!MANUAL_EDITING_ENABLED) return;
+    state.tool = t;
+    setHeaderTab('tools');
+    document.querySelectorAll('.tool-btn').forEach(el => el.classList.toggle('active', el.dataset.tool === t));
+    updateGateLabels(); haptic(10); beep(400, 0.01);
+}
+
+function updateGateLabels() {
+    const toolLabel = state.tool === 'circ' ? 'CIRCLE' : state.tool.toUpperCase();
+    const toneLabel = state.tool === 'erase' ? 'CLR' : PAL[state.color].name;
+    document.getElementById('status-tool').textContent = `${toolLabel} · ${toneLabel} · SZ ${state.size}`;
+    if (!state.drag) document.getElementById('status-coords').textContent = '64x36 GRID';
+    document.getElementById('footer-mode').textContent = state.exporting ? 'Optical desk locked · export in progress' : state.playing ? 'Optical desk rolling · playback active' : `Optical desk armed · ${toolLabel.toLowerCase()} ready`;
+    document.getElementById('footer-hint').textContent = state.headerTab === 'tools'
+        ? 'Circle and fill are sketch tools; box and pen can echo back into script.'
+        : state.headerTab === 'output'
+            ? 'Use the export modal for PNG, WebM, MP4, and GIF settings.'
+            : 'Compiler stays separate so long imported code does not fight the drawing surface.';
+}
+
+function buildColors() {
+    const container = document.getElementById('colors');
+    container.innerHTML = '';
+    PAL.slice(1).forEach((c) => { 
+        const s = document.createElement('div');
+        s.className = `color-swatch w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${c.id === state.color ? 'active' : ''}`;
+        s.style.background = c.hex;
+        if (c.id === 1) s.style.border = '1px solid #444';
+        s.onclick = () => {
+            state.color = c.id;
+            document.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('active'));
+            s.classList.add('active');
+            if (state.tool === 'erase') setTool('pen');
+            updateGateLabels(); haptic(10);
+        };
+        container.appendChild(s);
+    });
+}
+
+function setSize(v) {
+    state.size = parseInt(v);
+    document.getElementById('size-label').textContent = `SZ ${v}`;
+    updateGateLabels();
+    haptic(5);
+}
+
+function toggleGrid() {
+    state.gridOn = !state.gridOn;
+    document.getElementById('grid-overlay').classList.toggle('on', state.gridOn);
+    haptic(10); beep(300, 0.02);
+}
+
+// --- TIMELINE / FRAMES ---
+function rebuildTimelineDOM() {
+    const strip = document.getElementById('tl-strip');
+    strip.innerHTML = ''; tlThumbs = [];
+    
+    state.frames.forEach((f, i) => {
+        const wrap = document.createElement('div');
+        wrap.className = `tl-frame ${i === state.cur ? 'active' : ''}`;
+        wrap.onclick = () => {
+            if (state.playing) return;
+            state.prev = state.cur; state.cur = i; state.transitionOffset = 1.0; 
+            haptic(15); beep(150, 0.02);
+            rebuildTimelineDOM(); renderFrame();
+            wrap.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        };
+        
+        const num = document.createElement('div');
+        num.className = 'tl-num'; num.textContent = String(i+1).padStart(2,'0');
+        
+        const thumb = document.createElement('canvas');
+        thumb.className = 'tl-thumb'; thumb.width = W; thumb.height = H;
+        renderComposite(f, thumb.getContext('2d'));
+        tlThumbs[i] = thumb.getContext('2d');
+        
+        wrap.appendChild(thumb); wrap.appendChild(num); strip.appendChild(wrap);
+    });
+    document.getElementById('tl-info').textContent = `FRM_${String(state.cur+1).padStart(2,'0')}`;
+    updateExportUI();
+}
+
+function syncActiveThumbnail() {
+    if (tlThumbs[state.cur] && state.frames[state.cur]) renderComposite(state.frames[state.cur], tlThumbs[state.cur]);
+}
+
+function addFrame(initial = false, silent = false) {
+    state.frames.push({ baseImg: null, inkData: createEmptyInk() }); 
+    if (!initial && !silent) {
+        state.prev = state.cur; state.cur = state.frames.length-1; state.transitionOffset = 1.0;
+        haptic(20); beep(300, 0.05); rebuildTimelineDOM(); renderFrame();
+    }
+}
+
+function cloneFrame() {
+    const cf = state.frames[state.cur];
+    state.frames.splice(state.cur + 1, 0, { baseImg: cf.baseImg, inkData: new Uint8ClampedArray(cf.inkData) });
+    state.prev = state.cur; state.cur++; state.transitionOffset = 1.0;
+    haptic(20); beep(300, 0.05); rebuildTimelineDOM(); renderFrame(); toast('CLONED');
+}
+
+// --- MEDIA HANDLING ---
+async function handleMediaUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    haptic(30);
+    if (file.type.startsWith('video/')) await extractVideoFrames(file);
+    else if (file.type.startsWith('image/')) mountImage(file);
+    e.target.value = '';
+}
+
+const dropZone = document.getElementById('gate-container');
+const dragOverlay = document.getElementById('drag-overlay');
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dragOverlay.classList.remove('opacity-0'); dragOverlay.classList.add('opacity-100'); });
+dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dragOverlay.classList.add('opacity-0'); dragOverlay.classList.remove('opacity-100'); });
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault(); dragOverlay.classList.add('opacity-0'); dragOverlay.classList.remove('opacity-100');
+    if (e.dataTransfer.files.length > 0) handleMediaUpload({target: {files: e.dataTransfer.files}});
+});
+
+function drawMediaToBaseCanvas(mediaSource, sourceW, sourceH) {
+    const tCanv = document.createElement('canvas');
+    tCanv.width = W; tCanv.height = H;
+    const tctx = tCanv.getContext('2d');
+    tctx.fillStyle = '#111'; tctx.fillRect(0,0,W,H);
+    
+    const aspect = sourceW / sourceH;
+    let sx = 0, sy = 0, sw = sourceW, sh = sourceH;
+    
+    if (aspect > W/H) { sw = sh * (W/H); sx = (sourceW - sw) / 2; } 
+    else { sh = sw / (W/H); sy = (sourceH - sh) / 2; }
+    
+    tctx.drawImage(mediaSource, sx, sy, sw, sh, 0, 0, W, H);
+    return tCanv;
+}
+
+function mountImage(file) {
+    setDeck('Mounting Still', 'Registering Frame To Optical Gate', 0.35);
+    const url = URL.createObjectURL(file);
+    const img = new Image(); img.src = url;
+    img.onload = () => {
+        state.frames[state.cur].baseImg = drawMediaToBaseCanvas(img, img.naturalWidth, img.naturalHeight);
+        clearPersistence();
+        setDeck('Mounting Still', 'Frame Registered', 1);
+        renderFrame(); rebuildTimelineDOM(); haptic(20); toast('IMAGE MOUNTED');
+        clearDeck(700);
+        URL.revokeObjectURL(url);
+    };
+    img.onerror = () => {
+        clearDeck();
+        URL.revokeObjectURL(url);
+    };
+}
+
+async function extractVideoFrames(file) {
+    toast('EXTRACTING REEL...');
+    setDeck('Scanning Reel', 'Sampling Source Video', 0.06);
+    const vid = document.createElement('video');
+    const url = URL.createObjectURL(file);
+    vid.muted = true; vid.playsInline = true; vid.src = url;
+    await new Promise(r => { vid.onloadeddata = r; });
+    
+    const duration = vid.duration;
+    const numFrames = Math.min(60, Math.max(12, Math.floor(duration * PREVIEW_FPS))); 
+    const step = duration / numFrames;
+    
+    state.frames = []; 
+    for(let i=0; i<numFrames; i++) {
+        setDeck('Scanning Reel', `Extracting Frame ${i + 1} / ${numFrames}`, (i + 1) / numFrames);
+        vid.currentTime = i * step;
+        await new Promise(r => {
+            const onSeek = () => { vid.removeEventListener('seeked', onSeek); r(); };
+            vid.addEventListener('seeked', onSeek);
+            setTimeout(r, 200); 
+        });
+        state.frames.push({ baseImg: drawMediaToBaseCanvas(vid, vid.videoWidth, vid.videoHeight), inkData: createEmptyInk() });
+    }
+    
+    state.cur = 0; state.prev = 0; state.transitionOffset = 0;
+    clearPersistence();
+    setDeck('Scanning Reel', 'Source Registered To Desk', 1);
+    rebuildTimelineDOM(); renderFrame(); haptic([10, 50, 10]); toast('VIDEO EXTRACTED');
+    clearDeck(900);
+    URL.revokeObjectURL(url);
+}
+
+function exportCurrentFrame() {
+    if (!state.frames.length) return;
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = W;
+    exportCanvas.height = H;
+    renderComposite(state.frames[state.cur], exportCanvas.getContext('2d', { willReadFrequently: true }), false);
+    const link = document.createElement('a');
+    link.download = `bflix_frame_${String(state.cur + 1).padStart(3, '0')}.png`;
+    link.href = exportCanvas.toDataURL('image/png');
+    link.click();
+    toast('FRAME EXPORTED');
+}
+
+function exportStrip() {
+    if (!state.frames.length) return;
+    const cols = Math.min(5, state.frames.length);
+    const rows = Math.ceil(state.frames.length / cols);
+    const stripCanvas = document.createElement('canvas');
+    stripCanvas.width = cols * W;
+    stripCanvas.height = rows * H;
+    const stripCtx = stripCanvas.getContext('2d', { willReadFrequently: true });
+    state.frames.forEach((frame, index) => {
+        const tileCanvas = document.createElement('canvas');
+        tileCanvas.width = W;
+        tileCanvas.height = H;
+        renderComposite(frame, tileCanvas.getContext('2d', { willReadFrequently: true }), false);
+        stripCtx.drawImage(tileCanvas, (index % cols) * W, Math.floor(index / cols) * H);
+    });
+    const link = document.createElement('a');
+    link.download = `bflix_contact_sheet_${state.frames.length}f.png`;
+    link.href = stripCanvas.toDataURL('image/png');
+    link.click();
+    toast('CONTACT SHEET EXPORTED');
+}
+
+function pickVideoMimeType(format = 'webm') {
+    const webmCandidates = [
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm'
+    ];
+    const mp4Candidates = [
+        'video/mp4;codecs=h264',
+        'video/mp4'
+    ];
+    const candidates = format === 'mp4' ? mp4Candidates : format === 'webm' ? webmCandidates : [...webmCandidates, ...mp4Candidates];
+    return candidates.find(type => window.MediaRecorder?.isTypeSupported?.(type)) || '';
+}
+
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function exportVideo(format = 'webm') {
+    if (state.exporting || !state.frames.length) return;
+    if (state.playing) togglePlay();
+    if (!window.MediaRecorder) {
+        toast('VIDEO EXPORT UNSUPPORTED');
+        logConsole('EXPORT HALT: MEDIARECORDER UNAVAILABLE', true);
+        return;
+    }
+
+    const mimeType = pickVideoMimeType(format);
+    if (!mimeType) {
+        toast(`${format.toUpperCase()} UNSUPPORTED`);
+        logConsole(`EXPORT HALT: ${format.toUpperCase()} UNSUPPORTED IN THIS BROWSER`, true);
+        return;
+    }
+    const settings = getExportSettings();
+    const exportWidth = W * settings.scale;
+    const exportHeight = H * settings.scale;
+    const leaderFrames = 0;
+    const totalFrames = leaderFrames + state.frames.length;
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = exportWidth;
+    exportCanvas.height = exportHeight;
+    const exportCtx = exportCanvas.getContext('2d', { willReadFrequently: true });
+    const exportCompositeCanvas = document.createElement('canvas');
+    exportCompositeCanvas.width = W;
+    exportCompositeCanvas.height = H;
+    const exportCompositeCtx = exportCompositeCanvas.getContext('2d', { willReadFrequently: true });
+    const exportPersistenceCanvas = document.createElement('canvas');
+    exportPersistenceCanvas.width = exportWidth;
+    exportPersistenceCanvas.height = exportHeight;
+    const exportPersistenceCtx = exportPersistenceCanvas.getContext('2d', { willReadFrequently: true });
+
+    state.exporting = true;
+    clearPersistence();
+    updateExportUI();
+    updateGateLabels();
+    setDeck('Printing Reel', `Recording ${format.toUpperCase()} Stream`, 0.04);
+    logConsole(`EXPORT: RECORDING ${totalFrames} FRAME(S) AT ${settings.fps} FPS`);
+    toast('EXPORTING VIDEO...');
+
+    const stream = exportCanvas.captureStream(settings.fps);
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    const chunks = [];
+    recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size) chunks.push(event.data);
+    };
+    const stopPromise = new Promise(resolve => {
+        recorder.onstop = resolve;
+    });
+
+    recorder.start();
+
+    try {
+        for (let i = 0; i < totalFrames; i++) {
+            exportCtx.clearRect(0, 0, exportWidth, exportHeight);
+            const frameIndex = Math.max(0, i - leaderFrames);
+            renderComposite(state.frames[frameIndex], exportCompositeCtx, false);
+            if (i > 0) {
+                exportCtx.save();
+                exportCtx.globalAlpha = PHOSPHOR_ALPHA;
+                exportCtx.drawImage(exportPersistenceCanvas, 0, 0);
+                exportCtx.restore();
+            }
+            exportCtx.drawImage(exportCompositeCanvas, 0, 0, exportWidth, exportHeight);
+            if (settings.leader && i === 0) {
+                exportCtx.fillStyle = 'rgba(5,5,5,0.82)';
+                exportCtx.fillRect(0, 0, exportWidth, exportHeight);
+                exportCtx.strokeStyle = '#ef4444';
+                exportCtx.lineWidth = Math.max(2, Math.round(exportWidth * 0.008));
+                exportCtx.strokeRect(exportWidth * 0.06, exportHeight * 0.1, exportWidth * 0.88, exportHeight * 0.8);
+                exportCtx.fillStyle = '#ef4444';
+                exportCtx.font = `700 ${Math.round(exportWidth * 0.06)}px "Space Mono", monospace`;
+                exportCtx.fillText('B·FLIX PRO', exportWidth * 0.1, exportHeight * 0.3);
+                exportCtx.fillStyle = '#fafafa';
+                exportCtx.font = `700 ${Math.round(exportWidth * 0.045)}px "Space Mono", monospace`;
+                exportCtx.fillText(`${format.toUpperCase()} EXPORT`, exportWidth * 0.1, exportHeight * 0.54);
+                exportCtx.fillText(`${totalFrames} FRAMES`, exportWidth * 0.1, exportHeight * 0.68);
+            }
+            exportPersistenceCtx.clearRect(0, 0, exportWidth, exportHeight);
+            exportPersistenceCtx.drawImage(exportCanvas, 0, 0);
+            setDeck('Printing Reel', `Frame ${i + 1} / ${totalFrames}`, (i + 1) / totalFrames);
+            logConsole(`EXPORT: FRAME ${i + 1}/${totalFrames}`);
+            await wait(1000 / settings.fps);
+        }
+
+        await wait(1000 / settings.fps);
+        recorder.stop();
+        await stopPromise;
+
+        const blob = new Blob(chunks, { type: mimeType || 'video/webm' });
+        const ext = (mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+        const link = document.createElement('a');
+        link.download = `bflix_export_${Date.now()}.${ext}`;
+        link.href = URL.createObjectURL(blob);
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        setDeck('Printing Reel', 'Video Encoded', 1);
+        logConsole(`EXPORT COMPLETE: ${totalFrames} FRAME(S)`);
+        toast('VIDEO EXPORTED');
+    } catch (err) {
+        setDeck('Export Halt', err.message || String(err), 1);
+        logConsole(`EXPORT HALT: ${err.message || err}`, true);
+        toast('EXPORT FAILED');
+    } finally {
+        stream.getTracks().forEach(track => track.stop());
+        state.exporting = false;
+        updateExportUI();
+        updateGateLabels();
+        renderFrame();
+        clearDeck(1200);
+    }
+}
+
+async function exportGif() {
+    if (state.exporting || !state.frames.length) return;
+    if (typeof GIF === 'undefined') {
+        toast('GIF EXPORT UNAVAILABLE');
+        logConsole('EXPORT HALT: GIF.JS FAILED TO LOAD', true);
+        return;
+    }
+
+    state.exporting = true;
+    clearPersistence();
+    updateExportUI();
+    updateGateLabels();
+    const settings = getExportSettings();
+    const exportWidth = W * settings.scale;
+    const exportHeight = H * settings.scale;
+    const gifFrames = state.frames.filter((_, index) => index % settings.gifStep === 0);
+    setDeck('Fusing Indexed Reel', 'Encoding GIF Stream', 0.04);
+    logConsole(`EXPORT: BUILDING GIF ${gifFrames.length} FRAME(S)`);
+    toast('EXPORTING GIF...');
+
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = exportWidth;
+    frameCanvas.height = exportHeight;
+    const frameCtx = frameCanvas.getContext('2d', { willReadFrequently: true });
+    const persistenceCanvasGif = document.createElement('canvas');
+    persistenceCanvasGif.width = exportWidth;
+    persistenceCanvasGif.height = exportHeight;
+    const persistenceCtxGif = persistenceCanvasGif.getContext('2d', { willReadFrequently: true });
+
+    const gif = new GIF({
+        workers: 1,
+        quality: 12,
+        width: exportWidth,
+        height: exportHeight,
+        workerScript: GIF_WORKER_URL
+    });
+
+    try {
+        for (let i = 0; i < gifFrames.length; i++) {
+            const compositeCanvas = document.createElement('canvas');
+            compositeCanvas.width = W;
+            compositeCanvas.height = H;
+            renderComposite(gifFrames[i], compositeCanvas.getContext('2d', { willReadFrequently: true }), false);
+            frameCtx.clearRect(0, 0, exportWidth, exportHeight);
+            if (i > 0) {
+                frameCtx.save();
+                frameCtx.globalAlpha = PHOSPHOR_ALPHA;
+                frameCtx.drawImage(persistenceCanvasGif, 0, 0);
+                frameCtx.restore();
+            }
+            frameCtx.drawImage(compositeCanvas, 0, 0, exportWidth, exportHeight);
+            if (settings.leader && i === 0) {
+                frameCtx.fillStyle = 'rgba(5,5,5,0.82)';
+                frameCtx.fillRect(0, 0, exportWidth, exportHeight);
+                frameCtx.strokeStyle = '#ef4444';
+                frameCtx.lineWidth = Math.max(2, Math.round(exportWidth * 0.008));
+                frameCtx.strokeRect(exportWidth * 0.06, exportHeight * 0.1, exportWidth * 0.88, exportHeight * 0.8);
+                frameCtx.fillStyle = '#ef4444';
+                frameCtx.font = `700 ${Math.round(exportWidth * 0.06)}px "Space Mono", monospace`;
+                frameCtx.fillText('B·FLIX PRO', exportWidth * 0.1, exportHeight * 0.3);
+            }
+            persistenceCtxGif.clearRect(0, 0, exportWidth, exportHeight);
+            persistenceCtxGif.drawImage(frameCanvas, 0, 0);
+            gif.addFrame(frameCanvas, { copy: true, delay: Math.round(1000 / settings.fps) });
+        }
+
+        gif.on('progress', (progress) => {
+            setDeck('Fusing Indexed Reel', `GIF ${Math.round(progress * 100)}%`, progress);
+            logConsole(`GIF: ${Math.round(progress * 100)}%`);
+        });
+
+        gif.on('finished', (blob) => {
+            const link = document.createElement('a');
+            link.download = `bflix_export_${Date.now()}.gif`;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+            state.exporting = false;
+            updateExportUI();
+            updateGateLabels();
+            renderFrame();
+            setDeck('Fusing Indexed Reel', 'GIF Encoded', 1);
+            logConsole(`EXPORT COMPLETE: ${gifFrames.length} FRAME(S)`);
+            toast('GIF EXPORTED');
+            clearDeck(1200);
+        });
+
+        gif.render();
+    } catch (err) {
+        state.exporting = false;
+        updateExportUI();
+        updateGateLabels();
+        renderFrame();
+        setDeck('Export Halt', err.message || String(err), 1);
+        logConsole(`EXPORT HALT: ${err.message || err}`, true);
+        toast('GIF EXPORT FAILED');
+        clearDeck(1200);
+    }
+}
+
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('on');
+    setTimeout(() => t.classList.remove('on'), 2000);
+}
+</script>
+</body>
+</html>
