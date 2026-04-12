@@ -151,10 +151,18 @@
             background: #f5f5f5; color: #111; border-color: #f5f5f5;
         }
         .header-drawer {
-            display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-            padding: 10px 12px; background: #121212; border-bottom: 1px solid #262626;
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+            padding: 8px 12px; background: #121212; border-bottom: 1px solid #262626;
+            flex-shrink: 0; min-height: 0;
+            max-height: 35vh;
+            overflow-y: auto;
         }
         .header-drawer.hidden { display: none; }
+        @media (max-width: 640px) {
+            .header-drawer { gap: 8px; padding: 6px 10px; }
+            .drawer-group { gap: 4px; }
+            .control-chip { font-size: 9px; padding: 2px 6px; }
+        }
         .drawer-group {
             display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
         }
@@ -300,6 +308,9 @@ SHF 2 0 23</textarea>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
                     <span class="hidden sm:inline">Grid</span>
                 </button>
+                <button class="px-2 py-1 bg-neutral-800 text-[10px] sm:text-xs text-neutral-400 border border-neutral-700 hover:bg-neutral-700 btn-press uppercase" onclick="toggleFullscreen()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                </button>
             </div>
         </header>
 
@@ -358,7 +369,7 @@ SHF 2 0 23</textarea>
         </div>
 
         <!-- Canvas Area -->
-        <main id="gate-container" class="flex-grow film-strip-bg relative overflow-hidden">
+        <main id="gate-container" class="flex-grow min-h-0 film-strip-bg relative overflow-hidden">
             <!-- Light Table Vignette -->
             <div class="absolute inset-0 pointer-events-none z-30 shadow-[inset_0_50px_60px_-20px_rgba(0,0,0,1),inset_0_-50px_60px_-20px_rgba(0,0,0,1)]"></div>
             
@@ -408,15 +419,18 @@ SHF 2 0 23</textarea>
                 <div class="w-px h-4 bg-neutral-700 mx-1"></div>
                 <button class="px-2 py-0.5 text-neutral-400 text-[10px] hover:text-white uppercase font-bold" onclick="addFrame()">+ Add</button>
                 <button class="px-2 py-0.5 text-neutral-400 text-[10px] hover:text-white uppercase font-bold" onclick="cloneFrame()">⧉ Clone</button>
-                <div class="flex-grow text-right text-[10px] font-bold text-neutral-500 tracking-widest uppercase" id="tl-info">FRM_01</div>
+                <div class="flex-grow text-right text-[10px] font-bold text-neutral-500 tracking-widest uppercase flex items-center justify-end gap-3">
+                    <span id="tl-mode" class="hidden sm:block text-neutral-400">Script mode</span>
+                    <span id="tl-info">FRM_01</span>
+                </div>
             </div>
             <div id="tl-strip" class="flex-grow flex items-center px-4 gap-3 overflow-x-auto bg-black">
                 <!-- Thumbs -->
             </div>
         </section>
 
-        <!-- Script-Only Status Rail -->
-        <footer class="h-10 sm:h-12 bg-neutral-900 border-t border-neutral-800 flex items-center shrink-0 z-30 relative">
+        <!-- Status Rail -->
+        <footer class="hidden sm:flex h-10 sm:h-12 bg-neutral-900 border-t border-neutral-800 items-center shrink-0 z-30 relative">
             <div class="flex w-full items-center justify-between gap-4 px-4 text-[10px] uppercase tracking-widest text-neutral-500">
                 <div id="footer-mode" class="font-bold text-neutral-300">Optical desk armed · script plus manual mark-up</div>
                 <div id="footer-hint" class="hidden md:block">Tool drawer restored in header · export modal handles still, video, and GIF output</div>
@@ -1397,15 +1411,22 @@ function setTool(t) {
 function updateGateLabels() {
     const toolLabel = state.tool === 'circ' ? 'CIRCLE' : state.tool.toUpperCase();
     const toneLabel = state.tool === 'erase' ? 'CLR' : PAL[state.color].name;
+    const modeText = state.exporting ? 'Exporting…' : state.playing ? 'Playing' : `${toolLabel} ready`;
     document.getElementById('status-tool').textContent = `${toolLabel} · ${toneLabel} · SZ ${state.size}`;
     if (!state.drag) document.getElementById('status-coords').textContent = '64x36 GRID';
-    document.getElementById('footer-mode').textContent = state.exporting ? 'Optical desk locked · export in progress' : state.playing ? 'Optical desk rolling · playback active' : `Optical desk armed · ${toolLabel.toLowerCase()} ready`;
+    const footerMode = document.getElementById('footer-mode');
+    if (footerMode) footerMode.textContent = state.exporting ? 'Optical desk locked · export in progress' : state.playing ? 'Optical desk rolling · playback active' : `Optical desk armed · ${toolLabel.toLowerCase()} ready`;
+    const tlMode = document.getElementById('tl-mode');
+    if (tlMode) tlMode.textContent = modeText;
     const blendLabel = state.blendMode ? ` · Blend: ${state.blendMode}` : '';
-    document.getElementById('footer-hint').textContent = state.activeDrawer === 'tools'
-        ? `Circle and fill are sketch tools; box and pen can echo back into script${blendLabel}`
-        : state.activeDrawer === 'media'
-            ? `Input: Mount frames · Output: Export · Blend: ${state.blendMode}`
-            : `Use Tools drawer for drawing · Media drawer for I/O${blendLabel}`;
+    const footerHint = document.getElementById('footer-hint');
+    if (footerHint) {
+        footerHint.textContent = state.activeDrawer === 'tools'
+            ? `Circle and fill are sketch tools; box and pen can echo back into script${blendLabel}`
+            : state.activeDrawer === 'media'
+                ? `Input: Mount frames · Output: Export · Blend: ${state.blendMode}`
+                : `Use Tools drawer for drawing · Media drawer for I/O${blendLabel}`;
+    }
 }
 
 function buildColors() {
@@ -1438,6 +1459,14 @@ function toggleGrid() {
     state.gridOn = !state.gridOn;
     document.getElementById('grid-overlay').classList.toggle('on', state.gridOn);
     haptic(10); beep(300, 0.02);
+}
+
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+        document.exitFullscreen().catch(() => {});
+    }
 }
 
 // --- TIMELINE / FRAMES ---
