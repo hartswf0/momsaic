@@ -1,0 +1,2436 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ABC FLIX · PORT</title>
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Crect x='4' y='4' width='56' height='56' fill='%23111' stroke='%23333' stroke-width='2'/%3E%3Ccircle cx='32' cy='28' r='14' fill='none' stroke='%23e60000' stroke-width='3'/%3E%3Ccircle cx='32' cy='28' r='5' fill='%23e60000'/%3E%3Cline x1='32' y1='14' x2='32' y2='6' stroke='%23e60000' stroke-width='2'/%3E%3Crect x='8' y='48' width='48' height='6' fill='%231a1a1a' stroke='%23333' stroke-width='1'/%3E%3Crect x='10' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='18' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='26' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='34' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='42' y='49' width='4' height='4' fill='%23000'/%3E%3Crect x='50' y='49' width='4' height='4' fill='%23000'/%3E%3Ctext x='32' y='44' text-anchor='middle' fill='%23fff' font-family='Helvetica,Arial,sans-serif' font-size='9' font-weight='900'%3EABC%3C/text%3E%3C/svg%3E">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+    <style>
+        :root {
+            --bg: #f4f4f0;
+            --black: #000000;
+            --white: #ffffff;
+            --act-a: #0033cc;
+            --act-b: #c8a800;
+            --act-c: #e60000;
+            --bw: 3px;
+            --sh: 3px;
+            --tab-h: 60px;
+            --status-h: 44px;
+            --tl-h: 88px;
+            --safe-b: env(safe-area-inset-bottom, 0px);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            border-radius: 0 !important;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: fixed;
+            inset: 0;
+            /* dvh = Dynamic Viewport Height: accounts for browser chrome (address bar etc.)
+     Falls back to 100% (already set above) on older browsers */
+            height: 100dvh;
+            background: var(--bg);
+            color: var(--black);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        svg {
+            stroke-width: 3px;
+        }
+
+        /* ── STRUCTURE ── */
+        #app {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+        }
+
+        #status-bar {
+            flex: 0 0 var(--status-h);
+            display: flex;
+            align-items: stretch;
+            background: var(--black);
+            color: var(--white);
+            border-bottom: 2px solid #333;
+            z-index: 50;
+            gap: 0;
+        }
+
+        #canvas-zone {
+            flex: 1 1 0%;
+            position: relative;
+            overflow: hidden;
+            background: #e8e6e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #timeline-zone {
+            flex: 0 0 var(--tl-h);
+            background: var(--bg);
+            border-top: var(--bw) solid var(--black);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 40;
+        }
+
+        #tab-bar {
+            flex: 0 0 calc(var(--tab-h) + var(--safe-b));
+            display: flex;
+            border-top: var(--bw) solid var(--black);
+            background: var(--white);
+            z-index: 60;
+            padding-bottom: var(--safe-b);
+        }
+
+        /* ── STATUS BAR ── */
+        .sb-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 0 10px;
+            border-right: 1px solid #333;
+            flex-shrink: 0;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .sb-label {
+            font-size: 9px;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            color: #555;
+            text-transform: uppercase;
+            display: block;
+        }
+
+        .sb-val {
+            font-size: 13px;
+            font-weight: 900;
+            color: var(--white);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .sb-dot {
+            width: 14px;
+            height: 14px;
+            border: 1.5px solid #555;
+            flex-shrink: 0;
+        }
+
+        .sb-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+        }
+
+        /* FPS tap buttons — replaces broken mobile slider */
+        .fps-btn {
+            width: 28px;
+            height: 28px;
+            background: #222;
+            border: 1.5px solid #444;
+            color: var(--white);
+            font-size: 18px;
+            font-weight: 900;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            line-height: 1;
+            transition: background 0.08s;
+        }
+
+        .fps-btn:active {
+            background: #555;
+        }
+
+        #sb-fps-val {
+            font-size: 13px;
+            font-weight: 900;
+            color: var(--white);
+            min-width: 30px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* BIG PLAY BUTTON — dominant right-side band */
+        #sb-play-btn {
+            flex: 0 0 82px;
+            align-self: stretch;
+            background: var(--act-c);
+            border: none;
+            border-left: 2px solid #900;
+            color: var(--white);
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: background 0.08s;
+            flex-shrink: 0;
+        }
+
+        #sb-play-btn.playing {
+            background: #333;
+            border-left-color: #555;
+        }
+
+        #sb-play-btn:active {
+            filter: brightness(0.8);
+        }
+
+        /* ── CANVAS PLAY OVERLAY ── */
+        #play-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 25;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+        #play-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        #play-overlay-btn {
+            width: 72px;
+            height: 72px;
+            background: rgba(0, 0, 0, 0.75);
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.08s, background 0.08s;
+        }
+
+        #play-overlay-btn:active {
+            transform: scale(0.9);
+            background: rgba(230, 0, 0, 0.85);
+        }
+
+        /* Canvas tap zone for play/pause (when not drawing) */
+        #canvas-tap-zone {
+            position: absolute;
+            inset: 0;
+            z-index: 22;
+            cursor: pointer;
+            display: none;
+        }
+
+        #canvas-tap-zone.on {
+            display: block;
+        }
+
+        /* ── CANVAS ── */
+        #canvas-wrapper {
+            position: relative;
+            z-index: 10;
+            border: 2px solid #999;
+            background: var(--white);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        #primary-buffer {
+            image-rendering: pixelated;
+            display: block;
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        #net {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            image-rendering: pixelated;
+            z-index: 20;
+        }
+
+        #net.on {
+            opacity: 0.55;
+        }
+
+        /* ── FLOATING DRAW TOOLBAR ── */
+        #draw-toolbar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.88);
+            border: 2px solid #555;
+            padding: 6px 10px;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+
+        #draw-toolbar.on {
+            display: flex;
+        }
+
+        .dt-btn {
+            height: 36px;
+            min-width: 48px;
+            border: 2px solid #555;
+            background: transparent;
+            color: var(--white);
+            font-size: 10px;
+            font-weight: 900;
+            cursor: pointer;
+            text-transform: uppercase;
+            padding: 0 10px;
+            transition: background 0.1s;
+        }
+
+        .dt-btn.on {
+            background: var(--white);
+            color: var(--black);
+            border-color: var(--white);
+        }
+
+        .dt-swatch {
+            width: 28px;
+            height: 28px;
+            border: 2px solid #666;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: border-color 0.1s, transform 0.1s;
+        }
+
+        .dt-swatch.on {
+            border: 3px solid var(--white);
+            transform: scale(1.15);
+        }
+
+        .dt-div {
+            width: 1px;
+            height: 28px;
+            background: #444;
+            flex-shrink: 0;
+        }
+
+        /* ── TIMELINE ── */
+        #tl-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-bottom: 2px solid var(--black);
+            background: var(--bg);
+            flex-shrink: 0;
+            scrollbar-width: none;
+        }
+
+        #tl-controls::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tl-ctrl-btn {
+            background: var(--white);
+            color: var(--black);
+            border: 2px solid var(--black);
+            padding: 5px 10px;
+            font-size: 10px;
+            font-weight: 900;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 2px 2px 0 var(--black);
+            flex-shrink: 0;
+            min-height: 32px;
+            transition: transform 0.05s, box-shadow 0.05s;
+        }
+
+        .tl-ctrl-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0 0 0 var(--black);
+        }
+
+        #tl-strip {
+            flex: 1;
+            display: flex;
+            gap: 6px;
+            padding: 8px 10px;
+            overflow-x: auto;
+            align-items: center;
+            scrollbar-width: none;
+            overscroll-behavior-x: contain;
+        }
+
+        #tl-strip::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tl-frame {
+            position: relative;
+            flex: 0 0 68px;
+            height: 38px;
+            border: var(--bw) solid var(--black);
+            cursor: pointer;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tl-frame.on {
+            border-left: 5px solid var(--act-c);
+        }
+
+        .tl-thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            image-rendering: pixelated;
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            opacity: 0.5;
+        }
+
+        .tl-num {
+            position: relative;
+            z-index: 2;
+            color: var(--white);
+            font-size: 14px;
+            font-weight: 900;
+            text-shadow: 1px 1px 0 var(--black);
+            pointer-events: none;
+        }
+
+        .tl-badge {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: var(--white);
+            color: var(--black);
+            border-top: 1px solid var(--black);
+            border-left: 1px solid var(--black);
+            font-size: 8px;
+            padding: 1px 3px;
+            font-weight: 900;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        /* ── TAB BAR ── */
+        .tab-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: var(--tab-h);
+            font-size: 9px;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: var(--black);
+            cursor: pointer;
+            background: var(--white);
+            border: none;
+            border-right: 2px solid var(--black);
+            position: relative;
+            letter-spacing: 0.05em;
+            transition: background 0.1s;
+        }
+
+        .tab-btn:last-child {
+            border-right: none;
+        }
+
+        .tab-letter {
+            font-size: 20px;
+            line-height: 1;
+            margin-bottom: 2px;
+            font-weight: 900;
+        }
+
+        .tab-btn.on-a {
+            background: var(--act-a);
+            color: var(--white);
+        }
+
+        .tab-btn.on-b {
+            background: var(--act-b);
+            color: var(--black);
+        }
+
+        .tab-btn.on-c {
+            background: var(--act-c);
+            color: var(--white);
+        }
+
+        .tab-btn.on-d {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .tab-badge {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            width: 10px;
+            height: 10px;
+            border: 1.5px solid currentColor;
+        }
+
+        /* ── BOTTOM SHEETS ── */
+        #sheet-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0);
+            pointer-events: none;
+            z-index: 70;
+            transition: background 0.25s;
+        }
+
+        #sheet-backdrop.on {
+            background: rgba(0, 0, 0, 0.6);
+            pointer-events: all;
+        }
+
+        .sheet {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: calc(var(--tab-h) + var(--safe-b));
+            max-height: 80vh;
+            background: var(--white);
+            border-top: var(--bw) solid var(--black);
+            border-left: var(--bw) solid var(--black);
+            border-right: var(--bw) solid var(--black);
+            z-index: 80;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(calc(100% + var(--tab-h) + var(--safe-b)));
+            transition: transform 0.32s cubic-bezier(0.25, 1.0, 0.5, 1), visibility 0s linear 0.32s;
+            visibility: hidden;
+            overflow: hidden;
+            will-change: transform;
+        }
+
+        .sheet.on {
+            transform: translateY(0);
+            visibility: visible;
+            transition: transform 0.32s cubic-bezier(0.25, 1.0, 0.5, 1), visibility 0s linear 0s;
+        }
+
+        .sheet-handle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px 8px;
+            background: var(--bg);
+            border-bottom: 2px solid var(--black);
+            flex-shrink: 0;
+        }
+
+        .sheet-title {
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .sheet-close {
+            font-size: 20px;
+            font-weight: 900;
+            background: none;
+            border: none;
+            cursor: pointer;
+            line-height: 1;
+            color: var(--black);
+        }
+
+        .sheet-body {
+            overflow-y: auto;
+            flex: 1;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overscroll-behavior: contain;
+        }
+
+        /* ── SHEET BUTTONS ── */
+        .sh-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 16px;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 12px;
+            background: var(--white);
+            border: var(--bw) solid var(--black);
+            color: var(--black);
+            cursor: pointer;
+            letter-spacing: 0.1em;
+            width: 100%;
+            flex-shrink: 0;
+            box-shadow: 3px 3px 0 var(--black);
+            transition: transform 0.05s, box-shadow 0.05s;
+            min-height: 52px;
+        }
+
+        .sh-btn:active {
+            transform: translate(3px, 3px);
+            box-shadow: 0 0 0 var(--black);
+        }
+
+        .sh-btn.primary {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .sh-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .sh-row .sh-btn {
+            flex: 1;
+        }
+
+        /* ── SCRIPT AREA (B panel) ── */
+        #b-idea {
+            width: 100%;
+            min-height: 80px;
+            max-height: 120px;
+            border: var(--bw) solid var(--black);
+            padding: 12px;
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: bold;
+            background: var(--bg);
+            color: var(--black);
+            resize: none;
+            outline: none;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        #b-script {
+            width: 100%;
+            min-height: 120px;
+            max-height: 200px;
+            border: var(--bw) solid var(--black);
+            padding: 12px;
+            font-family: monospace;
+            font-size: 12px;
+            font-weight: bold;
+            background: var(--white);
+            color: var(--black);
+            resize: none;
+            outline: none;
+            user-select: text;
+            -webkit-user-select: text;
+            overflow-y: auto;
+        }
+
+        #b-script-info {
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #999;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 0;
+        }
+
+        #b-script-info .warn {
+            color: var(--act-c);
+            animation: pulse-warn 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-warn {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* Loading progress bar for script ingest */
+        #script-progress {
+            width: 100%;
+            height: 6px;
+            background: var(--bg);
+            border: 1px solid var(--black);
+            overflow: hidden;
+            display: none;
+        }
+
+        #script-progress.on {
+            display: block;
+        }
+
+        #script-progress-bar {
+            width: 0%;
+            height: 100%;
+            background: var(--act-a);
+            transition: width 0.15s ease-out;
+        }
+
+        .sh-label {
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        details summary {
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            color: #999;
+            cursor: pointer;
+            padding: 4px 0;
+            text-transform: uppercase;
+        }
+
+        #b-key {
+            font-size: 12px;
+            padding: 8px;
+            width: 100%;
+            border: 2px solid var(--black);
+            font-family: monospace;
+            font-weight: bold;
+            background: var(--bg);
+            margin-top: 4px;
+        }
+
+        /* ── C: COLOR PANEL INLINE ── */
+        .ink-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .ink-swatch {
+            width: 48px;
+            height: 48px;
+            border: var(--bw) solid var(--black);
+            cursor: pointer;
+            box-shadow: 3px 3px 0 var(--black);
+            transition: transform 0.05s, box-shadow 0.05s;
+        }
+
+        .ink-swatch.on {
+            outline: 3px solid var(--black);
+            outline-offset: 3px;
+            transform: translate(3px, 3px);
+            box-shadow: 0 0 0 var(--black);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            border: 2px solid var(--black);
+            height: 28px;
+            outline: none;
+            flex-shrink: 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 28px;
+            width: 28px;
+            background: var(--black);
+            border: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 28px;
+        }
+
+        /* ── CAMERA VIEW ── */
+        #cam-feed {
+            display: none;
+            position: absolute;
+            inset: 0;
+            z-index: 60;
+            background: var(--black);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        #cam-vid {
+            max-width: 100%;
+            max-height: calc(100% - 100px);
+            object-fit: contain;
+            border: 2px solid #444;
+        }
+
+        .cam-btns {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* ── TOAST ── */
+        #hud-toast {
+            position: fixed;
+            top: calc(var(--status-h) + 10px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--white);
+            color: var(--black);
+            font-weight: 900;
+            font-size: 13px;
+            padding: 10px 18px;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 9999;
+            text-transform: uppercase;
+            border: var(--bw) solid var(--black);
+            transition: opacity 0.12s;
+            letter-spacing: 0.1em;
+            box-shadow: 4px 4px 0 var(--black);
+            white-space: nowrap;
+        }
+
+        #hud-toast.on {
+            opacity: 1;
+        }
+
+        /* ── LOCK SCREEN ── */
+        #lock-screen {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 9000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s;
+        }
+
+        #lock-screen.on {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        #lock-canvas {
+            image-rendering: auto;
+        }
+
+        #lock-msg {
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            color: var(--white);
+            text-transform: uppercase;
+            margin-top: 16px;
+        }
+
+        #lock-counter {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--act-c);
+            margin-top: 8px;
+        }
+
+        /* ── MANUAL MODAL ── */
+        .op-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .op-modal.on {
+            display: flex;
+        }
+
+        .modal-box {
+            background: var(--white);
+            border: var(--bw) solid var(--black);
+            box-shadow: 8px 8px 0 var(--black);
+            width: 100%;
+            max-width: 560px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            background: var(--black);
+            color: var(--white);
+            padding: 14px 20px;
+            font-weight: 900;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .modal-content {
+            overflow-y: auto;
+            padding: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* ── GRID BTN ── */
+        #lbl-grid {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 30;
+            background: rgba(0, 0, 0, 0.7);
+            color: var(--white);
+            border: 1.5px solid #555;
+            font-size: 10px;
+            font-weight: 900;
+            padding: 5px 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .tl-bar-expanded #tl-strip {
+            flex-wrap: wrap;
+            max-height: 50vh;
+            overflow-y: auto;
+            align-content: flex-start;
+        }
+
+        .tl-bar-expanded .tl-frame {
+            flex: 0 0 68px;
+        }
+
+        /* ── SPEED SLIDER ── */
+        #speed-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            flex: 1 1 0%;
+            min-width: 80px;
+            max-width: 160px;
+            /* no touch-action here — child input handles it */
+        }
+
+        #speed-label {
+            font-size: 8px;
+            font-weight: 900;
+            color: #666;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        #speed-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 20px;
+            background: transparent;
+            border: 2px solid var(--black);
+            outline: none;
+            flex-shrink: 0;
+            touch-action: none;
+            /* ← critical: prevent scroll hijacking on mobile */
+            cursor: pointer;
+        }
+
+        #speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            background: var(--black);
+            border: none;
+            cursor: pointer;
+        }
+
+        #speed-slider::-webkit-slider-runnable-track {
+            height: 20px;
+        }
+
+        #speed-slider::-moz-range-thumb {
+            height: 20px;
+            width: 20px;
+            border: none;
+            background: var(--black);
+            cursor: pointer;
+        }
+
+        /* ── PORTRAIT MOBILE: canvas exact 16:9, timeline gets the rest ── */
+        @media (max-width: 767px) {
+            #canvas-zone {
+                /* 4:3 based on screen width */
+                flex: 0 0 calc(100vw * 0.75);
+                min-height: 120px;
+            }
+
+            #timeline-zone {
+                flex: 1 1 0%;
+                min-height: 0;
+                overflow: hidden;
+            }
+
+            #timeline-zone.tl-bar-expanded {
+                overflow: visible;
+                flex: 0 0 auto;
+            }
+
+            .tl-bar-expanded #tl-strip {
+                flex-wrap: wrap;
+                max-height: 60dvh;
+                overflow-y: auto;
+                align-content: flex-start;
+            }
+
+            .tl-bar-expanded .tl-frame {
+                flex: 0 0 60px;
+                height: 34px;
+            }
+
+            #tl-strip {
+                flex: 1 1 0%;
+                min-height: 0;
+                /* Allow taller frames when we have room */
+                align-items: flex-start;
+                padding: 6px 8px;
+            }
+
+            .tl-frame {
+                flex: 0 0 72px;
+                height: 41px;
+                /* slightly taller than default 38px */
+            }
+
+            /* tl-controls: NO scroll container so speed slider can work */
+            #tl-controls {
+                overflow-x: visible;
+                flex-wrap: nowrap;
+                padding: 4px 8px;
+                gap: 5px;
+            }
+
+            .tl-ctrl-btn {
+                padding: 5px 8px;
+                font-size: 9px;
+                min-height: 30px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            #app {
+                flex-direction: row;
+            }
+
+            #tab-bar {
+                flex: 0 0 80px;
+                flex-direction: column;
+                border-top: none;
+                border-right: var(--bw) solid var(--black);
+                order: -1;
+            }
+
+            .tab-btn {
+                flex: 1;
+                height: auto;
+                border-right: none;
+                border-bottom: 2px solid var(--black);
+            }
+
+            .tab-btn:last-child {
+                border-bottom: none;
+            }
+
+            #status-bar {
+                display: none;
+            }
+
+            .sheet {
+                left: 80px;
+                bottom: 0;
+                max-height: 100vh;
+                width: 380px;
+            }
+
+            #canvas-zone {
+                flex: 1 1 0%;
+            }
+
+            #timeline-zone {
+                flex: 0 0 var(--tl-h);
+            }
+
+            #main-col {
+                flex: 1 1 0%;
+                display: flex;
+                flex-direction: column;
+                min-width: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="app">
+
+        <!-- ── STATUS BAR (mobile only, always shows state) ── -->
+        <div id="status-bar">
+            <div class="sb-group">
+                <div class="sb-col">
+                    <span class="sb-label">FRAME</span>
+                    <span class="sb-val" id="sb-frame">01/01</span>
+                </div>
+            </div>
+            <div class="sb-group">
+                <div class="sb-col">
+                    <span class="sb-label">TOOL</span>
+                    <span class="sb-val" id="sb-tool">PEN</span>
+                </div>
+            </div>
+            <div class="sb-group">
+                <div class="sb-col">
+                    <span class="sb-label">INK</span>
+                    <div class="sb-dot" id="sb-color" style="background:#000000;"></div>
+                </div>
+            </div>
+            <div class="sb-group" style="flex:0 0 auto; gap:4px;">
+                <div class="sb-col">
+                    <span class="sb-label">FPS</span>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <button class="fps-btn" onclick="adjustFPS(-1)">−</button>
+                        <span id="sb-fps-val">12</span>
+                        <button class="fps-btn" onclick="adjustFPS(1)">+</button>
+                    </div>
+                </div>
+            </div>
+            <button id="sb-play-btn" onclick="engageSequence()">
+                <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor" id="play-icon">
+                    <polygon points="0,0 14,8 0,16" />
+                </svg>
+                <span id="play-label">PLAY</span>
+            </button>
+        </div>
+
+        <!-- desktop: wrap main + timeline in col -->
+        <div id="main-col" style="flex:1 1 0%; display:flex; flex-direction:column; min-width:0; min-height:0;">
+
+            <!-- ── CANVAS ZONE ── -->
+            <div id="canvas-zone">
+                <button id="lbl-grid" onclick="triggerGrid()">GRID: OFF</button>
+
+                <!-- Floating draw toolbar (always on top when in C mode) -->
+                <div id="draw-toolbar">
+                    <button class="dt-btn on" id="dtt-pen" onclick="bindTool('pen')">PEN</button>
+                    <button class="dt-btn" id="dtt-rect" onclick="bindTool('rect')">BOX</button>
+                    <button class="dt-btn" id="dtt-erase" onclick="bindTool('erase')">×</button>
+                    <div class="dt-div"></div>
+                    <div id="dt-swatches" style="display:flex; gap:5px; align-items:center;"></div>
+                </div>
+
+                <div id="canvas-wrapper">
+                    <canvas id="primary-buffer"></canvas>
+                    <canvas id="net"></canvas>
+                </div>
+
+                <!-- Tap-to-play zone (active when not in draw mode) -->
+                <div id="canvas-tap-zone" onclick="canvasTap()"></div>
+
+                <!-- Large play overlay shown when paused with frames loaded -->
+                <div id="play-overlay">
+                    <button id="play-overlay-btn" onclick="engageSequence()">
+                        <svg width="28" height="32" viewBox="0 0 28 32" fill="white">
+                            <polygon points="0,0 28,16 0,32" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div id="cam-feed">
+                    <video id="cam-vid" autoplay playsinline muted></video>
+                    <div class="cam-btns">
+                        <button id="btn-rec" class="sh-btn" style="background:var(--act-c);color:white;min-width:120px;"
+                            onclick="toggleRecord()">RECORD</button>
+                        <button class="sh-btn" style="min-width:100px;" onclick="killCamera()">ABORT</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── TIMELINE ── -->
+            <div id="timeline-zone">
+                <div id="tl-controls">
+                    <button class="tl-ctrl-btn" onclick="stepSequence(-1)"
+                        style="font-size:15px; min-width:36px; padding:5px 10px;">◄</button>
+                    <button class="tl-ctrl-btn" onclick="stepSequence(1)"
+                        style="font-size:15px; min-width:36px; padding:5px 10px;">►</button>
+                    <div style="width:1px; height:18px; background:var(--black); flex-shrink:0;"></div>
+                    <button class="tl-ctrl-btn" onclick="injectFrame()">+BLK</button>
+                    <button class="tl-ctrl-btn" onclick="duplicateFrame()">+CPY</button>
+                    <div style="width:1px; height:18px; background:var(--black); flex-shrink:0;"></div>
+                    <!-- SPEED SLIDER: touch-action:none on the input prevents scroll hijacking -->
+                    <div id="speed-wrap">
+                        <span id="speed-label">SPD · 12</span>
+                        <input type="range" id="speed-slider" min="1" max="30" value="12" step="1"
+                            oninput="onSpeedSlider(this.value)">
+                    </div>
+                    <div style="flex-grow:1; min-width:4px;"></div>
+                    <button class="tl-ctrl-btn" id="btn-grid-view" onclick="toggleTimelineGrid()">▦</button>
+                </div>
+                <div id="tl-strip"></div>
+            </div>
+
+        </div><!-- end main-col -->
+
+        <!-- ── TAB BAR ── -->
+        <nav id="tab-bar">
+            <button class="tab-btn" id="tab-a" onclick="execNav('A')"><span class="tab-letter">A</span>ADD</button>
+            <button class="tab-btn" id="tab-b" onclick="execNav('B')"><span class="tab-letter">B</span>BUILD</button>
+            <button class="tab-btn" id="tab-c" onclick="execNav('C')">
+                <span class="tab-letter">C</span>COLOR
+                <div class="tab-badge" id="tab-c-badge" style="background:#000000;"></div>
+            </button>
+            <button class="tab-btn" id="tab-d" onclick="execNav('D')"><span class="tab-letter">D</span>SAVE</button>
+            <button class="tab-btn" onclick="toggleManual()" style="flex:0 0 52px;"><span
+                    class="tab-letter">?</span>HELP</button>
+        </nav>
+    </div>
+
+    <!-- ── SHEET BACKDROP ── -->
+    <div id="sheet-backdrop" onclick="closeAllSheets()"></div>
+
+    <!-- ── SHEET A: ADD ── -->
+    <div class="sheet" id="sheet-a">
+        <div class="sheet-handle">
+            <span class="sheet-title" style="color:var(--act-a);">A · ADD MATERIAL</span>
+            <button class="sheet-close" onclick="closeAllSheets()">×</button>
+        </div>
+        <div class="sheet-body">
+            <button class="sh-btn" onclick="document.getElementById('file-input').click(); closeAllSheets()">LOCAL
+                FILE</button>
+            <button class="sh-btn" onclick="toggleCamera(); closeAllSheets()">CAMERA</button>
+            <button class="sh-btn" onclick="loadTestSequence(); closeAllSheets()">FILM LEADER</button>
+            <button class="sh-btn" onclick="document.getElementById('script-input').click(); closeAllSheets()"
+                style="background: var(--act-a); color: var(--white); margin-top: 4px;">LOAD SCRIPT FILE</button>
+            <div style="margin-top: 8px; border-top: 2px solid var(--black); padding-top: 10px;">
+                <div class="sh-label" style="font-size: 11px;">BEFLIX PROCESS MODE</div>
+                <select id="process-mode"
+                    style="width: 100%; height: 44px; margin-top: 4px; font-size: 14px; font-weight: 900; border: 3px solid var(--black); background: var(--white); text-transform: uppercase; padding: 0 8px;">
+                    <option value="raw">RAW — No Processing</option>
+                    <option value="threshold">THRESHOLD — B&W Silhouette</option>
+                    <option value="posterize" selected>POSTERIZE — BEFLIX Palette</option>
+                    <option value="edge">EDGE — Line Detect</option>
+                    <option value="halftone">HALFTONE — Dither Pattern</option>
+                </select>
+                <button class="sh-btn" style="margin-top: 8px; background: var(--act-c); color: var(--white);"
+                    onclick="reprocessFrames(); closeAllSheets()">REPROCESS FRAMES</button>
+            </div>
+            <div id="sys-status"
+                style="margin-top:auto; padding-top:12px; border-top:2px solid var(--black); font-size:11px; font-weight:900; text-transform:uppercase; text-align:center; color:#666;">
+                NO FRAMES</div>
+        </div>
+    </div>
+
+    <!-- ── SHEET B: BUILD ── -->
+    <div class="sheet" id="sheet-b">
+        <div class="sheet-handle">
+            <span class="sheet-title" style="color:var(--act-b);">B · BUILD / SCRIPT</span>
+            <button class="sheet-close" onclick="closeAllSheets()">×</button>
+        </div>
+        <div class="sheet-body">
+            <div class="sh-label">Describe your animation</div>
+            <textarea id="b-idea" placeholder="e.g. A red ball bouncing under a yellow sun..."></textarea>
+            <div class="sh-row">
+                <button class="sh-btn" onclick="copySystemPrompt()" style="font-size:10px;">COPY PROMPT</button>
+                <button class="sh-btn primary" onclick="generateCodeFromIdea()"
+                    style="font-size:10px;">GENERATE</button>
+            </div>
+            <details>
+                <summary>API KEY</summary>
+                <input type="password" id="b-key" placeholder="sk-...">
+            </details>
+            <div style="border-top:2px solid var(--black); padding-top:12px;">
+                <div class="sh-label">BEFLIX-128 SCRIPT</div>
+                <div id="script-progress">
+                    <div id="script-progress-bar"></div>
+                </div>
+                <textarea id="b-script" spellcheck="false">C DOT-MATRIX TEST
+CLR 0
+PNT 10 10 40 30 7
+PNT 14 14 32 22 3
+PNT 70 20 48 50 5
+LIN 10 10 118 86 7
+REC 1
+SHF 2 1 24</textarea>
+                <div id="b-script-info"><span id="b-script-lines">6 LINES</span><span id="b-script-warn"></span></div>
+                <button class="sh-btn primary" id="btn-run-script" onclick="executeMacro()" style="margin-top:8px;">RUN
+                    SCRIPT</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── SHEET C: COLOR ── -->
+    <div class="sheet" id="sheet-c">
+        <div class="sheet-handle">
+            <span class="sheet-title" style="color:var(--act-c);">C · COLOR / DRAW</span>
+            <button class="sheet-close" onclick="closeAllSheets()">×</button>
+        </div>
+        <div class="sheet-body">
+            <div class="sh-label">TOOLS</div>
+            <div class="sh-row">
+                <button class="sh-btn on" id="tool-pen" onclick="bindTool('pen')">PEN</button>
+                <button class="sh-btn" id="tool-rect" onclick="bindTool('rect')">BOX</button>
+                <button class="sh-btn" id="tool-erase" onclick="bindTool('erase')">ERASE</button>
+            </div>
+            <button class="sh-btn" style="background:var(--black);color:var(--white);" onclick="wipeCurrentInk()">WIPE
+                ALL INK</button>
+            <div class="sh-label" style="margin-top:4px;">PALETTE</div>
+            <div class="ink-grid" id="c-ink-swatches"></div>
+            <div class="sh-label" style="margin-top:4px;">BRUSH SIZE</div>
+            <input type="range" min="1" max="24" value="5" oninput="setSize(this.value)">
+        </div>
+    </div>
+
+    <!-- ── SHEET D: EXPORT ── -->
+    <div class="sheet" id="sheet-d">
+        <div class="sheet-handle">
+            <span class="sheet-title">D · EXPORT OUTPUT</span>
+            <button class="sheet-close" onclick="closeAllSheets()">×</button>
+        </div>
+        <div class="sheet-body">
+            <button class="sh-btn" onclick="exportCurrentPNG()">CURRENT FRAME (PNG)</button>
+            <button class="sh-btn" onclick="compileOutput('webm')">WEBM VIDEO</button>
+            <button class="sh-btn" onclick="compileOutput('mp4')">MP4 VIDEO</button>
+            <button class="sh-btn" onclick="compileGIF()">ANIMATED GIF</button>
+            <button class="sh-btn" onclick="compileContactSheet()">CONTACT SHEET</button>
+            <div style="margin-top: 8px; border-top: 2px solid var(--black); padding-top: 10px;">
+                <div class="sh-label" style="font-size: 11px;">BEFLIX CODE</div>
+                <button class="sh-btn"
+                    style="background: var(--act-a); color: var(--white); margin-bottom: 8px; margin-top: 4px;"
+                    onclick="viewCode()">VIEW LOGIC SCRIPT</button>
+                <div class="sh-row">
+                    <button class="sh-btn" onclick="compileCode()">DOWNLOAD .TXT</button>
+                    <button class="sh-btn" onclick="document.getElementById('script-input').click()">LOAD .TXT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <input id="script-input" type="file" accept=".txt,.bfx" style="display:none" onchange="loadScriptFile(event)">
+
+    <input type="file" id="file-input" accept="image/*,video/*" style="display:none" onchange="ingestMedia(event)">
+    <div id="hud-toast">READY</div>
+
+    <div id="lock-screen">
+        <canvas id="lock-canvas" width="240" height="180"></canvas>
+        <div id="lock-msg">LOADING</div>
+        <div id="lock-counter">0</div>
+    </div>
+
+    <div id="manual-modal" class="op-modal">
+        <div class="modal-box">
+            <div class="modal-header"><span>HOW TO USE ABC FLIX</span><button onclick="toggleManual()"
+                    style="background:none;border:none;color:white;font-size:22px;font-weight:900;cursor:pointer;">×</button>
+            </div>
+            <div class="modal-content">
+                <p style="font-weight:900;margin:0;">A monochrome dot-matrix machine for making animated films on a
+                    128×96 grid.</p>
+                <div style="display:flex;gap:10px;align-items:flex-start;">
+                    <div
+                        style="flex:0 0 32px;height:32px;background:var(--act-a);display:flex;align-items:center;justify-content:center;font-weight:900;color:white;">
+                        A</div>
+                    <div><strong>ADD:</strong> Mount images, load video (auto-ripped to frames), activate camera, or
+                        generate an SMPTE film leader.</div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:flex-start;">
+                    <div
+                        style="flex:0 0 32px;height:32px;background:var(--act-b);display:flex;align-items:center;justify-content:center;font-weight:900;color:black;">
+                        B</div>
+                    <div><strong>BUILD:</strong> Write BEFLIX-128 script or describe an animation and tap GENERATE. RUN
+                        SCRIPT to compile frames.</div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:flex-start;">
+                    <div
+                        style="flex:0 0 32px;height:32px;background:var(--act-c);display:flex;align-items:center;justify-content:center;font-weight:900;color:white;">
+                        C</div>
+                    <div><strong>DRAW:</strong> Ink directly on canvas <em>even while playing!</em> The floating
+                        toolbar stays on screen — no panel needed. Pen, box, or eraser. 8 intensity levels.</div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:flex-start;">
+                    <div
+                        style="flex:0 0 32px;height:32px;background:var(--black);display:flex;align-items:center;justify-content:center;font-weight:900;color:white;">
+                        D</div>
+                    <div><strong>SAVE:</strong> Export WebM, MP4, GIF, still PNG, or contact sheet.</div>
+                </div>
+                <div style="padding:10px 12px;background:var(--bg);border:2px solid var(--black);"><strong>STATUS
+                        BAR:</strong> The top bar always shows current frame, active tool, ink color, and FPS — no need
+                    to open panels to check state.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const W = 640, H = 480, G_ROWS = 96, G_COLS = 128, B_SZ = 5;
+        let BASE_FPS = 12;
+        // Monochrome palette: 8 levels from white (no dot) to black (max dot)
+        // Alpha channel encodes dot intensity for the pixel buffer; dots are rendered as circles
+        const INKS = [
+            { id: 0, hex: '#ffffff', rgb: [0, 0, 0, 0] },       // no dot
+            { id: 1, hex: '#dddddd', rgb: [0, 0, 0, 40] },      // tiny
+            { id: 2, hex: '#bbbbbb', rgb: [0, 0, 0, 80] },
+            { id: 3, hex: '#999999', rgb: [0, 0, 0, 120] },
+            { id: 4, hex: '#777777', rgb: [0, 0, 0, 160] },
+            { id: 5, hex: '#555555', rgb: [0, 0, 0, 200] },
+            { id: 6, hex: '#333333', rgb: [0, 0, 0, 230] },
+            { id: 7, hex: '#000000', rgb: [0, 0, 0, 255] }       // max dot
+        ];
+        // Pre-rendered dot stamps for fast circle rendering
+        const DOT_STAMPS = [];
+        function buildDotStamps() {
+            const maxR = B_SZ * 0.45;
+            for (let v = 0; v < 8; v++) {
+                const c = document.createElement('canvas');
+                c.width = B_SZ; c.height = B_SZ;
+                if (v > 0) {
+                    const dc = c.getContext('2d');
+                    const r = maxR * (v / 7);
+                    dc.fillStyle = '#000000';
+                    dc.beginPath();
+                    dc.arc(B_SZ / 2, B_SZ / 2, Math.max(0.4, r), 0, Math.PI * 2);
+                    dc.fill();
+                }
+                DOT_STAMPS[v] = c;
+            }
+        }
+        // Map pixel alpha back to value 0-7
+        function alphaToLevel(a) {
+            if (a < 16) return 0;
+            if (a < 55) return 1;
+            if (a < 95) return 2;
+            if (a < 135) return 3;
+            if (a < 175) return 4;
+            if (a < 210) return 5;
+            if (a < 240) return 6;
+            return 7;
+        }
+        let state = { frames: [], cur: 0, playing: false, tool: 'pen', color: 7, size: 5, grid: false, dragging: false, p0: [0, 0], p1: [0, 0], activeNav: null, audioSourceBlob: null, audioDuration: 0 };
+        const cvs = document.getElementById('primary-buffer');
+        const ctx = cvs.getContext('2d', { willReadFrequently: true });
+        const inkBuf = document.createElement('canvas'); inkBuf.width = W; inkBuf.height = H;
+        const inkCtx = inkBuf.getContext('2d', { willReadFrequently: true });
+        const compBuf = document.createElement('canvas'); compBuf.width = W; compBuf.height = H;
+        const compCtx = compBuf.getContext('2d', { willReadFrequently: true });
+        let playRAF, lastT = 0, audioCtx = null;
+
+        function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); }
+        function playTone(freq, type, duration, vol) { if (!audioCtx || audioCtx.state === 'suspended') return; const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(vol, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + duration); }
+        function haptic(d) { if (navigator.vibrate) { try { navigator.vibrate(d); } catch (e) { } } }
+        function playTick() { playTone(800, 'square', 0.015, 0.05); haptic(5); }
+        function playMicroTick() { playTone(1200, 'square', 0.005, 0.02); haptic(2); }
+        function playClack() { playTone(300, 'triangle', 0.04, 0.1); haptic(15); }
+        function playThud() { playTone(100, 'sine', 0.1, 0.2); haptic(30); }
+        document.body.addEventListener('pointerdown', initAudio, { once: true });
+
+        // ── BOOT ──
+        window.onload = () => {
+            buildDotStamps();
+            buildInkReservoir();
+            injectFrame(true);
+            window.addEventListener('resize', rescaleWorkspace);
+            rescaleWorkspace();
+        };
+        function toggleManual() { playTick(); document.getElementById('manual-modal').classList.toggle('on'); }
+
+        function rescaleWorkspace() {
+            const zone = document.getElementById('canvas-zone');
+            const wrap = document.getElementById('canvas-wrapper');
+            if (!zone || zone.clientWidth === 0) return;
+            const padding = 12;
+            const sc = Math.min((zone.clientWidth - padding) / W, (zone.clientHeight - padding) / H);
+            cvs.style.width = (W * sc) + 'px'; cvs.style.height = (H * sc) + 'px';
+            cvs.width = W; cvs.height = H;
+            wrap.style.width = (W * sc) + 'px'; wrap.style.height = (H * sc) + 'px';
+            renderOutput();
+        }
+
+        // ── NAV / SHEETS ──
+        function execNav(id, silent = false) {
+            if (!silent) playTick();
+            const wasActive = state.activeNav === id;
+            closeAllSheets();
+            if (!wasActive) {
+                state.activeNav = id;
+                ['a', 'b', 'c', 'd'].forEach(c => document.getElementById('tab-' + c).className = 'tab-btn');
+                document.getElementById('tab-' + id.toLowerCase()).classList.add('on-' + id.toLowerCase());
+                document.getElementById('sheet-' + id.toLowerCase()).classList.add('on');
+                document.getElementById('sheet-backdrop').classList.add('on');
+                if (id === 'C') document.getElementById('draw-toolbar').classList.add('on');
+            }
+            updatePlayOverlay();
+            requestAnimationFrame(rescaleWorkspace);
+        }
+
+        function closeAllSheets() {
+            ['a', 'b', 'c', 'd'].forEach(id => {
+                const s = document.getElementById('sheet-' + id); if (s) s.classList.remove('on');
+                const t = document.getElementById('tab-' + id); if (t) t.className = 'tab-btn';
+            });
+            document.getElementById('sheet-backdrop').classList.remove('on');
+            if (state.activeNav !== 'C') document.getElementById('draw-toolbar').classList.remove('on');
+            state.activeNav = null;
+            updatePlayOverlay();
+        }
+
+        // ── TOOLS ──
+        function bindTool(id) {
+            playTick(); state.tool = id;
+            ['pen', 'rect', 'erase'].forEach(t => {
+                const b1 = document.getElementById('tool-' + t);
+                const b2 = document.getElementById('dtt-' + t);
+                const on = t === id;
+                if (b1) { b1.classList.toggle('on', on); }
+                if (b2) { b2.classList.toggle('on', on); }
+            });
+            updateStatusBar();
+        }
+
+        function wipeCurrentInk() { if (!state.frames.length) return; playClack(); state.frames[state.cur].handLayer.fill(0); renderOutput(); rebuildTrack(); fireToast('INK WIPED'); }
+
+        function buildInkReservoir() {
+            ['c-ink-swatches', 'dt-swatches'].forEach(boxId => {
+                const box = document.getElementById(boxId); if (!box) return;
+                box.innerHTML = '';
+                INKS.slice(1).forEach(c => {
+                    const s = document.createElement('div');
+                    s.className = (boxId === 'c-ink-swatches' ? 'ink-swatch' : 'dt-swatch') + (c.id === state.color ? ' on' : '');
+                    s.style.background = c.hex;
+                    s.onclick = () => {
+                        playTick(); state.color = c.id;
+                        document.querySelectorAll('.ink-swatch, .dt-swatch').forEach(el => el.classList.remove('on'));
+                        document.querySelectorAll(`.ink-swatch, .dt-swatch`).forEach(el => { if (el.style.background === c.hex || el.style.backgroundColor === c.hex) el.classList.add('on'); });
+                        if (state.tool === 'erase') bindTool('pen');
+                        updateStatusBar();
+                    };
+                    box.appendChild(s);
+                });
+            });
+        }
+
+        function setSize(val) { state.size = parseInt(val); playMicroTick(); }
+        function adjustFPS(delta) {
+            BASE_FPS = Math.max(1, Math.min(30, BASE_FPS + delta));
+            playMicroTick();
+            // Sync the speed slider
+            const sl = document.getElementById('speed-slider');
+            if (sl) sl.value = BASE_FPS;
+            updateStatusBar();
+        }
+        function setFPS(val) { BASE_FPS = parseInt(val); updateStatusBar(); playMicroTick(); }
+
+        let _lastSpeedTick = 12;
+        function onSpeedSlider(val) {
+            const v = parseInt(val);
+            // ASMR: fire haptic + tone on every distinct step (not just final value)
+            if (v !== _lastSpeedTick) {
+                haptic(4);
+                // Pitch scales with speed — higher FPS = higher click pitch
+                playTone(400 + v * 22, 'square', 0.012, 0.04);
+                _lastSpeedTick = v;
+            }
+            BASE_FPS = v;
+            const lbl = document.getElementById('speed-label');
+            if (lbl) lbl.textContent = 'SPD · ' + v;
+            updateStatusBar();
+        }
+
+        function updatePlayOverlay() {
+            const hasFrames = state.frames.length > 0;
+            const isDrawMode = state.activeNav === 'C' || document.getElementById('draw-toolbar').classList.contains('on');
+            // Play overlay: show when paused + has frames + not drawing
+            const overlay = document.getElementById('play-overlay');
+            const tapZone = document.getElementById('canvas-tap-zone');
+            if (overlay) overlay.classList.toggle('visible', hasFrames && !state.playing && !isDrawMode);
+            if (tapZone) tapZone.classList.toggle('on', hasFrames && !isDrawMode);
+            // Play button state
+            const btn = document.getElementById('sb-play-btn');
+            const icon = document.getElementById('play-icon');
+            const lbl = document.getElementById('play-label');
+            if (btn) btn.classList.toggle('playing', state.playing);
+            if (lbl) lbl.textContent = state.playing ? 'STOP' : 'PLAY';
+            if (icon) {
+                icon.innerHTML = state.playing
+                    ? '<rect x="0" y="0" width="5" height="16"/><rect x="9" y="0" width="5" height="16"/>'
+                    : '<polygon points="0,0 14,8 0,16"/>';
+            }
+        }
+
+        function canvasTap() {
+            // Tap-to-play/pause when not in draw mode
+            if (state.frames.length > 0) engageSequence();
+        }
+
+        function updateStatusBar() {
+            const ink = INKS[state.color];
+            document.getElementById('sb-frame').textContent = state.frames.length
+                ? `${String(state.cur + 1).padStart(2, '0')}/${String(state.frames.length).padStart(2, '0')}`
+                : '00/00';
+            document.getElementById('sb-tool').textContent = state.tool.toUpperCase();
+            const dot = document.getElementById('sb-color');
+            if (dot) dot.style.background = ink ? ink.hex : '#000';
+            const fpsEl = document.getElementById('sb-fps-val');
+            if (fpsEl) fpsEl.textContent = BASE_FPS;
+            // Keep speed slider in sync with whatever changed BASE_FPS
+            const sl = document.getElementById('speed-slider');
+            if (sl) sl.value = BASE_FPS;
+            const slLbl = document.getElementById('speed-label');
+            if (slLbl) slLbl.textContent = 'SPD · ' + BASE_FPS;
+            const badge = document.getElementById('tab-c-badge');
+            if (badge) badge.style.background = ink ? ink.hex : '#000';
+            updatePlayOverlay();
+        }
+
+        function triggerGrid() {
+            playTick(); state.grid = !state.grid;
+            document.getElementById('lbl-grid').textContent = 'GRID: ' + (state.grid ? 'ON' : 'OFF');
+            const net = document.getElementById('net');
+            net.classList.toggle('on', state.grid);
+            if (state.grid) drawCoordGrid();
+        }
+        function drawCoordGrid() {
+            const net = document.getElementById('net'); if (!net) return;
+            net.width = W; net.height = H;
+            const gc = net.getContext('2d'); gc.clearRect(0, 0, W, H);
+            gc.strokeStyle = 'rgba(0,0,0,0.08)'; gc.lineWidth = 0.5;
+            for (let gx = 0; gx <= G_COLS; gx++) { const px = gx * B_SZ; gc.beginPath(); gc.moveTo(px, 0); gc.lineTo(px, H); gc.stroke(); }
+            for (let gy = 0; gy <= G_ROWS; gy++) { const py = gy * B_SZ; gc.beginPath(); gc.moveTo(0, py); gc.lineTo(W, py); gc.stroke(); }
+            gc.strokeStyle = 'rgba(0,0,0,0.2)'; gc.lineWidth = 0.5;
+            for (let gx = 0; gx <= G_COLS; gx += 16) { const px = gx * B_SZ; gc.beginPath(); gc.moveTo(px, 0); gc.lineTo(px, H); gc.stroke(); }
+            for (let gy = 0; gy <= G_ROWS; gy += 16) { const py = gy * B_SZ; gc.beginPath(); gc.moveTo(0, py); gc.lineTo(W, py); gc.stroke(); }
+            gc.strokeStyle = 'rgba(0,0,0,0.35)'; gc.lineWidth = 1;
+            gc.beginPath(); gc.moveTo(G_COLS / 2 * B_SZ, 0); gc.lineTo(G_COLS / 2 * B_SZ, H); gc.stroke();
+            gc.beginPath(); gc.moveTo(0, G_ROWS / 2 * B_SZ); gc.lineTo(W, G_ROWS / 2 * B_SZ); gc.stroke();
+            gc.font = '7px monospace'; gc.textBaseline = 'top'; gc.textAlign = 'left'; gc.fillStyle = 'rgba(200,0,0,0.6)';
+            for (let gx = 0; gx < G_COLS; gx += 16) gc.fillText(String(gx), gx * B_SZ + 1, 1);
+            for (let gy = 16; gy < G_ROWS; gy += 16) gc.fillText(String(gy), 1, gy * B_SZ + 1);
+        }
+
+        function fireToast(msg) { const t = document.getElementById('hud-toast'); t.textContent = msg; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 1500); }
+
+        // ── LOCK SCREEN ──
+        let lockAnim = null, lockFrame = 0, lockCount = 0;
+        function lockSystem(msg, count) { const l = document.getElementById('lock-screen'); l.classList.add('on'); document.getElementById('lock-msg').textContent = msg; lockCount = typeof count === 'number' ? count : 0; document.getElementById('lock-counter').textContent = lockCount; if (!lockAnim) { lockFrame = 0; drawFilmReel(); } }
+        function updateLockCount(n) { lockCount = n; const el = document.getElementById('lock-counter'); if (el) el.textContent = n; }
+        function releaseSystem() { const l = document.getElementById('lock-screen'); l.classList.remove('on'); if (lockAnim) { cancelAnimationFrame(lockAnim); lockAnim = null; } }
+        function drawFilmReel() {
+            const cvs = document.getElementById('lock-canvas'); if (!cvs) return;
+            const c = cvs.getContext('2d'); const cw = 240, ch = 180;
+            c.fillStyle = '#000'; c.fillRect(0, 0, cw, ch);
+            lockFrame++;
+            const cx = cw / 2, cy = ch / 2;
+            c.strokeStyle = '#333'; c.lineWidth = 3; c.beginPath(); c.arc(cx, cy, 60, 0, Math.PI * 2); c.stroke();
+            c.beginPath(); c.arc(cx, cy, 16, 0, Math.PI * 2); c.stroke(); c.fillStyle = '#222'; c.fill();
+            const angle = (lockFrame * 3) * Math.PI / 180;
+            for (let i = 0; i < 6; i++) { const a = angle + (i * Math.PI / 3); c.beginPath(); c.moveTo(cx + Math.cos(a) * 16, cy + Math.sin(a) * 16); c.lineTo(cx + Math.cos(a) * 55, cy + Math.sin(a) * 55); c.strokeStyle = '#444'; c.lineWidth = 4; c.stroke(); }
+            for (let i = 0; i < 12; i++) { const a = angle + (i * Math.PI / 6); const hx = cx + Math.cos(a) * 46, hy = cy + Math.sin(a) * 46; c.fillStyle = '#000'; c.fillRect(hx - 3, hy - 3, 6, 6); c.strokeStyle = '#555'; c.lineWidth = 1; c.strokeRect(hx - 3, hy - 3, 6, 6); }
+            const offset = (lockFrame * 2) % 20; c.fillStyle = '#1a1a1a'; c.fillRect(0, cy - 7, cw, 14); c.strokeStyle = '#333'; c.lineWidth = 1; c.strokeRect(0, cy - 7, cw, 14);
+            for (let x = -offset; x < cw; x += 20) { c.fillStyle = '#000'; c.fillRect(x, cy - 5, 5, 4); c.fillRect(x, cy + 1, 5, 4); }
+            c.fillStyle = '#e60000'; c.globalAlpha = 0.4 + 0.3 * Math.sin(lockFrame * 0.1); c.beginPath(); c.arc(cx, cy, 4, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1;
+            lockAnim = requestAnimationFrame(drawFilmReel);
+        }
+
+        function toggleTimelineGrid() {
+            playTick();
+            document.getElementById('timeline-zone').classList.toggle('tl-bar-expanded');
+            document.getElementById('btn-grid-view').classList.toggle('indicator-on');
+        }
+
+        // ── AI BUILD ──
+        var BEFLIX_SYSTEM_PROMPT = [
+            'You are a BEFLIX-128 animation composer. You generate frame-by-frame animation code for a 128-wide x 96-tall monochrome dot-matrix grid.',
+            '', 'COMMANDS (output ONLY these, one per line):',
+            '  CLR v           — Fill entire grid with intensity v',
+            '  PNT x y w h v   — Paint rectangle at (x,y) with width w, height h, intensity v',
+            '  LIN x1 y1 x2 y2 v — Draw line from (x1,y1) to (x2,y2) in intensity v',
+            '  REC n           — Record current grid state as n frames (higher n = longer hold)',
+            '  SHF dx dy n     — Shift all pixels by (dx,dy) and record n frames',
+            '', 'INTENSITY: 0=White(no dot) 1=Tiny dot 2-3=Small 4-5=Medium 6=Large 7=Full black dot',
+            '', 'CINEMATIC RULES:',
+            '1. Build each frame from scratch using CLR then layered PNT/LIN. Do NOT rely only on SHF.',
+            '2. Use REC with VARYING values: REC 1 for fast action, REC 3-5 for holds, REC 8-15 for pauses.',
+            '3. Layer multiple PNT commands per frame for depth. Use intensity variation for shading.',
+            '4. Move objects smoothly: change x,y by small increments (1-4 pixels) for fluid motion.',
+            '5. Use LIN for outlines, contours, and fine details. Use PNT for mass and fills.',
+            '6. At least 8-12 distinct visual states. Total REC should sum to 40-120 frames.',
+            '7. Use intensity gradient: value 1-2 for background haze, 4-5 for midground, 6-7 for foreground detail.',
+            '8. Think cinematically: establish, build, climax, resolve.',
+            '', 'OUTPUT: Use C for comment lines. Output ONLY raw BEFLIX code. NO markdown. NO backticks.'
+        ].join('\n');
+
+        function fallbackCopy(text) {
+            var textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                var successful = document.execCommand('copy');
+                if(successful) fireToast('PROMPT COPIED');
+                else fireToast('COPY FAILED');
+            } catch (err) {
+                fireToast('COPY FAILED');
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function copySystemPrompt() {
+            playThud();
+            const ideaEl = document.getElementById('b-idea');
+            const idea = ideaEl ? ideaEl.value.trim() : '';
+            let fullPrompt = BEFLIX_SYSTEM_PROMPT;
+            if (idea.trim()) fullPrompt += '\n\n---\nUSER REQUEST: ' + idea.trim() + '\n\nGenerate the BEFLIX-128 animation code now.';
+            
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(fullPrompt).then(() => fireToast('PROMPT COPIED')).catch(() => fallbackCopy(fullPrompt));
+            } else {
+                fallbackCopy(fullPrompt);
+            }
+        }
+
+        async function generateCodeFromIdea() {
+            playThud();
+            const ideaEl = document.getElementById('b-idea');
+            const idea = ideaEl ? ideaEl.value.trim() : '';
+            if (!idea) { fireToast('TYPE IDEA FIRST'); return; }
+            const keyEl = document.getElementById('b-key');
+            const key = keyEl ? keyEl.value.trim() : '';
+            if (!key) { copySystemPrompt(); return; }
+            lockSystem('CONSULTING AI...', 0);
+            try {
+                const res = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: JSON.stringify({ model: 'o4-mini', messages: [{ role: 'developer', content: BEFLIX_SYSTEM_PROMPT }, { role: 'user', content: idea }] }) });
+                if (!res.ok) throw new Error('API ' + res.status);
+                const data = await res.json();
+                let result = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+                result = result.replace(/```[A-Za-z-]*\n?/g, '').replace(/```/g, '').trim();
+                setScriptText(result);
+                await executeMacro(); releaseSystem(); fireToast('CODE BUILT');
+            } catch (e) { console.error(e); releaseSystem(); fireToast('AI FAILED — CHECK KEY'); }
+        }
+
+        // ── FRAME CORE ──
+        function getBlankMatrix() { return new Uint8ClampedArray(W * H * 4); }
+        function injectFrame(init = false) {
+            if (!init) playClack();
+            state.frames.push({ src: null, scriptLayer: getBlankMatrix(), handLayer: getBlankMatrix() });
+            if (!init) { state.cur = state.frames.length - 1; rebuildTrack(); renderOutput(); updateStatusBar(); }
+        }
+        function duplicateFrame() {
+            if (!state.frames.length) return; playClack();
+            const ref = state.frames[state.cur];
+            state.frames.splice(state.cur + 1, 0, { src: ref.src, scriptLayer: new Uint8ClampedArray(ref.scriptLayer), handLayer: new Uint8ClampedArray(ref.handLayer) });
+            state.cur++; rebuildTrack(); renderOutput(); updateStatusBar(); fireToast('COPIED');
+        }
+        function stepSequence(dir) { if (state.playing || !state.frames.length) return; playTick(); state.cur = (state.cur + dir + state.frames.length) % state.frames.length; rebuildTrack(); renderOutput(); updateStatusBar(); }
+
+        function rebuildTrack() {
+            const trk = document.getElementById('tl-strip'); trk.innerHTML = '';
+            state.frames.forEach((f, i) => {
+                const w = document.createElement('div'); w.className = 'tl-frame' + (i === state.cur ? ' on' : '');
+                w.onclick = () => { if (state.playing) return; playTick(); state.cur = i; rebuildTrack(); renderOutput(); updateStatusBar(); };
+                const c = document.createElement('canvas'); c.className = 'tl-thumb'; c.width = W; c.height = H;
+                renderDotFrame(f, c);
+                w.appendChild(c);
+                const n = document.createElement('div'); n.className = 'tl-num'; n.textContent = i + 1; w.appendChild(n);
+                const b = document.createElement('div'); b.className = 'tl-badge'; b.textContent = i + 1; w.appendChild(b);
+                trk.appendChild(w);
+                if (i === state.cur) w.scrollIntoView({ inline: 'center', block: 'nearest' });
+            });
+            updateStatusBar();
+        }
+
+        // Render a single frame as dot-matrix onto a target canvas
+        function renderDotFrame(f, targetCanvas) {
+            const tc = targetCanvas.getContext('2d');
+            // White background
+            tc.fillStyle = '#FFFFFF';
+            tc.fillRect(0, 0, W, H);
+            // Fine horizontal ruled lines
+            tc.strokeStyle = 'rgba(0,0,0,0.06)';
+            tc.lineWidth = 0.5;
+            for (let gy = 0; gy < G_ROWS; gy++) {
+                const py = gy * B_SZ + B_SZ * 0.5;
+                tc.beginPath(); tc.moveTo(0, py); tc.lineTo(W, py); tc.stroke();
+            }
+            // If frame has a source image, sample it as luminance dots
+            let srcGrid = null;
+            if (f.src) {
+                const tmpSrc = document.createElement('canvas');
+                tmpSrc.width = G_COLS; tmpSrc.height = G_ROWS;
+                const tmpCtx = tmpSrc.getContext('2d');
+                tmpCtx.imageSmoothingEnabled = true;
+                tmpCtx.drawImage(f.src, 0, 0, G_COLS, G_ROWS);
+                const srcPx = tmpCtx.getImageData(0, 0, G_COLS, G_ROWS).data;
+                srcGrid = new Uint8Array(G_ROWS * G_COLS);
+                for (let i = 0; i < G_ROWS * G_COLS; i++) {
+                    const pi = i * 4;
+                    const lum = srcPx[pi] * 0.299 + srcPx[pi + 1] * 0.587 + srcPx[pi + 2] * 0.114;
+                    srcGrid[i] = Math.round((255 - lum) / 255 * 7);
+                }
+            }
+            // Sample each grid cell from the pixel layers and stamp a dot
+            for (let gy = 0; gy < G_ROWS; gy++) {
+                for (let gx = 0; gx < G_COLS; gx++) {
+                    const sX = gx * B_SZ + Math.floor(B_SZ / 2);
+                    const sY = gy * B_SZ + Math.floor(B_SZ / 2);
+                    const sIdx = (sY * W + sX) * 4;
+                    // Hand layer takes priority, then script layer, then src
+                    let val = 0;
+                    const hAlpha = f.handLayer[sIdx + 3];
+                    if (hAlpha >= 16) {
+                        val = alphaToLevel(hAlpha);
+                    } else {
+                        const sAlpha = f.scriptLayer[sIdx + 3];
+                        if (sAlpha >= 16) {
+                            val = alphaToLevel(sAlpha);
+                        } else if (srcGrid) {
+                            val = srcGrid[gy * G_COLS + gx];
+                        }
+                    }
+                    if (val > 0 && DOT_STAMPS[val]) {
+                        tc.drawImage(DOT_STAMPS[val], gx * B_SZ, gy * B_SZ);
+                    }
+                }
+            }
+        }
+
+        function renderOutput() {
+            const f = state.frames[state.cur]; if (!f) return;
+            // Render dots onto the compositing buffer
+            renderDotFrame(f, compBuf);
+            // Handle rect preview during drag
+            if (state.dragging && state.tool === 'rect') {
+                const live = getBlankMatrix(); plotRect(live, state.p0[0], state.p0[1], state.p1[0], state.p1[1], INKS[state.color].rgb, state.size);
+                // Render preview dots from live layer
+                const tc = compCtx;
+                for (let gy = 0; gy < G_ROWS; gy++) {
+                    for (let gx = 0; gx < G_COLS; gx++) {
+                        const sX = gx * B_SZ + Math.floor(B_SZ / 2);
+                        const sY = gy * B_SZ + Math.floor(B_SZ / 2);
+                        const sIdx = (sY * W + sX) * 4;
+                        const alpha = live[sIdx + 3];
+                        const val = alphaToLevel(alpha);
+                        if (val > 0 && DOT_STAMPS[val]) {
+                            tc.drawImage(DOT_STAMPS[val], gx * B_SZ, gy * B_SZ);
+                        }
+                    }
+                }
+            }
+            ctx.clearRect(0, 0, W, H); ctx.drawImage(compBuf, 0, 0);
+        }
+
+        function bindPixel(arr, x, y, c) { if (x < 0 || x >= W || y < 0 || y >= H) return; const i = (y * W + x) * 4; if (c[3] === 0) { arr[i] = 0; arr[i + 1] = 0; arr[i + 2] = 0; arr[i + 3] = 0; return; } arr[i] = c[0]; arr[i + 1] = c[1]; arr[i + 2] = c[2]; arr[i + 3] = c[3]; }
+        function plotBlock(arr, x, y, c, r) { const rad = r / 2; for (let iy = -Math.ceil(rad); iy <= Math.ceil(rad); iy++)for (let ix = -Math.ceil(rad); ix <= Math.ceil(rad); ix++)if (ix * ix + iy * iy <= rad * rad) bindPixel(arr, Math.round(x + ix), Math.round(y + iy), c); }
+        function plotVector(arr, x0, y0, x1, y1, c, w) { if (!isFinite(x0) || !isFinite(y0) || !isFinite(x1) || !isFinite(y1)) return; let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1, dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1, err = dx + dy, lim = 3000; while (lim-->0) { plotBlock(arr, x0, y0, c, w); if (x0 === x1 && y0 === y1) break; let e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } } }
+        function plotRect(arr, x0, y0, x1, y1, c, w) { plotVector(arr, x0, y0, x1, y0, c, w); plotVector(arr, x1, y0, x1, y1, c, w); plotVector(arr, x1, y1, x0, y1, c, w); plotVector(arr, x0, y1, x0, y0, c, w); }
+        function mapCoord(e) { const r = cvs.getBoundingClientRect(); if (!r.width) return [0, 0]; return [Math.max(0, Math.min(W - 1, Math.floor((e.clientX - r.left) / r.width * W))), Math.max(0, Math.min(H - 1, Math.floor((e.clientY - r.top) / r.height * H)))]; }
+
+        cvs.addEventListener('pointerdown', e => {
+            // Allow drawing whether C panel is open or draw toolbar is showing
+            const drawActive = state.activeNav === 'C' || document.getElementById('draw-toolbar').classList.contains('on');
+            if (!drawActive) return;
+            cvs.setPointerCapture(e.pointerId); state.dragging = true; state.p0 = mapCoord(e); state.p1 = state.p0;
+            commitStroke(state.p0, state.p0);
+        });
+        cvs.addEventListener('pointermove', e => { if (!state.dragging) return; const prev = state.p1; state.p1 = mapCoord(e); if (state.tool === 'rect') renderOutput(); else commitStroke(prev, state.p1); });
+        cvs.addEventListener('pointerup', e => { if (!state.dragging) return; if (state.tool === 'rect') commitStroke(state.p0, state.p1, true); state.dragging = false; renderOutput(); rebuildTrack(); });
+        function commitStroke(p0, p1, final = false) { const f = state.frames[state.cur]; const col = state.tool === 'erase' ? INKS[0].rgb : INKS[state.color].rgb; if (state.tool === 'pen' || state.tool === 'erase') plotVector(f.handLayer, p0[0], p0[1], p1[0], p1[1], col, state.size); else if (state.tool === 'rect' && final) plotRect(f.handLayer, p0[0], p0[1], p1[0], p1[1], col, state.size); renderOutput(); }
+
+        // Full script text backing store — textarea may only show a preview
+        let _fullScriptText = '';
+        const TEXTAREA_CHAR_LIMIT = 200000; // chars shown in textarea before truncation
+        const SCRIPT_CHUNK_SIZE = 500; // lines per async batch in macro execution
+
+        function getFullScript() {
+            // If we have a backing store (from a large file load), use it;
+            // otherwise read directly from the textarea
+            const el = document.getElementById('b-script');
+            if (_fullScriptText) return _fullScriptText;
+            return el ? el.value : '';
+        }
+
+        function setScriptText(text) {
+            _fullScriptText = text;
+            const el = document.getElementById('b-script');
+            if (!el) return;
+            const lineCount = text.split('\n').length;
+            // Large text: show only a preview in the textarea to avoid DOM freeze
+            if (text.length > TEXTAREA_CHAR_LIMIT) {
+                const preview = text.substring(0, TEXTAREA_CHAR_LIMIT);
+                el.value = preview + '\n\n... [TRUNCATED — ' + (text.length - TEXTAREA_CHAR_LIMIT).toLocaleString() + ' MORE CHARS — FULL SCRIPT IN MEMORY FOR EXECUTION]';
+            } else {
+                el.value = text;
+            }
+            updateScriptInfo(lineCount, text.length);
+        }
+
+        function updateScriptInfo(lineCount, charCount) {
+            const linesEl = document.getElementById('b-script-lines');
+            const warnEl = document.getElementById('b-script-warn');
+            if (linesEl) linesEl.textContent = lineCount.toLocaleString() + ' LINES · ' + (charCount / 1024).toFixed(1) + 'KB';
+            if (warnEl) {
+                if (charCount > 500000) {
+                    warnEl.textContent = '⚠ VERY LARGE';
+                    warnEl.className = 'warn';
+                } else if (charCount > TEXTAREA_CHAR_LIMIT) {
+                    warnEl.textContent = 'PREVIEW MODE';
+                    warnEl.className = '';
+                } else {
+                    warnEl.textContent = '';
+                    warnEl.className = '';
+                }
+            }
+        }
+
+        // Keep script info in sync when user types in textarea
+        document.addEventListener('DOMContentLoaded', () => {
+            const el = document.getElementById('b-script');
+            if (el) {
+                el.addEventListener('input', () => {
+                    _fullScriptText = ''; // user editing clears the backing store
+                    const v = el.value;
+                    updateScriptInfo(v.split('\n').length, v.length);
+                });
+                // Handle paste of large content
+                el.addEventListener('paste', (e) => {
+                    const pasted = (e.clipboardData || window.clipboardData).getData('text');
+                    if (pasted.length > TEXTAREA_CHAR_LIMIT) {
+                        e.preventDefault();
+                        lockSystem('INGESTING PASTE...', 0);
+                        setTimeout(() => {
+                            setScriptText(pasted);
+                            releaseSystem();
+                            fireToast(pasted.split('\n').length.toLocaleString() + ' LINES PASTED');
+                        }, 50);
+                    }
+                });
+            }
+        });
+
+        function showScriptProgress(pct) {
+            const wrap = document.getElementById('script-progress');
+            const bar = document.getElementById('script-progress-bar');
+            if (!wrap || !bar) return;
+            if (pct < 0) { wrap.classList.remove('on'); return; }
+            wrap.classList.add('on');
+            bar.style.width = Math.min(100, pct) + '%';
+        }
+
+        async function executeMacro() {
+            playThud();
+            const fullCode = getFullScript().toUpperCase().split('\n');
+            const totalLines = fullCode.length;
+            if (totalLines === 0) { fireToast('NO SCRIPT'); return; }
+
+            // Disable RUN button during execution
+            const runBtn = document.getElementById('btn-run-script');
+            if (runBtn) { runBtn.disabled = true; runBtn.textContent = 'RUNNING...'; }
+
+            // For very large scripts, show lock screen
+            if (totalLines > 2000) {
+                lockSystem('COMPILING SCRIPT...', 0);
+            }
+
+            const res = [];
+            let mat = Array(G_ROWS).fill().map(() => Array(G_COLS).fill(0));
+
+            try {
+                // Process in async chunks to keep UI responsive
+                for (let chunk = 0; chunk < totalLines; chunk += SCRIPT_CHUNK_SIZE) {
+                    const end = Math.min(chunk + SCRIPT_CHUNK_SIZE, totalLines);
+                    for (let li = chunk; li < end; li++) {
+                        let l = fullCode[li].trim();
+                        if (!l || l.startsWith('C')) continue;
+                        const p = l.split(/\s+/), c = p[0], a = p.slice(1).map(Number);
+                        if (c === 'CLR') { for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) mat[y][x] = a[0]; }
+                        else if (c === 'PNT') { for (let y = a[1]; y < a[1] + a[3]; y++) for (let x = a[0]; x < a[0] + a[2]; x++) if (y >= 0 && y < G_ROWS && x >= 0 && x < G_COLS) mat[y][x] = a[4]; }
+                        else if (c === 'LIN') { let lv = a[4], lx1 = a[0], ly1 = a[1], lx2 = a[2], ly2 = a[3], ldx = Math.abs(lx2 - lx1), lsx = lx1 < lx2 ? 1 : -1, ldy = -Math.abs(ly2 - ly1), lsy = ly1 < ly2 ? 1 : -1, lerr = ldx + ldy, lcx = lx1, lcy = ly1, lim = 2000; while (lim-- > 0) { if (lcx >= 0 && lcx < G_COLS && lcy >= 0 && lcy < G_ROWS) mat[lcy][lcx] = lv; if (lcx === lx2 && lcy === ly2) break; let le2 = 2 * lerr; if (le2 >= ldy) { lerr += ldy; lcx += lsx; } if (le2 <= ldx) { lerr += ldx; lcy += lsy; } } }
+                        else if (c === 'REC') { for (let i = 0; i < Math.min(a[0], 5000); i++) res.push(mat.map(r => [...r])); }
+                        else if (c === 'SHF') { for (let f = 0; f < Math.min(a[2], 5000); f++) { let n = Array(G_ROWS).fill().map(() => Array(G_COLS).fill(0)); for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) { let nx = x - a[0], ny = y - a[1]; if (nx >= 0 && nx < G_COLS && ny >= 0 && ny < G_ROWS) n[y][x] = mat[ny][nx]; } mat = n; res.push(mat.map(r => [...r])); } }
+                    }
+                    // Yield to the event loop periodically
+                    if (totalLines > 1000 && chunk + SCRIPT_CHUNK_SIZE < totalLines) {
+                        const pct = Math.round((end / totalLines) * 100);
+                        showScriptProgress(pct);
+                        if (totalLines > 2000) updateLockCount('LINE ' + end.toLocaleString() + '/' + totalLines.toLocaleString());
+                        await new Promise(r => setTimeout(r, 0));
+                    }
+                }
+
+                if (!res.length) res.push(mat);
+
+                // No hard frame cap — PORT allows unlimited frames
+                const totalFrames = res.length;
+
+                while (state.frames.length < res.length) injectFrame(true);
+                // Trim extra frames if script has less
+                if (state.frames.length > res.length) state.frames.length = res.length;
+
+                // Render frame pixels in chunks too
+                for (let i = 0; i < state.frames.length; i++) {
+                    const f = state.frames[i], sm = res[i % res.length], ink = f.scriptLayer; ink.fill(0);
+                    for (let y = 0; y < G_ROWS; y++) for (let x = 0; x < G_COLS; x++) {
+                        if (!sm[y][x]) continue;
+                        const col = INKS[sm[y][x]].rgb;
+                        for (let by = 0; by < B_SZ; by++) for (let bx = 0; bx < B_SZ; bx++) bindPixel(ink, x * B_SZ + bx, y * B_SZ + by, col);
+                    }
+                    // Yield periodically for large frame counts
+                    if (state.frames.length > 100 && i % 50 === 49) {
+                        if (totalLines > 2000) updateLockCount('FRAME ' + (i + 1) + '/' + state.frames.length);
+                        await new Promise(r => setTimeout(r, 0));
+                    }
+                }
+
+                showScriptProgress(-1);
+                fireToast(state.frames.length + ' FRAMES · SCRIPT RAN');
+                state.cur = 0;
+                renderOutput(); rebuildTrack(); updateStatusBar();
+            } catch (e) {
+                console.error('MACRO ERROR:', e);
+                showScriptProgress(-1);
+                fireToast('SYNTAX HALT: ' + (e.message || 'PARSE ERROR'));
+            } finally {
+                if (runBtn) { runBtn.disabled = false; runBtn.textContent = 'RUN SCRIPT'; }
+                if (totalLines > 2000) releaseSystem();
+            }
+        }
+
+        function engageSequence() {
+            playClack(); state.playing = !state.playing;
+            updatePlayOverlay();
+            if (state.playing) { lastT = performance.now(); playRAF = requestAnimationFrame(playStep); }
+            else { cancelAnimationFrame(playRAF); renderOutput(); rebuildTrack(); }
+        }
+        function playStep(now) {
+            if (!state.playing) return;
+            playRAF = requestAnimationFrame(playStep);
+            const el = now - lastT, dur = 1000 / BASE_FPS;
+            if (el >= dur) {
+                lastT = now - (el % dur);
+                state.cur = (state.cur + 1) % state.frames.length;
+                renderOutput();
+                document.querySelectorAll('.tl-frame').forEach((el, i) => i === state.cur ? el.classList.add('on') : el.classList.remove('on'));
+                // Update frame counter in status bar
+                const fb = document.getElementById('sb-frame');
+                if (fb) fb.textContent = `${String(state.cur + 1).padStart(2, '0')}/${String(state.frames.length).padStart(2, '0')}`;
+            }
+        }
+
+        function fitSource(src, sw, sh) { const c = document.createElement('canvas'); c.width = W; c.height = H; const cx = c.getContext('2d'); cx.fillStyle = '#000'; cx.fillRect(0, 0, W, H); const a = sw / sh; let dw = W, dh = H, dx = 0, dy = 0; if (a > W / H) { dh = W / a; dy = (H - dh) / 2; } else { dw = H * a; dx = (W - dw) / 2; } cx.drawImage(src, 0, 0, sw, sh, dx, dy, dw, dh); return c; }
+
+        async function ingestMedia(e) {
+            const f = e.target.files[0]; if (!f) return; e.target.value = ''; playThud();
+            state.audioSourceBlob = null; state.audioDuration = 0;
+            if (f.type.startsWith('video/')) { state.audioSourceBlob = f; await ripFrames(f); }
+            else {
+                lockSystem('MOUNTING...', 0);
+                const u = URL.createObjectURL(f), img = new Image(); img.src = u;
+                img.onload = () => {
+                    state.frames[state.cur].src = fitSource(img, img.naturalWidth, img.naturalHeight);
+                    applyBeflixProcess(state.frames[state.cur]);
+                    releaseSystem(); renderOutput(); rebuildTrack(); URL.revokeObjectURL(u);
+                };
+                img.onerror = () => { releaseSystem(); fireToast('IMAGE FAILED'); URL.revokeObjectURL(u); };
+            }
+        }
+
+        async function ripFrames(source) {
+            lockSystem('LOADING VIDEO...', 0);
+            const url = source instanceof Blob ? URL.createObjectURL(source) : source;
+            const vid = document.createElement('video'); vid.muted = true; vid.playsInline = true; vid.preload = 'auto'; vid.src = url;
+            try { await new Promise((res, rej) => { vid.onloadedmetadata = res; vid.onerror = () => rej(new Error('unreadable')); setTimeout(() => rej(new Error('timeout')), 8000); }); }
+            catch (e) { releaseSystem(); fireToast('VIDEO FAILED'); if (source instanceof Blob) URL.revokeObjectURL(url); return; }
+            const dur = vid.duration;
+            if (!isFinite(dur) || dur <= 0) { releaseSystem(); fireToast('VIDEO UNREADABLE'); return; }
+            // Store original duration for audio sync on export
+            state.audioDuration = dur;
+            const maxF = Math.min(15 * BASE_FPS, Math.ceil(dur * BASE_FPS)), interval = 1 / BASE_FPS, frames = []; let lastCap = -Infinity;
+            lockSystem('RIPPING FRAMES', 0);
+            if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+                await new Promise(res => { function onFrame(now, meta) { if (frames.length >= maxF || vid.ended) { res(); return; } const t = meta.mediaTime; if (t - lastCap >= interval - 0.001) { lastCap = t; if (vid.videoWidth) frames.push(fitSource(vid, vid.videoWidth, vid.videoHeight)); updateLockCount(frames.length); } vid.requestVideoFrameCallback(onFrame); } vid.requestVideoFrameCallback(onFrame); vid.play().catch(() => { }); setTimeout(res, (dur + 3) * 1000); });
+            } else {
+                await new Promise(res => { function onRAF() { if (frames.length >= maxF || vid.ended) { res(); return; } if (vid.videoWidth && vid.currentTime - lastCap >= interval - 0.001) { lastCap = vid.currentTime; frames.push(fitSource(vid, vid.videoWidth, vid.videoHeight)); updateLockCount(frames.length); } requestAnimationFrame(onRAF); } requestAnimationFrame(onRAF); vid.play().catch(() => { }); setTimeout(res, (dur + 3) * 1000); });
+            }
+            vid.pause();
+            if (source instanceof Blob) URL.revokeObjectURL(url);
+            if (!frames.length) { releaseSystem(); fireToast('NO FRAMES CAPTURED'); return; }
+            state.frames = frames.map(src => {
+                var fr = { src, scriptLayer: getBlankMatrix(), handLayer: getBlankMatrix() };
+                applyBeflixProcess(fr);
+                return fr;
+            });
+            state.cur = 0; releaseSystem(); rebuildTrack(); renderOutput(); updateStatusBar();
+            fireToast(frames.length + ' FRAMES RIPPED');
+        }
+
+        function loadTestSequence() {
+            playThud(); state.frames = []; lockSystem('GENERATING FILM LEADER', 0);
+            setTimeout(() => {
+                const SECONDS = 8, TOTAL = SECONDS * BASE_FPS;
+                for (let i = 0; i < TOTAL; i++) {
+                    const c = document.createElement('canvas'); c.width = W; c.height = H; const cx = c.getContext('2d');
+                    const sec = SECONDS - Math.floor(i / BASE_FPS), fis = i % BASE_FPS, prog = fis / BASE_FPS;
+                    if (sec === 2 && fis === 0) { cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H); cx.fillStyle = '#000'; cx.font = '900 80px Helvetica'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText('2', W / 2, H / 2); }
+                    else { cx.fillStyle = '#666'; cx.fillRect(0, 0, W, H); cx.strokeStyle = '#000'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(W / 2, 0); cx.lineTo(W / 2, H); cx.stroke(); cx.beginPath(); cx.moveTo(0, H / 2); cx.lineTo(W, H / 2); cx.stroke(); cx.beginPath(); cx.arc(W / 2, H / 2, H / 2.2, 0, Math.PI * 2); cx.stroke(); cx.beginPath(); cx.arc(W / 2, H / 2, H / 3.5, 0, Math.PI * 2); cx.fillStyle = '#ccc'; cx.fill(); cx.stroke(); cx.save(); cx.translate(W / 2, H / 2); cx.rotate(-Math.PI / 2 + (prog * Math.PI * 2)); cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(H / 2.2, 0); cx.lineWidth = 4; cx.strokeStyle = '#000'; cx.stroke(); cx.restore(); cx.fillStyle = '#000'; cx.font = '900 ' + (H / 2.5) + 'px Helvetica'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(sec, W / 2, H / 2 + 5); }
+                    state.frames.push({ src: c, scriptLayer: getBlankMatrix(), handLayer: getBlankMatrix() });
+                }
+                state.cur = 0; rebuildTrack(); renderOutput(); releaseSystem(); updateStatusBar(); fireToast('LEADER READY');
+            }, 50);
+        }
+
+        let camStream = null, camRec = null, camCh = [], camActive = false;
+        async function toggleCamera() { playThud(); try { camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); document.getElementById('cam-vid').srcObject = camStream; document.getElementById('cam-feed').style.display = 'flex'; } catch (e) { fireToast('DENIED'); } }
+        function killCamera() { playTick(); if (camStream) camStream.getTracks().forEach(t => t.stop()); document.getElementById('cam-feed').style.display = 'none'; }
+        function toggleRecord() { const b = document.getElementById('btn-rec'); if (!camActive) { playClack(); camCh = []; camRec = new MediaRecorder(camStream); camRec.ondataavailable = e => { if (e.data.size) camCh.push(e.data); }; camRec.start(100); camActive = true; b.textContent = 'STOP'; b.style.background = '#000'; } else { playThud(); camRec.onstop = async () => { const bl = new Blob(camCh, { type: 'video/webm' }); state.audioSourceBlob = bl; state.audioDuration = 0; /* will be set by ripFrames */ killCamera(); await ripFrames(bl); }; camRec.stop(); camActive = false; b.textContent = 'RECORD'; b.style.background = 'var(--act-c)'; } }
+
+        // ── EXPORT ──
+        var EXPORT_SCALE = 2, EW = W * EXPORT_SCALE, EH = H * EXPORT_SCALE;
+        const GIF_WORKER_URL = 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js';
+        function pickMimeType(fmt) { const webm = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'], mp4 = ['video/mp4;codecs=h264', 'video/mp4']; const list = fmt === 'mp4' ? mp4 : webm; for (let i = 0; i < list.length; i++) { if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(list[i])) return list[i]; } return ''; }
+        function renderCompositeFrame(frame, target) { renderDotFrame(frame, target); }
+        function exportCurrentPNG() { if (!state.frames.length) return; playThud(); var tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H; renderCompositeFrame(state.frames[state.cur], tmp); var ec = document.createElement('canvas'); ec.width = EW; ec.height = EH; ec.getContext('2d').drawImage(tmp, 0, 0, EW, EH); var l = document.createElement('a'); l.download = 'ABC_FRAME_' + String(state.cur + 1).padStart(3, '0') + '.png'; l.href = ec.toDataURL('image/png'); l.click(); fireToast('PNG EXPORTED'); }
+        async function compileOutput(format) { 
+            if (!state.frames.length) return; 
+            if (state.playing) engageSequence(); 
+            playThud(); 
+            if (!window.MediaRecorder) return fireToast('NO ENCODER'); 
+            var mimeType = pickMimeType(format || 'webm'); 
+            if (!mimeType) return fireToast((format || 'WEBM').toUpperCase() + ' UNSUPPORTED'); 
+            lockSystem('ENCODING ' + (format || 'webm').toUpperCase(), 0); 
+            
+            var ec = document.createElement('canvas'); ec.width = EW; ec.height = EH; 
+            var tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H; 
+            var stream = ec.captureStream(BASE_FPS); 
+            
+            // ── AUDIO VIA WEB AUDIO API ──
+            // decodeAudioData works without autoplay, without captureStream on <video>,
+            // and without a secure context (unlike clipboard). This is the correct tool.
+            var exportAudioCtx = null;
+            var audioSourceNode = null;
+            if (state.audioSourceBlob) {
+                try {
+                    exportAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    // Decode audio from the original video blob
+                    var arrayBuf = await state.audioSourceBlob.arrayBuffer();
+                    var audioBuffer = await exportAudioCtx.decodeAudioData(arrayBuf);
+                    
+                    // Create a MediaStream destination — this gives us an audio track
+                    var audioDest = exportAudioCtx.createMediaStreamDestination();
+                    
+                    // Create a buffer source for playback
+                    audioSourceNode = exportAudioCtx.createBufferSource();
+                    audioSourceNode.buffer = audioBuffer;
+                    
+                    // ── AUDIO SYNC ──
+                    // Adjust playback rate so audio duration matches visual output duration
+                    var outputDur = state.frames.length / BASE_FPS;
+                    var audioDur = audioBuffer.duration;
+                    if (audioDur > 0 && outputDur > 0) {
+                        audioSourceNode.playbackRate.value = Math.max(0.25, Math.min(4.0, audioDur / outputDur));
+                    }
+                    
+                    audioSourceNode.connect(audioDest);
+                    
+                    // Add the audio track to our recording stream
+                    var audioTracks = audioDest.stream.getAudioTracks();
+                    if (audioTracks.length > 0) {
+                        stream.addTrack(audioTracks[0]);
+                    }
+                    
+                    fireToast('AUDIO SYNCED · ' + audioDur.toFixed(1) + 's → ' + outputDur.toFixed(1) + 's');
+                } catch(audioErr) {
+                    console.warn('Audio decode failed (video may have no audio track):', audioErr);
+                    // Continue without audio — video export still works
+                }
+            }
+            
+            var recorder = new MediaRecorder(stream, { mimeType: mimeType }); 
+            var chunks = []; 
+            recorder.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); }; 
+            var stopP = new Promise(function (res) { recorder.onstop = res; }); 
+            
+            // Start audio playback right when recording begins
+            if (audioSourceNode) { try { audioSourceNode.start(0); } catch(e) {} }
+            recorder.start(); 
+            
+            for (var i = 0; i < state.frames.length; i++) { 
+                renderCompositeFrame(state.frames[i], tmp); 
+                ec.getContext('2d').drawImage(tmp, 0, 0, EW, EH); 
+                updateLockCount(i + 1); 
+                await new Promise(function (rs) { setTimeout(rs, 1000 / BASE_FPS); }); 
+            } 
+            await new Promise(function (rs) { setTimeout(rs, 1000 / BASE_FPS); }); 
+            recorder.stop(); 
+            
+            // Cleanup audio
+            if (audioSourceNode) { try { audioSourceNode.stop(); } catch(e) {} }
+            if (exportAudioCtx) { try { exportAudioCtx.close(); } catch(e) {} }
+            
+            await stopP; 
+            stream.getTracks().forEach(function (t) { t.stop(); }); 
+            
+            var ext = mimeType.indexOf('mp4') >= 0 ? 'mp4' : 'webm'; 
+            var bl = new Blob(chunks, { type: mimeType }); 
+            var l = document.createElement('a'); 
+            l.download = 'ABC_FLIX_' + Date.now() + '.' + ext; 
+            l.href = URL.createObjectURL(bl); 
+            l.click(); 
+            setTimeout(function () { URL.revokeObjectURL(l.href); }, 2000); 
+            releaseSystem(); 
+            fireToast(ext.toUpperCase() + ' EXPORTED'); 
+        }
+        function compileGIF() { if (!state.frames.length) return; playThud(); if (typeof GIF === 'undefined') return fireToast('GIF UNAVAILABLE'); lockSystem('ENCODING GIF', 0); var gif = new GIF({ workers: 1, quality: 12, width: EW, height: EH, workerScript: GIF_WORKER_URL }); var tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H; for (var i = 0; i < state.frames.length; i++) { renderCompositeFrame(state.frames[i], tmp); var fc = document.createElement('canvas'); fc.width = EW; fc.height = EH; fc.getContext('2d').drawImage(tmp, 0, 0, EW, EH); gif.addFrame(fc, { delay: 1000 / BASE_FPS, copy: true }); } gif.on('progress', function (p) { updateLockCount(Math.round(p * 100) + '%'); }); gif.on('finished', function (blob) { var l = document.createElement('a'); l.download = 'ABC_FLIX_' + Date.now() + '.gif'; l.href = URL.createObjectURL(blob); l.click(); setTimeout(function () { URL.revokeObjectURL(l.href); }, 2000); releaseSystem(); fireToast('GIF EXPORTED'); }); gif.render(); }
+        function compileContactSheet() { if (!state.frames.length) return; playThud(); lockSystem('PRINTING SHEET', 0); setTimeout(function () { const cols = Math.min(5, state.frames.length), rows = Math.ceil(state.frames.length / cols); const sc = document.createElement('canvas'); sc.width = cols * W; sc.height = rows * H; const sctx = sc.getContext('2d'); for (let i = 0; i < state.frames.length; i++) { const tc = document.createElement('canvas'); tc.width = W; tc.height = H; renderCompositeFrame(state.frames[i], tc); sctx.drawImage(tc, (i % cols) * W, Math.floor(i / cols) * H); } const l = document.createElement('a'); l.download = 'ABC_SHEET_' + state.frames.length + 'f.png'; l.href = sc.toDataURL('image/png'); l.click(); releaseSystem(); fireToast('SHEET EXPORTED'); }, 50); }
+
+        // ── BEFLIX PROCESSING TECHNIQUES ──
+        function getProcessMode() { var sel = document.getElementById('process-mode'); return sel ? sel.value : 'posterize'; }
+        function applyBeflixProcess(frame) {
+            var mode = getProcessMode(); if (mode === 'raw' || !frame.src) return;
+            var tmpC = document.createElement('canvas'); tmpC.width = G_COLS; tmpC.height = G_ROWS;
+            var tmpX = tmpC.getContext('2d'); tmpX.imageSmoothingEnabled = true; tmpX.drawImage(frame.src, 0, 0, G_COLS, G_ROWS);
+            var srcData = tmpX.getImageData(0, 0, G_COLS, G_ROWS).data, grid = Array.from({ length: G_ROWS }, () => Array(G_COLS).fill(0));
+            if (mode === 'threshold') {
+                for (var gy = 0; gy < G_ROWS; gy++) for (var gx = 0; gx < G_COLS; gx++) {
+                    var i = (gy * G_COLS + gx) * 4, lum = srcData[i] * 0.299 + srcData[i + 1] * 0.587 + srcData[i + 2] * 0.114;
+                    grid[gy][gx] = lum < 128 ? 7 : 0;
+                }
+            } else if (mode === 'posterize') {
+                for (var gy = 0; gy < G_ROWS; gy++) for (var gx = 0; gx < G_COLS; gx++) {
+                    var i = (gy * G_COLS + gx) * 4; grid[gy][gx] = nearestInk(srcData[i], srcData[i + 1], srcData[i + 2]);
+                }
+            } else if (mode === 'edge') {
+                var lum = [];
+                for (var gy = 0; gy < G_ROWS; gy++) {
+                    lum[gy] = []; for (var gx = 0; gx < G_COLS; gx++) {
+                        var i = (gy * G_COLS + gx) * 4; lum[gy][gx] = srcData[i] * 0.299 + srcData[i + 1] * 0.587 + srcData[i + 2] * 0.114;
+                    }
+                }
+                for (var gy = 1; gy < G_ROWS - 1; gy++) for (var gx = 1; gx < G_COLS - 1; gx++) {
+                    var gxVal = -lum[gy - 1][gx - 1] + lum[gy - 1][gx + 1] - 2 * lum[gy][gx - 1] + 2 * lum[gy][gx + 1] - lum[gy + 1][gx - 1] + lum[gy + 1][gx + 1];
+                    var gyVal = -lum[gy - 1][gx - 1] - 2 * lum[gy - 1][gx] - lum[gy - 1][gx + 1] + lum[gy + 1][gx - 1] + 2 * lum[gy + 1][gx] + lum[gy + 1][gx + 1];
+                    grid[gy][gx] = (gxVal * gxVal + gyVal * gyVal) > 3600 ? 7 : 0;
+                }
+            } else if (mode === 'halftone') {
+                var bayer = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+                for (var gy = 0; gy < G_ROWS; gy++) for (var gx = 0; gx < G_COLS; gx++) {
+                    var i = (gy * G_COLS + gx) * 4, th = (bayer[gy % 4][gx % 4] / 16 - 0.5) * 80;
+                    grid[gy][gx] = nearestInk(Math.max(0, Math.min(255, srcData[i] + th)), Math.max(0, Math.min(255, srcData[i + 1] + th)), Math.max(0, Math.min(255, srcData[i + 2] + th)));
+                }
+            }
+            frame.scriptLayer.fill(0);
+            for (var gy = 0; gy < G_ROWS; gy++) for (var gx = 0; gx < G_COLS; gx++) {
+                if (grid[gy][gx]) {
+                    var rgbArray = INKS[grid[gy][gx]].rgb;
+                    for (var by = 0; by < B_SZ; by++) for (var bx = 0; bx < B_SZ; bx++) {
+                        var idx = ((gy * B_SZ + by) * W + (gx * B_SZ + bx)) * 4;
+                        frame.scriptLayer[idx] = rgbArray[0]; frame.scriptLayer[idx + 1] = rgbArray[1];
+                        frame.scriptLayer[idx + 2] = rgbArray[2]; frame.scriptLayer[idx + 3] = rgbArray[3];
+                    }
+                }
+            }
+        }
+        function nearestInk(r, g, b) {
+            // Luminance-based mapping for monochrome dot-matrix
+            var lum = r * 0.299 + g * 0.587 + b * 0.114;
+            var level = Math.round((255 - lum) / 255 * 7);
+            return Math.max(0, Math.min(7, level));
+        }
+        function reprocessFrames() {
+            if (!state.frames.length) { fireToast('NO FRAMES'); return; }
+            lockSystem('PROCESSING...', 0);
+            var total = state.frames.length, idx = 0;
+            function processNext() {
+                if (idx >= total) { rebuildTrack(); renderOutput(); releaseSystem(); fireToast(total + ' FRAMES PROCESSED'); return; }
+                applyBeflixProcess(state.frames[idx]); idx++; lockSystem('PROCESSING ' + idx + '/' + total, idx / total); setTimeout(processNext, 2);
+            } processNext();
+        }
+        function decompileFrames() {
+            var fullCode = '', total = state.frames.length;
+            for (var fIdx = 0; fIdx < total; fIdx++) {
+                fullCode += 'C FRAME ' + (fIdx + 1) + '\n';
+                var f = state.frames[fIdx], grid = Array.from({ length: G_ROWS }, () => Array(G_COLS).fill(0));
+                // Build src grid if frame has a source image
+                var srcGrid = null;
+                if (f.src) {
+                    var tmpC = document.createElement('canvas');
+                    tmpC.width = G_COLS; tmpC.height = G_ROWS;
+                    var tmpX = tmpC.getContext('2d');
+                    tmpX.imageSmoothingEnabled = true;
+                    tmpX.drawImage(f.src, 0, 0, G_COLS, G_ROWS);
+                    var srcPx = tmpX.getImageData(0, 0, G_COLS, G_ROWS).data;
+                    srcGrid = new Uint8Array(G_ROWS * G_COLS);
+                    for (var si = 0; si < G_ROWS * G_COLS; si++) {
+                        var pi = si * 4;
+                        var lum = srcPx[pi] * 0.299 + srcPx[pi + 1] * 0.587 + srcPx[pi + 2] * 0.114;
+                        srcGrid[si] = Math.round((255 - lum) / 255 * 7);
+                    }
+                }
+                for (var gy = 0; gy < G_ROWS; gy++) {
+                    for (var gx = 0; gx < G_COLS; gx++) {
+                        var px = gx * B_SZ + Math.floor(B_SZ / 2), py = gy * B_SZ + Math.floor(B_SZ / 2), idx = (py * W + px) * 4;
+                        var a = f.handLayer[idx + 3];
+                        if (a >= 16) { grid[gy][gx] = alphaToLevel(a); }
+                        else {
+                            a = f.scriptLayer[idx + 3];
+                            if (a >= 16) { grid[gy][gx] = alphaToLevel(a); }
+                            else if (srcGrid) { grid[gy][gx] = srcGrid[gy * G_COLS + gx]; }
+                        }
+                    }
+                }
+                var counts = [0, 0, 0, 0, 0, 0, 0, 0];
+                for (var gy = 0; gy < G_ROWS; gy++) for (var gx = 0; gx < G_COLS; gx++) counts[grid[gy][gx]]++;
+                var bgInk = 0, maxCount = -1;
+                for (var i = 0; i < 8; i++) { if (counts[i] > maxCount) { maxCount = counts[i]; bgInk = i; } }
+                fullCode += 'CLR ' + bgInk + '\n';
+                for (var gy = 0; gy < G_ROWS; gy++) {
+                    var gx = 0;
+                    while (gx < G_COLS) {
+                        var ink = grid[gy][gx];
+                        if (ink !== bgInk) {
+                            var startX = gx;
+                            while (gx < G_COLS && grid[gy][gx] === ink) gx++;
+                            fullCode += 'PNT ' + startX + ' ' + gy + ' ' + (gx - startX) + ' 1 ' + ink + '\n';
+                        } else { gx++; }
+                    }
+                } fullCode += 'REC 1\n';
+            } return fullCode;
+        }
+        function viewCode() {
+            if (!state.frames.length) { fireToast('NO FRAMES'); return; }
+            lockSystem('GENERATING CODE...', 0);
+            setTimeout(function () { setScriptText(decompileFrames()); execNav('B'); releaseSystem(); fireToast(state.frames.length + ' FRAMES → CODE'); }, 50);
+        }
+        function compileCode() {
+            if (!state.frames.length) { fireToast('NO FRAMES'); return; }
+            lockSystem('GENERATING CODE...', 0);
+            setTimeout(function () {
+                var code = decompileFrames(); setScriptText(code);
+                var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([code], { type: 'text/plain' }));
+                a.download = 'abc-macro.txt'; a.click(); execNav('B'); releaseSystem(); fireToast('CODE EXPORTED + LOADED');
+            }, 50);
+        }
+        function loadScriptFile(e) {
+            var f = e.target.files[0]; if (!f) return; e.target.value = '';
+            var sizeMB = (f.size / (1024 * 1024)).toFixed(1);
+
+            // Show progress for any file
+            lockSystem('LOADING SCRIPT · ' + sizeMB + 'MB', 0);
+            showScriptProgress(5);
+
+            // For very large files (>10MB), warn but still try
+            if (f.size > 10 * 1024 * 1024) {
+                console.warn('Large script file: ' + sizeMB + 'MB — may take a moment');
+            }
+
+            var reader = new FileReader();
+
+            reader.onprogress = function (ev) {
+                if (ev.lengthComputable) {
+                    var pct = Math.round((ev.loaded / ev.total) * 90);
+                    showScriptProgress(pct);
+                    updateLockCount(Math.round(ev.loaded / 1024) + 'KB / ' + Math.round(ev.total / 1024) + 'KB');
+                }
+            };
+
+            reader.onload = function (ev) {
+                showScriptProgress(95);
+                var text = ev.target.result;
+
+                // Defer DOM update to next frame to avoid freeze
+                setTimeout(function () {
+                    setScriptText(text);
+                    showScriptProgress(100);
+
+                    setTimeout(function () {
+                        showScriptProgress(-1);
+                        releaseSystem();
+                        execNav('B');
+                        var lineCount = text.split('\n').length;
+                        fireToast(lineCount.toLocaleString() + ' LINES LOADED · ' + sizeMB + 'MB');
+                    }, 150);
+                }, 50);
+            };
+
+            reader.onerror = function () {
+                showScriptProgress(-1);
+                releaseSystem();
+                fireToast('FILE READ FAILED');
+            };
+
+            reader.readAsText(f);
+        }
+    </script>
+</body>
+
+</html>
