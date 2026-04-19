@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PUTT-OP // Epistemic Physics</title>
+    <style>
+        :root {
+            --bg-color: #050507;
+            --grid-color: #121218;
+            --accent-primary: #00ffcc;
+            --accent-secondary: #0088ff;
+            --accent-warn: #ff2a5f;
+            --text-main: #e0e0e5;
+            --font-mono: 'SF Mono', 'Roboto Mono', Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            background-image:
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            overflow: hidden;
+            overscroll-behavior: none;
+            user-select: none;
+            touch-action: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+
+<body>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        // --- Core Setup ---
+        const Engine = Matter.Engine, Bodies = Matter.Bodies, Body = Matter.Body, Composite = Matter.Composite, Vector = Matter.Vector, Events = Matter.Events;
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        canvas.width = width; canvas.height = height;
+
+        // Prevent all touch browser behaviors on canvas (critical for iOS)
+        canvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+        canvas.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+        canvas.addEventListener('touchend', e => e.preventDefault(), { passive: false });
+
+        const engine = Engine.create({ gravity: { x: 0, y: 0 } });
+
+        // --- Physics & Rules ---
+        const GRAVITY_RADIUS = 130;
+        const GRAVITY_STRENGTH = 0.055;
+        const SWING_POWER = 0.12;
+        const TIMELINE_BOTTOM_BOUND = 120;
+
+        // --- App State ---
+        let state = 'TITLE_SCREEN'; // TITLE_SCREEN, TUTORIAL, PAUSED, IDLE, AIMING, ANALYZING, AIMING_BURN, SCRUBBING_PAST, ROLLING, LEVEL_COMPLETE
+        let ball, hole, walls = [], wallSegments = [];
+        let preMenuState = 'IDLE'; // state to return to when unpausing
+        let fields = [];
+        let blastWaves = [];
+        let currentLevel = 0;
+
+        // --- SCORING ECONOMY ---
+        let bankedScore = 0;
+
+        // --- PERSISTENCE ---
+        let highestUnlocked = 0;
+        let levelRanks = {}; // { levelIndex: { rank, score } }
+        try {
+            let saved = JSON.parse(localStorage.getItem('puttop_save') || '{}');
+            highestUnlocked = saved.highestUnlocked || 0;
+            levelRanks = saved.levelRanks || {};
+            bankedScore = saved.bankedScore || 0;
+        } catch (e) { }
+        function saveProgress() {
+            try { localStorage.setItem('puttop_save', JSON.stringify({ highestUnlocked, levelRanks, bankedScore })); } catch (e) { }
+        }
+
+        // --- TITLE SCREEN ---
+        let titleHoverLevel = -1;
+        let titleScrollY = 0;
+
+        // --- TUTORIAL ---
+        let tutorialStep = 0;
+        const TUTORIAL_CARDS = [
+            { title: 'AIM', body: 'Drag FROM the ball to set your shot direction and power. Release to enter analysis mode.', icon: 'aim' },
+            { title: 'ANALYZE', body: 'After aiming, you see probability paths. The cone narrows as you hold — timing matters. Tap the ball to FIRE.', icon: 'analyze' },
+            { title: 'TIME SCRUB', body: 'After a shot, drag the timeline at the bottom to rewind. You can re-shoot from any past position.', icon: 'scrub' },
+            { title: 'COMPOUND SHOT', body: 'While the ball is rolling, tap it again to add a mid-flight correction. Compounds give a 2x score multiplier.', icon: 'compound' },
+            { title: 'FIELDS', body: 'Blue rings ATTRACT. Red rings REPEL. Use them — or fight them. The hole has its own gravity well.', icon: 'fields' },
+        ];
+        let hasSeenTutorial = false;
+        try { hasSeenTutorial = localStorage.getItem('puttop_tutorial') === '1'; } catch (e) { }
+
+        let epistemicBonus = 0;
+        let shotsThisLevel = 0;
+        let usedCompound = false;
+
+        // Level Complete Tally Data
+        let levelCompleteTimer = 0;
+        let tallyDistance = 0, tallyPrecision = 0, tallyEpistemic = 0, tallyPenalty = 0, tallyMult = 1, tallyFinal = 0;
+        let tallyRank = 'C';
+        let tallyRankColor = '#fff';
+        let divergenceLines = []; // Visual tethers between prediction and reality
+
+        // Vectors & Prediction
+        let aimStart = { x: 0, y: 0 };
+        let aimVector = { x: 0, y: 0 };
+        let analysisPaths = [];
+        let maxScrubSteps = 0;
+        let futureTimeIndex = 0;
+        let analysisStartTime = 0;
+        let currentVariance = 0.15;
+        let focusLevel = 0;
+
+        // Scheduled Burn
+        let scheduledBurn = null;
+        let burnStart = { x: 0, y: 0 };
+        let framesSinceLaunch = 0;
+
+        // Mid-air Compound Shot
+        let isCompoundShot = false;
+        let baseVelocity = { x: 0, y: 0 };
+
+        // --- PREVISIONS & GHOST TRACES ---
+        let lockedPrevision = null;
+        let executedBurns = [];
+
+        // History Data
+        let temporalHistory = [];
+        let pastTimeIndex = 0;
+        let lastScrubIndex = -1;
+
+        // Input Tracking
+        let pointerDownPos = { x: 0, y: 0 };
+        let pointerCurrentPos = { x: 0, y: 0 };
+        let pointerDownTime = 0;
+        let isScrubbingFuture = false;
+
+        // --- Audio & Haptics Engine ---
+        let audioCtx = null;
+        let masterGain, bounceDelay, bounceFeedback;
+        let rollNode, rollFilter, rollGain;
+
+        function initAudio() {
+            if (audioCtx) {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                return;
+            }
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.8;
+            masterGain.connect(audioCtx.destination);
+
+            bounceDelay = audioCtx.createDelay();
+            bounceDelay.delayTime.value = 0.14;
+
+            bounceFeedback = audioCtx.createGain();
+            bounceFeedback.gain.value = 0.35;
+
+            bounceDelay.connect(bounceFeedback);
+            bounceFeedback.connect(bounceDelay);
+            bounceDelay.connect(masterGain);
+
+            let bufferSize = audioCtx.sampleRate * 2;
+            let buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            let output = buffer.getChannelData(0);
+            let lastOut = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                let white = Math.random() * 2 - 1;
+                output[i] = (lastOut + (0.02 * white)) / 1.02;
+                lastOut = output[i];
+                output[i] *= 3.5;
+            }
+
+            rollNode = audioCtx.createBufferSource();
+            rollNode.buffer = buffer;
+            rollNode.loop = true;
+
+            rollFilter = audioCtx.createBiquadFilter();
+            rollFilter.type = 'lowpass';
+            rollFilter.frequency.value = 100;
+
+            rollGain = audioCtx.createGain();
+            rollGain.gain.value = 0;
+
+            rollNode.connect(rollFilter);
+            rollFilter.connect(rollGain);
+            rollGain.connect(masterGain);
+            rollNode.start();
+        }
+
+        function playBounce(speed) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = speed > 3 ? 'square' : 'triangle';
+            osc.frequency.setValueAtTime(200 + speed * 12, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(Math.min(speed * 0.04, 0.2), audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            osc.connect(gain); gain.connect(masterGain); gain.connect(bounceDelay);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function playCapture() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.6);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+            osc.connect(gain); gain.connect(masterGain);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+            if (navigator.vibrate) navigator.vibrate([40, 40, 100]);
+        }
+
+        function playLaunch(isCompound) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = isCompound ? 'square' : 'sawtooth';
+            osc.frequency.setValueAtTime(isCompound ? 600 : 400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+            osc.connect(gain); gain.connect(masterGain);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            if (navigator.vibrate) navigator.vibrate([isCompound ? 100 : 60]);
+        }
+
+        function playTick() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.05);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+            osc.connect(gain); gain.connect(masterGain);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function updateRollingAudio() {
+            if (!audioCtx || !rollGain) return;
+            if (state === 'ROLLING' && ball.speed > 0.2) {
+                rollGain.gain.setTargetAtTime(Math.min(ball.speed * 0.03, 0.15), audioCtx.currentTime, 0.05);
+                rollFilter.frequency.setTargetAtTime(100 + (ball.speed * 80), audioCtx.currentTime, 0.05);
+            } else {
+                rollGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+            }
+        }
+
+        Events.on(engine, 'collisionStart', (event) => {
+            if (state !== 'ROLLING') return;
+            event.pairs.forEach((pair) => {
+                if (pair.bodyA === ball || pair.bodyB === ball) {
+                    if (pair.bodyA.isSensor || pair.bodyB.isSensor) return;
+                    if (ball.speed > 0.8) {
+                        playBounce(ball.speed);
+                        if (navigator.vibrate) navigator.vibrate(Math.min(ball.speed * 3, 20));
+                    }
+                }
+            });
+        });
+
+        // --- LEVEL DESIGN ---
+        // Paradigms 1-10: Original Foundation
+        // Paradigms 11-24: SANKOFA-CLAW Operations — increasingly organic, tricky, hard
+        const levels = [
+            // P1: First Contact
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                walls.push(Bodies.rectangle(w / 2, h / 2, isPort ? w * 0.8 : w * 0.5, 20, { isStatic: true }));
+                fields.push({ x: w / 2, y: h / 2, type: 'repulsor', radius: 150, strength: 0.1 });
+                return { ballPos: { x: w / 2, y: h * 0.85 }, holePos: { x: w / 2, y: h * 0.15 }, walls, fields };
+            },
+            // P2: The Cradle
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                let bx = w / 2, by = h * 0.25;
+                walls.push(Bodies.rectangle(bx, by, w * 0.4, 20, { isStatic: true }));
+                walls.push(Bodies.rectangle(bx - w * 0.2, by - h * 0.1, 20, h * 0.2, { isStatic: true }));
+                walls.push(Bodies.rectangle(bx + w * 0.2, by - h * 0.1, 20, h * 0.2, { isStatic: true }));
+                fields.push({ x: bx, y: by - h * 0.15, type: 'repulsor', radius: 120, strength: 0.1 });
+                return { ballPos: { x: w / 2, y: h * 0.85 }, holePos: { x: w / 2, y: h * 0.15 }, walls, fields };
+            },
+            // P3: Gravity Well
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                fields.push({ x: w / 2, y: h / 2, type: 'attractor', radius: isPort ? w * 0.9 : h * 0.9, strength: 0.15 });
+                walls.push(Bodies.rectangle(w * 0.85, h * 0.25, w * 0.3, 20, { isStatic: true, angle: Math.PI / 4 }));
+                return { ballPos: { x: w * 0.15, y: h * 0.85 }, holePos: { x: w * 0.85, y: h * 0.15 }, walls, fields };
+            },
+            // P4: Four Corners
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                fields.push({ x: w * 0.3, y: h * 0.3, type: 'repulsor', radius: 150, strength: 0.12 });
+                fields.push({ x: w * 0.7, y: h * 0.7, type: 'repulsor', radius: 150, strength: 0.12 });
+                fields.push({ x: w * 0.7, y: h * 0.3, type: 'repulsor', radius: 150, strength: 0.12 });
+                fields.push({ x: w * 0.3, y: h * 0.7, type: 'repulsor', radius: 150, strength: 0.12 });
+                walls.push(Bodies.rectangle(w / 2, h / 2, 160, 20, { isStatic: true, angle: -Math.PI / 4 }));
+                return { ballPos: { x: w / 2, y: h * 0.9 }, holePos: { x: w / 2, y: h * 0.1 }, walls, fields };
+            },
+            // P5: The Switchback
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                walls.push(Bodies.rectangle(w * 0.4, h * 0.75, w * 0.8, 20, { isStatic: true }));
+                walls.push(Bodies.rectangle(w * 0.6, h * 0.5, w * 0.8, 20, { isStatic: true }));
+                walls.push(Bodies.rectangle(w * 0.4, h * 0.25, w * 0.8, 20, { isStatic: true }));
+                fields.push({ x: w * 0.1, y: h * 0.62, type: 'attractor', radius: 120, strength: 0.1 });
+                fields.push({ x: w * 0.9, y: h * 0.37, type: 'attractor', radius: 120, strength: 0.1 });
+                return { ballPos: { x: w * 0.1, y: h * 0.9 }, holePos: { x: w * 0.1, y: h * 0.1 }, walls, fields };
+            },
+            // P6: The Gravity Corridor
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                walls.push(Bodies.rectangle(w * 0.3, h / 2, 20, h * 0.8, { isStatic: true }));
+                walls.push(Bodies.rectangle(w * 0.7, h / 2, 20, h * 0.8, { isStatic: true }));
+                fields.push({ x: w * 0.5, y: h * 0.7, type: 'repulsor', radius: 120, strength: 0.12 });
+                fields.push({ x: w * 0.5, y: h * 0.3, type: 'attractor', radius: 120, strength: 0.12 });
+                return { ballPos: { x: w * 0.5, y: h * 0.9 }, holePos: { x: w * 0.5, y: h * 0.1 }, walls, fields };
+            },
+            // P7: Twin Orbits
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                fields.push({ x: w * 0.3, y: h * 0.4, type: 'attractor', radius: isPort ? 160 : 220, strength: 0.15 });
+                fields.push({ x: w * 0.7, y: h * 0.6, type: 'attractor', radius: isPort ? 160 : 220, strength: 0.15 });
+                return { ballPos: { x: w * 0.1, y: h * 0.9 }, holePos: { x: w * 0.9, y: h * 0.1 }, walls, fields };
+            },
+            // P8: The Sniper Shield
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                walls.push(Bodies.rectangle(w / 2, h / 2, w * 0.8, 20, { isStatic: true }));
+                fields.push({ x: w * 0.15, y: h / 2, type: 'repulsor', radius: 110, strength: 0.18 });
+                fields.push({ x: w * 0.85, y: h / 2, type: 'repulsor', radius: 110, strength: 0.18 });
+                return { ballPos: { x: w / 2, y: h * 0.9 }, holePos: { x: w / 2, y: h * 0.1 }, walls, fields };
+            },
+            // P9: The Funnel
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                walls.push(Bodies.rectangle(w * 0.2, h * 0.3, w * 0.4, 20, { isStatic: true, angle: Math.PI / 6 }));
+                walls.push(Bodies.rectangle(w * 0.8, h * 0.3, w * 0.4, 20, { isStatic: true, angle: -Math.PI / 6 }));
+                fields.push({ x: w / 2, y: h * 0.55, type: 'repulsor', radius: 180, strength: 0.14 });
+                return { ballPos: { x: w / 2, y: h * 0.9 }, holePos: { x: w / 2, y: h * 0.1 }, walls, fields };
+            },
+            // P10: Event Horizon
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                walls.push(Bodies.rectangle(w / 2, h * 0.2, w * 0.5, 20, { isStatic: true }));
+                fields.push({ x: w / 2 - 100, y: h * 0.25, type: 'repulsor', radius: 110, strength: 0.16 });
+                fields.push({ x: w / 2 + 100, y: h * 0.25, type: 'repulsor', radius: 110, strength: 0.16 });
+                fields.push({ x: w / 2, y: h * 0.6, type: 'attractor', radius: 160, strength: 0.12 });
+                return { ballPos: { x: w / 2, y: h * 0.9 }, holePos: { x: w / 2, y: h * 0.08 }, walls, fields };
+            },
+
+            // ═══════════════════════════════════════════════════
+            // SANKOFA-CLAW OPERATIONS — Paradigms 11-24
+            // "Go back and fetch it" — each level is an egg
+            // ═══════════════════════════════════════════════════
+
+            // P11: GRIP — The Claw Closes
+            // A narrow chute guarded by opposing fields. Must thread the needle.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                // Two curved walls forming a narrow throat
+                for (let i = 0; i < 4; i++) {
+                    let angle = (i / 4) * Math.PI * 0.3 - Math.PI * 0.15;
+                    walls.push(Bodies.rectangle(
+                        w * 0.32 + Math.cos(angle) * 50,
+                        h * 0.35 + i * h * 0.1,
+                        70, 14, { isStatic: true, angle: angle * 0.4 }
+                    ));
+                    walls.push(Bodies.rectangle(
+                        w * 0.68 - Math.cos(angle) * 50,
+                        h * 0.35 + i * h * 0.1,
+                        70, 14, { isStatic: true, angle: -angle * 0.4 }
+                    ));
+                }
+                // Attractors pulling you off-course at the throat
+                fields.push({ x: w * 0.12, y: h * 0.5, type: 'attractor', radius: 140, strength: 0.1 });
+                fields.push({ x: w * 0.88, y: h * 0.5, type: 'attractor', radius: 140, strength: 0.1 });
+                return { ballPos: { x: w * 0.5, y: h * 0.92 }, holePos: { x: w * 0.5, y: h * 0.08 }, walls, fields };
+            },
+
+            // P12: TEST — The Weighing
+            // Asymmetric: attractor on one side, repulsor on the other. Must balance forces.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                // Diagonal barrier with a gap
+                walls.push(Bodies.rectangle(w * 0.3, h * 0.5, w * 0.35, 16, { isStatic: true, angle: Math.PI / 6 }));
+                walls.push(Bodies.rectangle(w * 0.7, h * 0.45, w * 0.25, 16, { isStatic: true, angle: -Math.PI / 7 }));
+                // The test: one side pulls, the other pushes
+                fields.push({ x: w * 0.2, y: h * 0.7, type: 'attractor', radius: 160, strength: 0.12 });
+                fields.push({ x: w * 0.75, y: h * 0.35, type: 'repulsor', radius: 140, strength: 0.1 });
+                return { ballPos: { x: w * 0.12, y: h * 0.88 }, holePos: { x: w * 0.85, y: h * 0.1 }, walls, fields };
+            },
+
+            // P13: CRACK — The Shell Breaks
+            // Hole is inside a "shell" of walls with a single crack opening.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                let cx = w * 0.5, cy = h * 0.35, r = Math.min(w, h) * 0.16;
+                // Build a ring of walls around the hole with TWO gaps
+                for (let i = 0; i < 8; i++) {
+                    if (i === 4 || i === 5) continue; // wider crack facing downward
+                    let a = (i / 8) * Math.PI * 2;
+                    let a2 = ((i + 1) / 8) * Math.PI * 2;
+                    let mx = cx + Math.cos((a + a2) / 2) * r;
+                    let my = cy + Math.sin((a + a2) / 2) * r;
+                    walls.push(Bodies.rectangle(mx, my, r * 0.7, 12, { isStatic: true, angle: a + Math.PI / 2 }));
+                }
+                // Gentle repulsor below to make approach harder but not impossible
+                fields.push({ x: w * 0.5, y: h * 0.6, type: 'repulsor', radius: 120, strength: 0.08 });
+                return { ballPos: { x: w * 0.5, y: h * 0.88 }, holePos: { x: cx, y: cy }, walls, fields };
+            },
+
+            // P14: CARRY — The Long Road
+            // Ball must navigate an S-curve corridor. No shortcuts.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                // S-curve walls with clear gaps at alternating sides
+                walls.push(Bodies.rectangle(w * 0.35, h * 0.75, w * 0.5, 14, { isStatic: true }));
+                walls.push(Bodies.rectangle(w * 0.65, h * 0.5, w * 0.5, 14, { isStatic: true }));
+                walls.push(Bodies.rectangle(w * 0.35, h * 0.25, w * 0.5, 14, { isStatic: true }));
+                // Gentle repulsor in the middle to add challenge
+                fields.push({ x: w * 0.5, y: h * 0.5, type: 'repulsor', radius: 100, strength: 0.08 });
+                return { ballPos: { x: w * 0.85, y: h * 0.92 }, holePos: { x: w * 0.15, y: h * 0.08 }, walls, fields };
+            },
+
+            // P15: HATCH — Birth Canal
+            // Strong central attractor tries to trap you. Must slingshot around it.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                // Central attractor — moderate strength
+                fields.push({ x: w * 0.5, y: h * 0.5, type: 'attractor', radius: 200, strength: 0.14 });
+                // Partial ring of walls
+                for (let i = 0; i < 6; i++) {
+                    if (i === 0 || i === 3) continue; // two gaps
+                    let a = (i / 6) * Math.PI * 2;
+                    let px = w * 0.5 + Math.cos(a) * 120;
+                    let py = h * 0.5 + Math.sin(a) * 120;
+                    walls.push(Bodies.rectangle(px, py, 70, 12, { isStatic: true, angle: a + Math.PI / 2 }));
+                }
+                // Repulsor to create escape corridor
+                fields.push({ x: w * 0.8, y: h * 0.15, type: 'repulsor', radius: 80, strength: 0.08 });
+                return { ballPos: { x: w * 0.1, y: h * 0.9 }, holePos: { x: w * 0.88, y: h * 0.12 }, walls, fields };
+            },
+
+            // P16: EAT — Consumption
+            // The hole is guarded by repulsors. Must approach with enough momentum.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                let hx = w * 0.5, hy = h * 0.2;
+                // Two repulsors flanking the hole (not surrounding it)
+                fields.push({ x: hx - 90, y: hy, type: 'repulsor', radius: 100, strength: 0.1 });
+                fields.push({ x: hx + 90, y: hy, type: 'repulsor', radius: 100, strength: 0.1 });
+                // Walls forming a channel approach
+                walls.push(Bodies.rectangle(w * 0.3, h * 0.5, 14, h * 0.3, { isStatic: true }));
+                walls.push(Bodies.rectangle(w * 0.7, h * 0.5, 14, h * 0.3, { isStatic: true }));
+                // Attractor at bottom to pull you away from the goal
+                fields.push({ x: w * 0.5, y: h * 0.8, type: 'attractor', radius: 150, strength: 0.08 });
+                return { ballPos: { x: w * 0.5, y: h * 0.92 }, holePos: { x: hx, y: hy }, walls, fields };
+            },
+
+            // P17: BURY — The Tomb
+            // Hole is deep in a pit. Ball must descend through gate layers.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                // Top gate — gap on right side
+                walls.push(Bodies.rectangle(w * 0.25, h * 0.35, w * 0.4, 14, { isStatic: true }));
+                // Bottom gate — gap on left side
+                walls.push(Bodies.rectangle(w * 0.75, h * 0.6, w * 0.4, 14, { isStatic: true }));
+                // Gentle attractor pulling toward the tomb
+                fields.push({ x: w * 0.5, y: h * 0.82, type: 'attractor', radius: 180, strength: 0.08 });
+                return { ballPos: { x: w * 0.5, y: h * 0.08 }, holePos: { x: w * 0.5, y: h * 0.82 }, walls, fields };
+            },
+
+            // P18: SANKOFA — Return Path
+            // Must go UP past a wall, then come back DOWN to the hole.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                // Horizontal wall with gap on the right
+                walls.push(Bodies.rectangle(w * 0.3, h * 0.45, w * 0.5, 14, { isStatic: true }));
+                // Angled deflectors above
+                walls.push(Bodies.rectangle(w * 0.25, h * 0.25, 80, 12, { isStatic: true, angle: Math.PI / 4 }));
+                walls.push(Bodies.rectangle(w * 0.75, h * 0.25, 80, 12, { isStatic: true, angle: -Math.PI / 4 }));
+                // Attractor above the barrier to pull you up through the gap
+                fields.push({ x: w * 0.7, y: h * 0.3, type: 'attractor', radius: 120, strength: 0.08 });
+                // Hole is BELOW the barrier — must go up and come back down
+                return { ballPos: { x: w * 0.5, y: h * 0.92 }, holePos: { x: w * 0.35, y: h * 0.55 }, walls, fields };
+            },
+
+            // P19: THE SPIRAL — Orbital Decay
+            // Three attractors in a triangle create a spiral path.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                // Triangle of attractors creating a gentle vortex
+                fields.push({ x: w * 0.5, y: h * 0.25, type: 'attractor', radius: 150, strength: 0.09 });
+                fields.push({ x: w * 0.25, y: h * 0.65, type: 'attractor', radius: 150, strength: 0.09 });
+                fields.push({ x: w * 0.75, y: h * 0.65, type: 'attractor', radius: 150, strength: 0.09 });
+                // Short barrier walls
+                walls.push(Bodies.rectangle(w * 0.37, h * 0.42, 80, 12, { isStatic: true, angle: Math.PI / 3 }));
+                walls.push(Bodies.rectangle(w * 0.63, h * 0.42, 80, 12, { isStatic: true, angle: -Math.PI / 3 }));
+                return { ballPos: { x: w * 0.08, y: h * 0.92 }, holePos: { x: w * 0.92, y: h * 0.08 }, walls, fields };
+            },
+
+            // P20: THE GAUNTLET — Alternating Force Corridor
+            // Corridor with alternating push/pull fields. Requires precision aim.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                let laneW = w * 0.32;
+                // Corridor walls
+                walls.push(Bodies.rectangle(w * 0.5 - laneW / 2, h * 0.5, 14, h * 0.75, { isStatic: true }));
+                walls.push(Bodies.rectangle(w * 0.5 + laneW / 2, h * 0.5, 14, h * 0.75, { isStatic: true }));
+                // Alternating fields inside the corridor (fewer and weaker)
+                for (let i = 0; i < 4; i++) {
+                    let fy = h * 0.2 + i * (h * 0.16);
+                    let side = i % 2 === 0 ? -1 : 1;
+                    fields.push({
+                        x: w * 0.5 + side * laneW * 0.2,
+                        y: fy,
+                        type: i % 2 === 0 ? 'repulsor' : 'attractor',
+                        radius: 70, strength: 0.08
+                    });
+                }
+                return { ballPos: { x: w * 0.5, y: h * 0.93 }, holePos: { x: w * 0.5, y: h * 0.07 }, walls, fields };
+            },
+
+            // P21: THE NEST — Gravitational Cage
+            // Ring of attractors around hole. Must shoot through a gap.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                let cx = w * 0.5, cy = h * 0.45, pr = Math.min(w, h) * 0.2;
+                // Ring of attractors with one clear gap
+                for (let i = 0; i < 5; i++) {
+                    if (i === 4) continue; // entry gap at bottom
+                    let a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+                    fields.push({
+                        x: cx + Math.cos(a) * pr,
+                        y: cy + Math.sin(a) * pr,
+                        type: 'attractor', radius: 110, strength: 0.08
+                    });
+                }
+                // Wall spokes between some attractors
+                for (let i = 0; i < 3; i++) {
+                    let a = (i / 5) * Math.PI * 2 - Math.PI / 2 + Math.PI / 5;
+                    walls.push(Bodies.rectangle(
+                        cx + Math.cos(a) * pr * 0.6,
+                        cy + Math.sin(a) * pr * 0.6,
+                        55, 10, { isStatic: true, angle: a }
+                    ));
+                }
+                return { ballPos: { x: w * 0.5, y: h * 0.92 }, holePos: { x: cx, y: cy }, walls, fields };
+            },
+
+            // P22: THE MIRROR — Symmetric Trap
+            // Symmetric layout but hole is on the harder side.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                // Center divider with gap top and bottom
+                walls.push(Bodies.rectangle(w * 0.5, h * 0.5, 14, h * 0.4, { isStatic: true }));
+                // Angled deflectors
+                walls.push(Bodies.rectangle(w * 0.25, h * 0.4, 90, 12, { isStatic: true, angle: Math.PI / 5 }));
+                walls.push(Bodies.rectangle(w * 0.75, h * 0.4, 90, 12, { isStatic: true, angle: -Math.PI / 5 }));
+                // Repulsor defending the hole side
+                fields.push({ x: w * 0.2, y: h * 0.2, type: 'repulsor', radius: 110, strength: 0.1 });
+                // Attractor on the easy side (decoy)
+                fields.push({ x: w * 0.8, y: h * 0.2, type: 'attractor', radius: 80, strength: 0.06 });
+                return { ballPos: { x: w * 0.5, y: h * 0.92 }, holePos: { x: w * 0.2, y: h * 0.1 }, walls, fields };
+            },
+
+            // P23: THE ANCESTORS — Ring of Memory
+            // Repulsor ring with a path between them. Must find the gap.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                let cx = w * 0.5, cy = h * 0.42;
+                let ringR = Math.min(w, h) * 0.22;
+                // Ring of 6 repulsors with clear gaps between
+                for (let i = 0; i < 6; i++) {
+                    let a = (i / 6) * Math.PI * 2;
+                    fields.push({
+                        x: cx + Math.cos(a) * ringR,
+                        y: cy + Math.sin(a) * ringR,
+                        type: 'repulsor', radius: 70, strength: 0.09
+                    });
+                }
+                // Helper attractor at the center
+                fields.push({ x: cx, y: cy, type: 'attractor', radius: 60, strength: 0.12 });
+                // Guide walls
+                walls.push(Bodies.rectangle(w * 0.3, h * 0.75, 100, 12, { isStatic: true, angle: Math.PI / 6 }));
+                walls.push(Bodies.rectangle(w * 0.7, h * 0.75, 100, 12, { isStatic: true, angle: -Math.PI / 6 }));
+                return { ballPos: { x: w * 0.5, y: h * 0.93 }, holePos: { x: cx, y: cy }, walls, fields };
+            },
+
+            // P24: THE EGG — Final Paradigm
+            // Egg-shaped obstacle course. The ultimate challenge.
+            (w, h, isPort) => {
+                let walls = []; let fields = [];
+                let cx = w * 0.5, cy = h * 0.42;
+                // Egg shell — elliptical wall arrangement with TWO gaps
+                for (let i = 0; i < 10; i++) {
+                    if (i === 0 || i === 5) continue; // gaps top and bottom
+                    let a = (i / 10) * Math.PI * 2;
+                    let rx = Math.min(w, h) * 0.24;
+                    let ry = Math.min(w, h) * 0.3;
+                    let px = cx + Math.cos(a) * rx;
+                    let py = cy + Math.sin(a) * ry;
+                    walls.push(Bodies.rectangle(px, py, 55, 12, { isStatic: true, angle: a + Math.PI / 2 }));
+                }
+                // Moderate attractor inside the egg
+                fields.push({ x: cx, y: cy, type: 'attractor', radius: 150, strength: 0.1 });
+                // Two repulsors creating a path challenge
+                fields.push({ x: cx - 60, y: cy - 40, type: 'repulsor', radius: 70, strength: 0.08 });
+                fields.push({ x: cx + 60, y: cy + 40, type: 'repulsor', radius: 70, strength: 0.08 });
+                // Hole is inside the egg, offset from center
+                return { ballPos: { x: w * 0.5, y: h * 0.93 }, holePos: { x: cx + 20, y: cy - 25 }, walls, fields };
+            }
+        ];
+
+        function loadLevel() {
+            Composite.clear(engine.world); Engine.clear(engine);
+            walls = []; temporalHistory = []; analysisPaths = []; fields = [];
+            state = 'IDLE'; isCompoundShot = false; scheduledBurn = null;
+
+            // Reset Level Economy
+            epistemicBonus = 0;
+            shotsThisLevel = 0;
+            usedCompound = false;
+            lockedPrevision = null;
+            executedBurns = [];
+            divergenceLines = [];
+            framesSinceLaunch = 0;
+
+            const t = 100;
+            let bounds = [
+                Bodies.rectangle(width / 2, -t / 2, width * 2, t, { isStatic: true }),
+                Bodies.rectangle(width / 2, height + t / 2, width * 2, t, { isStatic: true }),
+                Bodies.rectangle(-t / 2, height / 2, t, height * 2, { isStatic: true }),
+                Bodies.rectangle(width + t / 2, height / 2, t, height * 2, { isStatic: true })
+            ];
+
+            let isPortrait = height > width;
+            let levelConfig = levels[currentLevel % levels.length](width, height, isPortrait);
+
+            walls = levelConfig.walls;
+            fields = levelConfig.fields;
+
+            ball = Bodies.circle(levelConfig.ballPos.x, levelConfig.ballPos.y, 12, { restitution: 0.85, friction: 0.002, frictionAir: 0.012 });
+            hole = Bodies.circle(levelConfig.holePos.x, levelConfig.holePos.y, 18, { isSensor: true, isStatic: true });
+
+            Composite.add(engine.world, [ball, hole, ...bounds, ...walls]);
+
+            wallSegments = [];
+            [...bounds, ...walls].forEach(w => {
+                for (let i = 0; i < w.vertices.length; i++) {
+                    let p1 = w.vertices[i], p2 = w.vertices[(i + 1) % w.vertices.length];
+                    let dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.hypot(dx, dy);
+                    wallSegments.push({ p1: { x: p1.x, y: p1.y }, p2: { x: p2.x, y: p2.y }, normal: { x: dy / len, y: -dx / len } });
+                }
+            });
+        }
+
+        function applyFieldForces(px, py, vx, vy) {
+            let nx = vx, ny = vy;
+            let distToHole = Math.hypot(px - hole.position.x, py - hole.position.y);
+            if (distToHole < GRAVITY_RADIUS && distToHole > 5) {
+                let normalizedDist = distToHole / GRAVITY_RADIUS;
+                let gForce = GRAVITY_STRENGTH * (1 - (normalizedDist * normalizedDist));
+                nx += ((hole.position.x - px) / distToHole) * gForce;
+                ny += ((hole.position.y - py) / distToHole) * gForce;
+            }
+
+            fields.forEach(f => {
+                let dist = Math.hypot(px - f.x, py - f.y);
+                if (dist < f.radius && dist > 5) {
+                    let normDist = dist / f.radius;
+                    let force = f.strength * (1 - (normDist * normDist));
+                    let dir = f.type === 'attractor' ? 1 : -1;
+                    nx += ((f.x - px) / dist) * force * dir;
+                    ny += ((f.y - py) / dist) * force * dir;
+                }
+            });
+            return { x: nx, y: ny };
+        }
+
+        // Prevent native swipe navigation
+        document.addEventListener('touchmove', function (e) {
+            e.preventDefault();
+        }, { passive: false });
+
+        // --- Interaction Logic ---
+        function getPos(e) {
+            if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            if (e.changedTouches && e.changedTouches.length > 0) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+            return { x: e.clientX, y: e.clientY };
+        }
+
+        window.addEventListener('pointerdown', e => {
+            e.preventDefault();
+            initAudio();
+
+            const pos = getPos(e);
+
+            // --- PAUSE MENU ---
+            if (state === 'PAUSED') {
+                let btnW = 240, btnH = 50, bx = width / 2 - btnW / 2;
+                let by0 = height / 2 - 60;
+                // RESUME
+                if (pos.x > bx && pos.x < bx + btnW && pos.y > by0 && pos.y < by0 + btnH) {
+                    state = preMenuState; return;
+                }
+                // HELP
+                if (pos.x > bx && pos.x < bx + btnW && pos.y > by0 + 60 && pos.y < by0 + 60 + btnH) {
+                    state = 'TUTORIAL'; tutorialStep = 0; return;
+                }
+                // QUIT
+                if (pos.x > bx && pos.x < bx + btnW && pos.y > by0 + 120 && pos.y < by0 + 120 + btnH) {
+                    state = 'TITLE_SCREEN'; return;
+                }
+                return;
+            }
+
+            // --- MENU BUTTON (top-right, 50x50 hit area) ---
+            if (state !== 'TITLE_SCREEN' && state !== 'TUTORIAL' && state !== 'LEVEL_COMPLETE') {
+                if (pos.x > width - 60 && pos.y < 60) {
+                    preMenuState = state;
+                    if (state === 'ROLLING') Body.setVelocity(ball, { x: 0, y: 0 });
+                    state = 'PAUSED'; return;
+                }
+            }
+
+            // --- TITLE SCREEN ---
+            if (state === 'TITLE_SCREEN') {
+                // Check if clicking a level cell
+                let cols = Math.min(6, Math.max(3, Math.floor(width / 130)));
+                let cellW = Math.min(110, (width - 80) / cols);
+                let cellH = cellW * 0.85;
+                let gridW = cols * cellW;
+                let startX = (width - gridW) / 2;
+                let startY = height * 0.40;
+                for (let i = 0; i < levels.length; i++) {
+                    let col = i % cols, row = Math.floor(i / cols);
+                    let cx = startX + col * cellW + cellW / 2;
+                    let cy = startY + row * (cellH + 10) + cellH / 2;
+                    if (Math.abs(pos.x - cx) < cellW / 2 && Math.abs(pos.y - cy) < cellH / 2) {
+                        if (i <= highestUnlocked) {
+                            currentLevel = i;
+                            if (!hasSeenTutorial) {
+                                state = 'TUTORIAL'; tutorialStep = 0;
+                            } else {
+                                loadLevel(); state = 'IDLE';
+                            }
+                        }
+                        return;
+                    }
+                }
+                // Check PLAY button
+                let btnY = height * 0.28;
+                if (pos.y > btnY - 28 && pos.y < btnY + 28 && Math.abs(pos.x - width / 2) < 120) {
+                    currentLevel = highestUnlocked;
+                    if (!hasSeenTutorial) {
+                        state = 'TUTORIAL'; tutorialStep = 0;
+                    } else {
+                        loadLevel(); state = 'IDLE';
+                    }
+                    return;
+                }
+                return;
+            }
+
+            // --- TUTORIAL ---
+            if (state === 'TUTORIAL') {
+                tutorialStep++;
+                if (tutorialStep >= TUTORIAL_CARDS.length) {
+                    hasSeenTutorial = true;
+                    try { localStorage.setItem('puttop_tutorial', '1'); } catch (e) { }
+                    loadLevel(); state = 'IDLE';
+                }
+                return;
+            }
+
+            // Skip Tally Screen on touch
+            if (state === 'LEVEL_COMPLETE') {
+                if (levelCompleteTimer < 360) levelCompleteTimer = 0;
+                return;
+            }
+
+            // pos already declared above
+            pointerDownPos = { x: pos.x, y: pos.y };
+            pointerCurrentPos = { x: pos.x, y: pos.y };
+            pointerDownTime = Date.now();
+
+            let distToBall = Math.hypot(pos.x - ball.position.x, pos.y - ball.position.y);
+
+            // 1. ABSOLUTE PRIORITY: Catch Rolling Ball (Compound Shot)
+            if (state === 'ROLLING' && distToBall < 80) {
+                state = 'AIMING';
+                isCompoundShot = true;
+                scheduledBurn = null;
+                baseVelocity = { x: ball.velocity.x, y: ball.velocity.y };
+                aimStart = { x: pos.x, y: pos.y }; aimVector = { x: 0, y: 0 };
+                return;
+            }
+
+            // 2. ABSOLUTE PRIORITY: Detonator / Origin Ball Aiming
+            if (distToBall < 75) {
+                if (state === 'IDLE' || state === 'SCRUBBING_PAST') {
+                    state = 'AIMING';
+                    isCompoundShot = false;
+                    scheduledBurn = null;
+                    lockedPrevision = null;
+                    executedBurns = [];
+                    baseVelocity = { x: 0, y: 0 };
+                    aimStart = { x: pos.x, y: pos.y }; aimVector = { x: 0, y: 0 };
+                }
+                // Return here so touching the detonator doesn't accidentally trigger timeline scrubbing
+                return;
+            }
+
+            // 3. Bottom Timeline (Past) - Only triggers if we did NOT hit the ball
+            if (pos.y > height - TIMELINE_BOTTOM_BOUND && temporalHistory.length > 1) {
+                if (state !== 'ROLLING') {
+                    state = 'SCRUBBING_PAST';
+                    isScrubbingFuture = false;
+                    Body.setVelocity(ball, { x: 0, y: 0 });
+                    scrubPast(pos.x);
+                }
+                return;
+            }
+
+            // 4. Playhead (Schedule Burn) vs Trajectory (Scrub Future)
+            if (state === 'ANALYZING' || state === 'AIMING_BURN') {
+                let distToPlayhead = Infinity;
+                if (analysisPaths[0] && futureTimeIndex < analysisPaths[0].length) {
+                    let pt = analysisPaths[0][futureTimeIndex];
+                    distToPlayhead = Math.hypot(pos.x - pt.x, pos.y - pt.y);
+                }
+
+                if (distToPlayhead < 70) {
+                    state = 'AIMING_BURN';
+                    burnStart = { x: pos.x, y: pos.y };
+                    if (!scheduledBurn) {
+                        scheduledBurn = { timeIndex: futureTimeIndex, vector: { x: 0, y: 0 } };
+                    }
+                    isScrubbingFuture = false;
+                    return;
+                }
+                else {
+                    isScrubbingFuture = true;
+                    return;
+                }
+            }
+        });
+
+        window.addEventListener('pointermove', e => {
+            e.preventDefault();
+            if (state === 'TITLE_SCREEN' || state === 'TUTORIAL' || state === 'PAUSED') return;
+            if (state === 'LEVEL_COMPLETE') return;
+            const pos = getPos(e);
+            pointerCurrentPos = { x: pos.x, y: pos.y };
+
+            if (state === 'AIMING') {
+                aimVector = { x: aimStart.x - pos.x, y: aimStart.y - pos.y };
+                if (Vector.magnitude(aimVector) > 250) aimVector = Vector.mult(Vector.normalise(aimVector), 250);
+            }
+            else if (state === 'AIMING_BURN' && e.buttons > 0) {
+                let vec = { x: burnStart.x - pos.x, y: burnStart.y - pos.y };
+                if (Vector.magnitude(vec) > 250) vec = Vector.mult(Vector.normalise(vec), 250);
+                scheduledBurn.vector = vec;
+                generateProbabilitySpace();
+            }
+            else if ((state === 'ANALYZING' || state === 'AIMING_BURN') && isScrubbingFuture && e.buttons > 0) {
+                if (analysisPaths.length > 0) {
+                    let path = analysisPaths[0];
+                    let minDist = Infinity;
+                    let bestIdx = 0;
+                    for (let i = 0; i < path.length; i++) {
+                        let d = Math.hypot(pos.x - path[i].x, pos.y - path[i].y);
+                        if (d < minDist) { minDist = d; bestIdx = i; }
+                    }
+
+                    bestIdx = Math.max(12, bestIdx);
+
+                    if (bestIdx !== futureTimeIndex) {
+                        futureTimeIndex = bestIdx;
+                        playTick();
+                        if (navigator.vibrate) navigator.vibrate(2);
+
+                        if (epistemicBonus < 2000) epistemicBonus += 2;
+
+                        if (scheduledBurn && state !== 'AIMING_BURN') {
+                            scheduledBurn.timeIndex = futureTimeIndex;
+                            generateProbabilitySpace();
+                        }
+                    }
+                }
+            }
+            else if (state === 'SCRUBBING_PAST' && e.buttons > 0) {
+                scrubPast(pos.x);
+            }
+        });
+
+        window.addEventListener('pointerup', e => {
+            e.preventDefault();
+            if (state === 'TITLE_SCREEN' || state === 'TUTORIAL' || state === 'PAUSED') return;
+            if (state === 'LEVEL_COMPLETE') return;
+            const pos = getPos(e);
+            let dragDist = Math.hypot(pos.x - pointerDownPos.x, pos.y - pointerDownPos.y);
+            let distToBall = Math.hypot(pos.x - ball.position.x, pos.y - ball.position.y);
+            let timeHeld = Date.now() - pointerDownTime;
+
+            if (isScrubbingFuture) {
+                isScrubbingFuture = false;
+                return;
+            }
+
+            if (state === 'AIMING') {
+                if (Vector.magnitude(aimVector) < 10) {
+                    if (isCompoundShot) { Body.setVelocity(ball, baseVelocity); state = 'ROLLING'; }
+                    else { state = 'IDLE'; scheduledBurn = null; }
+                    return;
+                }
+                state = 'ANALYZING';
+                analysisStartTime = Date.now();
+                generateProbabilitySpace();
+                if (!scheduledBurn) futureTimeIndex = Math.max(12, Math.floor(maxScrubSteps * 0.5));
+            }
+            else if (state === 'AIMING_BURN') {
+                if (Vector.magnitude(scheduledBurn.vector) < 10) {
+                    scheduledBurn = null;
+                }
+                state = 'ANALYZING';
+                generateProbabilitySpace();
+            }
+            else if (state === 'ANALYZING') {
+                if (dragDist < 40 || timeHeld < 300) {
+                    if (distToBall < 100) {
+                        commitTrajectory();
+                    } else {
+                        if (isCompoundShot) { Body.setVelocity(ball, baseVelocity); state = 'ROLLING'; }
+                        else { state = 'IDLE'; }
+                        analysisPaths = [];
+                        scheduledBurn = null;
+                        lockedPrevision = null;
+                    }
+                }
+            }
+            else if (state === 'SCRUBBING_PAST') {
+                temporalHistory = temporalHistory.slice(0, pastTimeIndex + 1);
+                state = 'IDLE';
+            }
+        });
+
+        window.addEventListener('keydown', e => {
+            if (state === 'ANALYZING') {
+                if (e.code === 'Space') { e.preventDefault(); commitTrajectory(); }
+                if (e.code === 'Escape') {
+                    if (isCompoundShot) { Body.setVelocity(ball, baseVelocity); state = 'ROLLING'; }
+                    else { state = 'IDLE'; scheduledBurn = null; }
+                    analysisPaths = [];
+                }
+            }
+        });
+
+        function scrubPast(xPos) {
+            const TRACK_PADDING = 60;
+            const TRACK_WIDTH = width - (TRACK_PADDING * 2);
+            let percent = Math.max(0, Math.min(1, (xPos - TRACK_PADDING) / TRACK_WIDTH));
+            pastTimeIndex = Math.floor(percent * (temporalHistory.length - 1));
+
+            if (pastTimeIndex !== lastScrubIndex) {
+                playTick();
+                if (navigator.vibrate) navigator.vibrate(3);
+                lastScrubIndex = pastTimeIndex;
+            }
+
+            let histPos = temporalHistory[pastTimeIndex];
+            if (histPos) Body.setPosition(ball, { x: histPos.x, y: histPos.y });
+        }
+
+        function commitTrajectory() {
+            let finalAngle = Math.atan2(aimVector.y, aimVector.x) + (Math.random() * 2 - 1) * currentVariance;
+            let forceMag = Vector.magnitude(aimVector);
+            let finalVec = { x: Math.cos(finalAngle) * forceMag * SWING_POWER, y: Math.sin(finalAngle) * forceMag * SWING_POWER };
+
+            // Snapshot the predicted trajectory before firing
+            if (analysisPaths.length > 0) {
+                lockedPrevision = {
+                    path: analysisPaths[0].map(pt => ({ x: pt.x, y: pt.y })),
+                    burn: scheduledBurn ? { timeIndex: scheduledBurn.timeIndex, vector: { x: scheduledBurn.vector.x, y: scheduledBurn.vector.y } } : null,
+                    startIndex: temporalHistory.length // Anchor to the exact moment in the timeline
+                };
+            }
+            if (!isCompoundShot) executedBurns = [];
+
+            framesSinceLaunch = 0;
+            shotsThisLevel++;
+
+            if (isCompoundShot) {
+                Body.setVelocity(ball, { x: baseVelocity.x + finalVec.x, y: baseVelocity.y + finalVec.y });
+                usedCompound = true;
+            } else {
+                if (temporalHistory.length === 0) recordHistory();
+                Body.setVelocity(ball, { x: finalVec.x, y: finalVec.y });
+            }
+
+            blastWaves.push({ x: ball.position.x, y: ball.position.y, radius: 10, opacity: 1, isCompound: isCompoundShot });
+            playLaunch(isCompoundShot);
+
+            state = 'ROLLING';
+            isCompoundShot = false;
+        }
+
+        // --- Epistemic Prediction Engine ---
+        function generateProbabilitySpace() {
+            let baseAngle = Math.atan2(aimVector.y, aimVector.x);
+            let force = Vector.magnitude(aimVector);
+
+            focusLevel = Math.min(1, (Date.now() - analysisStartTime) / 2500);
+            let maxVar = 0.22; let minVar = 0.015;
+            currentVariance = maxVar - (focusLevel * (maxVar - minVar));
+
+            analysisPaths = []; maxScrubSteps = 0;
+            analysisPaths.push(simulatePath(baseAngle, force));
+
+            let pathCount = 25;
+            for (let i = 0; i < pathCount; i++) {
+                let ang = baseAngle + (Math.random() * 2 - 1) * currentVariance;
+                let f = force * (1 + (Math.random() * 0.04 - 0.02));
+                analysisPaths.push(simulatePath(ang, f));
+            }
+
+            analysisPaths.forEach(p => maxScrubSteps = Math.max(maxScrubSteps, p.length));
+        }
+
+        function getIntersection(x1, y1, x2, y2, x3, y3, x4, y4) {
+            const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+            if (den === 0) return null;
+            const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
+            const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / den;
+            if (t > 0 && t <= 1 && u > 0 && u <= 1) return t;
+            return null;
+        }
+
+        function simulatePath(angle, force) {
+            let pts = [];
+            let px = ball.position.x, py = ball.position.y;
+            let vx = Math.cos(angle) * force * SWING_POWER;
+            let vy = Math.sin(angle) * force * SWING_POWER;
+
+            if (isCompoundShot) {
+                vx += baseVelocity.x;
+                vy += baseVelocity.y;
+            }
+
+            pts.push({ x: px, y: py, isBounce: false });
+
+            for (let step = 0; step < 200; step++) {
+
+                if (scheduledBurn && step === scheduledBurn.timeIndex) {
+                    vx += scheduledBurn.vector.x * SWING_POWER;
+                    vy += scheduledBurn.vector.y * SWING_POWER;
+                }
+
+                let forces = applyFieldForces(px, py, vx, vy);
+                vx = forces.x;
+                vy = forces.y;
+
+                let nextX = px + vx, nextY = py + vy;
+                let hit = null, minT = 1;
+
+                for (let seg of wallSegments) {
+                    let t = getIntersection(px, py, nextX, nextY, seg.p1.x, seg.p1.y, seg.p2.x, seg.p2.y);
+                    if (t !== null && t < minT) { minT = t; hit = seg; }
+                }
+
+                if (hit) {
+                    px = px + vx * (minT - 0.01); py = py + vy * (minT - 0.01);
+                    pts.push({ x: px, y: py, isBounce: true, normal: hit.normal, vIn: { x: vx, y: vy } });
+                    let dot = vx * hit.normal.x + vy * hit.normal.y;
+                    vx = (vx - 2 * dot * hit.normal.x) * 0.8;
+                    vy = (vy - 2 * dot * hit.normal.y) * 0.8;
+                } else {
+                    px = nextX; py = nextY;
+                    pts.push({ x: px, y: py, isBounce: false });
+                }
+
+                vx *= 0.988; vy *= 0.988;
+                if (Math.abs(vx) < 0.1 && Math.abs(vy) < 0.1) break;
+            }
+            return pts;
+        }
+
+        function recordHistory() {
+            temporalHistory.push({ x: ball.position.x, y: ball.position.y });
+            if (temporalHistory.length > 500) temporalHistory.shift();
+            pastTimeIndex = temporalHistory.length - 1;
+        }
+
+        // --- Main Render Loop ---
+        let frameCount = 0;
+        function render() {
+            frameCount++;
+            if (state !== 'TITLE_SCREEN' && state !== 'TUTORIAL' && state !== 'PAUSED') updateRollingAudio();
+
+            // Skip game rendering for meta screens
+            if (state === 'TITLE_SCREEN' || state === 'TUTORIAL' || state === 'PAUSED') {
+                drawMetaScreens();
+                requestAnimationFrame(render);
+                return;
+            }
+
+            if (state === 'AIMING' || state === 'ANALYZING' || state === 'AIMING_BURN') {
+                ctx.fillStyle = 'rgba(2, 6, 15, 0.5)';
+            } else {
+                ctx.fillStyle = 'rgba(5, 5, 7, 0.4)';
+            }
+            ctx.fillRect(0, 0, width, height);
+
+            // --- MINIMAL LIVE HUD ---
+            const PNAMES = [
+                'FIRST CONTACT', 'THE CRADLE', 'GRAVITY WELL', 'FOUR CORNERS', 'THE SWITCHBACK',
+                'GRAVITY CORRIDOR', 'TWIN ORBITS', 'SNIPER SHIELD', 'THE FUNNEL', 'EVENT HORIZON',
+                'GRIP', 'TEST', 'CRACK', 'CARRY', 'HATCH',
+                'EAT', 'BURY', 'SANKOFA', 'THE SPIRAL', 'THE GAUNTLET',
+                'THE NEST', 'THE MIRROR', 'THE ANCESTORS', 'THE EGG'
+            ];
+            if (state !== 'LEVEL_COMPLETE') {
+                let pName = PNAMES[currentLevel % PNAMES.length] || '';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                ctx.font = 'bold 16px var(--font-mono)';
+                ctx.textAlign = 'left';
+                ctx.shadowBlur = 4; ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                ctx.fillText(`PARADIGM ${currentLevel + 1}: ${pName}`, 20, 32);
+                ctx.font = '14px var(--font-mono)';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.fillText(`SCORE: ${bankedScore.toString().padStart(6, '0')}`, 20, 54);
+
+                ctx.fillStyle = shotsThisLevel > 1 ? '#ff5577' : 'rgba(255, 255, 255, 0.5)';
+                ctx.fillText(`SHOTS: ${shotsThisLevel}`, 20, 76);
+                ctx.shadowBlur = 0;
+
+                // Show CLAW phase indicator for levels 11+
+                if (currentLevel >= 10) {
+                    ctx.fillStyle = 'rgba(0, 255, 204, 0.5)';
+                    ctx.font = '12px var(--font-mono)';
+                    ctx.fillText('SANKOFA-CLAW', 20, 96);
+                }
+
+                // Menu button (top-right)
+                ctx.textAlign = 'right';
+                ctx.font = 'bold 18px var(--font-mono)';
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.shadowBlur = 4; ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                ctx.fillText('MENU', width - 20, 32);
+                ctx.shadowBlur = 0;
+                ctx.textAlign = 'left';
+            }
+
+            if (state !== 'AIMING' && state !== 'ANALYZING' && state !== 'AIMING_BURN' && state !== 'LEVEL_COMPLETE') {
+                Engine.update(engine, 1000 / 60);
+
+                if (state === 'ROLLING') {
+                    framesSinceLaunch++;
+
+                    if (scheduledBurn && framesSinceLaunch === scheduledBurn.timeIndex) {
+                        Body.setVelocity(ball, {
+                            x: ball.velocity.x + scheduledBurn.vector.x * SWING_POWER,
+                            y: ball.velocity.y + scheduledBurn.vector.y * SWING_POWER
+                        });
+                        blastWaves.push({ x: ball.position.x, y: ball.position.y, radius: 10, opacity: 1, isCompound: true });
+                        executedBurns.push({ x: ball.position.x, y: ball.position.y, frame: temporalHistory.length }); // Tag with timeline index
+                        playLaunch(true);
+                        scheduledBurn = null;
+                        usedCompound = true;
+                    }
+
+                    let forces = applyFieldForces(ball.position.x, ball.position.y, ball.velocity.x, ball.velocity.y);
+                    Body.setVelocity(ball, { x: forces.x, y: forces.y });
+
+                    if (frameCount % 2 === 0) recordHistory();
+                    if (ball.speed < 0.1) { Body.setVelocity(ball, { x: 0, y: 0 }); state = 'IDLE'; scheduledBurn = null; }
+
+                    let distToHole = Math.hypot(ball.position.x - hole.position.x, ball.position.y - hole.position.y);
+                    if (distToHole < 20) {
+                        playCapture();
+
+                        // --- CALCULATE DIVERGENCE & TALLY ---
+                        let avgDivergence = 0;
+                        divergenceLines = [];
+                        if (lockedPrevision) {
+                            let totalDiv = 0;
+                            let count = 0;
+                            for (let i = 0; i < lockedPrevision.path.length; i++) {
+                                // History records every 2 frames, map the indices
+                                let histIndex = lockedPrevision.startIndex + Math.floor(i / 2);
+                                let histPt = temporalHistory[histIndex];
+                                if (histPt) {
+                                    let dist = Math.hypot(histPt.x - lockedPrevision.path[i].x, histPt.y - lockedPrevision.path[i].y);
+                                    totalDiv += dist;
+                                    count++;
+                                    // Generate a visual tether every 10 steps if divergence is noticeable
+                                    if (i % 10 === 0 && dist > 3) {
+                                        divergenceLines.push({ p1: lockedPrevision.path[i], p2: histPt });
+                                    }
+                                }
+                            }
+                            if (count > 0) avgDivergence = totalDiv / count;
+                        }
+
+                        // The longer the path, the higher the kinetic score
+                        tallyDistance = Math.floor(framesSinceLaunch * 15);
+
+                        // The closer the reality matches the hypothesis, the higher the precision bonus
+                        tallyPrecision = Math.max(0, Math.floor(5000 - (avgDivergence * 120)));
+
+                        tallyEpistemic = epistemicBonus;
+                        tallyPenalty = Math.max(0, (shotsThisLevel - 1) * 2000);
+
+                        let subtotal = Math.max(0, tallyDistance + tallyPrecision + tallyEpistemic - tallyPenalty);
+                        tallyMult = usedCompound ? 2 : 1;
+                        tallyFinal = subtotal * tallyMult;
+
+                        // Calculate Rank
+                        if (shotsThisLevel === 1 && usedCompound) { tallyRank = 'S'; tallyRankColor = '#ff2a5f'; }
+                        else if (shotsThisLevel === 1) { tallyRank = 'A'; tallyRankColor = '#00ffcc'; }
+                        else if (shotsThisLevel === 2) { tallyRank = 'B'; tallyRankColor = '#0088ff'; }
+                        else if (shotsThisLevel === 3) { tallyRank = 'C'; tallyRankColor = '#e0e0e5'; }
+                        else { tallyRank = 'D'; tallyRankColor = '#666'; }
+
+                        state = 'LEVEL_COMPLETE';
+                        levelCompleteTimer = 420;
+                        tallyAnimT = 0;
+                        // Save rank
+                        let prev = levelRanks[currentLevel];
+                        if (!prev || tallyFinal > prev.score) {
+                            levelRanks[currentLevel] = { rank: tallyRank, score: tallyFinal, color: tallyRankColor };
+                        }
+                        if (currentLevel >= highestUnlocked) highestUnlocked = currentLevel + 1;
+                        saveProgress();
+                    }
+                }
+            }
+
+            if (state === 'LEVEL_COMPLETE') {
+                levelCompleteTimer--;
+                if (levelCompleteTimer <= 0) {
+                    bankedScore += tallyFinal;
+                    currentLevel++;
+                    if (currentLevel >= levels.length) {
+                        // Beaten all levels — return to title
+                        state = 'TITLE_SCREEN';
+                        saveProgress();
+                    } else {
+                        loadLevel();
+                    }
+                }
+            }
+
+            if (state === 'ANALYZING' && focusLevel < 1) {
+                generateProbabilitySpace();
+            }
+
+            // Draw Dynamic Fields
+            ctx.globalCompositeOperation = 'screen';
+            fields.forEach(f => {
+                for (let i = 0; i < 3; i++) {
+                    let cycle = (frameCount * 0.4 + i * (f.radius / 3)) % f.radius;
+                    let r = f.type === 'repulsor' ? cycle : f.radius - cycle;
+                    if (r <= 0.1) r = 0.1;
+                    let opacity = f.type === 'repulsor'
+                        ? Math.max(0, 1 - (r / f.radius))
+                        : Math.max(0, r / f.radius);
+
+                    ctx.beginPath();
+                    ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+                    ctx.strokeStyle = f.type === 'repulsor'
+                        ? `rgba(255, 42, 95, ${opacity * 0.3})`
+                        : `rgba(0, 136, 255, ${opacity * 0.3})`;
+                    ctx.lineWidth = 1.5; ctx.stroke();
+                }
+            });
+            ctx.globalCompositeOperation = 'source-over';
+
+            fields.forEach(f => {
+                ctx.beginPath();
+                ctx.arc(f.x, f.y, 6, 0, 2 * Math.PI);
+                ctx.fillStyle = f.type === 'repulsor' ? '#1a050a' : '#05101a';
+                ctx.fill();
+                ctx.strokeStyle = f.type === 'repulsor' ? 'rgba(255, 42, 95, 0.6)' : 'rgba(0, 136, 255, 0.6)';
+                ctx.lineWidth = 1; ctx.stroke();
+            });
+
+            // Draw Hole
+            ctx.globalCompositeOperation = 'screen';
+            for (let i = 0; i < 3; i++) {
+                let r = 18 + ((frameCount * 0.2 + i * (GRAVITY_RADIUS / 3)) % (GRAVITY_RADIUS - 18));
+                let opacity = Math.max(0, 1 - Math.pow(r / GRAVITY_RADIUS, 1.5));
+                ctx.beginPath();
+                ctx.arc(hole.position.x, hole.position.y, r, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(0, 255, 204, ${opacity * 0.15})`;
+                ctx.lineWidth = 1; ctx.stroke();
+            }
+            ctx.globalCompositeOperation = 'source-over';
+
+            ctx.beginPath();
+            ctx.arc(hole.position.x, hole.position.y, 18, 0, 2 * Math.PI);
+            ctx.fillStyle = '#0a1a15'; ctx.fill();
+            ctx.strokeStyle = 'var(--accent-primary)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+            // Draw Walls
+            ctx.fillStyle = 'rgba(25, 25, 30, 0.9)';
+            ctx.strokeStyle = 'var(--accent-primary)';
+            ctx.lineWidth = 1.5;
+            walls.forEach(w => {
+                ctx.beginPath();
+                w.vertices.forEach((v, i) => { if (i === 0) ctx.moveTo(v.x, v.y); else ctx.lineTo(v.x, v.y); });
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+            });
+
+            // --- DRAW GHOST PREVISIONS (The Planned Timeline) ---
+            if (lockedPrevision && (state === 'ROLLING' || state === 'IDLE' || state === 'LEVEL_COMPLETE' || state === 'SCRUBBING_PAST')) {
+                let pPath = lockedPrevision.path;
+                let pBurn = lockedPrevision.burn;
+                let splitIdx = pBurn ? pBurn.timeIndex : pPath.length;
+
+                ctx.globalCompositeOperation = 'screen';
+                ctx.setLineDash([4, 6]);
+
+                // Faint pre-burn trajectory
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(0, 255, 204, 0.2)';
+                ctx.lineWidth = 2;
+                ctx.moveTo(pPath[0].x, pPath[0].y);
+                for (let j = 1; j <= splitIdx && j < pPath.length; j++) { ctx.lineTo(pPath[j].x, pPath[j].y); }
+                ctx.stroke();
+
+                // Faint post-burn trajectory
+                if (pBurn && splitIdx < pPath.length) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = 'rgba(255, 42, 95, 0.25)';
+                    ctx.moveTo(pPath[splitIdx].x, pPath[splitIdx].y);
+                    for (let j = splitIdx + 1; j < pPath.length; j++) { ctx.lineTo(pPath[j].x, pPath[j].y); }
+                    ctx.stroke();
+
+                    // Hollow node marking where the burn was PLANNED
+                    let bPt = pPath[pBurn.timeIndex];
+                    if (bPt) {
+                        ctx.beginPath();
+                        ctx.arc(bPt.x, bPt.y, 8, 0, Math.PI * 2);
+                        ctx.strokeStyle = 'rgba(255, 42, 95, 0.5)';
+                        ctx.setLineDash([]);
+                        ctx.stroke();
+                        ctx.setLineDash([4, 6]); // restore
+                    }
+                }
+                ctx.setLineDash([]);
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            // Draw Diegetic Past Timeline
+            if (temporalHistory.length > 1 && state !== 'LEVEL_COMPLETE') {
+                ctx.beginPath();
+                ctx.moveTo(temporalHistory[0].x, temporalHistory[0].y);
+                for (let i = 1; i <= pastTimeIndex; i++) { ctx.lineTo(temporalHistory[i].x, temporalHistory[i].y); }
+                ctx.strokeStyle = (state === 'SCRUBBING_PAST') ? 'var(--accent-warn)' : 'rgba(255, 255, 255, 0.15)';
+                ctx.lineWidth = 2; ctx.stroke();
+
+                // Draw where burns ACTUALLY executed along the physical timeline
+                executedBurns.forEach(b => {
+                    if (b.frame <= pastTimeIndex) { // Only show if we haven't scrubbed backward past it!
+                        ctx.beginPath();
+                        ctx.moveTo(b.x - 6, b.y - 6); ctx.lineTo(b.x + 6, b.y + 6);
+                        ctx.moveTo(b.x + 6, b.y - 6); ctx.lineTo(b.x - 6, b.y + 6);
+                        ctx.strokeStyle = '#ff2a5f';
+                        ctx.lineWidth = 2; ctx.stroke();
+
+                        ctx.beginPath();
+                        ctx.arc(b.x, b.y, 8, 0, Math.PI * 2);
+                        ctx.strokeStyle = 'rgba(255, 42, 95, 0.8)';
+                        ctx.lineWidth = 1; ctx.stroke();
+                    }
+                });
+
+                let trackY = height - 40;
+                const TRACK_PADDING = 60;
+                const TRACK_WIDTH = width - (TRACK_PADDING * 2);
+
+                ctx.beginPath();
+                ctx.moveTo(TRACK_PADDING, trackY);
+                ctx.lineTo(width - TRACK_PADDING, trackY);
+                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                ctx.lineWidth = 4; ctx.stroke();
+
+                let playheadX = TRACK_PADDING + (pastTimeIndex / Math.max(1, temporalHistory.length - 1)) * TRACK_WIDTH;
+                ctx.beginPath();
+                ctx.moveTo(playheadX, trackY - 16); ctx.lineTo(playheadX, trackY + 16);
+                ctx.strokeStyle = 'var(--accent-warn)';
+                ctx.lineWidth = 6; ctx.stroke();
+            }
+
+            // Draw Epistemic Analysis Data
+            if (state === 'AIMING' || state === 'ANALYZING' || state === 'AIMING_BURN') {
+                let colorBase = isCompoundShot ? '255, 42, 95' : '0, 255, 204';
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(ball.position.x, ball.position.y); ctx.lineTo(ball.position.x + aimVector.x, ball.position.y + aimVector.y); ctx.stroke();
+
+                let renderPaths = state === 'AIMING' ? [simulatePath(Math.atan2(aimVector.y, aimVector.x), Vector.magnitude(aimVector))] : analysisPaths;
+
+                ctx.globalCompositeOperation = 'screen';
+                renderPaths.forEach((path, i) => {
+                    let isMain = (i === 0 && (state === 'ANALYZING' || state === 'AIMING_BURN'));
+
+                    let splitIdx = (scheduledBurn && isMain) ? scheduledBurn.timeIndex : path.length;
+
+                    ctx.beginPath();
+                    ctx.strokeStyle = isMain ? `rgba(${colorBase}, ${0.5 + focusLevel * 0.5})` : `rgba(0, 136, 255, ${0.05 + focusLevel * 0.05})`;
+                    ctx.lineWidth = isMain ? 2 : 1;
+                    ctx.moveTo(path[0].x, path[0].y);
+                    for (let j = 1; j <= splitIdx && j < path.length; j++) { ctx.lineTo(path[j].x, path[j].y); }
+                    ctx.stroke();
+
+                    if (scheduledBurn && splitIdx < path.length) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = isMain ? `rgba(255, 42, 95, ${0.6 + focusLevel * 0.4})` : `rgba(255, 42, 95, 0.1)`;
+                        ctx.lineWidth = isMain ? 2 : 1;
+                        ctx.moveTo(path[splitIdx].x, path[splitIdx].y);
+                        for (let j = splitIdx + 1; j < path.length; j++) { ctx.lineTo(path[j].x, path[j].y); }
+                        ctx.stroke();
+                    }
+
+                    if (isMain && state === 'AIMING_BURN') {
+                        let bPt = path[scheduledBurn.timeIndex];
+                        ctx.beginPath();
+                        ctx.moveTo(bPt.x, bPt.y);
+                        ctx.lineTo(bPt.x + scheduledBurn.vector.x, bPt.y + scheduledBurn.vector.y);
+                        ctx.strokeStyle = 'var(--accent-warn)';
+                        ctx.lineWidth = 2; ctx.stroke();
+                    }
+
+                    if ((state === 'ANALYZING' || state === 'AIMING_BURN') && futureTimeIndex < path.length) {
+                        let pt = path[futureTimeIndex];
+                        let isPulse = (Math.sin(Date.now() / 200) + 1) / 2;
+
+                        let isBurnActive = scheduledBurn && scheduledBurn.timeIndex === futureTimeIndex;
+                        let headColor = isBurnActive || state === 'AIMING_BURN' ? '255, 42, 95' : colorBase;
+
+                        ctx.beginPath(); ctx.arc(pt.x, pt.y, isMain ? 12 + isPulse * 4 : 2, 0, Math.PI * 2);
+                        ctx.fillStyle = isMain ? `rgba(${headColor}, 0.7)` : 'rgba(0, 136, 255, 0.3)';
+                        ctx.fill();
+
+                        if (isMain && pt.isBounce) drawMathOverlay(pt, colorBase);
+                    }
+                });
+                ctx.globalCompositeOperation = 'source-over';
+
+                if (state === 'ANALYZING') {
+                    let baseAng = Math.atan2(aimVector.y, aimVector.x);
+                    ctx.beginPath();
+                    ctx.arc(ball.position.x, ball.position.y, 25, baseAng - currentVariance, baseAng + currentVariance);
+                    ctx.strokeStyle = `rgba(${colorBase}, ${focusLevel})`;
+                    ctx.lineWidth = 2; ctx.stroke();
+                }
+            }
+
+            // Draw Blast Waves
+            for (let i = blastWaves.length - 1; i >= 0; i--) {
+                let b = blastWaves[i];
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                let colorBase = b.isCompound ? '255, 42, 95' : '0, 255, 204';
+                ctx.strokeStyle = `rgba(${colorBase}, ${b.opacity})`;
+                ctx.lineWidth = 4 * b.opacity; ctx.stroke();
+                b.radius += 12;
+                b.opacity -= 0.05;
+                if (b.opacity <= 0) blastWaves.splice(i, 1);
+            }
+
+            // Draw Origin Ball
+            if (state !== 'LEVEL_COMPLETE') {
+                let ballRadius = 12;
+
+                if (state === 'ROLLING') {
+                    let catchPulse = (Math.sin(Date.now() / 100) + 1) / 2;
+                    ctx.beginPath();
+                    ctx.arc(ball.position.x, ball.position.y, 16 + catchPulse * 6, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(255, 42, 95, ${0.3 + catchPulse * 0.4})`;
+                    ctx.lineWidth = 1.5; ctx.stroke();
+                }
+
+                if (state === 'ANALYZING' || state === 'AIMING_BURN') {
+                    let pulse = (Math.sin(Date.now() / 100) + 1) / 2;
+                    let colorBase = isCompoundShot ? '255, 42, 95' : '0, 255, 204';
+                    let solidColor = isCompoundShot ? '#ff2a5f' : '#00ffcc';
+
+                    // Detonator Outer ring
+                    ctx.beginPath();
+                    ctx.arc(ball.position.x, ball.position.y, ballRadius + 8 + (pulse * 4), 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(${colorBase}, ${0.4 + pulse * 0.6})`;
+                    ctx.lineWidth = 2; ctx.stroke();
+
+                    // Inner core
+                    ctx.beginPath();
+                    ctx.arc(ball.position.x, ball.position.y, ballRadius - 2, 0, Math.PI * 2);
+                    ctx.fillStyle = solidColor;
+                    ctx.shadowBlur = 20; ctx.shadowColor = solidColor;
+                    ctx.fill(); ctx.shadowBlur = 0;
+
+                    // Reticle
+                    ctx.strokeStyle = '#050507'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(ball.position.x - ballRadius, ball.position.y); ctx.lineTo(ball.position.x - 4, ball.position.y); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(ball.position.x + ballRadius, ball.position.y); ctx.lineTo(ball.position.x + 4, ball.position.y); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(ball.position.x, ball.position.y - ballRadius); ctx.lineTo(ball.position.x, ball.position.y - 4); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(ball.position.x, ball.position.y + ballRadius); ctx.lineTo(ball.position.x, ball.position.y + 4); ctx.stroke();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(ball.position.x, ball.position.y, ballRadius, 0, 2 * Math.PI);
+                    if (state === 'SCRUBBING_PAST') {
+                        ctx.fillStyle = '#050507';
+                        ctx.strokeStyle = 'var(--accent-warn)';
+                        ctx.lineWidth = 2;
+                        ctx.shadowBlur = 15;
+                        ctx.shadowColor = 'var(--accent-warn)';
+                        ctx.fill();
+                        ctx.stroke();
+                        ctx.shadowBlur = 0;
+                    } else {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.shadowBlur = 15;
+                        ctx.shadowColor = '#ffffff';
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+                }
+            }
+
+            // --- LEVEL COMPLETE TALLY SCREEN ---
+            if (state === 'LEVEL_COMPLETE') {
+                tallyAnimT = (tallyAnimT || 0) + 1;
+                let aT = tallyAnimT;
+
+                // Full dim with vignette
+                ctx.fillStyle = 'rgba(5, 5, 7, 0.85)';
+                ctx.fillRect(0, 0, width, height);
+
+                // Vignette overlay
+                let vg = ctx.createRadialGradient(width / 2, height / 2, height * 0.2, width / 2, height / 2, height * 0.75);
+                vg.addColorStop(0, 'rgba(5,5,7,0)'); vg.addColorStop(1, 'rgba(5,5,7,0.5)');
+                ctx.fillStyle = vg; ctx.fillRect(0, 0, width, height);
+
+                // Draw Divergence Tethers (behind everything)
+                if (aT > 20) {
+                    let tA = Math.min(1, (aT - 20) / 30);
+                    ctx.setLineDash([2, 4]); ctx.globalAlpha = tA * 0.4;
+                    divergenceLines.forEach(line => {
+                        ctx.beginPath(); ctx.moveTo(line.p1.x, line.p1.y); ctx.lineTo(line.p2.x, line.p2.y);
+                        ctx.strokeStyle = '#ff2a5f'; ctx.lineWidth = 1; ctx.stroke();
+                    });
+                    ctx.setLineDash([]); ctx.globalAlpha = 1;
+                }
+
+                let cy = height / 2;
+                ctx.textAlign = 'center';
+
+                // Title — slide in
+                let titleSlide = Math.min(1, aT / 20);
+                let titleY = cy - 160 + (1 - titleSlide) * 40;
+                ctx.globalAlpha = titleSlide;
+                ctx.font = 'bold 34px var(--font-mono)';
+                ctx.fillStyle = '#00ffcc';
+                ctx.shadowBlur = 8; ctx.shadowColor = '#00ffcc';
+                let cName = PNAMES[currentLevel % PNAMES.length] || '';
+                ctx.fillText(cName, width / 2, titleY);
+                ctx.shadowBlur = 0;
+                ctx.font = '16px var(--font-mono)';
+                ctx.fillStyle = 'rgba(0, 255, 204, 0.5)';
+                ctx.fillText(`PARADIGM ${currentLevel + 1} CLEARED`, width / 2, titleY + 28);
+                ctx.globalAlpha = 1;
+
+                // Score lines — stagger in
+                let scoreY = cy - 70;
+                let lines = [
+                    { label: 'KINETIC DISTANCE', value: '+' + tallyDistance, color: 'rgba(255,255,255,0.9)', delay: 30 },
+                    { label: 'PRECISION BONUS', value: '+' + tallyPrecision, color: 'rgba(255,255,255,0.9)', delay: 42 },
+                    { label: 'EPISTEMIC BONUS', value: '+' + tallyEpistemic, color: 'rgba(255,255,255,0.9)', delay: 54 },
+                    { label: `SHOT COST (${shotsThisLevel})`, value: '-' + tallyPenalty, color: tallyPenalty > 0 ? '#ff5577' : 'rgba(255,255,255,0.5)', delay: 66 },
+                ];
+                if (usedCompound) lines.push({ label: 'COMPOUND x2', value: '2.0x', color: '#ff5577', delay: 78 });
+
+                ctx.font = '16px var(--font-mono)';
+                ctx.shadowBlur = 3; ctx.shadowColor = 'rgba(0,0,0,0.7)';
+                lines.forEach((line, i) => {
+                    let a = Math.min(1, Math.max(0, (aT - line.delay) / 12));
+                    if (a <= 0) return;
+                    ctx.globalAlpha = a;
+                    let ly = scoreY + i * 32;
+                    let numVal = parseInt(line.value.replace(/[^0-9]/g, '')) || 0;
+                    let dispVal = Math.floor(numVal * Math.min(1, (aT - line.delay) / 20));
+                    let prefix = line.value[0];
+                    if (line.value.includes('x')) { dispVal = '2.0x'; prefix = ''; }
+                    else dispVal = prefix + dispVal;
+
+                    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(line.label, width / 2 - 200, ly);
+                    ctx.fillStyle = line.color;
+                    ctx.textAlign = 'right';
+                    ctx.fillText(dispVal, width / 2 + 200, ly);
+                });
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1; ctx.textAlign = 'center';
+
+                // Divider line
+                let divDelay = usedCompound ? 90 : 78;
+                if (aT > divDelay) {
+                    let dA = Math.min(1, (aT - divDelay) / 10);
+                    ctx.globalAlpha = dA;
+                    ctx.beginPath();
+                    ctx.moveTo(width / 2 - 200, scoreY + lines.length * 32 + 10);
+                    ctx.lineTo(width / 2 + 200, scoreY + lines.length * 32 + 10);
+                    ctx.strokeStyle = 'rgba(0, 255, 204, 0.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+
+                // Net Yield — big reveal
+                let yieldDelay = divDelay + 15;
+                if (aT > yieldDelay) {
+                    let yA = Math.min(1, (aT - yieldDelay) / 15);
+                    let yScale = 1 + (1 - yA) * 0.3;
+                    ctx.globalAlpha = yA;
+                    ctx.save();
+                    ctx.translate(width / 2, scoreY + lines.length * 32 + 50);
+                    ctx.scale(yScale, yScale);
+                    ctx.font = 'bold 26px var(--font-mono)';
+                    ctx.fillStyle = '#00ffcc';
+                    ctx.shadowBlur = 6; ctx.shadowColor = '#00ffcc';
+                    let dispYield = Math.floor(tallyFinal * Math.min(1, (aT - yieldDelay) / 25));
+                    ctx.fillText(`NET YIELD: ${dispYield}`, 0, 0);
+                    ctx.shadowBlur = 0;
+                    ctx.restore();
+                    ctx.globalAlpha = 1;
+                }
+
+                // Rank — dramatic entrance
+                let rankDelay = yieldDelay + 30;
+                if (aT > rankDelay) {
+                    let rA = Math.min(1, (aT - rankDelay) / 20);
+                    let rScale = 1 + (1 - rA) * 1.5;
+                    ctx.globalAlpha = rA;
+                    ctx.save();
+                    ctx.translate(width / 2, scoreY + lines.length * 32 + 120);
+                    ctx.scale(rScale, rScale);
+                    ctx.font = 'bold 72px var(--font-mono)';
+                    ctx.fillStyle = tallyRankColor;
+                    ctx.shadowBlur = 40; ctx.shadowColor = tallyRankColor;
+                    ctx.fillText(tallyRank, 0, 0);
+                    ctx.shadowBlur = 0;
+                    ctx.restore();
+                    ctx.globalAlpha = 1;
+                }
+
+                // Continue prompt
+                if (aT > rankDelay + 30) {
+                    let pA = (Math.sin(Date.now() / 400) + 1) / 2;
+                    ctx.globalAlpha = 0.4 + pA * 0.5;
+                    ctx.font = '16px var(--font-mono)';
+                    ctx.fillStyle = '#e0e0e5';
+                    ctx.fillText('TAP TO CONTINUE', width / 2, height - 50);
+                    ctx.globalAlpha = 1;
+                }
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        function drawMetaScreens() {
+            // --- TITLE SCREEN ---
+            if (state === 'TITLE_SCREEN') {
+                ctx.fillStyle = '#050507'; ctx.fillRect(0, 0, width, height);
+
+                // Animated grid background
+                ctx.strokeStyle = 'rgba(0, 255, 204, 0.03)'; ctx.lineWidth = 1;
+                for (let x = 0; x < width; x += 40) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+                }
+                for (let y = 0; y < height; y += 40) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+                }
+
+                // Animated particles
+                let t = Date.now() / 1000;
+                ctx.globalCompositeOperation = 'screen';
+                for (let i = 0; i < 30; i++) {
+                    let px = (Math.sin(t * 0.3 + i * 2.1) * 0.5 + 0.5) * width;
+                    let py = (Math.cos(t * 0.2 + i * 1.7) * 0.5 + 0.5) * height;
+                    let r = 2 + Math.sin(t + i) * 1;
+                    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2);
+                    ctx.fillStyle = i % 3 === 0 ? 'rgba(0,255,204,0.15)' : (i % 3 === 1 ? 'rgba(0,136,255,0.1)' : 'rgba(255,42,95,0.08)');
+                    ctx.fill();
+                }
+                ctx.globalCompositeOperation = 'source-over';
+
+                // Title
+                ctx.textAlign = 'center';
+                let titlePulse = Math.sin(t * 1.5) * 0.15 + 0.85;
+                ctx.font = 'bold 56px var(--font-mono)';
+                ctx.fillStyle = `rgba(0, 255, 204, ${titlePulse})`;
+                ctx.shadowBlur = 50; ctx.shadowColor = '#00ffcc';
+                ctx.fillText('PUTT-OP', width / 2, height * 0.14);
+                ctx.shadowBlur = 0;
+
+                ctx.font = '16px var(--font-mono)';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+                ctx.fillText('EPISTEMIC PHYSICS', width / 2, height * 0.14 + 36);
+
+                // Play button
+                let btnY = height * 0.28;
+                let btnHover = Math.sin(t * 2) * 2;
+                ctx.strokeStyle = 'rgba(0, 255, 204, 0.5)'; ctx.lineWidth = 2;
+                ctx.strokeRect(width / 2 - 110, btnY - 24 + btnHover, 220, 48);
+                ctx.font = 'bold 18px var(--font-mono)';
+                ctx.fillStyle = '#00ffcc';
+                ctx.fillText('CONTINUE', width / 2, btnY + 6 + btnHover);
+                ctx.font = '12px var(--font-mono)';
+                ctx.fillStyle = 'rgba(255,255,255,0.35)';
+                ctx.fillText(`PARADIGM ${Math.min(highestUnlocked + 1, levels.length)}`, width / 2, btnY + 22 + btnHover);
+
+                // Level grid
+                let cols = Math.min(6, Math.max(3, Math.floor(width / 130)));
+                let cellW = Math.min(110, (width - 80) / cols);
+                let cellH = cellW * 0.85;
+                let gridW = cols * cellW;
+                let startX = (width - gridW) / 2;
+                let startY = height * 0.40;
+
+                const PNAMES = [
+                    'FIRST CONTACT', 'THE CRADLE', 'GRAVITY WELL', 'FOUR CORNERS', 'THE SWITCHBACK',
+                    'GRAVITY CORRIDOR', 'TWIN ORBITS', 'SNIPER SHIELD', 'THE FUNNEL', 'EVENT HORIZON',
+                    'GRIP', 'TEST', 'CRACK', 'CARRY', 'HATCH',
+                    'EAT', 'BURY', 'SANKOFA', 'THE SPIRAL', 'THE GAUNTLET',
+                    'THE NEST', 'THE MIRROR', 'THE ANCESTORS', 'THE EGG'
+                ];
+
+                ctx.font = '14px var(--font-mono)';
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fillText('SELECT PARADIGM', width / 2, startY - 14);
+
+                for (let i = 0; i < levels.length; i++) {
+                    let col = i % cols, row = Math.floor(i / cols);
+                    let cx = startX + col * cellW + cellW / 2;
+                    let cy = startY + row * (cellH + 10) + cellH / 2;
+                    let unlocked = i <= highestUnlocked;
+                    let completed = levelRanks[i];
+
+                    // Cell background
+                    ctx.fillStyle = unlocked ? 'rgba(15,20,30,0.85)' : 'rgba(10,10,15,0.5)';
+                    ctx.fillRect(cx - cellW / 2 + 3, cy - cellH / 2 + 3, cellW - 6, cellH - 6);
+
+                    // Border
+                    if (completed) {
+                        ctx.strokeStyle = completed.color || '#00ffcc';
+                    } else if (unlocked) {
+                        ctx.strokeStyle = 'rgba(0, 255, 204, 0.35)';
+                    } else {
+                        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+                    }
+                    ctx.lineWidth = completed ? 2 : 1;
+                    ctx.strokeRect(cx - cellW / 2 + 3, cy - cellH / 2 + 3, cellW - 6, cellH - 6);
+
+                    // Number
+                    ctx.font = 'bold 20px var(--font-mono)';
+                    ctx.fillStyle = unlocked ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.12)';
+                    ctx.fillText(i + 1, cx, cy - 6);
+
+                    // Name
+                    if (unlocked && PNAMES[i]) {
+                        ctx.font = '9px var(--font-mono)';
+                        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+                        ctx.fillText(PNAMES[i], cx, cy + 14);
+                    }
+
+                    // Rank badge
+                    if (completed) {
+                        ctx.font = 'bold 13px var(--font-mono)';
+                        ctx.fillStyle = completed.color;
+                        ctx.fillText(completed.rank, cx + cellW / 2 - 16, cy - cellH / 2 + 18);
+                    }
+
+                    // Lock icon
+                    if (!unlocked) {
+                        ctx.font = '16px var(--font-mono)';
+                        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                        ctx.fillText('-', cx, cy + 2);
+                    }
+                }
+
+                // Footer
+                ctx.font = '14px var(--font-mono)';
+                ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                ctx.fillText(`TOTAL SCORE: ${(bankedScore || 0).toString().padStart(6, '0')}`, width / 2, height - 34);
+
+                // SANKOFA tagline
+                ctx.font = '11px var(--font-mono)';
+                ctx.fillStyle = 'rgba(0, 255, 204, 0.18)';
+                ctx.fillText('SANKOFA-CLAW // GO BACK AND FETCH IT', width / 2, height - 14);
+            }
+
+            // --- TUTORIAL ---
+            if (state === 'TUTORIAL') {
+                ctx.fillStyle = 'rgba(5, 5, 7, 0.94)'; ctx.fillRect(0, 0, width, height);
+
+                let card = TUTORIAL_CARDS[tutorialStep];
+                let cardW = Math.min(500, width - 50);
+                let cardH = 280;
+                let cx = width / 2, cy = height / 2;
+
+                // Card background
+                ctx.fillStyle = 'rgba(12, 16, 28, 0.95)';
+                ctx.strokeStyle = 'rgba(0, 255, 204, 0.25)';
+                ctx.lineWidth = 1.5;
+                ctx.fillRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH);
+                ctx.strokeRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH);
+
+                // Step indicator
+                ctx.textAlign = 'center';
+                ctx.font = '14px var(--font-mono)';
+                ctx.fillStyle = 'rgba(0, 255, 204, 0.5)';
+                ctx.fillText(`${tutorialStep + 1} / ${TUTORIAL_CARDS.length}`, cx, cy - cardH / 2 + 30);
+
+                // Title
+                ctx.font = 'bold 30px var(--font-mono)';
+                ctx.fillStyle = '#00ffcc';
+                ctx.shadowBlur = 6; ctx.shadowColor = '#00ffcc';
+                ctx.fillText(card.title, cx, cy - 35);
+                ctx.shadowBlur = 0;
+
+                // Body
+                ctx.font = '16px var(--font-mono)';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                // Word-wrap
+                let words = card.body.split(' ');
+                let line = '', lineY = cy + 5, maxW = cardW - 60;
+                words.forEach(word => {
+                    let test = line + word + ' ';
+                    if (ctx.measureText(test).width > maxW) {
+                        ctx.fillText(line.trim(), cx, lineY);
+                        line = word + ' '; lineY += 24;
+                    } else { line = test; }
+                });
+                if (line) ctx.fillText(line.trim(), cx, lineY);
+
+                // Progress dots
+                for (let i = 0; i < TUTORIAL_CARDS.length; i++) {
+                    ctx.beginPath(); ctx.arc(cx - (TUTORIAL_CARDS.length - 1) * 10 + i * 20, cy + cardH / 2 - 30, 6, 0, Math.PI * 2);
+                    ctx.fillStyle = i === tutorialStep ? '#00ffcc' : 'rgba(255,255,255,0.18)';
+                    ctx.fill();
+                }
+
+                // Tap prompt
+                let pA = (Math.sin(Date.now() / 400) + 1) / 2;
+                ctx.globalAlpha = 0.4 + pA * 0.5;
+                ctx.font = '16px var(--font-mono)';
+                ctx.fillStyle = '#e0e0e5';
+                ctx.fillText(tutorialStep < TUTORIAL_CARDS.length - 1 ? 'TAP TO CONTINUE' : 'TAP TO BEGIN', cx, height - 40);
+                ctx.globalAlpha = 1;
+            }
+
+            // --- PAUSE MENU ---
+            if (state === 'PAUSED') {
+                ctx.fillStyle = 'rgba(5, 5, 7, 0.88)'; ctx.fillRect(0, 0, width, height);
+
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 36px var(--font-mono)';
+                ctx.fillStyle = '#00ffcc';
+                ctx.shadowBlur = 10; ctx.shadowColor = '#00ffcc';
+                ctx.fillText('PAUSED', width / 2, height / 2 - 120);
+                ctx.shadowBlur = 0;
+
+                let btnW = 240, btnH = 50;
+                let bx = width / 2 - btnW / 2;
+                let btns = [
+                    { label: 'RESUME', y: height / 2 - 60, color: '#00ffcc' },
+                    { label: 'HOW TO PLAY', y: height / 2, color: '#0088ff' },
+                    { label: 'QUIT TO MENU', y: height / 2 + 60, color: '#ff5577' },
+                ];
+                btns.forEach(b => {
+                    ctx.strokeStyle = b.color; ctx.lineWidth = 1.5;
+                    ctx.strokeRect(bx, b.y, btnW, btnH);
+                    ctx.fillStyle = 'rgba(15,20,30,0.8)';
+                    ctx.fillRect(bx, b.y, btnW, btnH);
+                    ctx.font = 'bold 16px var(--font-mono)';
+                    ctx.fillStyle = b.color;
+                    ctx.fillText(b.label, width / 2, b.y + 32);
+                });
+            }
+        }
+
+        function drawMathOverlay(pt, colorBase) {
+            let n = pt.normal; let v = pt.vIn; let vLen = Math.hypot(v.x, v.y);
+            let inDir = { x: v.x / vLen, y: v.y / vLen };
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
+            ctx.beginPath(); ctx.moveTo(pt.x, pt.y); ctx.lineTo(pt.x + n.x * 35, pt.y + n.y * 35); ctx.stroke();
+            ctx.setLineDash([]);
+
+            let dot = -(inDir.x * n.x + inDir.y * n.y);
+            let angleRad = Math.acos(Math.max(-1, Math.min(1, dot)));
+            let deg = (angleRad * (180 / Math.PI)).toFixed(1);
+
+            ctx.fillStyle = `rgb(${colorBase})`;
+            ctx.font = '14px var(--font-mono)';
+            ctx.fillText(`${deg}°`, pt.x + n.x * 40, pt.y + n.y * 40 + 3);
+        }
+
+        window.addEventListener('resize', () => {
+            width = window.innerWidth; height = window.innerHeight;
+            canvas.width = width; canvas.height = height;
+            if (state !== 'TITLE_SCREEN' && state !== 'TUTORIAL') loadLevel();
+        });
+
+        // Don't auto-load level — start at title screen
+        requestAnimationFrame(render);
+    </script>
+</body>
+
+</html>
