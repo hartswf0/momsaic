@@ -1,0 +1,1102 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sankofa App</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+
+  <!-- Tailwind Config & Custom Styles -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            teal: '#0E6B66',
+            amber: '#E3A21A',
+            red: '#B23A2E',
+            black: '#111111',
+            parchment: '#F5F1E6',
+            darkParchment: '#E5E0D8',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            serif: ['"Playfair Display"', 'Georgia', 'serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    /* Custom utility classes missing from standard tailwind or needing specific values */
+    body { background-color: #18181b; color: #111111; overscroll-behavior-y: none; }
+    .perspective-1000 { perspective: 1000px; }
+    .transform-style-3d { transform-style: preserve-3d; }
+    .backface-hidden { backface-visibility: hidden; }
+    .rotate-y-180 { transform: rotateY(180deg); }
+    
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    /* Hide scrollbar for IE, Edge and Firefox */
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Noise Texture */
+    .bg-noise {
+      background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    }
+  </style>
+</head>
+<body class="min-h-screen flex justify-center items-center font-sans sm:p-8">
+
+  <!-- Mobile Device Container -->
+  <div class="w-full max-w-[400px] h-[100dvh] sm:h-[850px] sm:rounded-[2.5rem] overflow-hidden flex flex-col relative shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-[8px] border-zinc-800 bg-parchment bg-noise text-black">
+    
+    <!-- Main Content Area -->
+    <div id="app-root" class="flex-1 overflow-hidden relative">
+      <!-- Views will be injected here -->
+    </div>
+    
+    <!-- Bottom Nav -->
+    <div id="nav-root">
+      <!-- Nav will be injected here -->
+    </div>
+
+    <!-- Side Menu -->
+    <div id="side-menu-root">
+       <!-- Side Menu injected here -->
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    // --- DATABASE ---
+    const DATABASE = {
+      problems: [
+        { id: 'p1', title: 'Group chat overload', desc: 'Digital communication channels are too noisy and chaotic.' },
+        { id: 'p2', title: 'Throwaway culture', desc: 'People replace instead of repairing broken items.' },
+        { id: 'p3', title: 'Loss of elder wisdom', desc: 'Intergenerational knowledge and skills are not passed down.' },
+        { id: 'p4', title: 'Algorithmic isolation', desc: 'People are trapped in digital echo chambers.' },
+        { id: 'p5', title: 'Food waste at scale', desc: 'Edible food is discarded while local people go hungry.' },
+        { id: 'p6', title: 'Side hustle fatigue', desc: 'The gig economy leaves workers isolated and burnt out.' },
+        { id: 'p7', title: 'Delivery fee inflation', desc: 'Middlemen extract too much value from local exchanges.' },
+        { id: 'p8', title: 'Content lost in feeds', desc: 'Important neighborhood stories disappear in algorithmic feeds.' },
+        { id: 'p9', title: 'Doomscrolling at 3 AM', desc: 'Endless, paralyzing consumption of digital dread.' },
+        { id: 'p10', title: 'Parasocial relationships', desc: 'Believing a millionaire podcaster is your actual best friend.' },
+        { id: 'p11', title: 'Subscription fatigue', desc: 'Paying $8.99/month to unlock your car’s heated seats.' },
+        { id: 'p12', title: 'Ghosting as conflict resolution', desc: 'Evading all emotional accountability by vanishing into the ether.' },
+        { id: 'p13', title: 'LinkedIn hustle culture', desc: 'B2B SaaS founders posting crying selfies for algorithm reach.' },
+        { id: 'p14', title: 'The Dead Internet', desc: 'AI chatbots exclusively hallucinating conversations with other AI chatbots.' },
+        { id: 'p15', title: 'Weaponized therapy speak', desc: 'Using "setting boundaries" as an excuse to just be an absolute jerk.' },
+        { id: 'p16', title: 'Performative activism', desc: 'Changing a profile picture to solve systemic, centuries-old racism.' },
+        { id: 'p17', title: 'Algorithmic surge pricing', desc: 'Wendy’s charging $18 for a soggy burger because it started raining.' },
+        { id: 'p18', title: 'Corporate HR training', desc: 'Mandatory brainwashing modules masquerading as human empathy.' },
+        { id: 'p19', title: 'Enshittification', desc: 'The slow, inevitable decay of every useful platform into a scammy ad-board.' },
+        { id: 'p20', title: 'Toxic positivity', desc: '"Good vibes only" as a shield against addressing actual systemic issues.' },
+        { id: 'p21', title: 'Main character syndrome', desc: 'Treating retail workers as NPCs in your personal TikTok vlog.' },
+        { id: 'p22', title: 'Digital hoarding', desc: '45,000 unread emails and 12,000 screenshots of memes you\'ll never look at.' },
+        { id: 'p23', title: 'The reply guy', desc: 'Unsolicited, condescending explanations in your notifications from "Gary".' },
+        { id: 'p24', title: 'AI generated sludge', desc: 'The internet filling with unrecognizable, low-quality AI generated spam.' },
+        { id: 'p25', title: 'The 40-hour work week', desc: 'An outdated industrial era relic designed to crush the human spirit.' },
+        { id: 'p26', title: 'Planned obsolescence', desc: 'Appliances designed to self-destruct exactly one day after the warranty expires.' },
+        { id: 'p27', title: 'Greenwashing', desc: 'Megacorporations slapping a leaf logo on a toxic waste spill.' },
+        { id: 'p28', title: 'Nostalgia baiting', desc: 'Studios endlessly remaking 90s properties instead of having original ideas.' },
+        { id: 'p29', title: 'Micro-transactions', desc: 'Paying $2 for a blue digital shirt in a game you already paid $70 for.' },
+        { id: 'p30', title: 'Suburban sprawl', desc: 'Driving 45 minutes past identical strip malls just to buy milk.' },
+        { id: 'p31', title: 'Data brokers', desc: 'Shadowy entities selling your health data to advertisers for pennies.' },
+        { id: 'p32', title: 'Echo chamber radicalization', desc: 'Your uncle falling down a YouTube rabbit hole and joining a cult.' },
+        { id: 'p33', title: 'Attention spans of goldfish', desc: 'Inability to watch a movie without looking at subway surfers gameplay.' },
+        { id: 'p34', title: 'The illusion of choice', desc: '400 brands of cereal all secretly owned by the same three conglomerates.' },
+        { id: 'p35', title: 'Unpaid internships', desc: 'Working 50 hours a week for the "privilege" of exposure and crippling debt.' },
+        { id: 'p36', title: 'Modern dating apps', desc: 'Swiping through thousands of human faces like they are cheap catalog items.' }
+      ],
+      practices: [
+        { id: 'pr1', title: 'Phone tree', desc: 'Hierarchical but personal communication chain.' },
+        { id: 'pr2', title: 'Community repair circles', desc: 'Neighbors gathering to fix items together.' },
+        { id: 'pr3', title: 'Oral storytelling', desc: 'Passing down history and context through spoken word.' },
+        { id: 'pr4', title: 'Town hall debates', desc: 'Public forums for open civic discourse.' },
+        { id: 'pr5', title: 'Community fridges', desc: 'Shared resources for neighborhood nourishment.' },
+        { id: 'pr6', title: 'Barter markets', desc: 'Exchanging goods and services without currency.' },
+        { id: 'pr7', title: 'Mutual aid funds', desc: 'Pooling resources for collective community safety.' },
+        { id: 'pr8', title: 'Apprenticeship', desc: 'Learning a craft through dedicated, hands-on mentorship.' },
+        { id: 'pr9', title: 'Public pillories', desc: 'Sanctioned community shaming using wooden stocks and rotten vegetables.' },
+        { id: 'pr10', title: 'Victorian seances', desc: 'Faking ghostly contact to cope with grief in the dark.' },
+        { id: 'pr11', title: 'Professional mourning', desc: 'Hiring strangers (Keeners) to scream and cry dramatically at your funeral.' },
+        { id: 'pr12', title: 'Trial by combat', desc: 'Resolving complex legal and property disputes with broadswords.' },
+        { id: 'pr13', title: 'The Court Jester', desc: 'The only guy legally allowed to roast the CEO without getting beheaded.' },
+        { id: 'pr14', title: 'Pirate Articles of Agreement', desc: 'Radical workplace democracy and profit-sharing on the high seas.' },
+        { id: 'pr15', title: 'Speakeasy passwords', desc: 'Gatekeeping the fun from the feds, the cops, and the squares.' },
+        { id: 'pr16', title: 'Blood oaths', desc: 'Making unbreakable promises that carry a severe risk of tetanus.' },
+        { id: 'pr17', title: 'Ritual animal sacrifice', desc: 'Giving the local gods a goat so the seasonal crops don’t die.' },
+        { id: 'pr18', title: 'The village gossip well', desc: 'Information warfare disguised as doing the weekly laundry.' },
+        { id: 'pr19', title: 'Tarot reading', desc: 'Divining the future using heavily illustrated cards and sheer intuition.' },
+        { id: 'pr20', title: 'Guerilla gardening', desc: 'Illegally planting tomatoes in abandoned city potholes.' },
+        { id: 'pr21', title: 'The Victorian calling card', desc: 'Leaving a tiny piece of cardboard to passive-aggressively announce you visited.' },
+        { id: 'pr22', title: 'Night watchmen', desc: 'Guys walking around with lanterns yelling that it\'s 3 AM and all is well.' },
+        { id: 'pr23', title: 'Carrier pigeons', desc: 'Strapping USB drives to birds to avoid ISP data caps.' },
+        { id: 'pr24', title: 'The duel at dawn', desc: 'Settling Twitter beefs with flintlock pistols at 10 paces.' },
+        { id: 'pr25', title: 'Alchemical transubstantiation', desc: 'Trying to turn lead into gold, but mostly just getting mercury poisoning.' },
+        { id: 'pr26', title: 'Mixtape burning', desc: 'Carefully curating 14 tracks on a CD-R to express complex romantic feelings.' },
+        { id: 'pr27', title: 'Bootlegging', desc: 'Illegally distributing media out of the trunk of a 1998 Honda Civic.' },
+        { id: 'pr28', title: 'Pen pals', desc: 'Waiting 6 weeks to hear back from someone in Sweden via snail mail.' },
+        { id: 'pr29', title: 'The town crier', desc: 'A guy ringing a bell and screaming the news at you.' },
+        { id: 'pr30', title: 'Barn raising', desc: 'The whole village showing up to build a house in a single weekend.' },
+        { id: 'pr31', title: 'Gleaning', desc: 'Scavenging the leftover crops after the rich lords finish their harvest.' },
+        { id: 'pr32', title: 'The confessional', desc: 'Sitting in a tiny wooden box to tell a guy in a robe about your sins.' },
+        { id: 'pr33', title: 'Excommunication', desc: 'Formally kicking someone out of the group chat for life.' },
+        { id: 'pr34', title: 'Shunning', desc: 'Pretending someone doesn\'t exist until they apologize.' },
+        { id: 'pr35', title: 'Witch trials', desc: 'Throwing someone in a lake because their cow looked at you funny.' },
+        { id: 'pr36', title: 'Smoke signals', desc: 'Burning wet leaves to tell the next town over that you are bored.' }
+      ],
+      functions: [
+        { id: 'f1', title: 'Reciprocal forwarding', desc: 'Passing information in a trusted, verifiable loop.' },
+        { id: 'f2', title: 'Restore resourcefulness', desc: 'Building resilience through shared, local skills.' },
+        { id: 'f3', title: 'Intergenerational memory', desc: 'Connecting the past to the present meaningfully.' },
+        { id: 'f4', title: 'Consensus building', desc: 'Finding common ground in diverse, polarized groups.' },
+        { id: 'f5', title: 'Distributed nourishment', desc: 'Ensuring equitable access to vital resources.' },
+        { id: 'f6', title: 'Value retention', desc: 'Keeping economic energy circulating within a community.' },
+        { id: 'f7', title: 'Collective security', desc: 'Protecting the vulnerable through shared responsibility.' },
+        { id: 'f8', title: 'Skill transfer', desc: 'Ensuring crucial survival and creative skills endure.' },
+        { id: 'f9', title: 'Cathartic public weeping', desc: 'Allowing adults to have a collective, sanctioned meltdown.' },
+        { id: 'f10', title: 'Ritualistic humiliation', desc: 'Taking massive egos down a peg for the greater good of society.' },
+        { id: 'f11', title: 'Radical tax evasion', desc: 'Keeping wealth entirely out of the hands of the empire.' },
+        { id: 'f12', title: 'Plausible deniability', desc: 'Creating a perfect smokescreen for questionable behavior.' },
+        { id: 'f13', title: 'Weaponized rumor-milling', desc: 'Destroying elite reputations via untraceable, whispered tea.' },
+        { id: 'f14', title: 'Blood-bound loyalty', desc: 'Ensuring absolutely no one snitches when the authorities show up.' },
+        { id: 'f15', title: 'Absolute debauchery', desc: 'A designated, judgment-free time and place to act like a goblin.' },
+        { id: 'f16', title: 'Speaking truth to power', desc: 'Insulting the boss to their face without losing your livelihood.' },
+        { id: 'f17', title: 'Vengeance without police', desc: 'Settling the score organically, locally, and permanently.' },
+        { id: 'f18', title: 'Esoteric gatekeeping', desc: 'Keeping the tourists, influencers, and gentrifiers out of the cool spots.' },
+        { id: 'f19', title: 'Malicious compliance', desc: 'Following the rules so exactly that the entire system breaks.' },
+        { id: 'f20', title: 'Chaotic good disruption', desc: 'Doing the wrong thing for the absolute right reasons.' },
+        { id: 'f21', title: 'Information smuggling', desc: 'Getting truth past the censors hidden in Taylor Swift lyrics.' },
+        { id: 'f22', title: 'Temporal distortion', desc: 'Making a 1-hour meeting feel like 5 minutes (or vice versa).' },
+        { id: 'f23', title: 'Ego death', desc: 'Forcing someone to realize they aren\'t the center of the universe.' },
+        { id: 'f24', title: 'Kinetic joy', desc: 'Unlocking the visceral thrill of moving really fast for no reason.' },
+        { id: 'f25', title: 'Tactile grounding', desc: 'Forcing people to touch grass, literally.' },
+        { id: 'f26', title: 'Aggressive loitering', desc: 'Reclaiming public space by just standing there menacingly.' },
+        { id: 'f27', title: 'Sartorial defiance', desc: 'Dressing terribly to protest societal expectations.' },
+        { id: 'f28', title: 'Ephemeral existence', desc: 'Creating something beautiful that self-destructs in 10 seconds.' },
+        { id: 'f29', title: 'Guilt weaponization', desc: 'Making billionaires feel fundamentally bad about themselves.' },
+        { id: 'f30', title: 'Serendipity engine', desc: 'Forcing people to bump into strangers they\'ll actually like.' },
+        { id: 'f31', title: 'Boredom cultivation', desc: 'Eliminating stimuli to force actual original thought.' },
+        { id: 'f32', title: 'Feral reclamation', desc: 'Letting nature take back the abandoned strip mall.' },
+        { id: 'f33', title: 'Spite-fueled motivation', desc: 'Getting rich entirely to prove your 8th-grade teacher wrong.' },
+        { id: 'f34', title: 'Shadowbanning IRL', desc: 'A social contract to silently ignore the worst person in the room.' },
+        { id: 'f35', title: 'Radical transparency', desc: 'Publishing everyone\'s salary and browser history.' },
+        { id: 'f36', title: 'Vibe checks', desc: 'Systematically assessing the atmospheric energy of a room.' }
+      ],
+      artifacts: [
+        { id: 'a1', title: 'Mutual-aid hotline', desc: 'A localized phone network for support and alerts.' },
+        { id: 'a2', title: 'Mobile repair kiosk', desc: 'A portable station with tools and instructional guides.' },
+        { id: 'a3', title: 'Interactive audio map', desc: 'Location-based stories and elder wisdom tied to geography.' },
+        { id: 'a4', title: 'Digital public square', desc: 'A moderated, algorithm-free local forum protocol.' },
+        { id: 'a5', title: 'Smart micro-pantry network', desc: 'Connected local food sharing nodes with inventory sensors.' },
+        { id: 'a6', title: 'Barter loop market app', desc: 'A platform connecting local needs with local haves directly.' },
+        { id: 'a7', title: 'Story relay network', desc: 'A system for passing neighborhood news organically.' },
+        { id: 'a8', title: 'Community skill tree', desc: 'A visual directory mapping local expertise and willingness to teach.' },
+        { id: 'a9', title: 'Decentralized guillotine app', desc: 'A crowdfunding platform for legally ending billionaires.' },
+        { id: 'a10', title: 'Burner phone of alibis', desc: 'A device that auto-generates airtight excuses for your absence.' },
+        { id: 'a11', title: 'AR public pillory', desc: 'An augmented reality filter that locks your landlord in the town stocks.' },
+        { id: 'a12', title: 'Gossip mesh-network', desc: 'An offline router strictly for distributing highly classified neighborhood tea.' },
+        { id: 'a13', title: 'Spite-based Tamagotchi', desc: 'A digital pet that dies if you don’t actively ruin your ex’s day.' },
+        { id: 'a14', title: 'Smart-contract hex', desc: 'A blockchain-verified, ancient curse deployed upon breach of NDA.' },
+        { id: 'a15', title: 'Anonymous confession zine', desc: 'A continuously printing receipt machine of local community sins.' },
+        { id: 'a16', title: 'HR voodoo doll', desc: 'An IoT plushie that sends targeted electric shocks to middle management.' },
+        { id: 'a17', title: 'Tinder for blood feuds', desc: 'Swipe right to declare a multi-generational vendetta against a neighbor.' },
+        { id: 'a18', title: 'Rage-room subscription box', desc: 'Monthly deliveries of fragile, expensive-looking items meant to be smashed.' },
+        { id: 'a19', title: 'Anti-facial recognition balaclava', desc: 'A knitted mask that confuses AI cameras and looks stylish.' },
+        { id: 'a20', title: 'Tamagotchi for houseplants', desc: 'A device that screams at you when your fern needs water.' },
+        { id: 'a21', title: 'EMP generator briefcase', desc: 'A physical red button to instantly end the terrible zoom meeting.' },
+        { id: 'a22', title: 'A physical \'Block\' button', desc: 'A giant red desk button that cuts off a specific person\'s wifi access.' },
+        { id: 'a23', title: 'The \'Touch Grass\' wearable', desc: 'A smartwatch that shocks you if you haven\'t been outside in 24 hours.' },
+        { id: 'a24', title: 'Nostalgia jukebox', desc: 'A machine that only plays commercials and TV bumpers from 1999.' },
+        { id: 'a25', title: 'Analog reality headset', desc: 'A pair of cardboard tubes you look through to ignore your phone.' },
+        { id: 'a26', title: 'The honesty megaphone', desc: 'A mic that auto-translates corporate jargon into the brutal truth.' },
+        { id: 'a27', title: 'Burn-book wiki', desc: 'A decentralized ledger of everyone who has ever wronged you.' },
+        { id: 'a28', title: 'Spite-store front', desc: 'A retail location opened purely to bankrupt the coffee shop next door.' },
+        { id: 'a29', title: 'Carrier pigeon drone', desc: 'A mechanical bird that delivers encrypted hard drives.' },
+        { id: 'a30', title: 'Cursed artifact subscription box', desc: 'Monthly deliveries of haunted Victorian dolls directly to your door.' },
+        { id: 'a31', title: 'DIY Exorcism kit', desc: 'Holy water and sage bundled in millennial pink D2C packaging.' },
+        { id: 'a32', title: 'The \'Reply All\' shock collar', desc: 'A device that punishes corporate email abuse with voltage.' },
+        { id: 'a33', title: 'Analog dating app', desc: 'A bulletin board where you just pin a Polaroid of yourself.' },
+        { id: 'a34', title: 'Subwoofer for the soul', desc: 'A bass cannon that vibrates your entire skeleton into a state of zen.' },
+        { id: 'a35', title: 'Karma dashboard', desc: 'A public screen in town square showing everyone\'s good/bad deeds.' },
+        { id: 'a36', title: 'Decoy decoy wallet', desc: 'A fake wallet filled with fake money to hand to fake muggers.' }
+      ],
+      tags: ['COMMUNITY', 'EDUCATION', 'XR', 'HARDWARE', 'SOFTWARE', 'CIVIC', 'ECOLOGY', 'ECONOMICS', 'TABOO', 'OCCULT', 'ANARCHY', 'SPITE', 'MEME', 'HISTORICAL', 'DARK']
+    };
+
+    // --- STATE MANAGEMENT ---
+    const app = {
+      view: 'onboarding',
+      savedPitches: JSON.parse(localStorage.getItem('sankofa_archive')) || [],
+      isFastMode: false,
+      isMenuOpen: false,
+      round: 1,
+      cardsFlipped: [false, false, false, false],
+      currentDeck: { problem: null, practice: null, func: null, artifact: null },
+      currentPitch: null,
+      archiveTab: 'ALL',
+      searchQuery: '',
+      isEditing: false,
+      isPlaying: false,
+      audioProgress: 0,
+      utterance: null,
+      audioInterval: null,
+
+      // Init and Navigation
+      init() {
+        this.render();
+      },
+      navigate(newView) {
+        if(this.view === 'result' && newView !== 'result') this.handleStopSpeak();
+        this.view = newView;
+        this.isMenuOpen = false;
+        this.searchQuery = '';
+        this.isEditing = false;
+        this.render();
+      },
+
+      // Logic functions
+      getRandomItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; },
+      getRandomTags(count = 3) {
+        const shuffled = [...DATABASE.tags].sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, count);
+      },
+      generateNewDeck() {
+        return {
+          problem: this.getRandomItem(DATABASE.problems),
+          practice: this.getRandomItem(DATABASE.practices),
+          func: this.getRandomItem(DATABASE.functions),
+          artifact: this.getRandomItem(DATABASE.artifacts)
+        };
+      },
+
+      // Actions
+      startNewRound() {
+        this.currentDeck = this.generateNewDeck();
+        this.cardsFlipped = this.isFastMode ? [true, true, true, true] : [false, false, false, false];
+        this.round += 1;
+        this.navigate('play');
+      },
+      toggleFastMode() {
+        this.isFastMode = !this.isFastMode;
+        this.render();
+      },
+      toggleMenu() {
+        this.isMenuOpen = !this.isMenuOpen;
+        this.renderMenu();
+      },
+      clearArchive() {
+        if (confirm("Are you sure you want to clear your archive? This cannot be undone.")) {
+          this.savedPitches = [];
+          localStorage.removeItem('sankofa_archive');
+          this.render();
+        }
+      },
+      handleCardClick(index, category) {
+        if (!this.cardsFlipped[index]) {
+          this.cardsFlipped[index] = true;
+          this.renderPlayCards(); // Update only cards
+          this.renderPlayActions(); // Check if all flipped
+        } else {
+          // Unflip animation
+          this.cardsFlipped[index] = false;
+          this.renderPlayCards();
+          this.renderPlayActions();
+          
+          setTimeout(() => {
+            this.currentDeck[category] = this.getRandomItem(DATABASE[category === 'func' ? 'functions' : category + 's']);
+            // Reflip
+            setTimeout(() => {
+              this.cardsFlipped[index] = true;
+              this.renderPlayCards();
+              this.renderPlayActions();
+            }, 100);
+          }, 300);
+        }
+      },
+      shuffleDeck() {
+        this.cardsFlipped = [false, false, false, false];
+        this.renderPlayCards();
+        this.renderPlayActions();
+        
+        setTimeout(() => {
+          this.currentDeck = this.generateNewDeck();
+          if (this.isFastMode) {
+            setTimeout(() => {
+              this.cardsFlipped = [true, true, true, true];
+              this.renderPlayCards();
+              this.renderPlayActions();
+            }, 100);
+          } else {
+            this.renderPlayCards();
+          }
+        }, 300);
+      },
+      generatePitch() {
+        const p = this.currentDeck;
+        const summary = `A ${p.artifact.title.toLowerCase()} that revives the tradition of the ${p.practice.title.toLowerCase()} to cut through ${p.problem.title.toLowerCase()}. It restores ${p.func.title.toLowerCase()} so communities can rebuild trust and resilience.`;
+        const prefixes = ["The", "Project", "Operation", "Community", "Local", "Shadow", "Rogue", "Neo", "Quantum"];
+        const title = `${prefixes[Math.floor(Math.random() * prefixes.length)]} ${p.artifact.title.split(' ')[0]} ${p.artifact.title.split(' ')[1] || 'System'}`;
+        
+        const whyMatters = `Because ${p.problem.title.toLowerCase()} is eroding our social fabric. By focusing on ${p.func.title.toLowerCase()}, we shift from a model of extraction to a model of deeply rooted connection, making heritage usable and future-ready.`;
+        const buildPrompt = `Create a fully functional, self-contained single-file HTML/CSS/JS application for a "${title}".\n\nSTRICT REQUIREMENTS:\n1. DO NOT use React, Angular, or any external JS frameworks.\n2. The entire application must be contained within ONE single 'index.html' file (use inline scripts and style tags).\n3. Use vanilla JavaScript and Tailwind CSS (via CDN) for styling.\n4. Mobile-first, immersive, and responsive design.\n\nCONTEXT & LOGIC:\n- Problem to solve: ${p.problem.title.toLowerCase()}\n- Core function to build: ${p.func.title.toLowerCase()}\n- Inspiration/Metaphor: Acts like a digital/modern ${p.practice.title.toLowerCase()}\n\nOutput complete, runnable code with mock data so the core loop can be tested immediately.`;
+        const imagePrompt = `A high-end, photorealistic product shot of a final, production-ready "${title}".\n\nContext: It is a modern physical or digital artifact designed to solve the problem of ${p.problem.title.toLowerCase()} by functioning like a modern-day ${p.practice.title.toLowerCase()}.\n\nStyle: Commercial product photography, highly detailed, 8k resolution, cinematic studio lighting, shallow depth of field. Modern industrial design with premium, warm, textured Afro-futurist accents (subtle teal, amber, and stamp red details). The artifact feels tangible, sophisticated, and ready for market. Shown in active use in a realistic setting.`;
+
+        this.currentPitch = {
+          id: Date.now().toString(),
+          title, summary, whyMatters, buildPrompt, imagePrompt,
+          tags: this.getRandomTags(),
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          rating: 0,
+          elements: p
+        };
+        this.navigate('result');
+      },
+      savePitch(pitchToSave = this.currentPitch) {
+        if (!this.savedPitches.find(p => p.id === pitchToSave.id)) {
+          this.savedPitches = [pitchToSave, ...this.savedPitches];
+        } else {
+          this.savedPitches = this.savedPitches.map(p => p.id === pitchToSave.id ? pitchToSave : p);
+        }
+        localStorage.setItem('sankofa_archive', JSON.stringify(this.savedPitches));
+      },
+      ratePitch(id, rating) {
+        this.savedPitches = this.savedPitches.map(p => p.id === id ? { ...p, rating } : p);
+        if (this.currentPitch && this.currentPitch.id === id) {
+          this.currentPitch.rating = rating;
+        }
+        localStorage.setItem('sankofa_archive', JSON.stringify(this.savedPitches));
+        
+        // Target render to avoid losing scroll position if in detail view
+        if(this.view === 'detail') this.render();
+      },
+      deletePitch(id) {
+        if(confirm("Delete this pitch?")) {
+          this.savedPitches = this.savedPitches.filter(p => p.id !== id);
+          localStorage.setItem('sankofa_archive', JSON.stringify(this.savedPitches));
+          this.navigate('archive');
+        }
+      },
+      copyToClipboard(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try { document.execCommand('copy'); } catch (err) {}
+        document.body.removeChild(textArea);
+      },
+      handleShare(pitch) {
+        if (navigator.share) {
+          navigator.share({ title: pitch.title, text: pitch.summary }).catch(()=>{});
+        } else {
+          this.copyToClipboard(`${pitch.title}\n\n${pitch.summary}`);
+          alert("Copied to clipboard!");
+        }
+      },
+      setArchiveTab(tab) {
+        this.archiveTab = tab;
+        this.renderArchiveList(); // Partial render
+      },
+      handleSearch(e) {
+        this.searchQuery = e.target.value;
+        this.renderArchiveList(); // Partial render
+      },
+      clearSearch() {
+        this.searchQuery = '';
+        document.getElementById('archive-search-input').value = '';
+        this.renderArchiveList();
+      },
+      toggleEdit() {
+        this.isEditing = !this.isEditing;
+        this.render();
+      },
+      saveEdit() {
+        const title = document.getElementById('edit-title').value;
+        const summary = document.getElementById('edit-summary').value;
+        this.currentPitch.title = title;
+        this.currentPitch.summary = summary;
+        this.savePitch();
+        this.isEditing = false;
+        this.render();
+      },
+
+      // TTS
+      handleSpeak(text) {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          this.utterance = new SpeechSynthesisUtterance(text);
+          
+          this.utterance.onboundary = (event) => {
+            if (event.name === 'word') {
+              const percent = (event.charIndex / text.length) * 100;
+              this.updateAudioProgress(percent);
+            }
+          };
+          this.utterance.onend = () => {
+            this.isPlaying = false;
+            this.updateAudioProgress(100);
+            setTimeout(() => this.updateAudioProgress(0), 1000);
+            this.renderTTSControls();
+          };
+          this.utterance.onerror = () => {
+            this.isPlaying = false;
+            this.updateAudioProgress(0);
+            this.renderTTSControls();
+          };
+          
+          this.isPlaying = true;
+          this.updateAudioProgress(0);
+          this.renderTTSControls();
+          window.speechSynthesis.speak(this.utterance);
+        }
+      },
+      handleStopSpeak() {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          this.isPlaying = false;
+          this.updateAudioProgress(0);
+          if(this.view === 'result') this.renderTTSControls();
+        }
+      },
+      updateAudioProgress(percent) {
+        this.audioProgress = percent;
+        const bar = document.getElementById('audio-progress-bar');
+        if (bar) bar.style.width = `${percent}%`;
+      },
+
+      // Export
+      downloadData(type) {
+        let content = '';
+        let mimeType = '';
+        let filename = `sankofa-archive-${new Date().toISOString().split('T')[0]}`;
+        const data = this.savedPitches;
+
+        if (type === 'JSON') {
+          content = JSON.stringify(data, null, 2);
+          mimeType = 'application/json';
+          filename += '.json';
+        } else if (type === 'CSV') {
+          const headers = ['ID', 'Title', 'Date', 'Rating', 'Problem', 'Practice', 'Function', 'Artifact', 'Summary'];
+          const rows = data.map(p => [
+            p.id, `"${p.title.replace(/"/g, '""')}"`, p.date, p.rating, 
+            `"${p.elements.problem.title}"`, `"${p.elements.practice.title}"`, 
+            `"${p.elements.func.title}"`, `"${p.elements.artifact.title}"`, `"${p.summary.replace(/"/g, '""')}"`
+          ]);
+          content = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+          mimeType = 'text/csv';
+          filename += '.csv';
+        }
+
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      },
+
+      // --- RENDERING STRATEGY ---
+      render() {
+        const root = document.getElementById('app-root');
+        
+        if (this.view === 'onboarding') root.innerHTML = this.htmlOnboarding();
+        else if (this.view === 'play') root.innerHTML = this.htmlPlay();
+        else if (this.view === 'result') root.innerHTML = this.htmlResult();
+        else if (this.view === 'archive') root.innerHTML = this.htmlArchive();
+        else if (this.view === 'detail') root.innerHTML = this.htmlDetail();
+
+        this.renderNav();
+        this.renderMenu();
+        lucide.createIcons();
+      },
+      renderNav() {
+        document.getElementById('nav-root').innerHTML = this.view === 'onboarding' ? '' : this.htmlNavBar();
+        lucide.createIcons();
+      },
+      renderMenu() {
+        document.getElementById('side-menu-root').innerHTML = this.htmlSideMenu();
+        lucide.createIcons();
+      },
+      // Partial Renders for performance / keeping focus
+      renderPlayCards() {
+        const container = document.getElementById('play-cards-container');
+        if(container) {
+          container.innerHTML = this.htmlPlayCards();
+          lucide.createIcons();
+        }
+      },
+      renderPlayActions() {
+        const container = document.getElementById('play-actions-container');
+        if(container) {
+          container.innerHTML = this.htmlPlayActions();
+          lucide.createIcons();
+        }
+      },
+      renderArchiveList() {
+        const container = document.getElementById('archive-list-container');
+        if(container) {
+          container.innerHTML = this.htmlArchiveList();
+          
+          // Also update active tab style manually to avoid full re-render
+          const tabAll = document.getElementById('tab-ALL');
+          const tabFav = document.getElementById('tab-FAVORITES');
+          if(tabAll && tabFav) {
+            tabAll.className = `flex-1 py-3 text-xs font-black uppercase tracking-widest transition-colors ${this.archiveTab === 'ALL' ? 'bg-black text-white' : 'text-black/60 hover:bg-black/5'}`;
+            tabFav.className = `flex-1 py-3 text-xs font-black uppercase tracking-widest transition-colors border-l-[3px] border-black ${this.archiveTab === 'FAVORITES' ? 'bg-black text-white' : 'text-black/60 hover:bg-black/5'}`;
+          }
+          lucide.createIcons();
+        }
+      },
+      renderTTSControls() {
+        const container = document.getElementById('tts-controls-container');
+        if(container) {
+           container.innerHTML = this.htmlTTSControls();
+           lucide.createIcons();
+        }
+      },
+
+      // --- HTML TEMPLATES ---
+      birdSVG(className="w-24 h-24", color="#111") {
+        return `
+          <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="${className}">
+            <path d="M50 90C72.0914 90 90 72.0914 90 50C90 27.9086 72.0914 10 50 10C27.9086 10 10 27.9086 10 50C10 72.0914 27.9086 90 50 90Z" fill="${color}" />
+            <path d="M50 85C69.33 85 85 69.33 85 50C85 30.67 69.33 15 50 15C30.67 15 15 30.67 15 50C15 69.33 30.67 85 50 85Z" fill="#F5F1E6" />
+            <path d="M75 50C75 63.8071 63.8071 75 50 75C36.1929 75 25 63.8071 25 50C25 36.1929 36.1929 25 50 25" stroke="${color}" stroke-width="6" stroke-linecap="round" />
+            <circle cx="50" cy="25" r="8" fill="#B23A2E" />
+            <path d="M50 17C55 17 60 22 60 28" stroke="#F5F1E6" stroke-width="2" stroke-linecap="round" />
+            <path d="M35 50L65 50M35 60L60 60M40 70L55 70" stroke="${color}" stroke-width="4" stroke-linecap="round" />
+          </svg>`;
+      },
+      flipCardHTML(label, iconName, frontColor, backColor, value, isFlipped, index, category) {
+        const labelHTML = label.split(' ').map(word => `<span class="block">${word}</span>`).join('');
+        return `
+          <div class="relative w-full aspect-[3/4] cursor-pointer group perspective-1000" onclick="app.handleCardClick(${index}, '${category}')">
+            <div class="w-full h-full transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}">
+              
+              <!-- Front -->
+              <div class="absolute inset-0 w-full h-full flex flex-col items-center justify-center p-3 border-[3px] border-black rounded-xl shadow-sm backface-hidden" style="background-color: ${frontColor};">
+                <div class="flex-1 flex flex-col items-center justify-center w-full border-2 border-dashed border-white/30 rounded-lg p-2">
+                  <i data-lucide="${iconName}" class="w-9 h-9 mb-4 opacity-90 drop-shadow-md text-[#F5F1E6]"></i>
+                  <h3 class="text-center font-black text-sm tracking-widest uppercase leading-tight text-[#F5F1E6]">${labelHTML}</h3>
+                </div>
+                <p class="mt-3 text-[10px] uppercase font-bold tracking-widest opacity-80 text-[#F5F1E6]">Tap to reveal</p>
+              </div>
+
+              <!-- Back -->
+              <div class="absolute inset-0 w-full h-full flex flex-col items-center justify-between p-4 border-[3px] border-black rounded-xl shadow-md rotate-y-180 backface-hidden relative overflow-hidden" style="background-color: ${backColor};">
+                <div class="absolute top-0 right-0 w-16 h-16 opacity-5 pointer-events-none -mr-4 -mt-4"><i data-lucide="${iconName}" class="w-16 h-16 text-black"></i></div>
+                <div class="w-full flex justify-between items-start mb-2">
+                   <i data-lucide="${iconName}" class="w-5 h-5 opacity-80" style="color: ${frontColor};"></i>
+                   <div class="flex flex-col items-end gap-1">
+                     <span class="text-[10px] font-mono font-bold opacity-40">${value?.id.toUpperCase() || ''}</span>
+                     <i data-lucide="refresh-cw" class="w-3 h-3 opacity-30 group-hover:opacity-100 transition-opacity"></i>
+                   </div>
+                </div>
+                <div class="flex-1 flex items-center justify-center w-full">
+                  <h3 class="text-center font-black text-lg leading-tight uppercase text-black">${value?.title || ''}</h3>
+                </div>
+                <p class="text-[10px] font-medium leading-snug text-center opacity-70 border-t-2 pt-2 border-black/10 text-black">${value?.desc || ''}</p>
+              </div>
+
+            </div>
+          </div>
+        `;
+      },
+      starsHTML(rating, id) {
+        let stars = '';
+        for(let i=1; i<=5; i++) {
+          const filled = i <= rating;
+          const fillClass = filled ? 'fill-[#E3A21A]' : 'fill-transparent';
+          const colorClass = filled ? 'text-[#E3A21A]' : 'text-black';
+          const opClass = filled ? '' : 'opacity-30';
+          const clickAttr = id ? `onclick="app.ratePitch('${id}', ${i}); event.stopPropagation();"` : '';
+          stars += `<svg ${clickAttr} class="w-4 h-4 cursor-pointer transition-transform hover:scale-110 ${fillClass} ${colorClass} ${opClass}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+        }
+        return stars;
+      },
+      smallStarsHTML(rating) {
+         let stars = '';
+        for(let i=1; i<=5; i++) {
+          const filled = i <= rating;
+          const fillClass = filled ? 'fill-[#E3A21A]' : 'fill-transparent';
+          const colorClass = filled ? 'text-[#E3A21A]' : 'text-black';
+          const opClass = filled ? '' : 'opacity-30';
+          stars += `<svg class="w-2.5 h-2.5 ${fillClass} ${colorClass} ${opClass}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+        }
+        return stars;
+      },
+
+      htmlSideMenu() {
+        return `
+          <div class="absolute inset-0 z-[100] transition-transform duration-300 ${this.isMenuOpen ? 'translate-x-0' : '-translate-x-full'}">
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="app.toggleMenu()"></div>
+            <div class="absolute top-0 left-0 w-4/5 h-full bg-[#F5F1E6] border-r-[4px] border-black flex flex-col p-6 shadow-2xl overflow-y-auto">
+              <div class="flex justify-between items-center mb-8">
+                ${this.birdSVG("w-12 h-12")}
+                <button onclick="app.toggleMenu()"><i data-lucide="x" class="w-7 h-7"></i></button>
+              </div>
+              <h2 class="text-3xl font-black uppercase tracking-tighter mb-6">Settings</h2>
+              <div class="space-y-6 flex-1">
+                <div class="border-[3px] border-black p-4 rounded-xl bg-white flex justify-between items-center">
+                  <div>
+                    <div class="font-black uppercase text-sm">Fast Mode</div>
+                    <div class="text-[10px] font-medium opacity-60">Auto-reveal all cards</div>
+                  </div>
+                  <button onclick="app.toggleFastMode()" class="w-12 h-6 rounded-full border-2 border-black relative transition-colors ${this.isFastMode ? 'bg-amber-400' : 'bg-gray-300'}">
+                    <div class="w-4 h-4 bg-black rounded-full absolute top-0.5 transition-all ${this.isFastMode ? 'left-6' : 'left-1'}"></div>
+                  </button>
+                </div>
+                <div class="border-[3px] border-black p-4 rounded-xl bg-white">
+                  <div class="font-black uppercase text-sm flex items-center mb-2"><i data-lucide="info" class="w-4 h-4 mr-2"></i> About Sankofa</div>
+                  <p class="text-[10px] font-medium opacity-80 leading-relaxed mb-2">
+                    Sankofa is an Akan concept meaning "go back and fetch it". This tool applies that wisdom to modern design by forcing lateral combinations of ancestral practices and modern problems.
+                  </p>
+                  <p class="text-[10px] font-medium opacity-80 leading-relaxed font-bold text-red-700">
+                    Tip: Tap a flipped card to organically swap it for a new idea!
+                  </p>
+                </div>
+                <button onclick="app.clearArchive()" class="w-full border-[3px] border-red-700 text-red-700 p-4 rounded-xl font-black uppercase text-sm hover:bg-red-50 transition-colors flex items-center justify-center">
+                  <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i> Clear Archive Data
+                </button>
+              </div>
+              <div class="text-[10px] font-mono text-center opacity-40 mt-6">SANKOFA OS v2.0<br/>Design Lab</div>
+            </div>
+          </div>
+        `;
+      },
+      htmlNavBar() {
+        const isPlay = this.view === 'play' || this.view === 'result';
+        const isArch = this.view === 'archive' || this.view === 'detail';
+        return `
+          <div class="h-16 border-t-[3px] border-black flex items-center justify-around bg-white shrink-0 absolute bottom-0 w-full z-50">
+            <button onclick="app.startNewRound()" class="flex flex-col items-center p-2 w-16 transition-colors ${isPlay ? 'text-[#E3A21A]' : 'text-black opacity-40 hover:opacity-100'}">
+              <i data-lucide="zap" class="w-5 h-5 ${isPlay ? 'fill-current' : ''}"></i>
+              <span class="text-[8px] font-black uppercase tracking-widest mt-1">Play</span>
+            </button>
+            <div class="w-12 h-12 bg-black rounded-full flex items-center justify-center -mt-6 border-4 border-[#F5F1E6] shadow-sm cursor-pointer hover:-translate-y-1 transition-transform" onclick="app.startNewRound()">
+               ${this.birdSVG("w-6 h-6", "#F5F1E6")}
+            </div>
+            <button onclick="app.navigate('archive')" class="flex flex-col items-center p-2 w-16 transition-colors ${isArch ? 'text-[#B23A2E]' : 'text-black opacity-40 hover:opacity-100'}">
+              <i data-lucide="archive" class="w-5 h-5 ${isArch ? 'fill-current' : ''}"></i>
+              <span class="text-[8px] font-black uppercase tracking-widest mt-1">Archive</span>
+            </button>
+          </div>
+        `;
+      },
+
+      htmlOnboarding() {
+        return `
+          <div class="flex flex-col items-center justify-between h-full p-6 pb-12 bg-[#F5F1E6]">
+            <div class="w-full pt-8 flex flex-col items-center">
+              <div class="flex items-center gap-2 mb-2 opacity-50">
+                 <span class="w-8 h-[2px] bg-black"></span>
+                 <span class="text-[10px] font-bold uppercase tracking-widest">Inspired by an Akan Proverb</span>
+                 <span class="w-8 h-[2px] bg-black"></span>
+              </div>
+              <h1 class="text-6xl font-black tracking-tighter uppercase mb-2 text-black">Sankofa</h1>
+              <h2 class="text-sm font-bold tracking-widest uppercase mb-12 text-center leading-snug text-[#B23A2E]">
+                Go Back And Get<br/>What Was Left Behind.
+              </h2>
+              <div class="w-full text-left p-6 border-[3px] border-black shadow-[4px_4px_0_rgb(17,17,17)] bg-white relative overflow-hidden mb-8">
+                <div class="absolute -right-4 -bottom-4 w-32 h-32 opacity-5 pointer-events-none">
+                  ${this.birdSVG()}
+                </div>
+                <p class="text-sm mb-4 font-bold leading-relaxed text-black">
+                  Sankofa is a fast idea-generation game that helps you build what matters by combining:
+                </p>
+                <ul class="text-sm space-y-3 font-mono opacity-80 mb-6 text-black">
+                  <li class="flex items-start"><span class="w-5 h-5 rounded-full border border-black flex items-center justify-center text-[10px] mr-2 shrink-0">1</span> a present problem</li>
+                  <li class="flex items-start"><span class="w-5 h-5 rounded-full border border-black flex items-center justify-center text-[10px] mr-2 shrink-0">2</span> a forgotten practice</li>
+                  <li class="flex items-start"><span class="w-5 h-5 rounded-full border border-black flex items-center justify-center text-[10px] mr-2 shrink-0">3</span> a function to recover</li>
+                  <li class="flex items-start"><span class="w-5 h-5 rounded-full border border-black flex items-center justify-center text-[10px] mr-2 shrink-0">4</span> an artifact direction</li>
+                </ul>
+                <div class="text-[10px] font-black uppercase tracking-widest text-[#0E6B66] leading-tight">
+                  This is not nostalgia.<br/>This is reclamation.<br/>This is design.
+                </div>
+              </div>
+            </div>
+            <div class="w-full flex flex-col items-center gap-4">
+              ${this.birdSVG("w-16 h-16")}
+              <button onclick="app.startNewRound()" class="w-full py-4 rounded-xl text-xl font-black uppercase tracking-widest flex items-center justify-center transition-transform active:scale-95 shadow-[0_6px_0_rgb(17,17,17)] hover:shadow-[0_4px_0_rgb(17,17,17)] hover:translate-y-[2px] bg-black text-[#F5F1E6]">
+                Start Round <i data-lucide="chevron-right" class="w-6 h-6 ml-2"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      },
+
+      htmlPlay() {
+        return `
+          <div class="flex flex-col h-full bg-[#F5F1E6]">
+            <!-- Header -->
+            <div class="flex justify-between items-center p-4 border-b-[3px] border-black bg-white shadow-sm z-10 shrink-0">
+              <div class="flex items-center gap-2">
+                <button onclick="app.toggleMenu()" class="hover:opacity-60 transition-opacity"><i data-lucide="menu" class="w-6 h-6 text-black"></i></button>
+                <span class="text-[10px] font-black px-2 py-1 rounded bg-black text-white uppercase tracking-widest">
+                  Round ${this.round}
+                </span>
+              </div>
+              <div onclick="app.toggleFastMode()" class="flex items-center gap-2 cursor-pointer transition-colors px-2 py-1 rounded ${this.isFastMode ? 'text-amber-600 bg-amber-50' : 'text-gray-400'}">
+                 <i data-lucide="zap" class="w-3.5 h-3.5 ${this.isFastMode ? 'fill-current' : ''}"></i>
+                 <span class="text-[10px] font-black uppercase tracking-widest">Fast Mode ${this.isFastMode ? 'ON' : 'OFF'}</span>
+              </div>
+            </div>
+            <!-- Main Area -->
+            <div class="flex-1 flex flex-col p-4 overflow-y-auto">
+              <div class="text-center mb-4 flex items-center justify-center gap-4">
+                <span class="h-[2px] w-8 bg-black/20"></span>
+                <span class="text-[10px] font-black tracking-widest uppercase opacity-60">
+                   ${this.isFastMode ? 'Ideas Generated' : 'Tap Each Card To Reveal'}
+                </span>
+                <span class="h-[2px] w-8 bg-black/20"></span>
+              </div>
+              
+              <div id="play-cards-container" class="grid grid-cols-2 gap-4 mb-6 flex-1 max-h-[60vh] min-h-[300px]">
+                ${this.htmlPlayCards()}
+              </div>
+
+              <div id="play-actions-container" class="mt-auto flex flex-col gap-3 shrink-0">
+                 ${this.htmlPlayActions()}
+              </div>
+            </div>
+          </div>
+        `;
+      },
+      htmlPlayCards() {
+        return `
+          ${this.flipCardHTML("Present Problem", "zap", "#B23A2E", "#F5F1E6", this.currentDeck.problem, this.cardsFlipped[0], 0, 'problem')}
+          ${this.flipCardHTML("Forgotten Practice", "refresh-cw", "#E3A21A", "#F5F1E6", this.currentDeck.practice, this.cardsFlipped[1], 1, 'practice')}
+          ${this.flipCardHTML("Function To Recover", "target", "#0E6B66", "#F5F1E6", this.currentDeck.func, this.cardsFlipped[2], 2, 'func')}
+          ${this.flipCardHTML("Artifact Direction", "box", "#111111", "#F5F1E6", this.currentDeck.artifact, this.cardsFlipped[3], 3, 'artifact')}
+        `;
+      },
+      htmlPlayActions() {
+        const allFlipped = this.cardsFlipped.every(Boolean);
+        return `
+          <button onclick="${allFlipped ? 'app.generatePitch()' : ''}" class="w-full py-4 rounded-xl text-lg font-black uppercase tracking-widest flex items-center justify-center transition-all border-[3px] border-black bg-[#F5F1E6] text-black ${allFlipped ? 'shadow-[0_6px_0_rgb(17,17,17)] active:translate-y-[2px] active:shadow-[0_4px_0_rgb(17,17,17)] opacity-100' : 'opacity-50 grayscale'}" ${allFlipped ? '' : 'disabled'}>
+             Generate Pitch <i data-lucide="chevron-right" class="w-5 h-5 ml-2"></i>
+          </button>
+          <button onclick="app.shuffleDeck()" class="w-full py-3 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center transition-transform active:scale-95 border-[2px] border-dashed border-black/30 text-black/60 hover:bg-black/5">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mr-2"></i> ${allFlipped ? 'Discard & Re-roll' : 'Shuffle Deck'}
+          </button>
+        `;
+      },
+
+      htmlResult() {
+        const p = this.currentPitch;
+        if(!p) return '';
+        return `
+          <div class="flex flex-col h-full bg-[#F5F1E6]">
+            <!-- Header -->
+            <div class="flex justify-between items-center p-4 border-b-[3px] border-black bg-white shrink-0">
+              <button onclick="app.navigate('play')" class="flex items-center text-xs font-black uppercase tracking-widest hover:text-amber-600 transition-colors">
+                <i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i> Back
+              </button>
+              <button onclick="app.savePitch(); app.navigate('archive');" class="flex items-center text-xs font-black uppercase tracking-widest hover:text-amber-600 transition-colors">
+                Save <i data-lucide="star" class="w-3.5 h-3.5 ml-1"></i>
+              </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-5 pb-24">
+              <div class="text-center mb-6">
+                <div class="flex items-center justify-center gap-4 mb-4 opacity-50">
+                   <span class="h-[2px] w-8 bg-black"></span>
+                   <span class="text-[10px] font-black uppercase tracking-widest">Your Sankofa Pitch</span>
+                   <span class="h-[2px] w-8 bg-black"></span>
+                </div>
+                <h1 class="text-4xl font-black uppercase leading-[0.9] mb-4 font-serif text-black">${p.title}</h1>
+                <p class="text-sm font-bold uppercase tracking-widest leading-relaxed opacity-80 max-w-[90%] mx-auto">
+                  A ${p.elements.artifact.title.toLowerCase()} that turns ${p.elements.problem.title.toLowerCase()} into ${p.elements.func.title.toLowerCase()}.
+                </p>
+              </div>
+
+              <!-- Pitch Summary Box -->
+              <div class="border-[3px] border-black rounded-xl bg-white mb-6 relative shadow-[4px_4px_0_rgb(17,17,17)]">
+                 <div class="absolute -top-3 left-4 bg-white px-2 text-[10px] font-black uppercase tracking-widest border-[3px] border-black">
+                    Spoken Pitch (TTS)
+                 </div>
+                 <div class="p-4 pt-6 text-sm font-medium leading-relaxed font-serif text-gray-800">
+                    ${p.summary}
+                 </div>
+                 <div id="tts-controls-container">
+                    ${this.htmlTTSControls()}
+                 </div>
+              </div>
+
+              <!-- Prompts Quick View -->
+              <div class="grid grid-cols-2 gap-4">
+                 <div class="border-[3px] border-black bg-[#F5F1E6] p-3 rounded-xl flex flex-col items-start">
+                    <div class="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1 opacity-60">
+                       <i data-lucide="code" class="w-3 h-3"></i> Build Prompt
+                    </div>
+                    <p class="text-[10px] font-medium leading-tight mb-3 flex-1 opacity-80">
+                       Generate a step-by-step MVP plan, tech stack, and data model for this idea.
+                    </p>
+                    <button onclick="app.savePitch(); app.navigate('detail');" class="text-[10px] font-black uppercase text-[#0E6B66] flex items-center hover:underline">
+                       View Prompt <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                    </button>
+                 </div>
+                 <div class="border-[3px] border-black bg-[#F5F1E6] p-3 rounded-xl flex flex-col items-start">
+                    <div class="text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1 opacity-60">
+                       <i data-lucide="image" class="w-3 h-3"></i> Image Prompt
+                    </div>
+                    <p class="text-[10px] font-medium leading-tight mb-3 flex-1 opacity-80">
+                       Generate a blueprint or concept image for the artifact.
+                    </p>
+                    <button onclick="app.savePitch(); app.navigate('detail');" class="text-[10px] font-black uppercase text-[#0E6B66] flex items-center hover:underline">
+                       View Prompt <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                    </button>
+                 </div>
+              </div>
+            </div>
+          </div>
+        `;
+      },
+
+      htmlTTSControls() {
+         const p = this.currentPitch;
+         return `
+           <div class="bg-zinc-100 border-t-[3px] border-black p-3 flex flex-col gap-2 rounded-b-lg">
+              <div class="flex items-center gap-2">
+                 <div class="text-[10px] font-mono font-bold w-6 text-right opacity-50">T</div>
+                 <div class="flex-1 h-2 bg-black/10 rounded-full overflow-hidden relative">
+                    <div id="audio-progress-bar" class="absolute top-0 left-0 h-full bg-amber-500 transition-all duration-75 ease-linear" style="width: ${this.audioProgress}%"></div>
+                 </div>
+                 <div class="text-[10px] font-mono font-bold w-6 text-left opacity-50">T</div>
+              </div>
+              <div class="flex justify-between gap-2 mt-1">
+                <button onclick="${this.isPlaying ? 'app.handleStopSpeak()' : `app.handleSpeak('${p.summary.replace(/'/g, "\\'")}')`}" class="flex-1 py-2 rounded border-2 border-black flex items-center justify-center text-xs font-black uppercase active:translate-y-1 transition-transform ${this.isPlaying ? 'bg-[#B23A2E]' : 'bg-[#0E6B66]'} text-[#F5F1E6]">
+                  <i data-lucide="${this.isPlaying ? 'square' : 'play'}" class="w-3.5 h-3.5 mr-2 fill-current"></i>
+                  ${this.isPlaying ? 'Stop' : 'Speak'}
+                </button>
+                <button onclick="app.copyToClipboard('${p.summary.replace(/'/g, "\\'")}')" class="px-4 py-2 rounded border-2 border-black flex items-center justify-center text-xs font-black uppercase active:translate-y-1 transition-transform bg-white hover:bg-black/5 text-black">
+                  <i data-lucide="copy" class="w-3.5 h-3.5 mr-1"></i> Copy
+                </button>
+              </div>
+           </div>
+         `;
+      },
+
+      htmlArchive() {
+        const avgRating = this.savedPitches.length ? (this.savedPitches.reduce((acc, p) => acc + p.rating, 0) / this.savedPitches.length).toFixed(1) : "0.0";
+        const topIdeas = this.savedPitches.filter(p => p.rating >= 4).length;
+        
+        return `
+          <div class="flex flex-col h-full bg-[#F5F1E6]">
+            <!-- Header -->
+            <div class="p-4 pt-6 bg-white border-b-[3px] border-black shrink-0">
+               <div class="flex justify-between items-center mb-6">
+                  <div class="flex flex-col">
+                     <h1 class="text-3xl font-black uppercase tracking-tighter text-[#B23A2E]">Archive</h1>
+                     <div class="text-[10px] font-black uppercase tracking-widest opacity-60">Your Saved Pitches</div>
+                  </div>
+                  <div class="w-12 h-12 rounded-full border-[3px] border-black flex items-center justify-center p-1">
+                     <div class="w-full h-full border-2 border-black border-dashed rounded-full flex items-center justify-center text-[8px] font-black text-center leading-none">
+                        DESIGN<br/>LAB
+                     </div>
+                  </div>
+               </div>
+               <!-- Stats Board -->
+               <div class="flex border-[3px] border-black rounded-lg overflow-hidden bg-[#F5F1E6] mb-4">
+                  <div class="flex-1 p-2 text-center border-r-[3px] border-black">
+                     <div class="text-[8px] font-black uppercase tracking-widest opacity-60 mb-1">Total Saved</div>
+                     <div class="text-xl font-black">${this.savedPitches.length}</div>
+                  </div>
+                  <div class="flex-1 p-2 text-center border-r-[3px] border-black">
+                     <div class="text-[8px] font-black uppercase tracking-widest opacity-60 mb-1">Avg Rating</div>
+                     <div class="text-xl font-black flex items-center justify-center gap-1">
+                       ${avgRating} <i data-lucide="star" class="w-2.5 h-2.5 fill-[#E3A21A] text-[#E3A21A]"></i>
+                     </div>
+                  </div>
+                  <div class="flex-1 p-2 text-center">
+                     <div class="text-[8px] font-black uppercase tracking-widest opacity-60 mb-1">4★+ Ideas</div>
+                     <div class="text-xl font-black">${topIdeas}</div>
+                  </div>
+               </div>
+               <!-- Search Bar -->
+               <div class="relative border-2 border-black rounded-lg overflow-hidden flex items-center bg-white">
+                  <i data-lucide="search" class="w-4 h-4 absolute left-3 text-gray-400"></i>
+                  <input id="archive-search-input" type="text" placeholder="Search pitches or artifacts..." oninput="app.handleSearch(event)" value="${this.searchQuery}" class="w-full py-2 pl-9 pr-8 text-sm font-medium focus:outline-none placeholder:text-gray-400 bg-white">
+                  <button onclick="app.clearSearch()" class="absolute right-3 text-gray-400 hover:text-black focus:outline-none">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                  </button>
+               </div>
+            </div>
+            <!-- Tabs -->
+            <div class="flex border-b-[3px] border-black bg-white shrink-0">
+               <button id="tab-ALL" onclick="app.setArchiveTab('ALL')" class="flex-1 py-3 text-xs font-black uppercase tracking-widest transition-colors ${this.archiveTab === 'ALL' ? 'bg-black text-white' : 'text-black/60 hover:bg-black/5'}">All</button>
+               <button id="tab-FAVORITES" onclick="app.setArchiveTab('FAVORITES')" class="flex-1 py-3 text-xs font-black uppercase tracking-widest transition-colors border-l-[3px] border-black ${this.archiveTab === 'FAVORITES' ? 'bg-black text-white' : 'text-black/60 hover:bg-black/5'}">Favorites</button>
+            </div>
+            <!-- List -->
+            <div id="archive-list-container" class="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
+              ${this.htmlArchiveList()}
+            </div>
+            <!-- Export Footer -->
+            <div class="p-4 border-t-[3px] border-black bg-white shrink-0 mb-[64px]">
+              <div class="text-[10px] text-center font-black uppercase tracking-widest mb-2 opacity-50">Export Archive</div>
+              <div class="flex gap-2">
+                <button onclick="app.downloadData('JSON')" class="flex-1 py-2 border-[2px] rounded border-black text-[10px] font-black uppercase hover:bg-black hover:text-white transition-colors flex items-center justify-center gap-1"><i data-lucide="code" class="w-3 h-3"></i> JSON</button>
+                <button onclick="app.downloadData('CSV')" class="flex-1 py-2 border-[2px] rounded border-black text-[10px] font-black uppercase hover:bg-black hover:text-white transition-colors flex items-center justify-center gap-1"><i data-lucide="file-text" class="w-3 h-3"></i> CSV</button>
+              </div>
+            </div>
+          </div>
+        `;
+      },
+      htmlArchiveList() {
+        let displayedPitches = this.archiveTab === 'ALL' ? this.savedPitches : this.savedPitches.filter(p => p.rating >= 4);
+        const q = this.searchQuery.toLowerCase();
+        if (q) {
+          displayedPitches = displayedPitches.filter(p => 
+            p.title.toLowerCase().includes(q) || 
+            p.summary.toLowerCase().includes(q) ||
+            p.elements.artifact.title.toLowerCase().includes(q)
+          );
+        }
+
+        if(displayedPitches.length === 0) {
+           return `<div class="text-center p-12 opacity-30 font-black uppercase tracking-widest border-2 border-dashed border-black rounded-xl">
+               ${q ? 'No matching ideas found.' : `No ${this.archiveTab.toLowerCase()} pitches.`}
+            </div>`;
+        }
+
+        return displayedPitches.map(pitch => `
+          <div onclick="app.currentPitch = app.savedPitches.find(p=>p.id==='${pitch.id}'); app.navigate('detail');" class="flex items-center p-3 border-[3px] border-black rounded-xl bg-white cursor-pointer hover:bg-black/5 active:scale-95 transition-all shadow-sm">
+            <div class="flex-1 min-w-0 pr-4">
+              <h3 class="font-black text-sm uppercase truncate mb-1 font-serif">${pitch.title}</h3>
+              <div class="text-[10px] font-mono opacity-60 truncate">${pitch.elements.artifact.title}</div>
+            </div>
+            <div class="flex flex-col items-end gap-1 shrink-0">
+              <div class="flex items-center">
+                ${this.smallStarsHTML(pitch.rating)}
+              </div>
+              <div class="text-[9px] font-bold uppercase tracking-widest opacity-40">${pitch.date}</div>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 ml-2 opacity-30"></i>
+          </div>
+        `).join('');
+      },
+
+      htmlDetail() {
+        const p = this.currentPitch;
+        if(!p) return '';
+        
+        return `
+          <div class="flex flex-col h-full bg-[#E5E0D8]">
+            <!-- Header -->
+            <div class="flex justify-between items-center p-3 border-b-[3px] border-black bg-[#F5F1E6] shrink-0">
+              <button onclick="app.navigate('archive')" class="flex items-center text-[10px] font-black uppercase tracking-widest hover:text-[#E3A21A] transition-colors">
+                <i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i> Back
+              </button>
+              <div class="flex items-center gap-4">
+                <button onclick="app.toggleEdit()" class="opacity-50 hover:opacity-100 transition-opacity"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                <button onclick="app.handleShare(app.currentPitch)" class="opacity-50 hover:opacity-100 transition-opacity"><i data-lucide="share" class="w-4 h-4"></i></button>
+                <button onclick="app.deletePitch('${p.id}')" class="opacity-50 hover:text-[#B23A2E] transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 pb-24 font-serif">
+               <!-- Document Header -->
+               <div class="border-b-[3px] border-black pb-4 mb-4">
+                  ${this.isEditing ? `
+                     <div class="mb-4 bg-white p-3 border-[2px] border-black rounded-lg shadow-sm font-sans">
+                        <label class="text-[10px] font-black uppercase tracking-widest opacity-50 mb-1 block">Edit Title</label>
+                        <input id="edit-title" type="text" value="${p.title}" class="w-full text-2xl font-black uppercase mb-3 border-b-2 border-dashed border-gray-300 focus:border-amber-500 focus:outline-none pb-1 font-serif bg-transparent">
+                        <label class="text-[10px] font-black uppercase tracking-widest opacity-50 mb-1 block">Edit Pitch</label>
+                        <textarea id="edit-summary" class="w-full h-24 text-sm font-medium border-2 border-gray-200 rounded p-2 focus:border-amber-500 focus:outline-none font-serif mb-3">${p.summary}</textarea>
+                        <div class="flex gap-2">
+                           <button onclick="app.saveEdit()" class="flex-1 bg-black text-white py-2 rounded text-[10px] font-black uppercase flex justify-center items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Save</button>
+                           <button onclick="app.toggleEdit()" class="flex-1 border-2 border-black py-2 rounded text-[10px] font-black uppercase flex justify-center items-center gap-1"><i data-lucide="x" class="w-3 h-3"></i> Cancel</button>
+                        </div>
+                     </div>
+                  ` : `
+                     <div class="flex justify-between items-start mb-2">
+                        <h1 class="text-3xl font-black uppercase leading-none max-w-[80%]">${p.title}</h1>
+                        <div class="border-2 border-red-800 text-red-800 text-[8px] font-black uppercase p-1 text-center transform rotate-3 shrink-0">
+                            Saved<br/>${p.date}
+                        </div>
+                     </div>
+                     <p class="text-xs font-bold uppercase tracking-widest opacity-80 font-sans mb-3">
+                        A ${p.elements.artifact.title.toLowerCase()} that turns ${p.elements.problem.title.toLowerCase()} into ${p.elements.func.title.toLowerCase()}.
+                     </p>
+                  `}
+                  
+                  <div class="flex items-center gap-3 mb-3">
+                     <div class="flex gap-1 items-center z-10">
+                        ${this.starsHTML(p.rating, p.id)}
+                     </div>
+                     <span class="text-[10px] font-mono opacity-50">${p.rating > 0 ? p.rating + '.0 Rating' : 'Unrated'}</span>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                     ${p.tags.map(t => `<span class="bg-[#0E6B66] text-white px-2 py-0.5 text-[8px] font-black tracking-widest rounded-sm font-sans">${t}</span>`).join('')}
+                  </div>
+               </div>
+
+               <!-- Core Breakdown Grid -->
+               <div class="grid grid-cols-2 gap-4 mb-6 font-sans">
+                  <div class="border-[2px] border-black p-3 bg-white/50">
+                     <div class="text-[8px] font-black uppercase tracking-widest opacity-60 mb-1 flex items-center gap-1"><i data-lucide="target" class="w-2.5 h-2.5"></i> Pitch Text</div>
+                     <p class="text-[10px] font-medium leading-relaxed break-words">${p.summary}</p>
+                  </div>
+                  <div class="border-[2px] border-black p-3 bg-white/50">
+                     <div class="text-[8px] font-black uppercase tracking-widest opacity-60 mb-1 flex items-center gap-1"><i data-lucide="box" class="w-2.5 h-2.5"></i> Artifact Direction</div>
+                     <h4 class="text-xs font-black uppercase mb-1">${p.elements.artifact.title}</h4>
+                     <p class="text-[10px] font-medium leading-relaxed opacity-80">${p.elements.artifact.desc}</p>
+                  </div>
+               </div>
+
+               <!-- Why it matters -->
+               <div class="mb-6 font-sans border-l-[4px] border-[#E3A21A] pl-4 py-1">
+                  <h3 class="text-[10px] font-black uppercase tracking-widest mb-1">Why This Matters</h3>
+                  <p class="text-sm font-medium leading-relaxed text-gray-800">${p.whyMatters}</p>
+               </div>
+
+               <!-- Prompts Section -->
+               <div class="space-y-4 font-sans border-t-[3px] border-black pt-4">
+                  <div class="border-[2px] border-black rounded-lg bg-white overflow-hidden shadow-sm">
+                     <div class="bg-black text-white p-2 flex justify-between items-center">
+                        <h3 class="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><i data-lucide="image" class="w-3 h-3"></i> Image Generation Prompt</h3>
+                        <button onclick="app.copyToClipboard('${p.imagePrompt.replace(/'/g, "\\'")}')" class="hover:text-[#E3A21A] transition-colors"><i data-lucide="copy" class="w-3 h-3"></i></button>
+                     </div>
+                     <div class="p-3 text-[10px] font-mono leading-relaxed bg-black/5 select-all">${p.imagePrompt.replace(/\n/g, '<br>')}</div>
+                  </div>
+
+                  <div class="border-[2px] border-black rounded-lg bg-white overflow-hidden shadow-sm">
+                     <div class="bg-black text-white p-2 flex justify-between items-center">
+                        <h3 class="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><i data-lucide="code" class="w-3 h-3"></i> Single-File Build Prompt</h3>
+                        <button onclick="app.copyToClipboard('${p.buildPrompt.replace(/'/g, "\\'")}')" class="hover:text-[#E3A21A] transition-colors"><i data-lucide="copy" class="w-3 h-3"></i></button>
+                     </div>
+                     <div class="p-3 text-[10px] font-mono leading-relaxed bg-black/5 whitespace-pre-wrap select-all">${p.buildPrompt}</div>
+                  </div>
+               </div>
+            </div>
+          </div>
+        `;
+      }
+    };
+
+    // Initialization
+    window.onload = () => {
+      app.init();
+    };
+  </script>
+</body>
+</html>
+
+```
