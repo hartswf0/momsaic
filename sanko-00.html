@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -395,10 +394,30 @@
       copyToClipboard(text) {
         const textArea = document.createElement("textarea");
         textArea.value = text;
+        textArea.style.position = "fixed"; // Prevent scrolling to the bottom of the page
+        textArea.style.top = "0";
+        textArea.style.left = "0";
         document.body.appendChild(textArea);
+        textArea.focus();
         textArea.select();
-        try { document.execCommand('copy'); } catch (err) {}
+        try { document.execCommand('copy'); } catch (err) { console.error('Copy failed', err); }
         document.body.removeChild(textArea);
+      },
+      copyCurrentSummary() {
+        if (this.currentPitch) this.copyToClipboard(this.currentPitch.summary);
+      },
+      copyImagePrompt() {
+        if (this.currentPitch) this.copyToClipboard(this.currentPitch.imagePrompt);
+      },
+      copyBuildPrompt() {
+        if (this.currentPitch) this.copyToClipboard(this.currentPitch.buildPrompt);
+      },
+      toggleTTS() {
+        if (this.isPlaying) {
+          this.handleStopSpeak();
+        } else if (this.currentPitch) {
+          this.handleSpeak(this.currentPitch.summary);
+        }
       },
       handleShare(pitch) {
         if (navigator.share) {
@@ -882,11 +901,11 @@
                  <div class="text-[10px] font-mono font-bold w-6 text-left opacity-50">T</div>
               </div>
               <div class="flex justify-between gap-2 mt-1">
-                <button onclick="${this.isPlaying ? 'app.handleStopSpeak()' : `app.handleSpeak('${p.summary.replace(/'/g, "\\'")}')`}" class="flex-1 py-2 rounded border-2 border-black flex items-center justify-center text-xs font-black uppercase active:translate-y-1 transition-transform ${this.isPlaying ? 'bg-[#B23A2E]' : 'bg-[#0E6B66]'} text-[#F5F1E6]">
+                <button onclick="app.toggleTTS()" class="flex-1 py-2 rounded border-2 border-black flex items-center justify-center text-xs font-black uppercase active:translate-y-1 transition-transform ${this.isPlaying ? 'bg-[#B23A2E]' : 'bg-[#0E6B66]'} text-[#F5F1E6]">
                   <i data-lucide="${this.isPlaying ? 'square' : 'play'}" class="w-3.5 h-3.5 mr-2 fill-current"></i>
                   ${this.isPlaying ? 'Stop' : 'Speak'}
                 </button>
-                <button onclick="app.copyToClipboard('${p.summary.replace(/'/g, "\\'")}')" class="px-4 py-2 rounded border-2 border-black flex items-center justify-center text-xs font-black uppercase active:translate-y-1 transition-transform bg-white hover:bg-black/5 text-black">
+                <button onclick="app.copyCurrentSummary()" class="px-4 py-2 rounded border-2 border-black flex items-center justify-center text-xs font-black uppercase active:translate-y-1 transition-transform bg-white hover:bg-black/5 text-black">
                   <i data-lucide="copy" class="w-3.5 h-3.5 mr-1"></i> Copy
                 </button>
               </div>
@@ -933,7 +952,7 @@
                <!-- Search Bar -->
                <div class="relative border-2 border-black rounded-lg overflow-hidden flex items-center bg-white">
                   <i data-lucide="search" class="w-4 h-4 absolute left-3 text-gray-400"></i>
-                  <input id="archive-search-input" type="text" placeholder="Search pitches or artifacts..." oninput="app.handleSearch(event)" value="${this.searchQuery}" class="w-full py-2 pl-9 pr-8 text-sm font-medium focus:outline-none placeholder:text-gray-400 bg-white">
+                  <input id="archive-search-input" type="text" placeholder="Search pitches or artifacts..." oninput="app.handleSearch(event)" value="${this.searchQuery.replace(/"/g, '&quot;')}" class="w-full py-2 pl-9 pr-8 text-sm font-medium focus:outline-none placeholder:text-gray-400 bg-white">
                   <button onclick="app.clearSearch()" class="absolute right-3 text-gray-400 hover:text-black focus:outline-none">
                     <i data-lucide="x" class="w-3.5 h-3.5"></i>
                   </button>
@@ -1017,7 +1036,7 @@
                   ${this.isEditing ? `
                      <div class="mb-4 bg-white p-3 border-[2px] border-black rounded-lg shadow-sm font-sans">
                         <label class="text-[10px] font-black uppercase tracking-widest opacity-50 mb-1 block">Edit Title</label>
-                        <input id="edit-title" type="text" value="${p.title}" class="w-full text-2xl font-black uppercase mb-3 border-b-2 border-dashed border-gray-300 focus:border-amber-500 focus:outline-none pb-1 font-serif bg-transparent">
+                        <input id="edit-title" type="text" value="${p.title.replace(/"/g, '&quot;')}" class="w-full text-2xl font-black uppercase mb-3 border-b-2 border-dashed border-gray-300 focus:border-amber-500 focus:outline-none pb-1 font-serif bg-transparent">
                         <label class="text-[10px] font-black uppercase tracking-widest opacity-50 mb-1 block">Edit Pitch</label>
                         <textarea id="edit-summary" class="w-full h-24 text-sm font-medium border-2 border-gray-200 rounded p-2 focus:border-amber-500 focus:outline-none font-serif mb-3">${p.summary}</textarea>
                         <div class="flex gap-2">
@@ -1072,7 +1091,7 @@
                   <div class="border-[2px] border-black rounded-lg bg-white overflow-hidden shadow-sm">
                      <div class="bg-black text-white p-2 flex justify-between items-center">
                         <h3 class="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><i data-lucide="image" class="w-3 h-3"></i> Image Generation Prompt</h3>
-                        <button onclick="app.copyToClipboard('${p.imagePrompt.replace(/'/g, "\\'")}')" class="hover:text-[#E3A21A] transition-colors"><i data-lucide="copy" class="w-3 h-3"></i></button>
+                        <button onclick="app.copyImagePrompt()" class="hover:text-[#E3A21A] transition-colors"><i data-lucide="copy" class="w-3 h-3"></i></button>
                      </div>
                      <div class="p-3 text-[10px] font-mono leading-relaxed bg-black/5 select-all">${p.imagePrompt.replace(/\n/g, '<br>')}</div>
                   </div>
@@ -1080,7 +1099,7 @@
                   <div class="border-[2px] border-black rounded-lg bg-white overflow-hidden shadow-sm">
                      <div class="bg-black text-white p-2 flex justify-between items-center">
                         <h3 class="text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><i data-lucide="code" class="w-3 h-3"></i> Single-File Build Prompt</h3>
-                        <button onclick="app.copyToClipboard('${p.buildPrompt.replace(/'/g, "\\'")}')" class="hover:text-[#E3A21A] transition-colors"><i data-lucide="copy" class="w-3 h-3"></i></button>
+                        <button onclick="app.copyBuildPrompt()" class="hover:text-[#E3A21A] transition-colors"><i data-lucide="copy" class="w-3 h-3"></i></button>
                      </div>
                      <div class="p-3 text-[10px] font-mono leading-relaxed bg-black/5 whitespace-pre-wrap select-all">${p.buildPrompt}</div>
                   </div>
@@ -1098,5 +1117,3 @@
   </script>
 </body>
 </html>
-
-```
