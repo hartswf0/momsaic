@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>LIDAR·FLIX · PRO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+    <style>
+        :root {
+            /* Brutalist Color Palette from ABC FLIX PRO */
+            --bg: #f4f4f0;
+            --black: #000000;
+            --white: #ffffff;
+            --act-a: #0033cc; /* Blue */
+            --act-b: #c8a800; /* Yellow */
+            --act-c: #e60000; /* Red */
+            --bw: 3px;
+            --tab-h: 60px;
+            --status-h: 44px;
+            --tl-h: 88px;
+            --safe-b: env(safe-area-inset-bottom, 0px);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; border-radius: 0 !important; margin: 0; padding: 0; }
+        html, body { width: 100%; height: 100%; overflow: hidden; position: fixed; inset: 0; height: 100dvh; background: var(--bg); color: var(--black); font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; user-select: none; -webkit-user-select: none; }
+        
+        #app { display: flex; flex-direction: column; width: 100%; height: 100dvh; }
+
+        /* ── STATUS BAR ── */
+        #status-bar { flex: 0 0 var(--status-h); display: flex; align-items: stretch; background: var(--black); color: var(--white); border-bottom: 2px solid #333; z-index: 50; gap: 0; }
+        .sb-group { display: flex; align-items: center; gap: 5px; padding: 0 10px; border-right: 1px solid #333; flex-shrink: 0; flex: 1; justify-content: center; }
+        .sb-label { font-size: 9px; font-weight: 900; letter-spacing: 0.08em; color: #888; text-transform: uppercase; display: block; }
+        .sb-val { font-size: 13px; font-weight: 900; color: var(--white); font-variant-numeric: tabular-nums; text-transform: uppercase; }
+        .sb-col { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+
+        .fps-btn { width: 28px; height: 28px; background: #222; border: 1.5px solid #444; color: var(--white); font-size: 18px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 1; }
+        .fps-btn:active { background: #555; }
+        #sb-fps-val { font-size: 13px; font-weight: 900; color: var(--white); min-width: 30px; text-align: center; }
+
+        #sb-play-btn { flex: 0 0 82px; align-self: stretch; background: var(--act-c); border: none; border-left: 2px solid #900; color: var(--white); font-size: 13px; font-weight: 900; cursor: pointer; letter-spacing: 0.12em; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 5px; flex-shrink: 0; }
+        #sb-play-btn.playing { background: #333; border-left-color: #555; }
+        #sb-play-btn:active { filter: brightness(0.8); }
+
+        #main-col { flex: 1 1 0%; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+        /* ── CANVAS ZONE ── */
+        #canvas-zone { flex: 1 1 0%; position: relative; overflow: hidden; background: #e8e6e0; display: flex; align-items: center; justify-content: center; }
+        #canvas-wrapper { position: relative; z-index: 10; border: 2px solid #999; background: var(--black); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15); }
+        #primary-buffer { image-rendering: pixelated; display: block; touch-action: none; cursor: crosshair; }
+
+        /* PIP OVERLAY */
+        #pip-container { position: absolute; top: 10px; right: 10px; width: 160px; height: 120px; border: 3px solid var(--black); background: var(--black); box-shadow: 4px 4px 0 var(--black); z-index: 30; cursor: pointer; transition: transform 0.1s; }
+        #pip-container:active { transform: scale(0.95); }
+        #pip-canvas { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+        .pip-lbl { position: absolute; bottom: 0; right: 0; background: var(--white); color: var(--black); font-size: 9px; font-weight: 900; padding: 2px 4px; pointer-events: none; }
+
+        /* ON-SCREEN JOYSTICK */
+        #joystick-zone { position: absolute; bottom: 20px; left: 20px; z-index: 45; display: none; }
+        #joystick { width: 100px; height: 100px; border: 2px solid rgba(0,0,0,0.4); background: rgba(255,255,255,0.6); position: relative; touch-action: none; border-radius: 50% !important; box-shadow: 2px 2px 0 rgba(0,0,0,0.5); }
+        #joy-knob { position: absolute; width: 40px; height: 40px; background: var(--black); border-radius: 50% !important; left: 30px; top: 30px; pointer-events: none; }
+
+        /* ── TIMELINE ── */
+        #timeline-zone { flex: 0 0 var(--tl-h); background: var(--bg); border-top: var(--bw) solid var(--black); display: flex; flex-direction: column; overflow: hidden; z-index: 40; }
+        #tl-controls { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 2px solid var(--black); background: var(--bg); flex-shrink: 0; overflow-x: auto; scrollbar-width: none; }
+        #tl-controls::-webkit-scrollbar { display: none; }
+        
+        .tl-ctrl-btn { background: var(--white); color: var(--black); border: 2px solid var(--black); padding: 5px 10px; font-size: 10px; font-weight: 900; cursor: pointer; text-transform: uppercase; box-shadow: 2px 2px 0 var(--black); flex-shrink: 0; min-height: 32px; transition: transform 0.05s, box-shadow 0.05s; }
+        .tl-ctrl-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--black); }
+
+        #speed-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1 1 0%; min-width: 80px; max-width: 160px; }
+        #speed-label { font-size: 8px; font-weight: 900; color: #666; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+        #speed-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; background: transparent; border: 2px solid var(--black); outline: none; cursor: pointer; }
+        #speed-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; background: var(--black); border: none; cursor: pointer; }
+
+        #tl-strip { flex: 1; display: flex; gap: 6px; padding: 8px 10px; overflow-x: auto; align-items: center; scrollbar-width: none; overscroll-behavior-x: contain; }
+        #tl-strip::-webkit-scrollbar { display: none; }
+        
+        .tl-frame { position: relative; flex: 0 0 68px; height: 44px; border: var(--bw) solid var(--black); cursor: pointer; background: #1a1a1a; display: flex; align-items: center; justify-content: center; transition: border-color 0.1s, opacity 0.15s, transform 0.15s; }
+        .tl-frame.on { border-color: var(--act-c); box-shadow: inset 0 0 0 2px var(--act-c); }
+        .tl-frame.tl-selected { box-shadow: inset 0 0 0 3px var(--act-a), 0 0 10px rgba(0,50,200,0.5); border-color: var(--act-a); }
+        .tl-thumb { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; position: absolute; inset: 0; z-index: 1; opacity: 0.5; }
+        .tl-frame.on .tl-thumb { opacity: 1; }
+        .tl-num { position: relative; z-index: 2; color: var(--white); font-size: 14px; font-weight: 900; text-shadow: 1px 1px 0 var(--black); pointer-events: none; }
+
+        /* ── TAB BAR ── */
+        #tab-bar { flex: 0 0 calc(var(--tab-h) + var(--safe-b)); display: flex; border-top: var(--bw) solid var(--black); background: var(--white); z-index: 60; padding-bottom: var(--safe-b); }
+        .tab-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: var(--tab-h); font-size: 9px; font-weight: 900; text-transform: uppercase; color: var(--black); cursor: pointer; background: var(--white); border: none; border-right: 2px solid var(--black); position: relative; letter-spacing: 0.05em; transition: background 0.1s; }
+        .tab-btn:last-child { border-right: none; }
+        .tab-letter { font-size: 20px; line-height: 1; margin-bottom: 2px; font-weight: 900; }
+        .tab-btn.on-a { background: var(--act-a); color: var(--white); }
+        .tab-btn.on-b { background: var(--act-b); color: var(--black); }
+        .tab-btn.on-c { background: var(--act-c); color: var(--white); }
+        .tab-btn.on-d { background: var(--black); color: var(--white); }
+
+        /* ── BOTTOM SHEETS ── */
+        #sheet-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0); pointer-events: none; z-index: 70; transition: background 0.25s; }
+        #sheet-backdrop.on { background: rgba(0, 0, 0, 0.6); pointer-events: all; }
+        
+        .sheet { position: fixed; left: 0; right: 0; bottom: calc(var(--tab-h) + var(--safe-b)); max-height: 80vh; background: var(--white); border-top: var(--bw) solid var(--black); border-left: var(--bw) solid var(--black); border-right: var(--bw) solid var(--black); z-index: 80; display: flex; flex-direction: column; transform: translateY(calc(100% + var(--tab-h) + var(--safe-b))); transition: transform 0.32s cubic-bezier(0.25, 1.0, 0.5, 1), visibility 0s linear 0.32s; visibility: hidden; }
+        .sheet.on { transform: translateY(0); visibility: visible; transition: transform 0.32s cubic-bezier(0.25, 1.0, 0.5, 1), visibility 0s linear 0s; }
+        
+        .sheet-handle { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 8px; background: var(--bg); border-bottom: 2px solid var(--black); flex-shrink: 0; }
+        .sheet-title { font-size: 11px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
+        .sheet-close { font-size: 20px; font-weight: 900; background: none; border: none; cursor: pointer; color: var(--black); line-height: 1; }
+        
+        .sheet-body { overflow-y: auto; flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 10px; overscroll-behavior: contain; }
+
+        .sh-btn { display: flex; align-items: center; justify-content: center; padding: 14px 16px; font-weight: 900; text-transform: uppercase; font-size: 12px; background: var(--white); border: var(--bw) solid var(--black); color: var(--black); cursor: pointer; letter-spacing: 0.1em; width: 100%; flex-shrink: 0; box-shadow: 3px 3px 0 var(--black); transition: transform 0.05s, box-shadow 0.05s; min-height: 52px; }
+        .sh-btn:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--black); }
+        .sh-btn.primary { background: var(--black); color: var(--white); }
+        .sh-btn.on { background: rgba(0,0,0,0.1); box-shadow: inset 0 0 0 3px var(--black); }
+        
+        .sh-row { display: flex; gap: 8px; }
+        .sh-row .sh-btn { flex: 1; font-size: 10px; }
+        .sh-label { font-size: 10px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: #666; margin-bottom: 4px; }
+        
+        select { width: 100%; height: 44px; border: 2px solid var(--black); background: var(--white); font-size: 12px; font-weight: 900; padding: 0 8px; outline: none; cursor: pointer; }
+
+        /* ── TOAST & LOCK SCREEN ── */
+        #hud-toast { position: fixed; top: calc(var(--status-h) + 10px); left: 50%; transform: translateX(-50%); background: var(--white); color: var(--black); font-weight: 900; font-size: 13px; padding: 10px 18px; opacity: 0; pointer-events: none; z-index: 9999; text-transform: uppercase; border: var(--bw) solid var(--black); transition: opacity 0.12s; letter-spacing: 0.1em; box-shadow: 4px 4px 0 var(--black); white-space: nowrap; }
+        #hud-toast.on { opacity: 1; }
+
+        #lock-screen { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.92); z-index: 9000; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+        #lock-screen.on { opacity: 1; pointer-events: all; }
+        #lock-msg { font-size: 13px; font-weight: 900; letter-spacing: 0.2em; color: var(--white); margin-top: 16px; }
+        #lock-counter { font-size: 28px; font-weight: 900; color: var(--act-c); margin-top: 8px; }
+
+        @media (max-width: 767px) {
+            #canvas-zone { flex: 0 0 calc(100vw * 0.75); min-height: 120px; }
+            #timeline-zone { flex: 1 1 0%; min-height: 0; overflow: hidden; }
+        }
+        @media (min-width: 768px) {
+            #app { flex-direction: row; }
+            #tab-bar { flex: 0 0 80px; flex-direction: column; border-top: none; border-right: var(--bw) solid var(--black); order: -1; }
+            .tab-btn { flex: 1; height: auto; border-right: none; border-bottom: 2px solid var(--black); }
+            .tab-btn:last-child { border-bottom: none; }
+            #status-bar { display: none; }
+            .sheet { left: 80px; bottom: 0; max-height: 100vh; width: 380px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+
+    <div id="status-bar">
+        <div class="sb-group">
+            <div class="sb-col">
+                <span class="sb-label">FRAME</span>
+                <span class="sb-val" id="sb-frame">00/00</span>
+            </div>
+        </div>
+        <div class="sb-group">
+            <div class="sb-col">
+                <span class="sb-label">MODE</span>
+                <span class="sb-val" id="sb-mode">DEPTH WALK</span>
+            </div>
+        </div>
+        <div class="sb-group" style="flex:0 0 auto; gap:4px;">
+            <div class="sb-col">
+                <span class="sb-label">FPS</span>
+                <div style="display:flex; align-items:center; gap:4px;">
+                    <button class="fps-btn" onclick="adjustFPS(-1)">−</button>
+                    <span id="sb-fps-val">12</span>
+                    <button class="fps-btn" onclick="adjustFPS(1)">+</button>
+                </div>
+            </div>
+        </div>
+        <button id="sb-play-btn" onclick="engageSequence()">
+            <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor" id="play-icon"><polygon points="0,0 14,8 0,16" /></svg>
+            <span id="play-label">PLAY</span>
+        </button>
+    </div>
+
+    <div id="main-col">
+        <div id="canvas-zone">
+            <div id="canvas-wrapper">
+                <canvas id="primary-buffer"></canvas>
+            </div>
+            
+            <div id="pip-container" onclick="swapMainView()">
+                <canvas id="pip-canvas"></canvas>
+                <div class="pip-lbl" id="pip-lbl">SOURCE 2D</div>
+            </div>
+
+            <div id="joystick-zone">
+                <div id="joystick"><div id="joy-knob"></div></div>
+            </div>
+        </div>
+
+        <div id="timeline-zone">
+            <div id="tl-controls">
+                <button class="tl-ctrl-btn" onclick="stepSequence(-1)" style="font-size:15px; min-width:36px; padding:5px 10px;">◄</button>
+                <button class="tl-ctrl-btn" onclick="stepSequence(1)" style="font-size:15px; min-width:36px; padding:5px 10px;">►</button>
+                <div style="width:1px; height:18px; background:var(--black); flex-shrink:0;"></div>
+                <button class="tl-ctrl-btn" onclick="deleteSelected()" style="color:var(--act-c);">✕ DEL</button>
+                <button class="tl-ctrl-btn" onclick="duplicateRange()">⧉ CPY</button>
+                <button class="tl-ctrl-btn" onclick="reverseRange()">REV</button>
+                <div style="flex-grow:1; min-width:4px;"></div>
+                <div id="speed-wrap">
+                    <span id="speed-label">SPD · 12</span>
+                    <input type="range" id="speed-slider" min="1" max="30" value="12" step="1" oninput="onSpeedSlider(this.value)">
+                </div>
+            </div>
+            <div id="tl-strip">
+                <div style="font-size:10px; color:#999; font-weight:900; text-align:center; padding:12px; width:100%;">NO FRAMES — LOAD MEDIA TO BEGIN</div>
+            </div>
+        </div>
+    </div>
+
+    <nav id="tab-bar">
+        <button class="tab-btn" id="tab-a" onclick="execNav('A')"><span class="tab-letter">A</span>MEDIA</button>
+        <button class="tab-btn" id="tab-b" onclick="execNav('B')"><span class="tab-letter" style="color:var(--act-b);">B</span>SPACE</button>
+        <button class="tab-btn" id="tab-c" onclick="execNav('C')"><span class="tab-letter" style="color:var(--act-c);">C</span>BEFLIX</button>
+        <button class="tab-btn" id="tab-d" onclick="execNav('D')"><span class="tab-letter">D</span>EXPORT</button>
+    </nav>
+</div>
+
+<div id="sheet-backdrop" onclick="closeAllSheets()"></div>
+
+<div class="sheet" id="sheet-A">
+    <div class="sheet-handle">
+        <span class="sheet-title" style="color:var(--act-a);">A · ADD MATERIAL</span>
+        <button class="sheet-close" onclick="closeAllSheets()">×</button>
+    </div>
+    <div class="sheet-body">
+        <button class="sh-btn primary" style="background:var(--act-a); border-color:var(--act-a);" onclick="document.getElementById('file-input').click();">LOAD VIDEO / IMAGES</button>
+        <input type="file" id="file-input" accept="image/*,video/*" multiple style="display:none" onchange="ingestMedia(event)">
+        
+        <div class="sh-label" style="margin-top:16px;">RESOLUTION DETAIL</div>
+        <select id="extract-res">
+            <option value="128">FAST (128x96)</option>
+            <option value="192" selected>BEFLIX HD (192x108)</option>
+            <option value="256">ULTRA (256x144)</option>
+        </select>
+        
+        <button class="sh-btn" style="margin-top:20px; color:var(--act-c); border-color:var(--act-c);" onclick="clearTimeline()">✕ CLEAR TIMELINE</button>
+        <div style="font-size:10px; color:#666; font-weight:900; text-transform:uppercase; text-align:center; margin-top:8px;">Every frame is calculated into a physical 3D environment.</div>
+    </div>
+</div>
+
+<div class="sheet" id="sheet-B">
+    <div class="sheet-handle">
+        <span class="sheet-title" style="color:var(--act-b);">B · 3D SPACE</span>
+        <button class="sheet-close" onclick="closeAllSheets()">×</button>
+    </div>
+    <div class="sheet-body">
+        <div class="sh-label">RENDER PIPELINE</div>
+        <div class="sh-row">
+            <button class="sh-btn mode-btn on" id="mode-DEPTH_WALK" onclick="setMode('DEPTH_WALK')">DEPTH WALK</button>
+            <button class="sh-btn mode-btn" id="mode-WAVE_SCAN" onclick="setMode('WAVE_SCAN')">WAVE SCAN</button>
+        </div>
+        <div class="sh-row">
+            <button class="sh-btn mode-btn" id="mode-GRID_MAP" onclick="setMode('GRID_MAP')">GRID MAP</button>
+            <button class="sh-btn mode-btn" id="mode-RAW_VIDEO" onclick="setMode('RAW_VIDEO')">2D SOURCE</button>
+        </div>
+        
+        <div class="sh-label" style="margin-top:16px;">CAMERA FOV</div>
+        <input type="range" min="30" max="120" value="72" oninput="state.fov = this.value * Math.PI/180; if(!state.playing) renderOutput();">
+        
+        <div class="sh-label" style="margin-top:16px;">COLOR PALETTE</div>
+        <select id="color-palette" onchange="state.palette = this.value; if(!state.playing) renderOutput();">
+            <option value="MATRIX" selected>MATRIX GREEN</option>
+            <option value="THERMAL">THERMAL RED</option>
+            <option value="CYBER">CYBERPUNK</option>
+            <option value="MONO">B&W MONOCHROME</option>
+            <option value="GOLD">BEFLIX GOLD</option>
+        </select>
+        
+        <button class="sh-btn" style="margin-top:16px;" onclick="swapMainView()">SWAP P.I.P VIEWPORT</button>
+    </div>
+</div>
+
+<div class="sheet" id="sheet-C">
+    <div class="sheet-handle">
+        <span class="sheet-title" style="color:var(--act-c);">C · BEFLIX FILTER</span>
+        <button class="sheet-close" onclick="closeAllSheets()">×</button>
+    </div>
+    <div class="sheet-body">
+        <div class="sh-label">DEPTH FILTER (STRUCTURAL)</div>
+        <div style="font-size:9px; color:#666; margin-bottom:8px; font-weight:900;">Process the video geometry before 3D spatialization.</div>
+        <select id="process-mode">
+            <option value="raw" selected>RAW (Continuous Surfaces)</option>
+            <option value="posterize">POSTERIZE (Stepped Terraces)</option>
+            <option value="halftone">HALFTONE (Dither Matrix Mesh)</option>
+            <option value="threshold">THRESHOLD (Binary Solid Walls)</option>
+            <option value="edge">EDGE DETECT (Glowing Wireframe)</option>
+        </select>
+        
+        <button class="sh-btn" id="btn-invert" style="margin-top:10px;" onclick="this.classList.toggle('on');">INVERT Z-DEPTH: TOGGLE</button>
+        
+        <button class="sh-btn primary" style="background:var(--act-c); border-color:var(--act-c); margin-top:20px;" onclick="applyBeflixFilter()">APPLY FILTER TO 3D CLOUD</button>
+    </div>
+</div>
+
+<div class="sheet" id="sheet-D">
+    <div class="sheet-handle">
+        <span class="sheet-title">D · SAVE / EXPORT</span>
+        <button class="sheet-close" onclick="closeAllSheets()">×</button>
+    </div>
+    <div class="sheet-body">
+        <button class="sh-btn" onclick="exportFrame()">EXPORT CURRENT FRAME (PNG)</button>
+        <div class="sh-label" style="margin-top:16px;">COMPILE VIDEO</div>
+        <div class="sh-row">
+            <button class="sh-btn primary" onclick="exportVideo('webm')">WEBM</button>
+            <button class="sh-btn primary" onclick="exportVideo('mp4')">MP4</button>
+        </div>
+        <button class="sh-btn" style="margin-top:8px;" onclick="exportGIF()">RECORD GIF</button>
+        <div style="font-size:9px; color:#666; margin-top:8px; text-align:center; font-weight:900;">Video exports capture your exact 3D movement during playback. Audio is synced automatically.</div>
+    </div>
+</div>
+
+<div id="hud-toast">READY</div>
+
+<div id="lock-screen">
+    <div id="lock-msg">LOADING</div>
+    <div id="lock-counter">0</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// LIDAR·FLIX PRO ENGINE
+// ═══════════════════════════════════════════════════════════
+
+const W = 640, H = 480;
+let BASE_FPS = 12;
+
+let state = {
+    frames: [], cur: 0, playing: false, activeNav: null,
+    mode: 'DEPTH_WALK', palette: 'MATRIX', mainIs3D: true,
+    fov: 72 * Math.PI / 180,
+    px: 0.5, py: 0.5, pa: 0,
+    audioBlob: null
+};
+
+// Palettes
+const PALS = {
+    'MATRIX':  { hot: [0,255,65], mid: [0,120,30], cold: [0,20,5] },
+    'THERMAL': { hot: [255,0,0], mid: [255,255,0], cold: [0,0,255] },
+    'CYBER':   { hot: [255,0,255], mid: [0,255,255], cold: [20,0,50] },
+    'MONO':    { hot: [255,255,255], mid: [128,128,128], cold: [0,0,0] },
+    'GOLD':    { hot: [255,255,255], mid: [200,168,0], cold: [50,40,0] }
+};
+
+// Canvas Setup
+const canvasMain = document.getElementById('primary-buffer');
+const ctxMain = canvasMain.getContext('2d', { willReadFrequently: true });
+const canvasPip = document.getElementById('pip-canvas');
+const ctxPip = canvasPip.getContext('2d', { willReadFrequently: true });
+
+const buf3dCanvas = document.createElement('canvas'); buf3dCanvas.width = W; buf3dCanvas.height = H;
+const buf3dCtx = buf3dCanvas.getContext('2d', { willReadFrequently: true });
+const buf2dCanvas = document.createElement('canvas'); buf2dCanvas.width = W; buf2dCanvas.height = H;
+const buf2dCtx = buf2dCanvas.getContext('2d', { willReadFrequently: true });
+
+let playRAF, lastT = 0, audioCtx = null;
+
+// ── AUDIO HAPTICS ──
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); }
+function playTone(freq, type, duration, vol) { if (!audioCtx || audioCtx.state === 'suspended') return; const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(vol, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + duration); }
+function haptic(d) { if (navigator.vibrate) { try { navigator.vibrate(d); } catch (e) { } } }
+function playTick() { playTone(800, 'square', 0.015, 0.05); haptic(5); }
+function playClack() { playTone(300, 'triangle', 0.04, 0.1); haptic(15); }
+function playThud() { playTone(100, 'sine', 0.1, 0.2); haptic(30); }
+document.body.addEventListener('pointerdown', initAudio, { once: true });
+
+// ── INIT & RESIZE ──
+window.onload = () => {
+    rescaleWorkspace();
+    updateFPSUI();
+    renderOutput();
+    requestAnimationFrame(gameLoop);
+};
+
+window.addEventListener('resize', rescaleWorkspace);
+function rescaleWorkspace() {
+    const wrap = document.getElementById('canvas-wrapper');
+    const zone = document.getElementById('canvas-zone');
+    if (!wrap || wrap.clientWidth === 0) return;
+    const padding = 12;
+    const sc = Math.min((zone.clientWidth - padding) / W, (zone.clientHeight - padding) / H);
+    canvasMain.style.width = Math.floor(W * sc) + 'px';
+    canvasMain.style.height = Math.floor(H * sc) + 'px';
+    canvasMain.width = W; canvasMain.height = H;
+    wrap.style.width = Math.floor(W * sc) + 'px';
+    wrap.style.height = Math.floor(H * sc) + 'px';
+    if (!state.playing) renderOutput();
+}
+
+// ── UI & SHEETS ──
+function execNav(id) {
+    playTick();
+    const wasActive = state.activeNav === id;
+    closeAllSheets();
+    if (!wasActive) {
+        state.activeNav = id;
+        document.getElementById('tab-' + id.toLowerCase()).classList.add('on-' + id.toLowerCase());
+        document.getElementById('sheet-' + id).classList.add('on');
+        document.getElementById('sheet-backdrop').classList.add('on');
+    }
+}
+
+function closeAllSheets() {
+    ['A', 'B', 'C', 'D'].forEach(id => {
+        const s = document.getElementById('sheet-' + id); if (s) s.classList.remove('on');
+        const t = document.getElementById('tab-' + id.toLowerCase()); if (t) t.className = 'tab-btn';
+    });
+    document.getElementById('sheet-backdrop').classList.remove('on');
+    state.activeNav = null;
+}
+
+function fireToast(msg) {
+    const t = document.getElementById('hud-toast');
+    t.textContent = msg; t.classList.add('on');
+    setTimeout(() => t.classList.remove('on'), 1800);
+}
+
+function lockSystem(msg, count) { 
+    const l = document.getElementById('lock-screen'); l.classList.add('on'); 
+    document.getElementById('lock-msg').textContent = msg; 
+    document.getElementById('lock-counter').textContent = count !== undefined ? count : ''; 
+}
+function updateLockCount(n) { document.getElementById('lock-counter').textContent = n; }
+function releaseSystem() { document.getElementById('lock-screen').classList.remove('on'); }
+
+// ── MEDIA INGESTION ──
+async function ingestMedia(e) {
+    const files = Array.from(e.target.files); if (!files.length) return;
+    e.target.value = '';
+    closeAllSheets();
+    
+    for (const f of files) {
+        if (f.type.startsWith('video/')) {
+            state.audioBlob = f;
+            await ripFrames(f);
+        } else if (f.type.startsWith('image/')) {
+            lockSystem('MOUNTING IMAGE...', 0);
+            const url = URL.createObjectURL(f);
+            const img = new Image(); img.src = url;
+            await new Promise((r,j) => { img.onload=r; img.onerror=j; setTimeout(j,5000); });
+            const w = parseInt(document.getElementById('extract-res').value) || 128;
+            const h = Math.round(w / (img.naturalWidth / img.naturalHeight));
+            state.frames.push(extractFrameData(img, w, h));
+            updateLockCount(state.frames.length);
+            URL.revokeObjectURL(url);
+            releaseSystem();
+        }
+    }
+    
+    if (state.frames.length) {
+        state.cur = Math.max(0, state.frames.length - 1);
+        applyBeflixFilter(); // Builds timeline and renders
+    }
+}
+
+async function ripFrames(file) {
+    lockSystem('RIPPING VIDEO...', 0);
+    const url = URL.createObjectURL(file);
+    const vid = document.createElement('video');
+    vid.muted = true; vid.playsInline = true; vid.src = url;
+    
+    try { await new Promise((res, rej) => { vid.onloadedmetadata = res; vid.onerror = rej; setTimeout(rej, 8000); }); } 
+    catch(e) { releaseSystem(); fireToast('VIDEO READ FAILED'); return; }
+    
+    const dur = vid.duration;
+    const maxF = Math.min(240, Math.ceil(dur * BASE_FPS)); 
+    const interval = 1 / BASE_FPS;
+    let lastCap = -Infinity;
+    const extracted = [];
+    
+    const extractRes = parseInt(document.getElementById('extract-res').value) || 192;
+    const ratio = vid.videoWidth / vid.videoHeight;
+    const w = extractRes, h = Math.round(extractRes / ratio);
+    
+    await new Promise(res => {
+        function onRAF() {
+            if (vid.ended || extracted.length >= maxF) { res(); return; }
+            if (vid.videoWidth && vid.currentTime - lastCap >= interval - 0.001) {
+                lastCap = vid.currentTime;
+                extracted.push(extractFrameData(vid, w, h));
+                updateLockCount(extracted.length);
+            }
+            requestAnimationFrame(onRAF);
+        }
+        requestAnimationFrame(onRAF);
+        vid.play().catch(()=>{});
+        setTimeout(res, (dur + 3)*1000);
+    });
+    
+    vid.pause(); URL.revokeObjectURL(url);
+    state.frames.push(...extracted);
+}
+
+function extractFrameData(imgOrVid, w, h) {
+    const srcC = document.createElement('canvas'); srcC.width = w; srcC.height = h;
+    const ctx = srcC.getContext('2d', {willReadFrequently:true});
+    ctx.drawImage(imgOrVid, 0, 0, w, h);
+    
+    const rgb = ctx.getImageData(0,0,w,h).data;
+    const depth = new Float32Array(w * h);
+    for(let i=0; i<w*h; i++) {
+        depth[i] = (rgb[i*4]*0.299 + rgb[i*4+1]*0.587 + rgb[i*4+2]*0.114) / 255;
+    }
+    
+    const hdW = 320, hdH = Math.round(320 / (w/h));
+    const hdC = document.createElement('canvas'); hdC.width = hdW; hdC.height = hdH;
+    hdC.getContext('2d').drawImage(imgOrVid, 0, 0, hdW, hdH);
+    
+    const thumbC = document.createElement('canvas'); thumbC.width = 68; thumbC.height = 44;
+    thumbC.getContext('2d').drawImage(imgOrVid, 0, 0, 68, 44);
+    
+    return { src: hdC, rgb: rgb, depth: depth, processedDepth: new Float32Array(depth), thumb: thumbC, w, h };
+}
+
+// ── BEFLIX PROCESSING ──
+function applyBeflixFilter() {
+    if (!state.frames.length) return;
+    lockSystem('APPLYING BEFLIX FILTER...', 0);
+    const filter = document.getElementById('process-mode').value;
+    const invert = document.getElementById('btn-invert').classList.contains('on');
+    const bayer = [ [0,8,2,10], [12,4,14,6], [3,11,1,9], [15,7,13,5] ];
+    closeAllSheets();
+    
+    setTimeout(() => {
+        for (let i=0; i<state.frames.length; i++) {
+            let f = state.frames[i];
+            for(let y=0; y<f.h; y++) {
+                for(let x=0; x<f.w; x++) {
+                    const idx = y*f.w + x;
+                    let d = f.depth[idx];
+                    if (filter === 'threshold') { d = d > 0.5 ? 1.0 : 0.0; } 
+                    else if (filter === 'posterize') { d = Math.round(d * 7) / 7; } 
+                    else if (filter === 'halftone') { const th = (bayer[y%4][x%4] / 16) - 0.5; d = (d + th > 0.5) ? 1.0 : 0.0; } 
+                    else if (filter === 'edge') {
+                        if (x > 0 && y > 0 && x < f.w-1 && y < f.h-1) {
+                            const dl = f.depth[y*f.w + x-1], dr = f.depth[y*f.w + x+1];
+                            const du = f.depth[(y-1)*f.w + x], dd = f.depth[(y+1)*f.w + x];
+                            const dx = dr - dl, dy = dd - du;
+                            d = Math.min(1.0, Math.sqrt(dx*dx + dy*dy) * 4.0);
+                        } else d = 0;
+                    } 
+                    if (invert) { d = 1.0 - d; }
+                    f.processedDepth[idx] = d;
+                }
+            }
+        }
+        rebuildTrack(); renderOutput(); releaseSystem(); fireToast('FILTER APPLIED');
+    }, 50);
+}
+
+// ── TIMELINE LOGIC ──
+let selStart = -1, selEnd = -1, selMode = false;
+function getSelRange() {
+    if (selStart < 0) return null;
+    return { from: Math.min(selStart, selEnd), to: Math.max(selStart, selEnd) };
+}
+
+function rebuildTrack() {
+    const trk = document.getElementById('tl-strip'); trk.innerHTML = '';
+    if (!state.frames.length) {
+        trk.innerHTML = '<div style="font-size:10px; color:#666; font-weight:900; text-align:center; padding:12px; width:100%;">NO FRAMES — LOAD MEDIA</div>';
+        updateStatusBar(); return;
+    }
+    const sel = getSelRange();
+    for (let j = 0; j < state.frames.length; j++) {
+        const w = document.createElement('div');
+        let cls = 'tl-frame';
+        if (j === state.cur) cls += ' on';
+        if (sel && j >= sel.from && j <= sel.to) cls += ' tl-selected';
+        w.className = cls;
+        
+        w.onclick = (e) => {
+            if (state.playing) return;
+            if (e.shiftKey) {
+                if (!selMode) { selMode = true; selStart = state.cur; }
+                selEnd = j;
+            } else {
+                selMode = false; selStart = -1; selEnd = -1;
+                state.cur = j;
+            }
+            playTick(); rebuildTrack(); renderOutput(); updateStatusBar();
+        };
+        
+        const c = document.createElement('canvas'); c.className = 'tl-thumb'; c.width = 68; c.height = 44;
+        c.getContext('2d').drawImage(state.frames[j].thumb, 0, 0); w.appendChild(c);
+        
+        const n = document.createElement('div'); n.className = 'tl-num'; n.textContent = j+1; w.appendChild(n);
+        trk.appendChild(w);
+        if (j === state.cur && w.scrollIntoView) w.scrollIntoView({ inline: 'center', block: 'nearest' });
+    }
+    updateStatusBar();
+}
+
+function deleteSelected() {
+    const r = getSelRange();
+    if (!r) return fireToast('SHIFT+CLICK TO SELECT');
+    playThud();
+    state.frames.splice(r.from, r.to - r.from + 1);
+    state.cur = Math.max(0, Math.min(state.cur, state.frames.length - 1));
+    selMode = false; selStart = -1; selEnd = -1;
+    rebuildTrack(); renderOutput(); updateStatusBar();
+    fireToast('DELETED');
+}
+
+function duplicateRange() {
+    const r = getSelRange();
+    if (!r) return fireToast('SHIFT+CLICK TO SELECT');
+    playClack();
+    const dupes = state.frames.slice(r.from, r.to + 1).map(f => ({
+        src: f.src, rgb: f.rgb, depth: new Float32Array(f.depth), processedDepth: new Float32Array(f.processedDepth), thumb: f.thumb, w: f.w, h: f.h
+    }));
+    state.frames.splice(r.to + 1, 0, ...dupes);
+    selMode = false; selStart = -1; selEnd = -1;
+    rebuildTrack(); renderOutput(); updateStatusBar();
+    fireToast('DUPLICATED');
+}
+
+function reverseRange() {
+    const r = getSelRange();
+    if (!r || r.from === r.to) return fireToast('SELECT 2+ FRAMES');
+    playThud();
+    const sub = state.frames.slice(r.from, r.to + 1).reverse();
+    state.frames.splice(r.from, sub.length, ...sub);
+    selMode = false; selStart = -1; selEnd = -1;
+    rebuildTrack(); renderOutput();
+    fireToast('REVERSED');
+}
+
+function clearTimeline() {
+    playThud(); state.frames = []; state.cur = 0; state.playing = false; state.audioBlob = null;
+    cancelAnimationFrame(playRAF); rebuildTrack(); renderOutput(); updateStatusBar(); closeAllSheets();
+    fireToast('TIMELINE CLEARED');
+}
+
+// ── PLAYBACK ENGINE ──
+function engageSequence() {
+    if (!state.frames.length) return;
+    playClack(); state.playing = !state.playing;
+    
+    const btn = document.getElementById('sb-play-btn');
+    if (state.playing) {
+        btn.classList.add('playing'); document.getElementById('play-label').textContent = 'STOP';
+        document.getElementById('play-icon').innerHTML = '<rect x="0" y="0" width="5" height="16"/><rect x="9" y="0" width="5" height="16"/>';
+        lastT = performance.now(); playRAF = requestAnimationFrame(playStep);
+    } else {
+        btn.classList.remove('playing'); document.getElementById('play-label').textContent = 'PLAY';
+        document.getElementById('play-icon').innerHTML = '<polygon points="0,0 14,8 0,16"/>';
+        cancelAnimationFrame(playRAF); renderOutput(); rebuildTrack();
+    }
+}
+
+function playStep(now) {
+    if (!state.playing) return;
+    playRAF = requestAnimationFrame(playStep);
+    const el = now - lastT, dur = 1000 / BASE_FPS;
+    if (el >= dur) {
+        lastT = now - (el % dur);
+        state.cur = (state.cur + 1) % state.frames.length;
+        renderOutput();
+        document.querySelectorAll('.tl-frame').forEach((el, i) => { if(i === state.cur) el.classList.add('on'); else el.classList.remove('on'); });
+        updateStatusBar();
+    }
+}
+
+function stepSequence(dir) {
+    if (state.playing || !state.frames.length) return; playTick();
+    state.cur = (state.cur + dir + state.frames.length) % state.frames.length;
+    rebuildTrack(); renderOutput(); updateStatusBar();
+}
+
+function adjustFPS(dir) { BASE_FPS = Math.max(1, Math.min(30, BASE_FPS + dir)); updateFPSUI(); }
+function onSpeedSlider(val) { BASE_FPS = parseInt(val); updateFPSUI(); playMicroTick(); }
+function updateFPSUI() {
+    document.getElementById('speed-slider').value = BASE_FPS;
+    document.getElementById('speed-label').textContent = 'SPD · ' + BASE_FPS;
+    document.getElementById('sb-fps-val').textContent = BASE_FPS;
+}
+
+function updateStatusBar() {
+    const fs = state.frames.length;
+    document.getElementById('sb-frame').textContent = fs ? `${String(state.cur + 1).padStart(2,'0')}/${String(fs).padStart(2,'0')}` : '00/00';
+    document.getElementById('sb-mode').textContent = state.mode.replace('_', ' ');
+}
+
+// ── RENDER ENGINE ──
+function getDepthColor(d) {
+    const pal = colors[state.palette];
+    let r,g,b;
+    if (d > 0.5) {
+        const t = (d - 0.5) * 2;
+        r = pal.mid[0] + (pal.hot[0] - pal.mid[0]) * t;
+        g = pal.mid[1] + (pal.hot[1] - pal.mid[1]) * t;
+        b = pal.mid[2] + (pal.hot[2] - pal.mid[2]) * t;
+    } else {
+        const t = d * 2;
+        r = pal.cold[0] + (pal.mid[0] - pal.cold[0]) * t;
+        g = pal.cold[1] + (pal.mid[1] - pal.cold[1]) * t;
+        b = pal.cold[2] + (pal.mid[2] - pal.cold[2]) * t;
+    }
+    return [Math.round(r), Math.round(g), Math.round(b)];
+}
+
+function setMode(m) {
+    playTick(); state.mode = m;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('on'));
+    document.getElementById('mode-' + m).classList.add('on');
+    updateStatusBar(); if (!state.playing) renderOutput();
+}
+
+function swapMainView() {
+    playTick(); state.mainIs3D = !state.mainIs3D;
+    document.getElementById('pip-lbl').textContent = state.mainIs3D ? 'SOURCE 2D' : 'LIDAR 3D';
+    if (!state.playing) renderOutput();
+}
+
+function renderOutput() {
+    if (!state.frames.length) {
+        ctxMain.fillStyle = '#050505'; ctxMain.fillRect(0,0,W,H);
+        ctxMain.fillStyle = 'rgba(255,255,255,0.2)';
+        ctxMain.font = '900 16px "Helvetica Neue"'; ctxMain.textAlign = 'center';
+        ctxMain.fillText('NO MEDIA LOADED', W/2, H/2);
+        ctxPip.clearRect(0,0, canvasPip.width, canvasPip.height);
+        return;
+    }
+    
+    const f = state.frames[state.cur];
+    
+    // Draw 3D
+    buf3dCtx.fillStyle = '#000'; buf3dCtx.fillRect(0,0,W,H);
+    if (state.mode === 'DEPTH_WALK') renderDepthWalk(f, buf3dCtx);
+    else if (state.mode === 'WAVE_SCAN') renderWaveScan(f, buf3dCtx);
+    else if (state.mode === 'GRID_MAP') renderGridMap(f, buf3dCtx);
+    else if (state.mode === 'RAW_VIDEO') buf3dCtx.drawImage(f.src, 0, 0, W, H);
+    
+    // Draw 2D Source with FOV lines
+    buf2dCtx.fillStyle = '#000'; buf2dCtx.fillRect(0,0,W,H);
+    buf2dCtx.imageSmoothingEnabled = false;
+    buf2dCtx.drawImage(f.src, 0, 0, W, H);
+    
+    if (state.mode === 'DEPTH_WALK') {
+        const fov = state.fov;
+        const left = ((state.pa - fov/2) / (Math.PI*2));
+        const right = ((state.pa + fov/2) / (Math.PI*2));
+        buf2dCtx.fillStyle = 'rgba(255,0,0,0.3)';
+        for(let x=0; x<W; x++) {
+            let u = x / W;
+            let inFov = false;
+            if (left < 0) { inFov = u > (1 + left) || u < right; }
+            else if (right > 1) { inFov = u > left || u < (right - 1); }
+            else { inFov = u > left && u < right; }
+            if (inFov) buf2dCtx.fillRect(x, 0, 1, H);
+        }
+        buf2dCtx.fillStyle = 'rgba(255,255,255,0.8)';
+        const cx = (((state.pa / (Math.PI*2)) % 1 + 1) % 1) * W;
+        buf2dCtx.fillRect(cx - 1, 0, 2, H);
+    }
+    
+    if (state.mainIs3D) {
+        ctxMain.drawImage(buf3dCanvas, 0, 0);
+        ctxPip.drawImage(buf2dCanvas, 0, 0, W, H, 0, 0, canvasPip.width, canvasPip.height);
+    } else {
+        ctxMain.drawImage(buf2dCanvas, 0, 0);
+        ctxPip.drawImage(buf3dCanvas, 0, 0, W, H, 0, 0, canvasPip.width, canvasPip.height);
+    }
+}
+
+function renderDepthWalk(f, tCtx) {
+    const horizon = H / 2, fov = state.fov, numRays = W;
+    tCtx.fillStyle = 'rgba(255,255,255,0.05)';
+    for (let y = horizon; y < H; y += 8) tCtx.fillRect(0, y, W, 1);
+    
+    for (let col = 0; col < numRays; col += 2) {
+        const rayAngle = state.pa - fov/2 + (col / numRays) * fov;
+        let u = ((rayAngle / (Math.PI*2)) % 1 + 1) % 1;
+        
+        let hitDepth = 0;
+        for (let s=0; s<8; s++) {
+            const v = 0.2 + (s/8)*0.6;
+            const x = Math.max(0, Math.min(f.w-1, Math.floor(u * f.w)));
+            const y = Math.max(0, Math.min(f.h-1, Math.floor(v * f.h)));
+            const d = f.processedDepth[y * f.w + x];
+            if (d > hitDepth) hitDepth = d;
+        }
+        
+        if (hitDepth < 0.05) continue;
+        
+        const wallH = hitDepth * H * 1.5;
+        const wallTop = horizon - wallH/2, wallBot = horizon + wallH/2;
+        const c = getDepthColor(hitDepth);
+        const filter = document.getElementById('process-mode').value;
+        const isDither = filter === 'halftone' || filter === 'edge';
+        
+        if (isDither) {
+            tCtx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+            for(let y=Math.max(0, wallTop); y<Math.min(H, wallBot); y+=4) tCtx.fillRect(col, y, 2, 2);
+        } else {
+            const grad = tCtx.createLinearGradient(0, wallTop, 0, wallBot);
+            grad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},0.3)`);
+            grad.addColorStop(0.5, `rgba(${c[0]},${c[1]},${c[2]},1.0)`);
+            grad.addColorStop(1, `rgba(${Math.floor(c[0]*0.5)},${Math.floor(c[1]*0.5)},${Math.floor(c[2]*0.5)},0.3)`);
+            tCtx.fillStyle = grad;
+            tCtx.fillRect(col, Math.max(0, wallTop), 2, wallBot - Math.max(0, wallTop));
+        }
+        
+        if (col % 4 === 0 && hitDepth > 0.4) {
+            tCtx.fillStyle = '#fff'; tCtx.globalAlpha = hitDepth; tCtx.fillRect(col, horizon, 2, 2); tCtx.globalAlpha = 1.0;
+        }
+    }
+}
+
+function renderWaveScan(f, tCtx) {
+    const cx = W/2, cy = H/2, maxR = Math.min(W,H) * 0.45;
+    tCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+    for(let r=20; r<maxR; r+=20) { tCtx.beginPath(); tCtx.arc(cx, cy, r, 0, Math.PI*2); tCtx.stroke(); }
+    
+    const sweep = (performance.now()/1000 * 2) % (Math.PI*2);
+    tCtx.fillStyle = 'rgba(255,255,255,0.1)';
+    tCtx.beginPath(); tCtx.moveTo(cx, cy); tCtx.arc(cx, cy, maxR, sweep - 0.5, sweep); tCtx.fill();
+    
+    for (let i=0; i<360; i+=2) {
+        const u = i/360;
+        const x = Math.max(0, Math.min(f.w-1, Math.floor(u * f.w))), y = Math.floor(f.h/2);
+        const d = f.processedDepth[y * f.w + x];
+        if (d < 0.05) continue;
+        
+        const r = maxR * (0.2 + d * 0.8);
+        const ang = (i/360) * Math.PI*2 + state.pa;
+        const px = cx + Math.cos(ang)*r, py = cy + Math.sin(ang)*r;
+        const c = getDepthColor(d);
+        tCtx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        tCtx.fillRect(px-1, py-1, 4, 4);
+    }
+}
+
+function renderGridMap(f, tCtx) {
+    const cols = 64, rows = 36, cellW = W/cols, cellH = H/rows;
+    for(let gy=0; gy<rows; gy++) {
+        for(let gx=0; gx<cols; gx++) {
+            const px = Math.floor((gx/cols)*f.w), py = Math.floor((gy/rows)*f.h);
+            const d = f.processedDepth[py*f.w + px];
+            if (d < 0.05) continue;
+            
+            const c = getDepthColor(d);
+            tCtx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+            const m = Math.max(0, 1 - d*2);
+            tCtx.fillRect(gx*cellW + m, gy*cellH + m, cellW - m*2, cellH - m*2);
+        }
+    }
+    const sx = state.px * W, sy = state.py * H;
+    tCtx.strokeStyle = '#fff'; tCtx.lineWidth = 2;
+    tCtx.beginPath(); tCtx.arc(sx, sy, 6, 0, Math.PI*2); tCtx.stroke();
+    tCtx.beginPath(); tCtx.moveTo(sx, sy); tCtx.lineTo(sx + Math.cos(state.pa)*16, sy + Math.sin(state.pa)*16); tCtx.stroke();
+}
+
+// ── PLAYER MOVEMENT ──
+let moveState = { w: false, a: false, s: false, d: false };
+let touchMove = { x: 0, y: 0 };
+let isDragging = false, lastX = 0;
+
+document.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase(); 
+    if (moveState[k] !== undefined) moveState[k] = true;
+    if (k === 'arrowup') moveState.w = true; 
+    if (k === 'arrowdown') moveState.s = true;
+    if (k === 'arrowleft') moveState.a = true; 
+    if (k === 'arrowright') moveState.d = true;
+    if (k === ' ') { e.preventDefault(); engageSequence(); }
+});
+document.addEventListener('keyup', e => {
+    const k = e.key.toLowerCase(); 
+    if (moveState[k] !== undefined) moveState[k] = false;
+    if (k === 'arrowup') moveState.w = false; 
+    if (k === 'arrowdown') moveState.s = false;
+    if (k === 'arrowleft') moveState.a = false; 
+    if (k === 'arrowright') moveState.d = false;
+});
+
+const canvasWrapper = document.getElementById('canvas-wrapper');
+canvasWrapper.addEventListener('pointerdown', e => { isDragging = true; lastX = e.clientX; canvasWrapper.setPointerCapture(e.pointerId); });
+canvasWrapper.addEventListener('pointermove', e => { 
+    if(!isDragging) return; 
+    state.pa += (e.clientX - lastX) * 0.005; 
+    lastX = e.clientX; 
+    if(!state.playing) renderOutput(); 
+});
+canvasWrapper.addEventListener('pointerup', () => isDragging = false);
+
+const joyZone = document.getElementById('joystick-zone');
+const joyKnob = document.getElementById('joy-knob');
+if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    joyZone.style.display = 'block';
+    joyZone.addEventListener('touchstart', e => { e.preventDefault(); }, {passive:false});
+    joyZone.addEventListener('touchmove', e => {
+        e.preventDefault();
+        const r = joyZone.getBoundingClientRect(), cx = r.left + r.width/2, cy = r.top + r.height/2, t = e.touches[0];
+        touchMove.x = Math.max(-1, Math.min(1, (t.clientX - cx) / 40));
+        touchMove.y = Math.max(-1, Math.min(1, (t.clientY - cy) / 40));
+        joyKnob.style.transform = `translate(${touchMove.x*20}px, ${touchMove.y*20}px)`;
+    }, {passive:false});
+    joyZone.addEventListener('touchend', () => { touchMove = {x:0, y:0}; joyKnob.style.transform = `translate(0px, 0px)`; });
+}
+
+// Timeline drag scrolling
+let stripDrag = false, stripStartX = 0, stripScrollL = 0;
+const strip = document.getElementById('tl-strip');
+strip.addEventListener('pointerdown', e => { if(e.target.closest('.tl-frame')) return; stripDrag = true; stripStartX = e.pageX - strip.offsetLeft; stripScrollL = strip.scrollLeft; });
+window.addEventListener('pointerup', () => stripDrag = false);
+window.addEventListener('pointermove', e => { if(!stripDrag) return; e.preventDefault(); strip.scrollLeft = stripScrollL - (e.pageX - strip.offsetLeft - stripStartX) * 1.5; });
+
+function gameLoop() {
+    const SPEED = 0.02, TURN = 0.06;
+    let moved = false;
+    let turnInput = touchMove.x, fwdInput = -touchMove.y;
+    
+    if (moveState.a) turnInput = -1; if (moveState.d) turnInput = 1;
+    if (moveState.w) fwdInput = 1; if (moveState.s) fwdInput = -1;
+    
+    if (turnInput !== 0) { state.pa += turnInput * TURN; moved = true; }
+    if (fwdInput !== 0) {
+        state.px += Math.cos(state.pa) * fwdInput * SPEED;
+        state.py += Math.sin(state.pa) * fwdInput * SPEED;
+        moved = true;
+    }
+    
+    state.pa = (state.pa % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+    state.px = ((state.px % 1) + 1) % 1; 
+    state.py = ((state.py % 1) + 1) % 1;
+    
+    if (moved && !state.playing) renderOutput();
+    requestAnimationFrame(gameLoop);
+}
+
+// ── EXPORT ENGINE ──
+function exportFrame() {
+    if(!state.frames.length) return fireToast('NO FRAMES');
+    playThud(); renderOutput(); closeAllSheets();
+    const a = document.createElement('a');
+    a.href = canvasMain.toDataURL('image/png');
+    a.download = `LIDAR_PRO_F${state.cur+1}.png`; a.click();
+    fireToast('FRAME EXPORTED');
+}
+
+async function exportVideo(format) {
+    if (!state.frames.length) return fireToast('NO FRAMES');
+    if (state.playing) engageSequence(); playThud();
+    
+    const mime = format === 'mp4' ? 'video/mp4' : 'video/webm';
+    if (!window.MediaRecorder || !MediaRecorder.isTypeSupported(mime)) {
+        return fireToast(format.toUpperCase() + ' NOT SUPPORTED IN BROWSER');
+    }
+    
+    lockSystem('ENCODING ' + format.toUpperCase(), 0);
+    closeAllSheets();
+    
+    const ec = document.createElement('canvas'); ec.width = W * 2; ec.height = H * 2;
+    const eCtx = ec.getContext('2d');
+    const stream = ec.captureStream(BASE_FPS);
+    
+    let aCtx = null, aSrc = null;
+    if (state.audioBlob) {
+        try {
+            aCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const aBuf = await aCtx.decodeAudioData(await state.audioBlob.arrayBuffer());
+            const aDest = aCtx.createMediaStreamDestination();
+            aSrc = aCtx.createBufferSource(); aSrc.buffer = aBuf;
+            const oDur = state.frames.length / BASE_FPS;
+            if(aBuf.duration>0 && oDur>0) aSrc.playbackRate.value = Math.max(0.25, Math.min(4.0, aBuf.duration/oDur));
+            aSrc.connect(aDest);
+            const aTrk = aDest.stream.getAudioTracks();
+            if(aTrk.length) stream.addTrack(aTrk[0]);
+        } catch(e) {}
+    }
+
+    const rec = new MediaRecorder(stream, { mimeType: mime });
+    const chunks = [];
+    rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    const stopP = new Promise(r => rec.onstop = r);
+    
+    if (aSrc) { try { aSrc.start(0); } catch(e){} }
+    rec.start();
+
+    const tStart = performance.now();
+    for (let i = 0; i < state.frames.length; i++) {
+        state.cur = i; renderOutput();
+        eCtx.drawImage(canvasMain, 0, 0, ec.width, ec.height);
+        updateLockCount(`${i + 1} / ${state.frames.length}`);
+        
+        const delay = (tStart + ((i+1)*(1000/BASE_FPS))) - performance.now();
+        if (delay > 0) await new Promise(r => setTimeout(r, delay));
+        else await new Promise(r => setTimeout(r, 0));
+    }
+    await new Promise(r => setTimeout(r, 50));
+    rec.stop();
+    if(aSrc) try { aSrc.stop(); } catch(e){}
+    if(aCtx) try { aCtx.close(); } catch(e){}
+    await stopP;
+    stream.getTracks().forEach(t => t.stop());
+    
+    const bl = new Blob(chunks, { type: mime });
+    const l = document.createElement('a');
+    l.download = `LIDAR_FLIX_${Date.now()}.${format}`;
+    l.href = URL.createObjectURL(bl); l.click();
+    setTimeout(() => URL.revokeObjectURL(l.href), 2000);
+    releaseSystem(); fireToast(format.toUpperCase() + ' EXPORTED');
+}
+
+function exportGIF() {
+    if (!state.frames.length) return fireToast('NO FRAMES');
+    if (typeof GIF === 'undefined') return fireToast('GIF UNAVAILABLE');
+    playThud(); lockSystem('ENCODING GIF', 0); closeAllSheets();
+    const gif = new GIF({ workers: 1, quality: 12, width: W, height: H, workerScript: 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js' });
+    
+    const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H;
+    for (let i=0; i<state.frames.length; i++) {
+        state.cur = i; renderOutput();
+        tmp.getContext('2d').drawImage(canvasMain, 0, 0);
+        gif.addFrame(tmp, { delay: 1000 / BASE_FPS, copy: true });
+    }
+    gif.on('progress', p => updateLockCount(Math.round(p*100) + '%'));
+    gif.on('finished', blob => {
+        const l = document.createElement('a'); l.download = `LIDAR_FLIX_${Date.now()}.gif`;
+        l.href = URL.createObjectURL(blob); l.click();
+        setTimeout(() => URL.revokeObjectURL(l.href), 2000);
+        releaseSystem(); fireToast('GIF EXPORTED');
+    });
+    gif.render();
+}
+</script>
+</body>
+</html>
