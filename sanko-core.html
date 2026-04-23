@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>LMC 2400: Course OS (Sankofa Lab)</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Playfair+Display:wght@700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            teal: '#0E6B66',
+            amber: '#E3A21A',
+            red: '#B23A2E',
+            black: '#111111',
+            parchment: '#F5F1E6',
+            darkParchment: '#E5E0D8',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            serif: ['"Playfair Display"', 'Georgia', 'serif'],
+            mono: ['"Space Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    html, body { 
+      position: fixed; inset: 0; width: 100vw; height: 100dvh; margin: 0; padding: 0;
+      overflow: hidden; background-color: #18181b; color: #111111; overscroll-behavior: none; touch-action: none;
+    }
+    .scrollable { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; touch-action: pan-y; }
+    .perspective-1000 { perspective: 1000px; }
+    .transform-style-3d { transform-style: preserve-3d; }
+    .backface-hidden { backface-visibility: hidden; }
+    .rotate-y-180 { transform: rotateY(180deg); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .bg-noise { background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"); }
+
+    @media print {
+      @page { margin: 0.25in; }
+      html, body { position: static !important; overflow: visible !important; background-color: white !important; -webkit-print-color-adjust: exact; color: #000 !important; touch-action: auto !important; height: auto !important; width: auto !important; }
+      #wrapper { display: none !important; }
+      #print-container { display: block !important; width: 100%; }
+      .print-page { height: 10in; width: 100%; margin: 0 auto; page-break-after: always; display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(4, 1fr); gap: 0; box-sizing: border-box; }
+      .print-cut-zone { border: 1px dashed #ccc; padding: 0.25in; display: flex; box-sizing: border-box; height: 100%; width: 100%; page-break-inside: avoid; break-inside: avoid; }
+      .print-card { border: 2px solid #111; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; background-color: white !important; width: 100%; height: 100%; box-sizing: border-box; position: relative; }
+      .print-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+      .print-card-suit { display: flex; align-items: center; gap: 6px; font-size: 10px; font-family: 'Space Mono', monospace; font-weight: bold; text-transform: uppercase; color: #111 !important; }
+      .print-card-id { font-size: 10px; font-family: 'Space Mono', monospace; color: #666 !important; }
+      .print-card-title { font-size: 16px; font-family: 'Playfair Display', serif; font-weight: 900; text-transform: uppercase; line-height: 1.1; text-align: center; margin: auto 0; color: #000 !important;}
+      .print-card-desc { font-size: 10px; font-family: 'Inter', sans-serif; text-align: center; border-top: 1px solid #ccc; padding-top: 6px; color: #333 !important; }
+      .print-card-author { font-size: 8px; font-family: 'Space Mono', monospace; color: #666 !important; text-align: center; margin-top: 4px; }
+    }
+    @media screen { #print-container { display: none !important; } }
+  </style>
+</head>
+<body class="font-sans text-black">
+
+  <div id="wrapper" class="fixed inset-0 w-full h-[100dvh] bg-[#18181b] flex justify-center items-center sm:p-6 md:p-12 overflow-hidden pointer-events-none z-0">
+    <div id="app-container" class="pointer-events-auto w-full h-full sm:max-h-[95vh] sm:max-w-[480px] lg:max-w-[720px] sm:rounded-[2.5rem] overflow-hidden flex flex-col relative shadow-[0_20px_50px_rgba(0,0,0,0.8)] border-0 sm:border-[8px] border-zinc-800 bg-parchment bg-noise text-black min-h-0">
+      <div id="app-root" class="flex-1 overflow-hidden relative flex flex-col min-h-0"></div>
+      <div id="nav-root" class="shrink-0 z-40 bg-white relative"></div>
+      <div id="side-menu-root"></div>
+      <div id="wildcard-modal-root"></div>
+    </div>
+  </div>
+
+  <div id="print-container"></div>
+
+  <script>
+    // --- LMC 2400 COURSE OS DATABASE (Sourced directly from syllabus JSON) ---
+    const DATABASE = {
+      problems: [
+        { id: 'pb1', title: 'Platform Enshittification', desc: 'Platforms start by offering value, then shift to extracting it, ending in degraded user experiences.', author: 'Cory Doctorow', url: 'https://www.wired.com/story/tiktok-platforms-cory-doctorow/' },
+        { id: 'pb2', title: 'Algorithmic Bias', desc: 'Opaque machine models encoding and accelerating systemic racial and gender prejudices.', author: 'Joy Buolamwini / Safiya Noble', url: 'https://proceedings.mlr.press/v81/buolamwini18a/buolamwini18a.pdf' },
+        { id: 'pb3', title: 'The IRL Fetish', desc: 'The false "digital dualism" belief that "real life" exists in pure disconnection from media.', author: 'Nathan Jurgenson', url: 'https://thenewinquiry.com/the-irl-fetish/' },
+        { id: 'pb4', title: 'Loss of Aura', desc: 'Mechanical and algorithmic reproduction decoupling culture from its time, place, and authenticity.', author: 'Walter Benjamin', url: 'https://web.mit.edu/allanmc/www/benjamin.pdf' },
+        { id: 'pb5', title: 'The Attention Economy', desc: 'Algorithmic feeds engineered to devour cognitive bandwidth and drive individualism over collective action.', author: 'Adam Curtis / Ezra Klein', url: 'https://www.youtube.com/watch?v=cZO1B4fZlOw' },
+        { id: 'pb6', title: 'AI Slop & Brainrot', desc: 'Generative AI flooding the internet with low-friction, unrecognizable spam, eroding cultural production.', author: 'John Oliver / Hard Fork', url: 'https://www.youtube.com/watch?v=TWpg1RmzAbc' },
+        { id: 'pb7', title: 'Invisible Custodians', desc: 'Opaque content moderation policies that silently dictate acceptable thought, behavior, and structural power.', author: 'Tarleton Gillespie', url: 'https://www.researchgate.net/profile/Tarleton-Gillespie' },
+        { id: 'pb8', title: 'Context Collapse', desc: 'The flattening of nuanced communication into a surveilled global feed, making protest movements fragile.', author: 'Zeynep Tufekci', url: 'https://www.wired.com/2017/05/twitter-tear-gas-protest-age-social-media/' }
+      ],
+      practices: [
+        { id: 'pr1', title: 'Sympathetic Magic', desc: 'Using physical tokens and rituals (Similarity & Contagion) to assert agency over complex systems.', author: 'James George Frazer', url: 'https://www.templeofearth.com/books/goldenbough.pdf' },
+        { id: 'pr2', title: 'Primary Orality', desc: 'Memory preservation requiring physical presence, listening, and communal repetition rather than text.', author: 'Walter J. Ong', url: 'https://monoskop.org/images/d/db/Ong_Walter_J_Orality_and_Literacy_2nd_ed.pdf' },
+        { id: 'pr3', title: 'The Memex Trail', desc: 'Non-linear, user-directed associative trail-building for organizing and linking knowledge.', author: 'Vannevar Bush', url: 'https://www.theatlantic.com/magazine/archive/1945/07/as-we-may-think/303881/' },
+        { id: 'pr4', title: 'Black Twitter Vernaculars', desc: 'Mobilizing platform affordances to create a public sphere rooted in cultural oral traditions and resistance.', author: 'André Brock Jr.', url: 'https://www.researchgate.net/profile/Andre-Brock' },
+        { id: 'pr5', title: 'Cyborg Kinship', desc: 'Rejecting extraction to build protocols of respect, reciprocity, and relational accountability with machines.', author: 'Jason E. Lewis / Donna Haraway', url: 'https://jods.mitpress.mit.edu/pub/lewis-arista-pechawis-kite/release/1' },
+        { id: 'pr6', title: 'Hyperstition', desc: 'Speculative fictions that make themselves real by injecting traces of the future into the present via belief.', author: 'CCRU', url: 'http://www.ccru.net/id(entity)/ccruhistory.htm' },
+        { id: 'pr7', title: 'Participatory Design', desc: 'Collaborative world-building grounded in local cultural values, storytelling, and neighborhood context.', author: 'Ben Caldwell / Karl Baumann', url: 'https://vimeo.com/211625350' },
+        { id: 'pr8', title: 'Adversarial Design', desc: 'Luddite-inspired sabotage and design that confronts media systems to re-center labor and human agency.', author: 'Carl DiSalvo', url: 'https://mitpress.mit.edu/9780262528221/adversarial-design/' }
+      ],
+      functions: [
+        { id: 'fn1', title: 'Operative Ekphrasis', desc: 'Using language not as description, but as a performative, generative command to build visual worlds.', author: 'Hannes Bajohr', url: 'https://doi.org/10.1080/02666286.2024.2330335' },
+        { id: 'fn2', title: 'Procedural Rhetoric', desc: 'Making arguments and persuading users through coded rules and interactive constraints.', author: 'Ian Bogost', url: 'https://luisnavarrete.com/USC/pdf/Bogost2.pdf' },
+        { id: 'fn3', title: 'Ritual Belonging', desc: 'Communication not as transmitting info, but as creating shared cultural reality and connection.', author: 'James W. Carey', url: 'https://web.mit.edu/21l.432/www/readings/Carey_CulturalApproachCommunication.pdf' },
+        { id: 'fn4', title: 'Adversarial Decoding', desc: 'Allowing communities to read and operate against the dominant, encoded ideology of a platform.', author: 'Stuart Hall', url: 'https://spstudentenhancement.files.wordpress.com/2015/03/stuart-hall-1980.pdf' },
+        { id: 'fn5', title: 'Ontological Presence', desc: 'Restoring an indexical, physical relationship to reality that preserves existence beyond digital decay.', author: 'André Bazin', url: 'https://badspaceusao.wordpress.com/wp-content/uploads/2018/12/Bazin-Ontology-Photographic-Image.pdf' },
+        { id: 'fn6', title: 'Attentional Sovereignty', desc: 'Reclaiming the right to structure one’s own focus, utilizing silence and absence as active mediums.', author: 'John Cage / R. M. Schafer', url: 'https://monoskop.org/images/b/b5/Cage_John_Silence_Lectures_and_Writings.pdf' },
+        { id: 'fn7', title: 'Technogenesis', desc: 'Embracing the cognitive co-evolution of humans with our digital and technical environments.', author: 'N. Katherine Hayles', url: 'https://dms484.wordpress.com/wp-content/uploads/2017/01/hayles-how-we-think.pdf' },
+        { id: 'fn8', title: 'Hauntological Crackle', desc: 'Allowing the ghosts and disjunctions of historical trauma to remain audible in present media.', author: 'Mark Fisher', url: 'https://dj.dancecult.net/index.php/dancecult/article/view/378' }
+      ],
+      artifacts: [
+        { id: 'ar1', title: 'Diegetic Prototype', desc: 'A tangible artifact from a speculative near-future that provokes ethical reflection without overt narrative.', author: 'Julian Bleecker', url: 'https://systemsorienteddesign.net/wp-content/uploads/2011/01/DesignFiction_WebEdition.pdf' },
+        { id: 'ar2', title: 'Community AR Node', desc: 'Localized augmented reality architecture designed to anchor community history and alternative futures.', author: 'Karl Baumann / Sankofa City', url: 'https://vimeo.com/211625350' },
+        { id: 'ar3', title: 'Speculative Art Book', desc: 'A physical, limited-edition publication that archives and seeds future worlds through tactile media.', author: 'Afrotectopia (Black Metal)', url: 'https://www.afrotectopia.org/' },
+        { id: 'ar4', title: 'Neural Media Text', desc: 'A collaborative, co-written text blending human philosophy, ecological thought, and generative LLM outputs.', author: 'K. Allado-McDowell', url: 'https://www.are.na/block/21398733' },
+        { id: 'ar5', title: 'Predictive Algorithmic Object', desc: 'A constantly evolving data ledger that acquires volition to nudge human behavior and track biometrics.', author: 'Google X (The Selfish Ledger)', url: 'https://www.youtube.com/watch?v=LUSZfEBTwRc' },
+        { id: 'ar6', title: 'Procedural Simulation', desc: 'An interactive system designed to model interconnectedness, shifting perspectives, and hidden systemic bias.', author: 'David O\'Reilly (Everything)', url: 'https://www.youtube.com/watch?v=JYHp8LwBUzo' },
+        { id: 'ar7', title: 'Sonic Monument', desc: 'An acoustic ecology project that translates artificial or algorithmic inputs into a public, physical soundscape.', author: 'R. Murray Schafer', url: 'https://monoskop.org/images/d/d4/Schafer_R_Murray_The_Soundscape_Our_Sonic_Environment_and_the_Tuning_of_the_World_1994.pdf' },
+        { id: 'ar8', title: 'Cybernetic Generative Film', desc: 'A dynamic, feedback-driven moving image environment combining algorithms, neural sensing, and aesthetic intent.', author: 'Gene Youngblood', url: 'https://monoskop.org/images/4/40/Youngblood_Gene_Expanded_Cinema_no_OCR.pdf' }
+      ],
+      tags: ['REMEDIATION', 'HAUNTOLOGY', 'CYBERNETICS', 'TECHNOGENESIS', 'SEMIOTICS', 'AURA', 'ORALITY', 'KINSHIP', 'ENSHITTIFICATION', 'HYPERSTITION', 'AFROFUTURISM', 'ATTENTION']
+    };
+
+    // --- SYSTEM LOGIC ---
+    const app = {
+      view: 'onboarding',
+      savedPitches: JSON.parse(localStorage.getItem('sankofa_lmc2400_os_v4')) || [],
+      isFastMode: false,
+      isMenuOpen: false,
+      isWildcardMode: false, 
+      round: 1,
+      cardsFlipped: [false, false, false, false],
+      currentDeck: { problem: null, practice: null, func: null, artifact: null },
+      currentPitch: null,
+      archiveTab: 'ALL',
+      searchQuery: '',
+      isPlaying: false,
+      audioProgress: 0,
+      utterance: null,
+      previewPrompt: null, 
+      editingCategory: null, 
+
+      init() { this.render(); },
+      navigate(newView) {
+        if(this.view === 'result' && newView !== 'result') this.handleStopSpeak();
+        this.view = newView; this.isMenuOpen = false; this.searchQuery = ''; this.previewPrompt = null; this.editingCategory = null;
+        this.render();
+      },
+
+      getRandomItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; },
+      getRandomTags(count = 3) { return [...DATABASE.tags].sort(() => 0.5 - Math.random()).slice(0, count); },
+      
+      generateNewDeck() {
+        return {
+          problem: this.getRandomItem(DATABASE.problems),
+          practice: this.getRandomItem(DATABASE.practices),
+          func: this.getRandomItem(DATABASE.functions),
+          artifact: this.getRandomItem(DATABASE.artifacts)
+        };
+      },
+
+      startNewRound() {
+        this.currentDeck = this.generateNewDeck();
+        this.cardsFlipped = this.isFastMode ? [true, true, true, true] : [false, false, false, false];
+        this.round += 1;
+        this.isWildcardMode = false;
+        this.navigate('play');
+      },
+      
+      toggleFastMode() { this.isFastMode = !this.isFastMode; this.render(); },
+      toggleMenu() { this.isMenuOpen = !this.isMenuOpen; this.renderMenu(); },
+      
+      handleCardClick(index, category) {
+        if (!this.cardsFlipped[index]) {
+          this.cardsFlipped[index] = true;
+          this.renderPlayCards(); this.renderPlayActions();
+        } else {
+          this.cardsFlipped[index] = false;
+          this.renderPlayCards(); this.renderPlayActions();
+          setTimeout(() => {
+            this.currentDeck[category] = this.getRandomItem(DATABASE[category === 'func' ? 'functions' : category + 's']);
+            setTimeout(() => { this.cardsFlipped[index] = true; this.renderPlayCards(); this.renderPlayActions(); }, 100);
+          }, 300);
+        }
+      },
+      
+      shuffleDeck() {
+        if(this.isWildcardMode) {
+            document.getElementById('wc-prob-title').value = '';
+            document.getElementById('wc-prob-author').value = '';
+            document.getElementById('wc-prac-title').value = '';
+            document.getElementById('wc-prac-author').value = '';
+            document.getElementById('wc-func-title').value = '';
+            document.getElementById('wc-func-author').value = '';
+            document.getElementById('wc-art-title').value = '';
+            document.getElementById('wc-art-author').value = '';
+            return;
+        }
+        this.cardsFlipped = [false, false, false, false];
+        this.renderPlayCards(); this.renderPlayActions();
+        setTimeout(() => {
+          this.currentDeck = this.generateNewDeck();
+          if (this.isFastMode) {
+            setTimeout(() => { this.cardsFlipped = [true, true, true, true]; this.renderPlayCards(); this.renderPlayActions(); }, 100);
+          } else { this.renderPlayCards(); }
+        }, 300);
+      },
+
+      // WILDCARD SYSTEM
+      openWildcardModal(category, e) {
+        e.stopPropagation();
+        this.editingCategory = category;
+        this.renderWildcardModal();
+      },
+      closeWildcardModal() {
+        this.editingCategory = null;
+        document.getElementById('wildcard-modal-root').innerHTML = '';
+      },
+      saveWildcard() {
+        const title = document.getElementById('wc-title').value || 'Custom Variable';
+        const desc = document.getElementById('wc-desc').value || 'User injected parameter.';
+        const author = document.getElementById('wc-author').value || 'Independent Study';
+        const url = document.getElementById('wc-url').value || '';
+        
+        this.currentDeck[this.editingCategory] = {
+          id: 'WILD',
+          title, desc, author, url, isWildcard: true
+        };
+        
+        this.closeWildcardModal();
+        this.renderPlayCards();
+      },
+
+      generateWildcardPitch() {
+        const val = (id) => document.getElementById(id).value || 'User Defined';
+        this.currentDeck = {
+          problem: { title: val('wc-prob-title'), desc: 'User specified failure', author: val('wc-prob-author'), url: '#' },
+          practice: { title: val('wc-prac-title'), desc: 'User specified practice', author: val('wc-prac-author'), url: '#' },
+          func: { title: val('wc-func-title'), desc: 'User specified logic', author: val('wc-func-author'), url: '#' },
+          artifact: { title: val('wc-art-title'), desc: 'User specified artifact', author: val('wc-art-author'), url: '#' }
+        };
+        this.generatePitch();
+      },
+      
+      generatePitch() {
+        const p = this.currentDeck;
+        const summary = `A speculative ${p.artifact.title.toLowerCase()} that tackles the crisis of ${p.problem.title.toLowerCase()}. By reviving the media logic of ${p.practice.title.toLowerCase()}, it restores ${p.func.title.toLowerCase()} to the system.`;
+        const prefixes = ["Project", "Protocol", "The", "Speculative", "Network", "Proxy"];
+        const title = this.isWildcardMode && p.artifact.title === 'User Defined' 
+            ? "Custom Project Idea" 
+            : `${prefixes[Math.floor(Math.random() * prefixes.length)]} ${p.artifact.title.split(' ')[0]} ${p.practice.title.split(' ')[0]}`;
+        
+        this.currentPitch = {
+          id: Date.now().toString(),
+          title, summary, 
+          tags: this.getRandomTags(),
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          rating: 0,
+          notes: "", 
+          elements: p
+        };
+        this.savePitch();
+        this.navigate('result');
+      },
+      
+      savePitch(pitchToSave = this.currentPitch) {
+        if (!this.savedPitches.find(p => p.id === pitchToSave.id)) {
+          this.savedPitches = [pitchToSave, ...this.savedPitches];
+        } else {
+          this.savedPitches = this.savedPitches.map(p => p.id === pitchToSave.id ? pitchToSave : p);
+        }
+        localStorage.setItem('sankofa_lmc2400_os_v4', JSON.stringify(this.savedPitches));
+      },
+      updateNotes(val) {
+        if(this.currentPitch) {
+          this.currentPitch.notes = val;
+          this.savePitch();
+        }
+      },
+      ratePitch(id, rating) {
+        this.savedPitches = this.savedPitches.map(p => p.id === id ? { ...p, rating } : p);
+        if (this.currentPitch && this.currentPitch.id === id) { this.currentPitch.rating = rating; }
+        localStorage.setItem('sankofa_lmc2400_os_v4', JSON.stringify(this.savedPitches));
+        if(this.view === 'detail') this.render();
+      },
+      deletePitch(id) {
+        if(confirm("Delete this log?")) {
+          this.savedPitches = this.savedPitches.filter(p => p.id !== id);
+          localStorage.setItem('sankofa_lmc2400_os_v4', JSON.stringify(this.savedPitches));
+          this.navigate('archive');
+        }
+      },
+      copyToClipboard(text, btnElement) {
+        const textArea = document.createElement("textarea"); textArea.value = text;
+        textArea.style.position = "fixed"; textArea.style.top = "0"; textArea.style.left = "0";
+        document.body.appendChild(textArea); textArea.focus(); textArea.select();
+        try { 
+            document.execCommand('copy'); 
+            if(btnElement) {
+                const origHTML = btnElement.innerHTML;
+                btnElement.innerHTML = `<i data-lucide="check" class="w-5 h-5 mr-2"></i> Copied!`; lucide.createIcons();
+                setTimeout(() => { btnElement.innerHTML = origHTML; lucide.createIcons(); }, 2000);
+            }
+        } catch (err) { console.error('Copy failed'); }
+        document.body.removeChild(textArea);
+      },
+      openSourceLink(url, e) {
+        if(e) e.stopPropagation();
+        if(url && url !== '#') window.open(url, '_blank');
+      },
+      
+      // COURSE OS: ACADEMIC FORGE GENERATORS (Now utilizing References & Sandbox Notes)
+      getPromptText(type) {
+        if (!this.currentPitch) return "";
+        const p = this.currentPitch.elements;
+        const art = this.currentPitch.title;
+        const notes = this.currentPitch.notes ? `\n[ STUDENT STUDIO NOTES ]\n${this.currentPitch.notes}\n` : '';
+
+        const header = `[ LMC 2400 SANKOFA FUTURES EXCAVATION ]\n` +
+                       `• Speculative Title: ${art}\n` +
+                       `• Present Media Failure: ${p.problem.title} (Theory context: ${p.problem.author})\n` +
+                       `• Historical Recovery: ${p.practice.title} (Theory context: ${p.practice.author})\n` +
+                       `• Restored Logic: ${p.func.title} (Theory context: ${p.func.author})\n` +
+                       `• Artifact Base Form: ${p.artifact.title} (Theory context: ${p.artifact.author})\n` +
+                       notes +
+                       `--------------------------------------------------\n\n`;
+
+        let prompt = "";
+
+        switch(type) {
+          case 'memo':
+            prompt = `Prompt Operator: ACADEMIC ADVISOR (LMC 2400)\n\nGenerate a detailed structural outline for a 1000-1500 word "Analytical Memo" based on the project parameters above.\n\nREQUIREMENTS:\nProvide bulleted talking points for each section, integrating the specified theorists/authors and any Student Studio Notes provided:\n\nA. The Recovery: Using the theories of [${p.practice.author}], explain why [${p.practice.title}] mattered historically and how it was erased.\nB. The Present Failure: Using the theories of [${p.problem.author}], diagnose the current crisis of [${p.problem.title}]. Who benefits? Who pays the cost?\nC. The Design: Explain how the [${p.artifact.title}] carries the older practice forward to restore [${p.func.title}] (Ref: ${p.func.author}).\nD. The Barriers: Identify structural obstacles (law, platform incentives, labor) preventing adoption.\nE. Course Connections: Ensure the outline heavily utilizes the authors listed in the prompt header to justify the design choices.`;
+            break;
+          case 'video':
+            prompt = `Prompt Operator: VIDEO PRESENTATION SCRIPTWRITER\n\nCreate a tight, highly-focused script outline for a 3-5 minute asynchronous Video Presentation of the "${art}".\n\nREQUIREMENTS:\nDo not write vague introductions. Frame it as a rigorous design pitch integrating LMC 2400 concepts and my Student Studio Notes.\n\nTIMECODES:\n1. 0:00–0:45 The Recovery: Script a hook explaining the logic of [${p.practice.title}] referencing [${p.practice.author}].\n2. 0:45–1:15 The Failure: Clearly define [${p.problem.title}] using contemporary examples and concepts from [${p.problem.author}].\n3. 1:15–3:15 The Artifact (VISUAL DEMO): Provide scene notes on exactly what the viewer is seeing on screen as we demonstrate the [${p.artifact.title}]. Focus on how the user interacts with it to achieve [${p.func.title}].\n4. 3:15–4:00+ The Payoff and Barrier: Conclude with what changes if adopted, and the primary structural barrier standing in the way.`;
+            break;
+          case 'artifact':
+            prompt = `Prompt Operator: DIEGETIC PROTOTYPE DESIGNER\n\nWrite a specific, grounded "Artifact Manifest" to help me physically/digitally build the "${art}".\n\nAXIOM: The future cannot be theorized; it must be rendered as a usable object. Draw on the design fiction principles of [${p.artifact.author}].\n\nREQUIREMENTS:\nDescribe the [${p.artifact.title}] in granular detail as if it exists today to solve [${p.problem.title}] via [${p.practice.title}]. Integrate my Student Studio Notes.\n\nOUTPUT:\n1. Form Factor & Materials (Is it code, paper, hardware, a policy? What does it look/feel like?)\n2. The Core Interaction Loop (Step-by-step: what does the user actually do?)\n3. Evidence of "Wear and Tear" (How does restoring [${p.func.title}] leave a physical or digital mark on the object over time?)\n4. Suggest 3 specific visual/textual elements I must include when building my mockup/prototype to make it convincing.`;
+            break;
+          case 'lens':
+            prompt = `Prompt Operator: LENS ANALYST\n\nAnalyze this project concept through the three specific lenses of the LMC 2400 assignment. Use the theorists provided in the prompt header and my Student Studio Notes to ground the analysis:\n\n1. Remediation and Retrofuture: How does it adapt [${p.practice.title}] for a future-facing design?\n2. Resistance and Alternative Histories: How does it confront the current system of [${p.problem.title}]?\n3. Collective Imagination: How does it recover shared media practices that current systems have privatized?\n\nConclude by recommending which of the three lenses is the STRONGEST framing for this specific project.`;
+            break;
+        }
+
+        return header + prompt;
+      },
+
+      openPromptPreview(title, type) { this.previewPrompt = { title, text: this.getPromptText(type) }; this.render(); },
+      closePromptPreview() { this.previewPrompt = null; this.render(); },
+
+      // TTS
+      toggleTTS() { if (this.isPlaying) this.handleStopSpeak(); else if (this.currentPitch) this.handleSpeak(this.currentPitch.summary); },
+      handleSpeak(text) {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          this.utterance = new SpeechSynthesisUtterance(text);
+          this.utterance.onboundary = (e) => { if (e.name === 'word') this.updateAudioProgress((e.charIndex / text.length) * 100); };
+          this.utterance.onend = () => { this.isPlaying = false; this.updateAudioProgress(100); setTimeout(() => this.updateAudioProgress(0), 1000); this.renderTTSControls(); };
+          this.utterance.onerror = () => { this.isPlaying = false; this.updateAudioProgress(0); this.renderTTSControls(); };
+          this.isPlaying = true; this.updateAudioProgress(0); this.renderTTSControls();
+          window.speechSynthesis.speak(this.utterance);
+        }
+      },
+      handleStopSpeak() { if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); this.isPlaying = false; this.updateAudioProgress(0); if(this.view === 'result' || this.view === 'detail') this.renderTTSControls(); } },
+      updateAudioProgress(percent) { this.audioProgress = percent; const bar = document.getElementById('audio-progress-bar'); if (bar) bar.style.width = `${percent}%`; },
+
+      // Search & Print
+      setArchiveTab(tab) { this.archiveTab = tab; this.renderArchiveList(); },
+      handleSearch(e) { this.searchQuery = e.target.value; this.renderArchiveList(); },
+      clearSearch() { this.searchQuery = ''; document.getElementById('archive-search-input').value = ''; this.renderArchiveList(); },
+      
+      printDeck() {
+        const pContainer = document.getElementById('print-container');
+        let html = '';
+        const getSuitSvg = (cat, color) => {
+           if(cat === 'FAILURE') return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>`;
+           if(cat === 'RECOVERY') return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>`;
+           if(cat === 'LOGIC') return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`;
+           if(cat === 'FORM') return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>`;
+           return '';
+        };
+
+        const renderPrintCard = (category, item, color) => `
+          <div class="print-cut-zone">
+            <div class="print-card" style="border-color: ${color}">
+              <div class="print-card-header">
+                <span class="print-card-suit" style="color: ${color}">${getSuitSvg(category, color)} ${category}</span>
+                <span class="print-card-id">${item.id ? item.id.toUpperCase() : ''}</span>
+              </div>
+              <h3 class="print-card-title">${item.title}</h3>
+              <p class="print-card-author">Ref: ${item.author}</p>
+              <p class="print-card-desc">${item.desc}</p>
+            </div>
+          </div>
+        `;
+
+        const rulesCard = `
+          <div class="print-cut-zone">
+            <div class="print-card" style="border-color: #111; background-color: #fff !important;">
+              <div class="print-card-header">
+                <span class="print-card-suit" style="color: #111">GAME RULES</span>
+                <span class="print-card-id">LMC 2400</span>
+              </div>
+              <h3 class="print-card-title" style="font-size:18px;">SANKOFA EXCAVATION</h3>
+              <div style="font-size:11px; font-family:'Space Mono', monospace; text-align:left; margin-top:10px; line-height:1.4;">
+                1. Separate cards into 4 decks by icon.<br><br>
+                2. Draw 1 card from each deck.<br><br>
+                3. Design Fiction: Address the <b>[Failure]</b> using the <b>[Recovery]</b> to restore the <b>[Logic]</b>, built as a <b>[Form]</b>.<br><br>
+                4. Discard and redraw to iterate.
+              </div>
+            </div>
+          </div>
+        `;
+
+        const blankCard = `
+          <div class="print-cut-zone">
+            <div class="print-card" style="border-color: #aaa; border-style: dashed; background-color: #fff !important;">
+              <div class="print-card-header">
+                <span class="print-card-suit" style="color: #aaa">WILDCARD</span>
+              </div>
+              <h3 class="print-card-title" style="color: #ccc;">WRITE IDEA</h3>
+              <p class="print-card-desc" style="border-color: transparent;"></p>
+            </div>
+          </div>
+        `;
+
+        const renderPage = (cards) => `<div class="print-page">${cards.join('')}</div>`;
+
+        let allPrintCards = [rulesCard];
+        DATABASE.problems.forEach(i => allPrintCards.push(renderPrintCard('FAILURE', i, '#B23A2E')));
+        DATABASE.practices.forEach(i => allPrintCards.push(renderPrintCard('RECOVERY', i, '#E3A21A')));
+        DATABASE.functions.forEach(i => allPrintCards.push(renderPrintCard('LOGIC', i, '#0E6B66')));
+        DATABASE.artifacts.forEach(i => allPrintCards.push(renderPrintCard('FORM', i, '#111111')));
+
+        while (allPrintCards.length % 8 !== 0) { allPrintCards.push(blankCard); }
+        for (let i = 0; i < allPrintCards.length; i += 8) { html += renderPage(allPrintCards.slice(i, i + 8)); }
+
+        pContainer.innerHTML = html; window.print();
+      },
+
+      // --- HTML TEMPLATES ---
+      birdSVG(className="w-24 h-24", color="#111") {
+        return `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="${className}"><path d="M50 90C72.0914 90 90 72.0914 90 50C90 27.9086 72.0914 10 50 10C27.9086 10 10 27.9086 10 50C10 72.0914 27.9086 90 50 90Z" fill="${color}" /><path d="M50 85C69.33 85 85 69.33 85 50C85 30.67 69.33 15 50 15C30.67 15 15 30.67 15 50C15 69.33 30.67 85 50 85Z" fill="#F5F1E6" /><path d="M75 50C75 63.8071 63.8071 75 50 75C36.1929 75 25 63.8071 25 50C25 36.1929 36.1929 25 50 25" stroke="${color}" stroke-width="6" stroke-linecap="round" /><circle cx="50" cy="25" r="8" fill="#B23A2E" /><path d="M50 17C55 17 60 22 60 28" stroke="#F5F1E6" stroke-width="2" stroke-linecap="round" /><path d="M35 50L65 50M35 60L60 60M40 70L55 70" stroke="${color}" stroke-width="4" stroke-linecap="round" /></svg>`;
+      },
+      
+      flipCardHTML(label, iconName, frontColor, backColor, value, isFlipped, index, category) {
+        const labelHTML = label.split(' ').map(w => `<span class="block">${w}</span>`).join('');
+        const isWild = value && value.id === 'WILD';
+        const displayColor = isWild ? '#8b5cf6' : frontColor; 
+        const authorHTML = value?.author ? `<div class="text-[8px] sm:text-[9px] font-mono opacity-80 mt-1 uppercase text-center px-2 text-[#0E6B66] font-bold truncate">REF: ${value.author}</div>` : '';
+        const linkHTML = value?.url && value.url !== '#' ? `<a href="${value.url}" target="_blank" onclick="app.openSourceLink('${value.url}', event)" class="absolute bottom-2 right-2 z-10 p-1.5 bg-black/5 hover:bg-black/10 rounded-full transition-colors" title="View Source"><i data-lucide="external-link" class="w-3.5 h-3.5 text-black"></i></a>` : '';
+
+        return `
+          <div class="relative w-full h-full cursor-pointer group perspective-1000" onclick="app.handleCardClick(${index}, '${category}')">
+            <div class="absolute inset-0 transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}">
+              
+              <div class="absolute inset-0 w-full h-full flex flex-col items-center justify-center p-2 sm:p-3 border-[3px] border-black rounded-xl shadow-sm backface-hidden" style="background-color: ${displayColor};">
+                <div class="flex-1 flex flex-col items-center justify-center w-full border-2 border-dashed border-white/30 rounded-lg p-1 sm:p-2 relative">
+                  <i data-lucide="${isWild ? 'sparkles' : iconName}" class="w-8 h-8 sm:w-10 sm:h-10 mb-2 sm:mb-4 opacity-90 drop-shadow-md text-[#F5F1E6]"></i>
+                  <h3 class="text-center font-black text-[10px] sm:text-xs tracking-widest uppercase leading-tight text-[#F5F1E6] font-mono">${labelHTML}</h3>
+                </div>
+                <div class="w-full flex justify-between items-center mt-2 relative z-10">
+                  <p class="text-[8px] sm:text-[10px] uppercase font-bold tracking-widest opacity-80 text-[#F5F1E6] font-mono pl-1">Decode</p>
+                  <button onclick="app.openWildcardModal('${category}', event)" class="p-1.5 hover:bg-black/20 rounded transition-colors" title="Inject Wildcard">
+                    <i data-lucide="pencil" class="w-3.5 h-3.5 text-white"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="absolute inset-0 w-full h-full flex flex-col items-center justify-between p-3 border-[3px] border-black rounded-xl shadow-md rotate-y-180 backface-hidden relative overflow-hidden bg-white" style="background-color: ${backColor};">
+                <div class="absolute top-0 right-0 w-16 h-16 opacity-5 pointer-events-none -mr-4 -mt-4"><i data-lucide="${iconName}" class="w-16 h-16 text-black"></i></div>
+                ${linkHTML}
+
+                <div class="w-full flex justify-between items-start mb-1 shrink-0 z-10 relative">
+                   <div class="flex gap-2">
+                     <i data-lucide="${iconName}" class="w-4 h-4 opacity-80" style="color: ${displayColor};"></i>
+                   </div>
+                   <div class="flex flex-col items-end gap-1">
+                     <span class="text-[8px] sm:text-[10px] font-mono font-bold opacity-40" style="color: ${isWild ? '#8b5cf6' : 'inherit'}">${value?.id.toUpperCase() || ''}</span>
+                     <i data-lucide="refresh-cw" class="w-3 h-3 opacity-30 group-hover:opacity-100 transition-opacity"></i>
+                   </div>
+                </div>
+                
+                <div class="flex-1 flex flex-col items-center justify-center w-full overflow-hidden min-h-0 z-10 px-1">
+                  <h3 class="text-center font-black text-sm sm:text-[15px] leading-tight uppercase text-black font-serif line-clamp-3">${value?.title || ''}</h3>
+                  ${authorHTML}
+                </div>
+                
+                <div class="flex flex-col w-full shrink-0 border-t-2 border-black/10 pt-1 mt-1 z-10">
+                  <p class="text-[9px] sm:text-[10px] font-medium leading-tight text-center opacity-70 text-black line-clamp-2">${value?.desc || ''}</p>
+                  
+                  <div class="flex justify-start items-center w-full mt-2">
+                    <button class="text-[8px] uppercase font-bold bg-black/5 border border-black/20 px-1.5 py-0.5 rounded hover:bg-black hover:text-white transition-colors" onclick="app.openWildcardModal('${category}', event)">✏️ Edit</button>
+                  </div>
+                </div>
+                
+              </div>
+            </div>
+          </div>
+        `;
+      },
+
+      htmlWildcardInput() {
+          return `
+            <div class="flex flex-col h-full bg-white border-[3px] border-black rounded-xl p-4 overflow-y-auto scrollable shadow-sm relative">
+                <h3 class="font-black font-serif text-lg mb-1 uppercase text-[#B23A2E] flex items-center">
+                   <i data-lucide="pen-tool" class="w-5 h-5 mr-2"></i> Wildcard Sandbox
+                </h3>
+                <p class="text-[10px] font-mono opacity-60 mb-4 leading-tight">Input your final project ideas to build a custom speculative matrix. The Forge AI Prompts will adapt to your exact text.</p>
+                
+                <div class="space-y-4 mb-4">
+                    <div>
+                        <label class="block text-[10px] font-black uppercase tracking-widest font-mono text-[#B23A2E] mb-1">1. Present Failure</label>
+                        <input type="text" id="wc-prob-title" placeholder="Problem (e.g. Digital Surveillance)" class="w-full border-2 border-gray-300 rounded p-2 text-sm font-medium focus:border-black focus:outline-none mb-1">
+                        <input type="text" id="wc-prob-author" placeholder="Course Author (e.g. Doctorow)" class="w-full border-2 border-gray-200 rounded p-1.5 text-[10px] font-mono focus:border-black focus:outline-none bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black uppercase tracking-widest font-mono text-[#E3A21A] mb-1">2. Historical Recovery</label>
+                        <input type="text" id="wc-prac-title" placeholder="Practice (e.g. Gossip Networks)" class="w-full border-2 border-gray-300 rounded p-2 text-sm font-medium focus:border-black focus:outline-none mb-1">
+                        <input type="text" id="wc-prac-author" placeholder="Course Author (e.g. Benjamin)" class="w-full border-2 border-gray-200 rounded p-1.5 text-[10px] font-mono focus:border-black focus:outline-none bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black uppercase tracking-widest font-mono text-[#0E6B66] mb-1">3. Restored Logic</label>
+                        <input type="text" id="wc-func-title" placeholder="Logic (e.g. Untraceable Truth)" class="w-full border-2 border-gray-300 rounded p-2 text-sm font-medium focus:border-black focus:outline-none mb-1">
+                        <input type="text" id="wc-func-author" placeholder="Course Author (e.g. Hayles)" class="w-full border-2 border-gray-200 rounded p-1.5 text-[10px] font-mono focus:border-black focus:outline-none bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black uppercase tracking-widest font-mono text-[#111] mb-1">4. Speculative Artifact Form</label>
+                        <input type="text" id="wc-art-title" placeholder="Artifact (e.g. Offline Mesh Router)" class="w-full border-2 border-gray-300 rounded p-2 text-sm font-medium focus:border-black focus:outline-none mb-1">
+                        <input type="text" id="wc-art-author" placeholder="Course Author (e.g. Bleecker)" class="w-full border-2 border-gray-200 rounded p-1.5 text-[10px] font-mono focus:border-black focus:outline-none bg-gray-50">
+                    </div>
+                </div>
+            </div>
+          `;
+      },
+
+      htmlWildcardModal() {
+        if (!this.editingCategory) return '';
+        const currentData = this.currentDeck[this.editingCategory];
+        const categoryLabels = { problem: "Present Failure", practice: "Historical Recovery", func: "Restored Logic", artifact: "Speculative Form" };
+        
+        return `
+          <div class="absolute inset-0 z-[150] flex flex-col bg-black/80 backdrop-blur-sm animate-[fadeIn_0.1s_ease-out]">
+            <div class="flex-1" onclick="app.closeWildcardModal()"></div>
+            <div class="bg-white border-t-[4px] border-black rounded-t-3xl flex flex-col p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] max-h-[90%]">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-black uppercase font-mono text-purple-700 flex items-center">
+                  <i data-lucide="pencil" class="w-5 h-5 mr-2"></i> Edit Variable
+                </h3>
+                <button onclick="app.closeWildcardModal()" class="p-1 hover:bg-gray-200 rounded-full transition-colors"><i data-lucide="x" class="w-6 h-6"></i></button>
+              </div>
+              
+              <div class="text-[10px] font-bold uppercase tracking-widest mb-4 opacity-60 font-mono border-b-2 border-dashed border-gray-200 pb-2">Category: ${categoryLabels[this.editingCategory]}</div>
+              
+              <div class="space-y-4 flex-1 overflow-y-auto no-scrollbar pb-4">
+                <div>
+                  <label class="block text-[10px] font-black uppercase tracking-widest mb-1 font-mono">Title</label>
+                  <input type="text" id="wc-title" value="${currentData?.title || ''}" placeholder="e.g. Data Colonialism" class="w-full border-2 border-black rounded p-3 text-sm font-serif focus:outline-none focus:border-purple-600">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-black uppercase tracking-widest mb-1 font-mono">Description</label>
+                  <textarea id="wc-desc" placeholder="Briefly describe the concept..." class="w-full border-2 border-black rounded p-3 text-sm font-sans resize-none h-20 focus:outline-none focus:border-purple-600">${currentData?.desc || ''}</textarea>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-black uppercase tracking-widest mb-1 font-mono">Theory / Author Reference</label>
+                  <input type="text" id="wc-author" value="${currentData?.author || ''}" placeholder="e.g. Nick Couldry" class="w-full border-2 border-black rounded p-3 text-sm font-mono focus:outline-none focus:border-purple-600">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-black uppercase tracking-widest mb-1 font-mono">URL Link (Optional)</label>
+                  <input type="text" id="wc-url" value="${currentData?.url && currentData.url !== '#' ? currentData.url : ''}" placeholder="https://..." class="w-full border-2 border-black rounded p-3 text-sm font-mono focus:outline-none focus:border-purple-600">
+                </div>
+              </div>
+
+              <button onclick="app.saveWildcard()" class="w-full py-4 mt-4 border-[3px] border-black bg-purple-600 text-white rounded-xl font-black uppercase font-mono shadow-[0_4px_0_rgb(17,17,17)] active:translate-y-[2px] active:shadow-none transition-all flex items-center justify-center">
+                Override Variable <i data-lucide="save" class="w-5 h-5 ml-2"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      },
+      
+      starsHTML(rating, id) {
+        let stars = '';
+        for(let i=1; i<=5; i++) {
+          const filled = i <= rating;
+          const fillClass = filled ? 'fill-[#E3A21A]' : 'fill-transparent';
+          const colorClass = filled ? 'text-[#E3A21A]' : 'text-black';
+          const clickAttr = id ? `onclick="app.ratePitch('${id}', ${i}); event.stopPropagation();"` : '';
+          stars += `<svg ${clickAttr} class="w-4 h-4 cursor-pointer transition-transform hover:scale-110 ${fillClass} ${colorClass} ${filled ? '' : 'opacity-30'}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+        }
+        return stars;
+      },
+      smallStarsHTML(rating) {
+        let stars = '';
+        for(let i=1; i<=5; i++) {
+          const filled = i <= rating;
+          stars += `<svg class="w-2.5 h-2.5 ${filled ? 'fill-[#E3A21A] text-[#E3A21A]' : 'fill-transparent text-black opacity-30'}" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+        }
+        return stars;
+      },
+
+      htmlSideMenu() {
+        return `
+          <div class="absolute inset-0 z-[100] transition-transform duration-300 ${this.isMenuOpen ? 'translate-x-0' : '-translate-x-full'}">
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="app.toggleMenu()"></div>
+            <div class="absolute top-0 left-0 w-4/5 sm:w-[350px] h-full bg-[#F5F1E6] border-r-[4px] border-black flex flex-col p-6 shadow-2xl overflow-y-auto scrollable no-scrollbar">
+              <div class="flex justify-between items-center mb-8 shrink-0">
+                ${this.birdSVG("w-12 h-12")}
+                <button onclick="app.toggleMenu()"><i data-lucide="x" class="w-7 h-7"></i></button>
+              </div>
+              <h2 class="text-3xl font-black uppercase tracking-tighter mb-6 font-serif shrink-0">System Prefs</h2>
+              <div class="space-y-6 flex-1">
+                <div class="border-[3px] border-black p-4 rounded-xl bg-white flex justify-between items-center shrink-0">
+                  <div>
+                    <div class="font-black uppercase text-sm font-mono">Fast Mode</div>
+                    <div class="text-[10px] font-medium opacity-60">Auto-reveal protocol</div>
+                  </div>
+                  <button onclick="app.toggleFastMode()" class="w-12 h-6 rounded-full border-2 border-black relative transition-colors ${this.isFastMode ? 'bg-[#E3A21A]' : 'bg-gray-300'}">
+                    <div class="w-4 h-4 bg-black rounded-full absolute top-0.5 transition-all ${this.isFastMode ? 'left-6' : 'left-1'}"></div>
+                  </button>
+                </div>
+                <button onclick="app.printDeck()" class="w-full border-[3px] border-black text-black p-4 rounded-xl font-black uppercase text-sm hover:bg-black hover:text-white transition-colors flex items-center justify-center font-mono shrink-0">
+                  <i data-lucide="printer" class="w-4 h-4 mr-2"></i> Print Database (A4)
+                </button>
+                <div class="border-[3px] border-black p-4 rounded-xl bg-white mb-4 shrink-0">
+                  <div class="font-black uppercase text-sm flex items-center mb-2 font-mono text-[#0E6B66]">
+                    <i data-lucide="book-open" class="w-4 h-4 mr-2"></i> LMC 2400 Charter
+                  </div>
+                  <p class="text-[10px] font-medium opacity-80 leading-relaxed mb-2 font-sans">
+                    <strong>Sankofa Futures:</strong> "Go back and get what was left behind." Treat the past not as background, but as a design resource.
+                  </p>
+                  <p class="text-[10px] font-medium opacity-80 leading-relaxed font-sans mb-2">
+                    Toggle to <strong>Wildcard Mode</strong> to manually input your final project ideas. Use the <strong>Classroom Scratchpad</strong> to draft notes that automatically pipe into your AI prompts.
+                  </p>
+                </div>
+              </div>
+              <div class="text-[10px] font-mono text-center opacity-40 mt-6 shrink-0">COURSE OS v4.0</div>
+            </div>
+          </div>
+        `;
+      },
+      
+      htmlNavBar() {
+        const isPlay = this.view === 'play' && !this.isWildcardMode;
+        const isWild = this.view === 'play' && this.isWildcardMode;
+        const isArch = this.view === 'archive' || this.view === 'detail';
+        return `
+          <div class="h-16 flex items-center justify-around bg-white border-t-[3px] border-black relative z-40">
+            <button onclick="app.isWildcardMode=false; app.startNewRound();" class="flex flex-col items-center p-2 w-16 transition-colors ${isPlay ? 'text-[#E3A21A]' : 'text-black opacity-40 hover:opacity-100'}">
+              <i data-lucide="zap" class="w-5 h-5 ${isPlay ? 'fill-current' : ''}"></i>
+              <span class="text-[8px] font-black font-mono uppercase tracking-widest mt-1">Random</span>
+            </button>
+            <div class="w-12 h-12 rounded-full flex items-center justify-center -mt-6 border-4 border-white shadow-sm cursor-pointer hover:-translate-y-1 transition-all relative group ${isWild ? 'bg-[#6b21a8]' : 'bg-black'}" onclick="app.isWildcardMode=true; app.navigate('play');" title="Wildcard Mode">
+                <i data-lucide="pen-tool" class="w-5 h-5 text-white absolute opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                ${this.birdSVG("w-6 h-6 group-hover:opacity-0 transition-opacity", "#F5F1E6")}
+            </div>
+            <button onclick="app.navigate('archive')" class="flex flex-col items-center p-2 w-16 transition-colors ${isArch ? 'text-[#B23A2E]' : 'text-black opacity-40 hover:opacity-100'}">
+              <i data-lucide="archive" class="w-5 h-5 ${isArch ? 'fill-current' : ''}"></i>
+              <span class="text-[8px] font-black font-mono uppercase tracking-widest mt-1">Database</span>
+            </button>
+          </div>
+        `;
+      },
+
+      htmlOnboarding() {
+        return `
+          <div class="flex flex-col items-center justify-between h-full p-6 pb-12 bg-[#F5F1E6] scrollable no-scrollbar">
+            <div class="w-full pt-8 flex flex-col items-center">
+              <div class="flex items-center gap-2 mb-2 opacity-50">
+                 <span class="w-8 h-[2px] bg-black"></span>
+                 <span class="text-[10px] font-black uppercase tracking-widest font-mono text-center">LMC 2400: Course OS</span>
+                 <span class="w-8 h-[2px] bg-black"></span>
+              </div>
+              <h1 class="text-5xl sm:text-6xl font-black tracking-tighter uppercase mb-2 text-black font-serif text-center leading-[0.85]">Sankofa<br/>Futures</h1>
+              <h2 class="text-xs font-bold tracking-widest uppercase mb-8 text-center leading-snug text-[#B23A2E] font-mono mt-4">
+                Facing backwards<br/>to understand the future.
+              </h2>
+              <div class="w-full text-left p-5 border-[3px] border-black shadow-[4px_4px_0_rgb(17,17,17)] bg-white relative overflow-hidden mb-6 rounded-xl">
+                <div class="absolute -right-4 -bottom-4 w-24 h-24 opacity-5 pointer-events-none">${this.birdSVG()}</div>
+                <p class="text-sm mb-3 font-bold leading-relaxed text-black">
+                  Final Project: Recover a lost or marginalized media practice and put it back to work in a speculative form.
+                </p>
+                <p class="text-xs mb-3 font-medium leading-relaxed text-black opacity-80">
+                  This tool connects directly to readings by Benjamin, Haraway, McLuhan, Hall, and others to help you outline your Artifact, Memo, and Presentation.
+                </p>
+                <div class="flex gap-2 mt-4 relative z-10">
+                   <button onclick="app.isWildcardMode=false; app.startNewRound()" class="flex-1 py-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-black text-white rounded border-2 border-black hover:bg-white hover:text-black transition-colors">Ideate Randomly</button>
+                   <button onclick="app.isWildcardMode=true; app.navigate('play')" class="flex-1 py-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-[#E3A21A] text-black rounded border-2 border-black hover:bg-black hover:text-white transition-colors">Input Own Idea</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      },
+
+      htmlPlay() {
+        return `
+          <div class="flex flex-col h-full bg-[#F5F1E6] overflow-hidden">
+            <div class="flex justify-between items-center p-3 border-b-[3px] border-black bg-white shadow-sm z-10 shrink-0">
+              <div class="flex items-center gap-2">
+                <button onclick="app.toggleMenu()" class="hover:opacity-60 transition-opacity"><i data-lucide="menu" class="w-6 h-6 text-black"></i></button>
+                <span class="text-[10px] font-black font-mono px-2 py-1 rounded bg-black text-white uppercase tracking-widest">${this.isWildcardMode ? 'Sandbox' : 'Randomizer'}</span>
+              </div>
+              <div onclick="app.toggleFastMode()" class="flex items-center gap-2 cursor-pointer transition-colors px-2 py-1 rounded ${this.isFastMode ? 'text-amber-700 bg-orange-100' : 'text-gray-400'}">
+                 <i data-lucide="zap" class="w-3.5 h-3.5 ${this.isFastMode ? 'fill-current' : ''}"></i>
+                 <span class="text-[10px] font-black uppercase tracking-widest font-mono">Fast</span>
+              </div>
+            </div>
+            <div class="flex-1 flex flex-col p-3 pb-4 min-h-0">
+              <div class="text-center mb-2 flex items-center justify-center gap-4 shrink-0">
+                <span class="h-[2px] w-8 bg-black/20"></span>
+                <span class="text-[10px] font-black tracking-widest uppercase opacity-60 font-mono">
+                   ${this.isWildcardMode ? 'Define Your Concept' : (this.isFastMode ? 'Variables Set' : 'Decode Matrix')}
+                </span>
+                <span class="h-[2px] w-8 bg-black/20"></span>
+              </div>
+              <div id="play-cards-container" class="flex-1 min-h-0 mb-3 ${this.isWildcardMode ? 'flex flex-col' : 'grid grid-cols-2 gap-3'}">
+                ${this.isWildcardMode ? this.htmlWildcardInput() : this.htmlPlayCards()}
+              </div>
+              <div id="play-actions-container" class="flex flex-col gap-2 shrink-0">
+                ${this.htmlPlayActions()}
+              </div>
+            </div>
+            ${this.htmlWildcardModal()}
+          </div>
+        `;
+      },
+      htmlPlayCards() {
+        return `
+          ${this.flipCardHTML("Present Failure", "zap", "#B23A2E", "#F5F1E6", this.currentDeck.problem, this.cardsFlipped[0], 0, 'problem')}
+          ${this.flipCardHTML("Historical Recovery", "refresh-cw", "#E3A21A", "#F5F1E6", this.currentDeck.practice, this.cardsFlipped[1], 1, 'practice')}
+          ${this.flipCardHTML("Restored Logic", "target", "#0E6B66", "#F5F1E6", this.currentDeck.func, this.cardsFlipped[2], 2, 'func')}
+          ${this.flipCardHTML("Speculative Form", "box", "#111111", "#F5F1E6", this.currentDeck.artifact, this.cardsFlipped[3], 3, 'artifact')}
+        `;
+      },
+      htmlPlayActions() {
+        const allFlipped = this.isWildcardMode ? true : this.cardsFlipped.every(Boolean);
+        const btnAction = this.isWildcardMode ? 'app.generateWildcardPitch()' : 'app.generatePitch()';
+        
+        return `
+          <button onclick="${allFlipped ? btnAction : ''}" class="w-full py-4 rounded-xl text-lg font-black uppercase tracking-widest font-mono flex items-center justify-center transition-all border-[3px] border-black bg-white text-black ${allFlipped ? 'shadow-[0_6px_0_rgb(17,17,17)] active:translate-y-[2px] active:shadow-[0_4px_0_rgb(17,17,17)] opacity-100' : 'opacity-50 grayscale'}" ${allFlipped ? '' : 'disabled'}>
+             Synthesize <i data-lucide="chevron-right" class="w-5 h-5 ml-2"></i>
+          </button>
+          <button onclick="app.shuffleDeck()" class="w-full py-3 rounded-xl text-xs font-bold uppercase tracking-widest font-mono flex items-center justify-center transition-transform active:scale-95 border-[2px] border-dashed border-black/30 text-black/60 hover:bg-black/5">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mr-2"></i> ${this.isWildcardMode ? 'Clear Inputs' : 'Reroll Variables'}
+          </button>
+        `;
+      },
+
+      htmlResult() {
+        const p = this.currentPitch;
+        if(!p) return '';
+        return `
+          <div class="flex flex-col h-full bg-[#F5F1E6] overflow-hidden min-h-0">
+            <div class="flex justify-between items-center p-4 border-b-[3px] border-black bg-white shrink-0">
+              <button onclick="app.navigate('play')" class="flex items-center text-xs font-black uppercase tracking-widest font-mono hover:text-[#E3A21A] transition-colors">
+                <i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i> Back
+              </button>
+              <button onclick="app.savePitch(); app.navigate('detail');" class="flex items-center text-xs font-black uppercase tracking-widest font-mono hover:text-[#0E6B66] transition-colors">
+                Save & Export <i data-lucide="download" class="w-3.5 h-3.5 ml-1"></i>
+              </button>
+            </div>
+            <div class="flex-1 scrollable no-scrollbar p-5 pb-8 min-h-0">
+              <div class="text-center mb-6">
+                <div class="flex items-center justify-center gap-4 mb-4 opacity-50">
+                   <span class="h-[2px] w-8 bg-black"></span>
+                   <span class="text-[10px] font-black uppercase tracking-widest font-mono">Diegetic Output</span>
+                   <span class="h-[2px] w-8 bg-black"></span>
+                </div>
+                <h1 class="text-4xl font-black uppercase leading-[0.9] mb-4 font-serif text-black">${p.title}</h1>
+                <p class="text-xs font-bold uppercase tracking-widest leading-relaxed opacity-80 mx-auto font-mono text-[#B23A2E]">
+                  Artifact Class: [ ${p.elements.artifact.title} ]
+                </p>
+              </div>
+              <div class="border-[3px] border-black rounded-xl bg-white mb-6 relative shadow-[4px_4px_0_rgb(17,17,17)]">
+                 <div class="absolute -top-3 left-4 bg-white px-2 text-[10px] font-black uppercase tracking-widest border-[3px] border-black font-mono">
+                    System Narrative
+                 </div>
+                 <div class="p-4 pt-6 text-sm font-medium leading-relaxed font-serif text-gray-800">
+                    ${p.summary}
+                 </div>
+                 <div id="tts-controls-container">${this.htmlTTSControls()}</div>
+              </div>
+              
+              <button onclick="app.savePitch(); app.navigate('detail');" class="w-full py-4 border-[3px] border-black bg-black text-[#F5F1E6] rounded-xl font-black uppercase font-mono shadow-[0_4px_0_rgb(227,162,26)] active:translate-y-[2px] active:shadow-none transition-all flex items-center justify-center">
+                 Open Workspace <i data-lucide="chevron-right" class="w-5 h-5 ml-2"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      },
+      htmlTTSControls() {
+         return `
+           <div class="bg-zinc-100 border-t-[3px] border-black p-3 flex flex-col gap-2 rounded-b-lg">
+              <div class="flex items-center gap-2">
+                 <div class="text-[10px] font-mono font-bold w-6 text-right opacity-50">T</div>
+                 <div class="flex-1 h-2 bg-black/10 rounded-full overflow-hidden relative">
+                    <div id="audio-progress-bar" class="absolute top-0 left-0 h-full bg-[#E3A21A] transition-all duration-75 ease-linear" style="width: ${this.audioProgress}%"></div>
+                 </div>
+                 <div class="text-[10px] font-mono font-bold w-6 text-left opacity-50">T</div>
+              </div>
+              <div class="flex justify-between gap-2 mt-1">
+                <button onclick="app.toggleTTS()" class="flex-1 py-2 rounded border-2 border-black flex items-center justify-center text-xs font-black uppercase font-mono active:translate-y-1 transition-transform ${this.isPlaying ? 'bg-[#B23A2E]' : 'bg-[#0E6B66]'} text-[#F5F1E6]">
+                  <i data-lucide="${this.isPlaying ? 'square' : 'play'}" class="w-3.5 h-3.5 mr-2 fill-current"></i>
+                  ${this.isPlaying ? 'Halt Audio' : 'Vocalize Record'}
+                </button>
+              </div>
+           </div>
+         `;
+      },
+
+      htmlArchive() {
+        const avgRating = this.savedPitches.length ? (this.savedPitches.reduce((acc, p) => acc + p.rating, 0) / this.savedPitches.length).toFixed(1) : "0.0";
+        return `
+          <div class="flex flex-col h-full bg-[#F5F1E6] overflow-hidden min-h-0">
+            <div class="p-4 pt-6 bg-white border-b-[3px] border-black shrink-0">
+               <div class="flex justify-between items-center mb-6">
+                  <div class="flex flex-col">
+                     <h1 class="text-3xl font-black uppercase tracking-tighter text-[#B23A2E] font-serif">Database</h1>
+                     <div class="text-[10px] font-black uppercase tracking-widest opacity-60 font-mono">Saved Excavations</div>
+                  </div>
+                  <div class="w-12 h-12 rounded-full border-[3px] border-black flex items-center justify-center p-1">
+                     <div class="w-full h-full border-2 border-black border-dashed rounded-full flex items-center justify-center text-[8px] font-black font-mono text-center leading-none">SYS<br/>LOG</div>
+                  </div>
+               </div>
+               <div class="flex border-[3px] border-black rounded-xl overflow-hidden bg-[#F5F1E6] mb-4">
+                  <div class="flex-1 p-2 text-center border-r-[3px] border-black">
+                     <div class="text-[8px] font-black uppercase tracking-widest opacity-60 mb-1 font-mono">Logs</div>
+                     <div class="text-xl font-black font-serif">${this.savedPitches.length}</div>
+                  </div>
+                  <div class="flex-1 p-2 text-center border-r-[3px] border-black">
+                     <div class="text-[8px] font-black uppercase tracking-widest opacity-60 mb-1 font-mono">Viability</div>
+                     <div class="text-xl font-black flex items-center justify-center gap-1 font-serif">
+                       ${avgRating} <i data-lucide="star" class="w-2.5 h-2.5 fill-[#E3A21A] text-[#E3A21A]"></i>
+                     </div>
+                  </div>
+               </div>
+               <div class="relative border-2 border-black rounded-xl overflow-hidden flex items-center bg-white">
+                  <i data-lucide="search" class="w-4 h-4 absolute left-3 text-gray-400"></i>
+                  <input id="archive-search-input" type="text" placeholder="Filter parameters..." oninput="app.handleSearch(event)" value="${this.searchQuery.replace(/"/g, '&quot;')}" class="w-full py-2 pl-9 pr-8 text-sm font-medium focus:outline-none placeholder:text-gray-400 bg-white font-mono">
+               </div>
+            </div>
+            <div id="archive-list-container" class="flex-1 scrollable no-scrollbar p-4 space-y-3 pb-8 min-h-0">
+              ${this.htmlArchiveList()}
+            </div>
+          </div>
+        `;
+      },
+      htmlArchiveList() {
+        let disp = this.archiveTab === 'ALL' ? this.savedPitches : this.savedPitches.filter(p => p.rating >= 4);
+        if (this.searchQuery) disp = disp.filter(p => p.title.toLowerCase().includes(this.searchQuery.toLowerCase()) || p.elements.artifact.title.toLowerCase().includes(this.searchQuery.toLowerCase()));
+        if(disp.length === 0) return `<div class="text-center p-12 opacity-30 font-black uppercase tracking-widest font-mono border-2 border-dashed border-black rounded-xl">Empty Stratum.</div>`;
+        
+        return disp.map(p => `
+          <div onclick="app.currentPitch = app.savedPitches.find(x=>x.id==='${p.id}'); app.navigate('detail');" class="flex items-center p-3 border-[3px] border-black rounded-xl bg-white cursor-pointer hover:bg-[#E5E0D8] active:scale-95 transition-all shadow-sm">
+            <div class="flex-1 min-w-0 pr-4">
+              <h3 class="font-black text-sm uppercase truncate mb-1 font-serif">${p.title}</h3>
+              <div class="text-[10px] font-mono opacity-60 truncate">${p.elements.artifact.title}</div>
+            </div>
+            <div class="flex flex-col items-end gap-1 shrink-0">
+              <div class="flex items-center">${this.smallStarsHTML(p.rating)}</div>
+              <div class="text-[9px] font-bold uppercase tracking-widest opacity-40 font-mono">${p.date}</div>
+            </div>
+          </div>
+        `).join('');
+      },
+
+      htmlPromptModal() {
+        if (!this.previewPrompt) return '';
+        return `
+          <div class="absolute inset-0 z-[60] flex flex-col bg-black/80 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+            <div class="flex-1" onclick="app.closePromptPreview()"></div>
+            <div class="bg-[#F5F1E6] border-t-[4px] border-black h-[85%] rounded-t-3xl flex flex-col overflow-hidden transform transition-transform shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+              <div class="flex justify-between items-center p-4 border-b-[3px] border-black shrink-0 bg-white">
+                <h3 class="text-sm font-black uppercase tracking-widest font-mono flex items-center">
+                  <i data-lucide="terminal" class="w-4 h-4 mr-2"></i> ${this.previewPrompt.title}
+                </h3>
+                <button onclick="app.closePromptPreview()" class="p-1 hover:bg-gray-200 rounded-full transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+              </div>
+              <div class="px-4 pt-3 pb-2 bg-zinc-50 border-b-2 border-gray-200 shrink-0">
+                <p class="text-[10px] font-bold uppercase tracking-widest opacity-60 font-sans">
+                  Copy this prompt into an AI tool (ChatGPT/Claude). It strictly injects your custom <b>Studio Scratchpad notes</b> and the <b>Course Authors</b> so the AI output directly helps draft your LMC 2400 assignment.
+                </p>
+              </div>
+              <div class="flex-1 scrollable no-scrollbar p-4 bg-zinc-50 relative min-h-0">
+                <textarea id="preview-prompt-text" class="w-full h-full p-4 border-2 border-dashed border-gray-300 bg-white text-[10px] sm:text-xs font-mono leading-relaxed focus:outline-none focus:border-[#0E6B66] rounded resize-none" spellcheck="false">${this.previewPrompt.text}</textarea>
+              </div>
+              <div class="p-4 border-t-[3px] border-black bg-white shrink-0">
+                <button onclick="app.copyToClipboard(document.getElementById('preview-prompt-text').value, this)" class="w-full py-4 border-[3px] border-black bg-[#E3A21A] text-black rounded-xl font-black uppercase font-mono shadow-[0_4px_0_rgb(17,17,17)] active:translate-y-[2px] active:shadow-none transition-all flex items-center justify-center">
+                  <i data-lucide="copy" class="w-5 h-5 mr-2"></i> Copy AI Prompt
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      },
+
+      htmlDetail() {
+        const p = this.currentPitch;
+        if(!p) return '';
+        return `
+          <div class="flex flex-col h-full bg-[#E5E0D8] relative overflow-hidden min-h-0">
+            <div class="flex justify-between items-center p-3 border-b-[3px] border-black bg-[#F5F1E6] shrink-0 z-10">
+              <button onclick="app.navigate('archive')" class="flex items-center text-[10px] font-black uppercase tracking-widest font-mono hover:text-[#E3A21A] transition-colors">
+                <i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i> Back to Archive
+              </button>
+              <div class="flex items-center gap-4">
+                <button onclick="app.deletePitch('${p.id}')" class="opacity-50 hover:text-[#B23A2E] transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </div>
+            </div>
+
+            <div class="flex-1 scrollable no-scrollbar p-4 pb-8 z-0 min-h-0">
+               <div class="border-b-[3px] border-black pb-4 mb-4">
+                  <div class="flex justify-between items-start mb-2">
+                    <h1 class="text-3xl font-black uppercase leading-none max-w-[80%] font-serif">${p.title}</h1>
+                  </div>
+                  <p class="text-xs font-bold uppercase tracking-widest opacity-80 font-mono mb-3 text-[#0E6B66]">
+                    Format: [ ${p.elements.artifact.title} ]
+                  </p>
+                  <div class="flex items-center gap-3 mb-3">
+                     <div class="flex gap-1 items-center z-10">${this.starsHTML(p.rating, p.id)}</div>
+                     <span class="text-[10px] font-mono opacity-50">Viability Score</span>
+                  </div>
+               </div>
+
+               <div class="mb-6 font-serif border-l-[4px] border-[#0E6B66] pl-4 py-1">
+                  <p class="text-sm font-medium leading-relaxed text-gray-800">${p.summary}</p>
+               </div>
+
+               <div class="mb-6">
+                  <h3 class="text-[10px] font-black uppercase tracking-widest mb-2 opacity-60 font-mono text-black flex items-center">
+                    <i data-lucide="edit-3" class="w-3.5 h-3.5 mr-1.5"></i> Studio Scratchpad
+                  </h3>
+                  <textarea 
+                    oninput="app.updateNotes(this.value)" 
+                    class="w-full h-32 p-3 border-[3px] border-black rounded-xl bg-white text-xs font-mono focus:outline-none focus:border-[#E3A21A] resize-none shadow-[2px_2px_0_rgb(17,17,17)]" 
+                    placeholder="Jot down specific project ideas here (e.g., 'I want to apply this to the GT library'). Whatever you type here gets injected into the AI Prompts below..."
+                  >${p.notes || ''}</textarea>
+               </div>
+
+               <div class="mb-6">
+                  <h3 class="text-[10px] font-black uppercase tracking-widest mb-3 opacity-60 font-mono text-[#0E6B66]">Deliverables Forge</h3>
+                  <div class="grid grid-cols-2 gap-2 mb-2">
+                     <button onclick="app.openPromptPreview('Analytical Memo Outline', 'memo')" class="p-3 border-[2px] border-[#0E6B66] bg-white rounded-xl flex flex-col items-start hover:bg-[#0E6B66] hover:text-white transition-colors text-left group">
+                        <i data-lucide="file-text" class="w-4 h-4 mb-2 group-hover:animate-pulse"></i>
+                        <span class="text-[10px] font-black uppercase font-mono">Memo Outliner</span>
+                        <span class="text-[8px] opacity-60 font-mono mt-1">1000-1500 Words</span>
+                     </button>
+                     <button onclick="app.openPromptPreview('Video Presentation Script', 'video')" class="p-3 border-[2px] border-[#0E6B66] bg-white rounded-xl flex flex-col items-start hover:bg-[#0E6B66] hover:text-white transition-colors text-left group">
+                        <i data-lucide="video" class="w-4 h-4 mb-2 group-hover:animate-pulse"></i>
+                        <span class="text-[10px] font-black uppercase font-mono">Video Script</span>
+                        <span class="text-[8px] opacity-60 font-mono mt-1">3-5 Min Structure</span>
+                     </button>
+                  </div>
+               </div>
+
+               <div class="mb-6 border-t-2 border-dashed border-gray-400 pt-4">
+                  <h3 class="text-[10px] font-black uppercase tracking-widest mb-3 opacity-60 font-mono">Artifact & Theory Tools</h3>
+                  <div class="grid grid-cols-2 gap-2 mb-2">
+                     <button onclick="app.openPromptPreview('Diegetic Artifact Specification', 'artifact')" class="p-3 border-[2px] border-black bg-white rounded-xl flex flex-col items-start hover:bg-black hover:text-white transition-colors text-left">
+                        <i data-lucide="box" class="w-4 h-4 mb-2"></i>
+                        <span class="text-[10px] font-black uppercase font-mono">Artifact Spec</span>
+                        <span class="text-[8px] opacity-60 font-mono mt-1">Design Document</span>
+                     </button>
+                     <button onclick="app.openPromptPreview('Project Lens Selector', 'lens')" class="p-3 border-[2px] border-black bg-white rounded-xl flex flex-col items-start hover:bg-black hover:text-white transition-colors text-left">
+                        <i data-lucide="target" class="w-4 h-4 mb-2"></i>
+                        <span class="text-[10px] font-black uppercase font-mono">Course Lenses</span>
+                        <span class="text-[8px] opacity-60 font-mono mt-1">Select best framing</span>
+                     </button>
+                  </div>
+               </div>
+            </div>
+
+            ${this.htmlPromptModal()}
+          </div>
+        `;
+      },
+
+      // Initialization Hook
+      render() {
+        const root = document.getElementById('app-root');
+        if (this.view === 'onboarding') root.innerHTML = this.htmlOnboarding();
+        else if (this.view === 'play') root.innerHTML = this.htmlPlay();
+        else if (this.view === 'result') root.innerHTML = this.htmlResult();
+        else if (this.view === 'archive') root.innerHTML = this.htmlArchive();
+        else if (this.view === 'detail') root.innerHTML = this.htmlDetail();
+
+        this.renderNav();
+        this.renderMenu();
+        lucide.createIcons();
+      },
+      renderNav() { document.getElementById('nav-root').innerHTML = this.view === 'onboarding' ? '' : this.htmlNavBar(); lucide.createIcons(); },
+      renderMenu() { document.getElementById('side-menu-root').innerHTML = this.htmlSideMenu(); lucide.createIcons(); },
+      renderPlayCards() { const c = document.getElementById('play-cards-container'); if(c && !this.isWildcardMode) { c.innerHTML = this.htmlPlayCards(); lucide.createIcons(); } },
+      renderPlayActions() { const c = document.getElementById('play-actions-container'); if(c) { c.innerHTML = this.htmlPlayActions(); lucide.createIcons(); } },
+      renderArchiveList() { const c = document.getElementById('archive-list-container'); if(c) { c.innerHTML = this.htmlArchiveList(); lucide.createIcons(); } },
+      renderTTSControls() { const c = document.getElementById('tts-controls-container'); if(c) { c.innerHTML = this.htmlTTSControls(); lucide.createIcons(); } }
+    };
+
+    window.onload = () => app.init();
+  </script>
+</body>
+</html>
