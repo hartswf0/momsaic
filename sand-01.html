@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CHLADNI QUINE · UNIVERSAL LENS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Teko:wght@400;600&display=swap');
+
+/* ── STRICT LIGHT MODE / ALBEDO REVERSAL ── */
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: #fff; color: #000;
+  font-family: 'Share Tech Mono', monospace;
+  overflow: hidden; touch-action: none;
+}
+
+#app { display: flex; flex-direction: column; height: 100dvh; }
+
+/* ── HEADER ── */
+#header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 8px 10px 6px; border-bottom: 2px solid #000; flex-shrink: 0; background: #fff; z-index: 100;
+}
+#header .title { font-family: 'Teko', sans-serif; font-size: 24px; font-weight: 600; letter-spacing: 4px; color: #000; line-height: 1; }
+#header .sub { font-size: 8px; letter-spacing: 2px; color: #000; font-weight: bold; }
+#mode-badge {
+  font-size: 8px; letter-spacing: 3px; padding: 2px 6px;
+  border: 2px solid #000; color: #000; background: #fff;
+  font-weight: bold; text-transform: uppercase; transition: all 0.1s;
+}
+#mode-badge.media-mode { background: #000; color: #fff; }
+
+/* ── CANVAS LAYERS (NO GLASS MORPHISM) ── */
+#canvas-wrap {
+  flex: 1; position: relative; border-bottom: 2px solid #000; overflow: hidden; min-height: 0; background: #fff;
+}
+canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; position: absolute; inset: 0; }
+#c { z-index: 1; }
+#field-canvas { pointer-events: none; z-index: 2; display: none; }
+#field-canvas.vis { display: block; }
+#projection-layer { pointer-events: none; z-index: 5; mix-blend-mode: difference; display: none; }
+#projection-layer.vis { display: block; }
+
+/* ── DECK & VERTICAL LEDGER ── */
+#deck { flex-shrink: 0; display: flex; flex-direction: column; background: #fff; z-index: 10; }
+
+#ledger-wrap {
+  flex-shrink: 0; height: 120px; overflow-y: auto; overflow-x: hidden;
+  border-bottom: 2px solid #000; position: relative; background: #fff; touch-action: pan-y;
+}
+#ledger-wrap::-webkit-scrollbar { width: 4px; }
+#ledger-wrap::-webkit-scrollbar-thumb { background: #000; }
+#ledger-wrap::before {
+  content: 'EPOCH STRATA [HOVER: TEMPORAL PEEK]'; position: sticky; top: 0px; left: 0px; width: 100%; display: block;
+  font-size: 8px; letter-spacing: 2px; color: #fff; font-weight: bold; pointer-events: none; z-index: 10; background: #000; padding: 4px 8px;
+}
+#ledger { display: flex; flex-direction: column-reverse; min-height: 100%; padding-bottom: 0px; }
+
+.epoch-slip { display: flex; height: 32px; border-top: 1px solid #000; cursor: pointer; background: #fff; flex-shrink: 0; }
+.epoch-slip.active-floor { border-left: 6px solid #000; }
+.epoch-slip.selected { border-left: 6px solid #000; }
+
+.micro-core { width: 32px; height: 32px; border-right: 1px solid #000; flex-shrink: 0; background: #fff; image-rendering: pixelated; position: relative; pointer-events: none; }
+.slip-telemetry { flex: 1; position: relative; background: #fff; overflow: hidden; }
+.fit-fill { position: absolute; left: 0; top: 0; bottom: 0; background: #000; width: 0%; z-index: 1; transition: width 0.1s linear; pointer-events: none; }
+.actuator-string {
+  position: absolute; left: 8px; top: 50%; transform: translateY(-50%); z-index: 2; mix-blend-mode: difference; color: #fff;
+  font-size: 10px; letter-spacing: 1px; pointer-events: none; white-space: nowrap; font-weight: bold;
+}
+
+/* ── BIMANUAL EXPANSION ── */
+#thumb-deck { display: flex; flex-direction: row; height: 110px; }
+.thumb-pad { flex: 1; position: relative; cursor: crosshair; touch-action: none; user-select: none; overflow: hidden; }
+.thumb-pad:first-child { border-right: 2px solid #000; }
+
+/* Hard density gradients */
+#pad-L { background: linear-gradient(135deg, #000 0%, #fff 100%); }
+#pad-R { background: linear-gradient(135deg, #000 0%, #fff 100%); }
+
+.pad-label { position: absolute; top: 6px; left: 8px; font-size: 8px; letter-spacing: 2px; color: #000; mix-blend-mode: difference; filter: invert(1); pointer-events: none; z-index: 5; font-weight: bold; }
+.pad-sub { position: absolute; bottom: 6px; right: 8px; font-size: 8px; letter-spacing: 1px; color: #000; mix-blend-mode: difference; filter: invert(1); pointer-events: none; z-index: 5; font-weight: bold; text-align: right; }
+.reticle { position: absolute; width: 24px; height: 24px; transform: translate(-50%,-50%); pointer-events: none; z-index: 10; }
+.reticle::before, .reticle::after { content: ''; position: absolute; background: #000; mix-blend-mode: difference; filter: invert(1); }
+.reticle::before { width: 24px; height: 2px; top: 50%; left: 0; transform: translateY(-50%); }
+.reticle::after  { width: 2px; height: 24px; left: 50%; top: 0; transform: translateX(-50%); }
+.pad-readout { position: absolute; bottom: 6px; left: 8px; font-size: 10px; letter-spacing: 1px; color: #000; mix-blend-mode: difference; filter: invert(1); pointer-events: none; z-index: 5; font-weight: bold; }
+
+/* ── BOTTOM STRIPS ── */
+#metrics-strip { display: flex; border-top: 2px solid #000; flex-shrink: 0; }
+.mstat { flex: 1; padding: 6px 8px; border-right: 2px solid #000; display: flex; flex-direction: column; }
+.mstat:last-child { border-right: none; }
+.mstat-lbl { font-size: 7px; letter-spacing: 1.5px; color: #000; font-weight: bold; text-transform: uppercase; }
+.mstat-val { font-size: 14px; color: #000; line-height: 1.1; font-weight: bold; }
+
+#ctrl-strip { display: flex; border-top: 2px solid #000; flex-shrink: 0; }
+.ctrl-btn {
+  flex: 1; height: 44px; border: none; border-right: 2px solid #000; background: #fff; color: #000;
+  font-family: 'Share Tech Mono', monospace; font-size: 8px; letter-spacing: 2px;
+  cursor: pointer; text-transform: uppercase; font-weight: bold; touch-action: manipulation; outline: none; transition: background 0.1s, color 0.1s;
+}
+.ctrl-btn:last-child { border-right: none; }
+.ctrl-btn:active, .ctrl-btn.on { background: #000; color: #fff; }
+
+/* HIDDEN MEDIA SUBSTRATES */
+#media-input { display: none; }
+#hidden-video { display: none; }
+</style>
+</head>
+<body>
+
+<input type="file" id="media-input" accept="image/*,video/*">
+<video id="hidden-video" autoplay loop muted playsinline crossorigin="anonymous"></video>
+
+<div id="app">
+
+  <div id="header">
+    <div>
+      <div class="title">CHLADNI QUINE</div>
+      <div class="sub">UNIVERSAL LENS ENGINE · v8.0</div>
+    </div>
+    <div id="mode-badge">MATH</div>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="c"></canvas>
+    <canvas id="field-canvas"></canvas>
+    <canvas id="projection-layer"></canvas>
+  </div>
+
+  <div id="deck">
+    
+    <div id="ledger-wrap">
+      <div id="ledger"></div>
+    </div>
+
+    <div id="thumb-deck">
+      <div class="thumb-pad" id="pad-L">
+        <div class="pad-label" id="lbl-L">L_THUMB · FREQUENCY</div>
+        <div class="pad-sub" id="sub-L">Fx<br>Fy</div>
+        <div class="reticle" id="ret-L"></div>
+        <div class="pad-readout" id="ro-L">—<br>—</div>
+      </div>
+      <div class="thumb-pad" id="pad-R">
+        <div class="pad-label">R_THUMB · KINEMATICS</div>
+        <div class="pad-sub">DRIFT<br>ENTROPY</div>
+        <div class="reticle" id="ret-R"></div>
+        <div class="pad-readout" id="ro-R">—<br>—</div>
+      </div>
+    </div>
+
+    <div id="metrics-strip">
+      <div class="mstat"><div class="mstat-lbl">GEN</div><div class="mstat-val" id="m-gen">0</div></div>
+      <div class="mstat"><div class="mstat-lbl">FITNESS</div><div class="mstat-val" id="m-fit">—</div></div>
+      <div class="mstat"><div class="mstat-lbl">SETTLED</div><div class="mstat-val" id="m-set">—</div></div>
+      <div class="mstat"><div class="mstat-lbl">EPOCH</div><div class="mstat-val" id="m-ep">0/80</div></div>
+    </div>
+
+    <div id="ctrl-strip">
+      <button class="ctrl-btn on" id="btn-math">⚙ MATH</button>
+      <button class="ctrl-btn" id="btn-upload">⏏ UPLOAD</button>
+      <button class="ctrl-btn" id="btn-camera">📷 LENS</button>
+      <button class="ctrl-btn" id="btn-field">👁 MAP</button>
+      <button class="ctrl-btn" id="btn-reset">↺ PURGE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// CHLADNI QUINE v8 · UNIVERSAL LENS ENGINE
+// Extracted optical flows govern physical topological kinematics.
+// ══════════════════════════════════════════════════════════════════
+
+const cMain = document.getElementById('c'); 
+const ctxMain = cMain.getContext('2d', { willReadFrequently: true });
+const cFld  = document.getElementById('field-canvas'); 
+const ctxFld  = cFld.getContext('2d', { alpha: false });
+const cProj = document.getElementById('projection-layer'); 
+const ctxProj = cProj.getContext('2d', { willReadFrequently: true });
+
+// Extraction Buffer for Optical Resampling
+const cExt = document.createElement('canvas'); 
+cExt.width = 120; cExt.height = 120;
+const ctxExt = cExt.getContext('2d', { willReadFrequently: true });
+
+const mediaInput = document.getElementById('media-input');
+const hiddenVideo = document.getElementById('hidden-video');
+
+// ── SYSTEM CONFIGURATION ──
+const CFG = {
+  SZ: 120, 
+  N: 15000, // Boosted to 15,000 for photographic structural fidelity
+  EPOCH_STEPS: 80, 
+  DRIFT: 3.5, 
+  BROWNIAN: 0.20, 
+  FX: 3.0, 
+  FY: 4.0,
+  DECAY: 0.88, 
+  INVERT_PRES: 0.35, 
+  MUT_BASE: 0.5,
+  LEDGER_MAX: 40, 
+  STEP_MS: 30
+};
+const SZ = CFG.SZ, N = CFG.N, M_PI = Math.PI;
+
+// ── LIVE ENGINE VARIABLES ──
+let activeMode = 'MATH'; // 'MATH' | 'IMAGE' | 'VIDEO' | 'CAMERA'
+let activeMediaSource = null; 
+
+let pFx = CFG.FX, pFy = CFG.FY; // Serves as Fx/Fy (Math) or Threshold/Gain (Media)
+let pDrift = CFG.DRIFT, pBrown = CFG.BROWNIAN;
+
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+let px = new Float32Array(N), py = new Float32Array(N);
+let worms = new Float32Array(SZ*SZ), plate = new Float32Array(SZ*SZ);
+let gxf = new Float32Array(SZ*SZ), gyf = new Float32Array(SZ*SZ);
+
+let generation = 0, epochStep = 0, lastFit = 0;
+let isField = false;
+let mainImgBuf = null, projImgBuf = null;
+let activeSlip = null;
+
+// ── DOM MAPPING ──
+const elLedger = document.getElementById('ledger');
+const mGen = document.getElementById('m-gen');
+const mFit = document.getElementById('m-fit');
+const mSet = document.getElementById('m-set'); 
+const mEp = document.getElementById('m-ep');
+const elBadge = document.getElementById('mode-badge');
+const btnMath = document.getElementById('btn-math');
+const btnUpload = document.getElementById('btn-upload');
+const btnCamera = document.getElementById('btn-camera');
+const btnField = document.getElementById('btn-field');
+const retL = document.getElementById('ret-L');
+const roL = document.getElementById('ro-L');
+const padL = document.getElementById('pad-L');
+const lblL = document.getElementById('lbl-L');
+const subL = document.getElementById('sub-L');
+const retR = document.getElementById('ret-R');
+const roR = document.getElementById('ro-R');
+const padR = document.getElementById('pad-R');
+
+function resize() {
+  const wr = document.getElementById('canvas-wrap').getBoundingClientRect();
+  const w = Math.floor(wr.width), h = Math.floor(wr.height);
+  cMain.width = cFld.width = cProj.width = w; 
+  cMain.height = cFld.height = cProj.height = h;
+  mainImgBuf = projImgBuf = null; 
+  if(isField) drawField();
+}
+
+// ── TOPOLOGY KERNEL (POLYMORPHIC ROUTER) ──
+function routeTopology() {
+  if (activeMode === 'MATH') buildMathPlate(); 
+  else buildMediaPlate();
+}
+
+function buildMathPlate() {
+  let mn = Infinity, mx = -Infinity;
+  for (let r=0; r<SZ; r++) {
+    const y = r/(SZ-1);
+    for (let c=0; c<SZ; c++) {
+      const x = c/(SZ-1);
+      const v = Math.abs(Math.sin(pFx*M_PI*x)*Math.sin(pFy*M_PI*y) - Math.sin(pFy*M_PI*x)*Math.sin(pFx*M_PI*y));
+      plate[r*SZ+c] = v;
+      if (v < mn) mn = v; if (v > mx) mx = v;
+    }
+  }
+  normalizeAndDeriveGradients(mn, mx);
+}
+
+function buildMediaPlate() {
+  if (!activeMediaSource) return;
+  const sw = activeMediaSource.videoWidth || activeMediaSource.width;
+  const sh = activeMediaSource.videoHeight || activeMediaSource.height;
+  if(!sw || !sh) return; // Buffer not ready
+
+  ctxExt.clearRect(0,0,SZ,SZ);
+  const scale = Math.max(SZ/sw, SZ/sh);
+  const x = (SZ/2) - (sw/2)*scale;
+  const y = (SZ/2) - (sh/2)*scale;
+  ctxExt.drawImage(activeMediaSource, x, y, sw*scale, sh*scale);
+  const data = ctxExt.getImageData(0,0,SZ,SZ).data;
+  
+  let mn = Infinity, mx = -Infinity;
+  
+  // Left Thumb remaps to THRESHOLD and GAIN
+  const threshold = (pFx - 0.5) / 9.0; 
+  const gain = 0.1 + ((pFy - 0.5) / 9.0) * 9.9;
+
+  for (let r=0; r<SZ; r++) {
+    for (let c=0; c<SZ; c++) {
+      const i = (r*SZ+c)*4;
+      let luma = (data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114) / 255;
+      luma = ((luma - threshold) * gain) + 0.5;
+      luma = clamp(luma, 0, 1);
+      
+      plate[r*SZ+c] = luma; // Dark pixels (low luma) become physical valleys (low height)
+      if (plate[r*SZ+c] < mn) mn = plate[r*SZ+c];
+      if (plate[r*SZ+c] > mx) mx = plate[r*SZ+c];
+    }
+  }
+  normalizeAndDeriveGradients(mn, mx);
+}
+
+function normalizeAndDeriveGradients(mn, mx) {
+  const rng = mx - mn || 1;
+  for (let i=0; i<SZ*SZ; i++) plate[i] = (plate[i]-mn)/rng;
+  
+  for (let r=0; r<SZ; r++) {
+    for (let c=0; c<SZ; c++) {
+      const r0=Math.max(0,r-1), r1=Math.min(SZ-1,r+1);
+      const c0=Math.max(0,c-1), c1=Math.min(SZ-1,c+1);
+      gxf[r*SZ+c] = (plate[r*SZ+c1] - plate[r*SZ+c0]) / 2;
+      gyf[r*SZ+c] = (plate[r1*SZ+c] - plate[r0*SZ+c]) / 2;
+    }
+  }
+}
+
+// ── THERMODYNAMIC KINEMATICS ──
+function invertSand() {
+  for(let i=0; i<N; i++) { px[i]=Math.random()*(SZ-1); py[i]=Math.random()*(SZ-1); }
+  for(let i=0; i<SZ*SZ; i++) worms[i] *= CFG.INVERT_PRES;
+}
+
+function drift() {
+  const F=pDrift, B=pBrown, SZM=SZ-1;
+  for (let i=0; i<N; i++) {
+    const c=Math.min(SZM, Math.max(0, px[i]|0)), r=Math.min(SZM, Math.max(0, py[i]|0));
+    const idx = r*SZ+c;
+    px[i] -= gxf[idx]*F + (Math.random()-.5)*B;
+    py[i] -= gyf[idx]*F + (Math.random()-.5)*B;
+    px[i] = clamp(px[i], 0, SZM); py[i] = clamp(py[i], 0, SZM);
+    worms[(py[i]|0)*SZ + (px[i]|0)] += 1;
+  }
+  for (let i=0; i<SZ*SZ; i++) worms[i] *= CFG.DECAY;
+}
+
+function calcFitness() {
+  let s=0, s2=0, len=SZ*SZ;
+  for(let i=0; i<len; i++) { s+=worms[i]; s2+=worms[i]*worms[i]; }
+  return Math.min(((s2/len) - (s/len)*(s/len))/500, 1);
+}
+
+// ── ABSOLUTE 1-BIT RENDERING ──
+function renderMain() {
+  const cw = cMain.width, ch = cMain.height;
+  if (!mainImgBuf || mainImgBuf.width !== cw || mainImgBuf.height !== ch) mainImgBuf = ctxMain.createImageData(cw, ch);
+  let wMax=1; for(let i=0; i<SZ*SZ; i++) if(worms[i]>wMax) wMax=worms[i];
+  const data = mainImgBuf.data, scX = cw/SZ, scY = ch/SZ;
+  
+  for (let y=0; y<ch; y++) {
+    const gy = Math.min(SZ-1, (y/scY)|0);
+    for (let x=0; x<cw; x++) {
+      const gx = Math.min(SZ-1, (x/scX)|0);
+      const ink = (worms[gy*SZ+gx]/wMax) > 0.08 ? 0 : 255; 
+      const pi = (y*cw+x)*4;
+      data[pi]=ink; data[pi+1]=ink; data[pi+2]=ink; data[pi+3]=255;
+    }
+  }
+  ctxMain.putImageData(mainImgBuf, 0, 0);
+
+  ctxMain.fillStyle = '#000';
+  // Physical particles rendered slightly denser for visual fidelity
+  for (let i=0; i<N; i++) ctxMain.fillRect((px[i]/SZ*cw)|0, (py[i]/SZ*ch)|0, 1.5, 1.5);
+}
+
+function drawField() {
+  if (!isField) return;
+  const cw = cFld.width, ch = cFld.height, scX = cw/SZ, scY = ch/SZ;
+  ctxFld.clearRect(0,0,cw,ch);
+  ctxFld.fillStyle = '#fff'; ctxFld.fillRect(0,0,cw,ch);
+  ctxFld.fillStyle = '#000';
+  for (let r=0; r<SZ; r++) {
+    for (let c=0; c<SZ; c++) {
+      if (plate[r*SZ+c] < 0.15) ctxFld.fillRect(c*scX|0, r*scY|0, Math.ceil(scX), Math.ceil(scY)); // Render gravity wells
+    }
+  }
+}
+
+// ── VERTICAL GRAVITY LEDGER & PROJECTION ──
+function stampMicroCore(canvasNode, wormArray) {
+  const cctx = canvasNode.getContext('2d');
+  const img = cctx.createImageData(32, 32); const d = img.data;
+  let wMax=1; for(let i=0; i<SZ*SZ; i++) if(wormArray[i]>wMax) wMax=wormArray[i];
+  for (let y=0; y<32; y++) {
+    for (let x=0; x<32; x++) {
+      const gy = (y*SZ/32)|0, gx = (x*SZ/32)|0;
+      const ink = (wormArray[gy*SZ+gx]/wMax) > 0.08 ? 0 : 255; 
+      const i = (y*32+x)*4; d[i]=ink; d[i+1]=ink; d[i+2]=ink; d[i+3]=255;
+    }
+  }
+  cctx.putImageData(img, 0, 0);
+}
+
+function renderProjection(histWorms) {
+  if (!histWorms) { cProj.classList.remove('vis'); return; }
+  const cw = cProj.width, ch = cProj.height;
+  if (!projImgBuf || projImgBuf.width !== cw || projImgBuf.height !== ch) projImgBuf = ctxProj.createImageData(cw, ch);
+  let wMax=1; for(let i=0; i<SZ*SZ; i++) if(histWorms[i]>wMax) wMax=histWorms[i];
+  const data = projImgBuf.data, scX = cw/SZ, scY = ch/SZ;
+  for (let y=0; y<ch; y++) {
+    const gy = Math.min(SZ-1, (y/scY)|0);
+    for (let x=0; x<cw; x++) {
+      const gx = Math.min(SZ-1, (x/scX)|0);
+      const pi = (y*cw+x)*4;
+      if (histWorms[gy*SZ+gx]/wMax > 0.08) { data[pi]=255; data[pi+1]=255; data[pi+2]=255; data[pi+3]=255; }
+      else { data[pi]=0; data[pi+1]=0; data[pi+2]=0; data[pi+3]=0; }
+    }
+  }
+  ctxProj.putImageData(projImgBuf, 0, 0); cProj.classList.add('vis');
+}
+
+function initFloorSlip() {
+  const slip = document.createElement('div');
+  slip.className = 'epoch-slip active-floor';
+  slip.innerHTML = `<canvas class="micro-core" width="32" height="32"></canvas><div class="slip-telemetry"><div class="fit-fill"></div><div class="actuator-string"></div></div>`;
+  elLedger.insertBefore(slip, elLedger.firstChild);
+  activeSlip = slip; updateLiveSlip();
+}
+
+function updateLiveSlip() {
+  if (!activeSlip) return;
+  const str = activeSlip.querySelector('.actuator-string');
+  const fill = activeSlip.querySelector('.fit-fill');
+  
+  if (activeMode === 'MATH') {
+    str.textContent = `[G${String(generation).padStart(3,'0')}] L(Fx:${pFx.toFixed(2)},Fy:${pFy.toFixed(2)}) R(${pDrift.toFixed(2)},${pBrown.toFixed(3)})`;
+  } else {
+    const t = ((pFx - 0.5) / 9.0).toFixed(2); const g = (0.1 + ((pFy - 0.5) / 9.0) * 9.9).toFixed(1);
+    str.textContent = `[G${String(generation).padStart(3,'0')}] L(Th:${t},Gn:${g}) R(${pDrift.toFixed(2)},${pBrown.toFixed(3)})`;
+  }
+  
+  fill.style.width = Math.min((calcFitness() / 0.05) * 100, 100) + '%';
+  stampMicroCore(activeSlip.querySelector('canvas'), worms);
+}
+
+function lockFloorSlip() {
+  if (!activeSlip) return;
+  activeSlip.classList.remove('active-floor');
+  activeSlip.dataset.fx = pFx; activeSlip.dataset.fy = pFy;
+  activeSlip.dataset.dr = pDrift; activeSlip.dataset.br = pBrown;
+  activeSlip._worms = new Float32Array(worms);
+  while(elLedger.children.length > CFG.LEDGER_MAX) elLedger.removeChild(elLedger.lastChild);
+}
+
+elLedger.addEventListener('pointermove', e => {
+  const slip = e.target.closest('.epoch-slip');
+  if (slip && slip !== activeSlip && slip._worms) renderProjection(slip._worms); 
+  else renderProjection(null);
+});
+elLedger.addEventListener('pointerleave', () => renderProjection(null));
+
+elLedger.addEventListener('pointerdown', e => {
+  const slip = e.target.closest('.epoch-slip');
+  if (!slip || slip === activeSlip || !slip.dataset.fx) return;
+  pFx = parseFloat(slip.dataset.fx); pFy = parseFloat(slip.dataset.fy);
+  pDrift = parseFloat(slip.dataset.dr); pBrown = parseFloat(slip.dataset.br);
+  
+  routeTopology(); syncReticles(); if(isField) drawField();
+  document.querySelectorAll('.epoch-slip.selected').forEach(s=>s.classList.remove('selected'));
+  slip.classList.add('selected'); renderProjection(null);
+});
+
+// ── DUAL THUMB ACTUATORS ──
+function syncReticles() {
+  const nx = (pFx - 0.5)/9, ny = (pFy - 0.5)/9;
+  retL.style.left = (nx*100)+'%'; retL.style.top = (ny*100)+'%';
+  
+  if (activeMode === 'MATH') {
+    roL.innerHTML = `${pFx.toFixed(2)}<br>${pFy.toFixed(2)}`;
+  } else {
+    roL.innerHTML = `${nx.toFixed(2)}<br>${(0.1 + ny*9.9).toFixed(1)}`;
+  }
+
+  const rx = (pDrift - 0.5)/5.5, ry = (pBrown - 0.02)/0.58;
+  retR.style.left = (rx*100)+'%'; retR.style.top = (ry*100)+'%';
+  roR.innerHTML = `${pDrift.toFixed(2)}<br>${pBrown.toFixed(3)}`;
+}
+
+function scrubL(x, y) {
+  const r = padL.getBoundingClientRect(), nx = clamp((x-r.left)/r.width,0,1), ny = clamp((y-r.top)/r.height,0,1);
+  pFx = 0.5 + nx*9; pFy = 0.5 + ny*9;
+  syncReticles(); routeTopology(); if(isField) drawField(); updateLiveSlip();
+}
+function scrubR(x, y) {
+  const r = padR.getBoundingClientRect(), nx = clamp((x-r.left)/r.width,0,1), ny = clamp((y-r.top)/r.height,0,1);
+  pDrift = 0.5 + nx*5.5; pBrown = 0.02 + ny*0.58;
+  syncReticles(); updateLiveSlip();
+}
+
+function bindPad(pad, scrubFn) {
+  let isDown = false;
+  pad.addEventListener('pointerdown', e => { e.preventDefault(); pad.setPointerCapture(e.pointerId); isDown=true; scrubFn(e.clientX, e.clientY); });
+  pad.addEventListener('pointermove', e => { if(isDown) scrubFn(e.clientX, e.clientY); });
+  pad.addEventListener('pointerup', () => isDown=false); 
+  pad.addEventListener('pointercancel', () => isDown=false);
+  pad.addEventListener('touchstart', e => { e.preventDefault(); scrubFn(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
+  pad.addEventListener('touchmove', e => { e.preventDefault(); scrubFn(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
+}
+bindPad(padL, scrubL); bindPad(padR, scrubR);
+
+// ── EPOCH CYCLING ──
+function endEpoch() {
+  lockFloorSlip(); 
+  
+  // Evolve mathematical filter automatically if sand algorithm mutates (only in MATH mode)
+  if (activeMode === 'MATH') {
+    const fit = calcFitness();
+    if (fit < 0.002) { pFx = 1+Math.random()*7; pFy = 1+Math.random()*7; }
+    else { 
+      const v = Math.max(0.08, 1 - Math.min(fit, 1)) * CFG.MUT_BASE;
+      pFx = clamp(pFx + (Math.random()-.5)*2*v, 0.5, 9.5);
+      pFy = clamp(pFy + (Math.random()-.5)*2*v, 0.5, 9.5);
+    }
+  }
+  
+  syncReticles();
+  generation++; epochStep = 0; invertSand(); initFloorSlip();
+}
+
+// ── UI AND MODES ──
+function clearEngine() {
+  generation=0; epochStep=0; lastFit=0; worms.fill(0); elLedger.innerHTML='';
+  routeTopology(); syncReticles(); if(isField) drawField(); invertSand(); initFloorSlip();
+}
+
+function setMode(mode) {
+  activeMode = mode; elBadge.textContent = mode;
+  
+  if (mode === 'MATH') {
+    elBadge.className = '';
+    btnMath.classList.add('on'); btnUpload.classList.remove('on'); btnCamera.classList.remove('on');
+    lblL.textContent = 'L_THUMB · FREQUENCY'; subL.innerHTML = 'Fx<br>Fy';
+    pFx = 3.0; pFy = 4.0;
+  } else {
+    elBadge.className = 'media-mode'; btnMath.classList.remove('on');
+    if (mode==='CAMERA') { btnCamera.classList.add('on'); btnUpload.classList.remove('on'); }
+    else { btnCamera.classList.remove('on'); btnUpload.classList.add('on'); }
+    lblL.textContent = 'L_THUMB · PHOTON TUNE'; subL.innerHTML = 'THRESH<br>GAIN';
+    pFx = 5.0; pFy = 5.0; 
+  }
+  
+  if(hiddenVideo.srcObject && mode !== 'CAMERA') {
+     hiddenVideo.srcObject.getTracks().forEach(t=>t.stop()); hiddenVideo.srcObject = null;
+  }
+  clearEngine();
+}
+
+btnMath.addEventListener('click', () => setMode('MATH'));
+
+btnUpload.addEventListener('click', () => mediaInput.click());
+mediaInput.addEventListener('change', (e) => {
+  if (!e.target.files.length) return;
+  const file = e.target.files[0];
+  const url = URL.createObjectURL(file);
+  
+  if (file.type.startsWith('video')) {
+    hiddenVideo.src = url;
+    hiddenVideo.onloadeddata = () => { hiddenVideo.play().then(() => { activeMediaSource = hiddenVideo; setMode('VIDEO'); }).catch(()=>{}); };
+  } else {
+    const img = new Image();
+    img.onload = () => { activeMediaSource = img; setMode('IMAGE'); };
+    img.src = url;
+  }
+});
+
+btnCamera.addEventListener('click', () => {
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: {ideal: 320}, height: {ideal: 320} } })
+    .then(stream => {
+      hiddenVideo.srcObject = stream;
+      hiddenVideo.onloadedmetadata = () => { hiddenVideo.play().then(() => { activeMediaSource = hiddenVideo; setMode('CAMERA'); }).catch(()=>{}); };
+    }).catch(err => alert("Camera error: " + err));
+});
+
+btnField.addEventListener('click', () => { isField = !isField; btnField.classList.toggle('on', isField); cFld.classList.toggle('vis', isField); drawField(); });
+document.getElementById('btn-reset').addEventListener('click', () => {
+  setMode('MATH'); pDrift=CFG.DRIFT; pBrown=CFG.BROWNIAN; clearEngine();
+});
+
+function updateTelemetry() {
+  mGen.textContent = generation; mFit.textContent = calcFitness().toFixed(4); mEp.textContent = `${epochStep}/${CFG.EPOCH_STEPS}`;
+  let set=0; for(let i=0; i<N; i++) if(plate[Math.min(SZ-1,py[i]|0)*SZ+Math.min(SZ-1,px[i]|0)] < 0.05) set++;
+  mSet.textContent = ((set/N)*100).toFixed(1)+'%';
+}
+
+// ── MAIN LOOP ──
+let lastT = 0;
+function executionLoop(ts) {
+  requestAnimationFrame(executionLoop);
+  if (ts - lastT < CFG.STEP_MS) return;
+  lastT = ts;
+  
+  // Continuous real-time topological scan for temporal video feeds
+  if (activeMode === 'VIDEO' || activeMode === 'CAMERA') {
+    routeTopology();
+    if(isField) drawField();
+  }
+  
+  drift(); epochStep++;
+  if (epochStep >= CFG.EPOCH_STEPS) endEpoch();
+  
+  renderMain(); updateLiveSlip(); updateTelemetry();
+}
+
+// ── BOOT ──
+window.addEventListener('resize', resize);
+resize(); setMode('MATH');
+requestAnimationFrame(executionLoop);
+</script>
+</body>
+</html>
