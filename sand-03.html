@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chladni Quine Lens | Mobile 3D Scab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;400;700&display=swap');
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #000000;
+            color: #d1d5db;
+            user-select: none;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            /* Prevent overscroll bounce on mobile */
+            overscroll-behavior: none; 
+        }
+
+        .mirror-x { transform: scaleX(-1); }
+
+        .btn-toggle { transition: all 0.2s; }
+        .btn-toggle.active {
+            background-color: #10b981;
+            color: #000;
+            border-color: #10b981;
+        }
+
+        #webgl-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+            touch-action: none;
+        }
+
+        @keyframes flashExport {
+            0% { background-color: #10b981; color: #000; }
+            100% { background-color: rgba(16, 185, 129, 0.2); color: #34d399; }
+        }
+        .flash-export { animation: flashExport 0.8s ease-out; }
+
+        /* Custom Range Slider for Mobile */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+            margin-top: -10px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #3f3f46;
+            border-radius: 2px;
+        }
+
+        /* Menu slide animation */
+        #settings-menu {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .menu-hidden { transform: translateY(110%); }
+        .menu-visible { transform: translateY(0); }
+    </style>
+</head>
+<body class="flex flex-col font-mono text-zinc-400 select-none">
+
+    <!-- Hardware Layer -->
+    <video id="webcam" class="fixed top-0 left-0 opacity-0 pointer-events-none -z-10 mirror-x" autoplay playsinline muted></video>
+    <div id="cam-status" class="fixed top-2 left-1/2 -translate-x-1/2 z-50 text-[10px] text-emerald-500 bg-black/90 px-3 py-1.5 border border-emerald-900 rounded-full pointer-events-none uppercase tracking-widest whitespace-nowrap">INITIALIZING...</div>
+    <canvas id="scalar-plate" width="120" height="120" class="hidden"></canvas>
+
+    <!-- The WebGL 3D Viewport -->
+    <div id="webgl-container"></div>
+
+    <!-- HUD TOP -->
+    <div class="absolute top-0 left-0 w-full p-4 flex justify-between items-start pointer-events-none z-20">
+        <div class="flex flex-col gap-1 drop-shadow-md text-xs">
+            <span class="text-emerald-500 font-bold tracking-widest uppercase">3D_SCAB_RENDERER</span>
+            <span id="fps-counter">FPS: --</span>
+            <span id="agent-counter">AGENTS: 15000</span>
+        </div>
+        
+        <div class="flex flex-col gap-2 text-right pointer-events-auto">
+            <button id="btn-export" class="py-2 px-3 text-[10px] font-bold border border-emerald-700 bg-emerald-900/20 hover:bg-emerald-800 transition-colors uppercase text-emerald-400 rounded">
+                EXPORT .OBJ
+            </button>
+            <button id="btn-toggle-menu" class="py-2 px-3 text-[10px] font-bold border border-zinc-700 bg-black/60 hover:bg-zinc-800 transition-colors uppercase text-zinc-300 rounded">
+                ⚙️ MENU
+            </button>
+        </div>
+    </div>
+
+    <!-- FLOATING ACTION BAR (Thumb-friendly Bottom) -->
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-full max-w-sm px-4">
+        <div class="flex items-center justify-between bg-black/80 backdrop-blur-md border border-zinc-700 rounded-full p-2 pointer-events-auto shadow-lg shadow-black/50">
+            
+            <button id="btn-flip-cam" class="flex-1 py-3 text-xs border-r border-zinc-700 text-zinc-300 hover:text-white transition-colors uppercase font-bold">
+                📷 FLIP
+            </button>
+
+            <!-- Interactive POV Toggle -->
+            <button id="btn-pov" class="flex-1 py-3 text-xs border-r border-zinc-700 text-zinc-300 hover:text-white transition-colors uppercase font-bold">
+                👁️ ISO
+            </button>
+
+            <!-- Interaction Toggle (Orbit vs Draw vs Gyro) -->
+            <button id="btn-interaction" class="flex-[1.5] py-3 text-xs text-emerald-400 hover:text-emerald-300 transition-colors uppercase font-bold">
+                🔄 ORBIT
+            </button>
+        </div>
+    </div>
+
+    <!-- COLLAPSIBLE SETTINGS MENU -->
+    <div id="settings-menu" class="absolute bottom-0 left-0 w-full bg-black/95 backdrop-blur-lg border-t border-zinc-800 z-30 menu-hidden rounded-t-2xl pb-safe">
+        <div class="p-6 flex flex-col gap-6">
+            <div class="flex justify-between items-center border-b border-zinc-800 pb-2">
+                <h3 class="text-emerald-500 font-bold tracking-widest text-sm uppercase">Engine Settings</h3>
+                <button id="btn-close-menu" class="text-zinc-400 hover:text-white text-xl px-2 py-1">&times;</button>
+            </div>
+
+            <!-- Physics Sliders -->
+            <div class="flex flex-col gap-4">
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="uppercase text-zinc-400">Descent Force</span>
+                        <span id="val-force">0.90</span>
+                    </div>
+                    <input type="range" id="slider-force" min="-2" max="2" step="0.05" value="0.90">
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="uppercase text-zinc-400">Viscosity (Friction)</span>
+                        <span id="val-friction">0.90</span>
+                    </div>
+                    <input type="range" id="slider-friction" min="0.8" max="0.99" step="0.01" value="0.90">
+                </div>
+            </div>
+
+            <!-- Display Toggles -->
+            <div class="grid grid-cols-2 gap-3 mt-2 mb-4">
+                <button id="btn-wireframe" class="btn-toggle active py-3 text-xs border border-zinc-700 rounded uppercase font-bold">Wireframe</button>
+                <button id="btn-cinematic" class="btn-toggle active py-3 text-xs border border-zinc-700 rounded uppercase font-bold">Colors</button>
+                <button id="btn-agents" class="btn-toggle active py-3 text-xs border border-zinc-700 rounded uppercase font-bold">Agents</button>
+                <button id="btn-resonance" class="btn-toggle active py-3 text-xs border border-zinc-700 rounded uppercase font-bold">Chladni Mode</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            masterSize: 240,        // The new massive world grid
+            sensorSize: 80,         // The size of your camera "Flashlight"
+            numParticles: 20000,    // Increased agent count to fill the larger world
+            defaultForce: 0.90,
+            defaultFriction: 0.90,
+            extrusionScale: 60.0
+        };
+
+        const video = document.getElementById('webcam');
+        const camStatus = document.getElementById('cam-status');
+        const scalarPlate = document.getElementById('scalar-plate');
+        // Resize hidden canvas to sensor size
+        scalarPlate.width = CONFIG.sensorSize;
+        scalarPlate.height = CONFIG.sensorSize;
+        const scalarCtx = scalarPlate.getContext('2d', { willReadFrequently: true });
+
+        const pX = new Float32Array(CONFIG.numParticles);
+        const pY = new Float32Array(CONFIG.numParticles);
+        const vX = new Float32Array(CONFIG.numParticles);
+        const vY = new Float32Array(CONFIG.numParticles);
+
+        const ms = CONFIG.masterSize;
+        const lumaGrid = new Float32Array(ms * ms);
+        const prevLumaGrid = new Float32Array(ms * ms);
+        const motionGrid = new Float32Array(ms * ms);
+        const gradX = new Float32Array(ms * ms);
+        const gradY = new Float32Array(ms * ms);
+
+        const colorR = new Uint8Array(ms * ms);
+        const colorG = new Uint8Array(ms * ms);
+        const colorB = new Uint8Array(ms * ms);
+
+        let state = {
+            force: CONFIG.defaultForce,
+            friction: CONFIG.defaultFriction,
+            cinematicMode: true,
+            showWireframe: true,
+            showAgents: true,
+            chladniResonance: true,
+            hasCamera: false,
+            lastTime: performance.now(),
+            frames: 0,
+            facingMode: 'environment',
+            pointer: { active: false, polarity: 1 },
+            gyroActive: false,
+            flashlightX: Math.floor((CONFIG.masterSize - CONFIG.sensorSize) / 2),
+            flashlightY: Math.floor((CONFIG.masterSize - CONFIG.sensorSize) / 2)
+        };
+
+        let syntheticTime = 0; 
+
+        // --- THREE.JS ARCHITECTURE ---
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.005);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        let camTargetPos = new THREE.Vector3(0, 140, 160); 
+        let camTargetLook = new THREE.Vector3(0, 0, 0);
+        camera.position.copy(camTargetPos);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 + 0.1;
+        controls.target.copy(camTargetLook);
+
+        // 1. Massive Terrain Mesh
+        const planeGeo = new THREE.PlaneGeometry(ms, ms, ms - 1, ms - 1);
+        const planeMat = new THREE.MeshBasicMaterial({ 
+            color: 0x10b981, 
+            wireframe: true,
+            transparent: true,
+            opacity: 0.4
+        });
+        const terrainMesh = new THREE.Mesh(planeGeo, planeMat);
+        terrainMesh.rotation.x = -Math.PI / 2;
+        scene.add(terrainMesh);
+
+        // 2. Agents Point Cloud
+        const agentsGeo = new THREE.BufferGeometry();
+        const agentPositions = new Float32Array(CONFIG.numParticles * 3);
+        const agentColors = new Float32Array(CONFIG.numParticles * 3);
+        agentsGeo.setAttribute('position', new THREE.BufferAttribute(agentPositions, 3));
+        agentsGeo.setAttribute('color', new THREE.BufferAttribute(agentColors, 3));
+
+        const agentsMat = new THREE.PointsMaterial({
+            size: 1.5,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            opacity: 0.9,
+            depthWrite: false
+        });
+        const agentsMesh = new THREE.Points(agentsGeo, agentsMat);
+        agentsMesh.rotation.x = -Math.PI / 2;
+        scene.add(agentsMesh);
+
+        // 3. Flashlight Reticle (Shows exactly where you are writing to the master grid)
+        const reticleGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(CONFIG.sensorSize, CONFIG.sensorSize));
+        const reticleMat = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 2 });
+        const reticleMesh = new THREE.LineSegments(reticleGeo, reticleMat);
+        reticleMesh.rotation.x = -Math.PI / 2;
+        reticleMesh.visible = false;
+        scene.add(reticleMesh);
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let interactionMode = 0; // 0=Orbit, 1=Attract, 2=Repel, 3=GyroMap
+        let isAnimatingCam = false;
+
+        function init() {
+            for (let i = 0; i < CONFIG.numParticles; i++) {
+                pX[i] = Math.random() * ms;
+                pY[i] = Math.random() * ms;
+                vX[i] = 0;
+                vY[i] = 0;
+            }
+            initControls();
+            initCamera();
+            window.addEventListener('resize', onWindowResize, false);
+            renderer.setAnimationLoop(engineLoop);
+        }
+
+        async function initCamera() {
+            if (video.srcObject) video.srcObject.getTracks().forEach(track => track.stop());
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: state.facingMode } 
+                });
+                video.srcObject = stream;
+                video.play().catch(e => console.warn("Auto-play prevented:", e));
+                state.hasCamera = true;
+                camStatus.style.display = 'none';
+                
+                if (state.facingMode === 'user') video.classList.add('mirror-x');
+                else video.classList.remove('mirror-x');
+            } catch (err) {
+                console.warn("Camera access denied.", err);
+                camStatus.innerText = "SYNTHETIC SCAB ACTIVE";
+            }
+        }
+
+        // --- IMU ODEMETRY PROTOCOL ---
+        async function activateGyro() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    if (permission === 'granted') {
+                        window.addEventListener('deviceorientation', handleOrientation);
+                        state.gyroActive = true;
+                    } else {
+                        alert('Gyro/IMU access denied.');
+                    }
+                } catch(e) { console.error(e); }
+            } else {
+                window.addEventListener('deviceorientation', handleOrientation);
+                state.gyroActive = true;
+            }
+        }
+
+        function handleOrientation(e) {
+            if(interactionMode !== 3 || e.alpha === null || e.beta === null) return;
+            
+            // Map 360 compass and 180 pitch to cartographic grid offsets
+            let xNorm = e.alpha / 360.0;
+            let yNorm = Math.max(0, Math.min(1, e.beta / 90.0)); 
+            
+            state.flashlightX = Math.floor(xNorm * (CONFIG.masterSize - CONFIG.sensorSize));
+            state.flashlightY = Math.floor(yNorm * (CONFIG.masterSize - CONFIG.sensorSize));
+        }
+
+        function initControls() {
+            const menu = document.getElementById('settings-menu');
+            document.getElementById('btn-toggle-menu').addEventListener('click', () => {
+                menu.classList.remove('menu-hidden');
+                menu.classList.add('menu-visible');
+            });
+            document.getElementById('btn-close-menu').addEventListener('click', () => {
+                menu.classList.remove('menu-visible');
+                menu.classList.add('menu-hidden');
+            });
+
+            document.getElementById('btn-flip-cam').addEventListener('click', () => {
+                state.facingMode = state.facingMode === 'user' ? 'environment' : 'user';
+                camStatus.style.display = 'block';
+                camStatus.innerText = "SWITCHING...";
+                initCamera();
+            });
+
+            const povModes = [
+                { name: '👁️ ISO', pos: new THREE.Vector3(0, 140, 160), look: new THREE.Vector3(0, 0, 0) },
+                { name: '👁️ TOP', pos: new THREE.Vector3(0, 220, 0), look: new THREE.Vector3(0, 0, 0) },
+                { name: '👁️ MACRO', pos: new THREE.Vector3(0, 20, 100), look: new THREE.Vector3(0, -10, 40) }
+            ];
+            let currentPov = 0;
+            const povBtn = document.getElementById('btn-pov');
+            povBtn.addEventListener('click', () => {
+                currentPov = (currentPov + 1) % povModes.length;
+                camTargetPos.copy(povModes[currentPov].pos);
+                camTargetLook.copy(povModes[currentPov].look);
+                povBtn.innerText = povModes[currentPov].name;
+                isAnimatingCam = true;
+            });
+
+            // 4-WAY INTERACTION TOGGLE
+            const intBtn = document.getElementById('btn-interaction');
+            intBtn.addEventListener('click', () => {
+                interactionMode = (interactionMode + 1) % 4;
+                reticleMesh.visible = false;
+
+                if(interactionMode === 0) {
+                    intBtn.innerText = '🔄 ORBIT';
+                    intBtn.className = 'flex-[1.5] py-3 text-xs text-emerald-400 hover:text-emerald-300 transition-colors uppercase font-bold';
+                    controls.enabled = true;
+                } else if(interactionMode === 1) {
+                    intBtn.innerText = '👇 DIG SCAB';
+                    intBtn.className = 'flex-[1.5] py-3 text-xs bg-red-600/80 text-white rounded-r-full transition-colors uppercase font-bold';
+                    controls.enabled = false;
+                    state.pointer.polarity = -1;
+                } else if(interactionMode === 2) {
+                    intBtn.innerText = '☝️ RAISE SCAB';
+                    intBtn.className = 'flex-[1.5] py-3 text-xs bg-blue-600/80 text-white rounded-r-full transition-colors uppercase font-bold';
+                    controls.enabled = false;
+                    state.pointer.polarity = 1;
+                } else if(interactionMode === 3) {
+                    intBtn.innerText = '🔦 GYRO MAP';
+                    intBtn.className = 'flex-[1.5] py-3 text-xs bg-purple-600/80 text-white rounded-r-full transition-colors uppercase font-bold';
+                    controls.enabled = true;
+                    reticleMesh.visible = true;
+                    if(!state.gyroActive) activateGyro();
+                }
+            });
+
+            const setupToggle = (id, stateKey, meshToggle = null) => {
+                const btn = document.getElementById(id);
+                btn.addEventListener('click', () => {
+                    state[stateKey] = !state[stateKey];
+                    btn.classList.toggle('active', state[stateKey]);
+                    if(meshToggle === 'wireframe') terrainMesh.visible = state[stateKey];
+                    if(meshToggle === 'agents') agentsMesh.visible = state[stateKey];
+                });
+            };
+            setupToggle('btn-cinematic', 'cinematicMode');
+            setupToggle('btn-wireframe', 'showWireframe', 'wireframe');
+            setupToggle('btn-agents', 'showAgents', 'agents');
+            setupToggle('btn-resonance', 'chladniResonance');
+
+            document.getElementById('slider-force').addEventListener('input', (e) => {
+                state.force = parseFloat(e.target.value);
+                document.getElementById('val-force').innerText = state.force.toFixed(2);
+            });
+            document.getElementById('slider-friction').addEventListener('input', (e) => {
+                state.friction = parseFloat(e.target.value);
+                document.getElementById('val-friction').innerText = state.friction.toFixed(2);
+            });
+
+            document.getElementById('btn-export').addEventListener('click', (e) => {
+                exportOBJ();
+                const btn = e.target;
+                btn.classList.remove('flash-export');
+                void btn.offsetWidth; 
+                btn.classList.add('flash-export');
+                btn.innerText = "EXPORTED!";
+                setTimeout(() => btn.innerText = "EXPORT .OBJ", 2000);
+            });
+
+            const handleTouch = (e) => {
+                if (interactionMode === 0 || interactionMode === 3) return; // Orbit/Gyro map handles touch differently
+                
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                mouse.x = (clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+                
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObject(terrainMesh);
+                
+                if (intersects.length > 0) {
+                    const uv = intersects[0].uv;
+                    const px = uv.x * ms;
+                    const py = (1.0 - uv.y) * ms;
+                    
+                    const radius = 12;
+                    for (let y = Math.max(0, Math.floor(py - radius)); y < Math.min(ms, Math.ceil(py + radius)); y++) {
+                        for (let x = Math.max(0, Math.floor(px - radius)); x < Math.min(ms, Math.ceil(px + radius)); x++) {
+                            const dist = Math.sqrt((x-px)**2 + (y-py)**2);
+                            if (dist < radius) {
+                                const idx = y * ms + x;
+                                const intensity = (1 - dist / radius);
+                                lumaGrid[idx] += state.pointer.polarity === 1 ? intensity : -intensity;
+                            }
+                        }
+                    }
+                }
+            };
+
+            renderer.domElement.addEventListener('pointerdown', (e) => { 
+                if(e.target !== renderer.domElement) return; 
+                isAnimatingCam = false; 
+                if(interactionMode === 1 || interactionMode === 2) state.pointer.active = true; 
+                handleTouch(e); 
+            });
+            renderer.domElement.addEventListener('pointermove', (e) => { 
+                if(state.pointer.active) handleTouch(e); 
+            });
+            window.addEventListener('pointerup', () => state.pointer.active = false);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function engineLoop(timestamp) {
+            updateFPS(timestamp);
+
+            if (isAnimatingCam) {
+                camera.position.lerp(camTargetPos, 0.05);
+                controls.target.lerp(camTargetLook, 0.05);
+                if (camera.position.distanceTo(camTargetPos) < 1.0) isAnimatingCam = false;
+            }
+            controls.update();
+
+            processScalarPlate();
+            computeTopology();
+            simulateAgents();
+            update3DGeometry();
+
+            renderer.render(scene, camera);
+        }
+
+        function updateFPS(timestamp) {
+            state.frames++;
+            if (timestamp - state.lastTime >= 1000) {
+                document.getElementById('fps-counter').innerText = `FPS: ${state.frames}`;
+                state.frames = 0;
+                state.lastTime = timestamp;
+            }
+        }
+
+        function processScalarPlate() {
+            prevLumaGrid.set(lumaGrid);
+            
+            // If not in Gyro Mode, keep flashlight perfectly centered
+            if(interactionMode !== 3) {
+                state.flashlightX = Math.floor((ms - CONFIG.sensorSize) / 2);
+                state.flashlightY = Math.floor((ms - CONFIG.sensorSize) / 2);
+            }
+
+            if (state.hasCamera && video.readyState === video.HAVE_ENOUGH_DATA) {
+                scalarCtx.save();
+                if (state.facingMode === 'user') {
+                    scalarCtx.translate(CONFIG.sensorSize, 0);
+                    scalarCtx.scale(-1, 1);
+                }
+                scalarCtx.drawImage(video, 0, 0, CONFIG.sensorSize, CONFIG.sensorSize);
+                scalarCtx.restore();
+                
+                const frameData = scalarCtx.getImageData(0, 0, CONFIG.sensorSize, CONFIG.sensorSize).data;
+                const ss = CONFIG.sensorSize;
+                
+                for (let y = 0; y < ss; y++) {
+                    for (let x = 0; x < ss; x++) {
+                        const mX = state.flashlightX + x;
+                        const mY = state.flashlightY + y;
+                        if (mX >= 0 && mX < ms && mY >= 0 && mY < ms) {
+                            const mIdx = mY * ms + mX;
+                            const fIdx = (y * ss + x) * 4;
+                            
+                            const r = frameData[fIdx], g = frameData[fIdx+1], b = frameData[fIdx+2];
+                            colorR[mIdx] = r; colorG[mIdx] = g; colorB[mIdx] = b;
+                            lumaGrid[mIdx] = (r * 0.299 + g * 0.587 + b * 0.114) / 255.0; 
+                        }
+                    }
+                }
+            } else {
+                syntheticTime += 0.05;
+                const ss = CONFIG.sensorSize;
+                for (let y = 0; y < ss; y++) {
+                    for (let x = 0; x < ss; x++) {
+                        const mX = state.flashlightX + x;
+                        const mY = state.flashlightY + y;
+                        if (mX >= 0 && mX < ms && mY >= 0 && mY < ms) {
+                            const mIdx = mY * ms + mX;
+                            const v = (Math.sin(mX/10 + syntheticTime) + Math.cos(mY/10 - syntheticTime)) * 0.5 + 0.5;
+                            lumaGrid[mIdx] = v;
+                            colorR[mIdx] = v * 200; colorG[mIdx] = v * 255; colorB[mIdx] = 100;
+                        }
+                    }
+                }
+            }
+        }
+
+        function computeTopology() {
+            // Only update gradients inside the active flashlight to save CPU, 
+            // the rest of the map is permanently frozen in velocity death!
+            const pad = 2;
+            const startX = Math.max(1, state.flashlightX - pad);
+            const startY = Math.max(1, state.flashlightY - pad);
+            const endX = Math.min(ms - 1, state.flashlightX + CONFIG.sensorSize + pad);
+            const endY = Math.min(ms - 1, state.flashlightY + CONFIG.sensorSize + pad);
+
+            for (let y = startY; y < endY; y++) {
+                for (let x = startX; x < endX; x++) {
+                    const i = y * ms + x;
+                    motionGrid[i] = Math.abs(lumaGrid[i] - prevLumaGrid[i]);
+                    gradX[i] = (lumaGrid[i + 1] - lumaGrid[i - 1]) * 0.5;
+                    gradY[i] = (lumaGrid[i + ms] - lumaGrid[i - ms]) * 0.5;
+                }
+            }
+            
+            // Explicitly zero motion outside the flashlight so particles scab when left behind
+            for (let i = 0; i < ms * ms; i++) {
+                const x = i % ms;
+                const y = Math.floor(i / ms);
+                if(x < startX || x >= endX || y < startY || y >= endY) {
+                    motionGrid[i] = 0;
+                }
+            }
+        }
+
+        function simulateAgents() {
+            const f = state.force;
+            const fric = state.friction;
+
+            for (let i = 0; i < CONFIG.numParticles; i++) {
+                if(pX[i] < 0 || pX[i] >= ms) pX[i] = Math.random() * ms;
+                if(pY[i] < 0 || pY[i] >= ms) pY[i] = Math.random() * ms;
+
+                const gx = Math.floor(pX[i]);
+                const gy = Math.floor(pY[i]);
+
+                if (gx > 0 && gx < ms - 1 && gy > 0 && gy < ms - 1) {
+                    const idx = gy * ms + gx;
+                    const dx = gradX[idx];
+                    const dy = gradY[idx];
+                    const motion = motionGrid[idx];
+
+                    // STIGMERGIC SCAB PROTOCOL
+                    const speed = Math.sqrt(vX[i]*vX[i] + vY[i]*vY[i]);
+                    if (speed < 0.15 && motion < 0.01) {
+                        vX[i] = 0; 
+                        vY[i] = 0;
+                        lumaGrid[idx] = Math.max(0.0, lumaGrid[idx] - 0.05);
+                    }
+
+                    if (motion > 0.04 && Math.random() < motion * 2) {
+                        pX[i] = gx + (Math.random() - 0.5) * 2;
+                        pY[i] = gy + (Math.random() - 0.5) * 2;
+                        vX[i] = 0; vY[i] = 0;
+                    } else {
+                        if (state.chladniResonance) {
+                            vX[i] += -dy * f + dx * (f * 0.2);
+                            vY[i] += dx * f + dy * (f * 0.2);
+                        } else {
+                            vX[i] += dx * f;
+                            vY[i] += dy * f;
+                        }
+                    }
+                }
+
+                vX[i] *= fric;
+                vY[i] *= fric;
+                pX[i] += vX[i];
+                pY[i] += vY[i];
+            }
+        }
+
+        function update3DGeometry() {
+            const positions = planeGeo.attributes.position.array;
+            for (let i = 0; i < lumaGrid.length; i++) {
+                positions[i * 3 + 2] = lumaGrid[i] * CONFIG.extrusionScale;
+            }
+            planeGeo.attributes.position.needsUpdate = true;
+
+            // Move the red flashlight reticle
+            if(interactionMode === 3) {
+                reticleMesh.position.x = (state.flashlightX + CONFIG.sensorSize/2) - ms/2;
+                reticleMesh.position.z = (state.flashlightY + CONFIG.sensorSize/2) - ms/2;
+                reticleMesh.position.y = 25; 
+            }
+
+            const agentPos = agentsGeo.attributes.position.array;
+            const agentCol = agentsGeo.attributes.color.array;
+            const halfW = ms / 2;
+
+            for (let i = 0; i < CONFIG.numParticles; i++) {
+                const px = pX[i], py = pY[i];
+                const gx = Math.floor(px), gy = Math.floor(py);
+                let z = 0, gridIdx = 0;
+
+                if (gx >= 0 && gx < ms && gy >= 0 && gy < ms) {
+                    gridIdx = gy * ms + gx;
+                    z = lumaGrid[gridIdx] * CONFIG.extrusionScale;
+                }
+
+                agentPos[i * 3] = px - halfW;
+                agentPos[i * 3 + 1] = -(py - halfW);
+                agentPos[i * 3 + 2] = z + 0.5;
+
+                if (state.cinematicMode) {
+                    agentCol[i * 3] = colorR[gridIdx] / 255.0;
+                    agentCol[i * 3 + 1] = colorG[gridIdx] / 255.0;
+                    agentCol[i * 3 + 2] = colorB[gridIdx] / 255.0;
+                } else {
+                    agentCol[i * 3] = 1.0;
+                    agentCol[i * 3 + 1] = 1.0;
+                    agentCol[i * 3 + 2] = 1.0;
+                }
+            }
+            agentsGeo.attributes.position.needsUpdate = true;
+            agentsGeo.attributes.color.needsUpdate = true;
+        }
+
+        function exportOBJ() {
+            let output = "# CHLADNI QUINE LENS // MASSIVE SCAB EXPORT\n";
+            output += `o ScabTerrain\n`;
+            
+            const halfW = ms / 2;
+            
+            for (let y = 0; y < ms; y++) {
+                for (let x = 0; x < ms; x++) {
+                    const idx = y * ms + x;
+                    const vX = x - halfW;
+                    const vY = -(y - halfW);
+                    const vZ = lumaGrid[idx] * CONFIG.extrusionScale;
+                    output += `v ${vX.toFixed(4)} ${vY.toFixed(4)} ${vZ.toFixed(4)}\n`;
+                }
+            }
+
+            for (let y = 0; y < ms - 1; y++) {
+                for (let x = 0; x < ms - 1; x++) {
+                    const i1 = (y * ms + x) + 1;
+                    const i2 = (y * ms + x + 1) + 1;
+                    const i3 = ((y + 1) * ms + x) + 1;
+                    const i4 = ((y + 1) * ms + x + 1) + 1;
+
+                    output += `f ${i1} ${i2} ${i3}\n`;
+                    output += `f ${i2} ${i4} ${i3}\n`;
+                }
+            }
+
+            const blob = new Blob([output], { type: "text/plain" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `world_scab_${Date.now()}.obj`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
