@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ELEPHANT_OS // Blind Drawing Game</title>
+<style>
+  :root {
+    --bg: #FFFFFF;
+    --text: #000000;
+    --border: #000000;
+    --active: #000000;
+    --active-text: #FFFFFF;
+    --font-mono: 'Courier New', Courier, monospace;
+    --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+  
+  * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
+  
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden; /* ABSOLUTE NO SCROLL */
+  }
+  
+  #app {
+    width: 100%;
+    max-width: 600px;
+    height: 100%;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    border-left: 4px solid var(--border);
+    border-right: 4px solid var(--border);
+  }
+  
+  /* --- HEADER & HUD --- */
+  header {
+    padding: 12px 16px;
+    background: var(--bg);
+    border-bottom: 4px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 20;
+    flex-shrink: 0;
+  }
+  header h1 { font-family: var(--font-mono); font-size: 1.4rem; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; }
+  .hud { display: flex; gap: 8px; }
+  .score-badge { background: var(--active); color: var(--active-text); font-weight: 900; padding: 6px 10px; font-family: var(--font-mono); font-size: 0.9rem; }
+
+  /* --- A11Y --- */
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+  /* --- VIEWS --- */
+  .view {
+    flex: 1; display: none; flex-direction: column; position: relative;
+    background: var(--bg); min-height: 0; overflow: hidden;
+  }
+  .view.active { display: flex; }
+
+  /* --- TYPOGRAPHY --- */
+  .content-pad { padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; overflow: hidden; }
+  h2 { font-weight: 900; font-size: 1.5rem; letter-spacing: -1px; text-transform: uppercase; flex-shrink: 0; }
+  p { font-weight: 900; font-size: 0.95rem; line-height: 1.2; text-transform: uppercase; }
+  .mono-text { font-family: var(--font-mono); font-weight: 900; }
+
+  /* --- UI COMPONENTS --- */
+  button {
+    padding: 16px; border: 4px solid var(--border); background: var(--bg); color: var(--text);
+    font-size: 1.2rem; font-weight: 900; cursor: pointer; font-family: var(--font-mono); text-transform: uppercase;
+    display: flex; justify-content: center; align-items: center; flex-shrink: 0;
+  }
+  button:focus-visible { outline: 4px solid var(--active); outline-offset: 4px; }
+  button:active:not(:disabled) { background: var(--active); color: var(--active-text); }
+  button:disabled { opacity: 0.3; cursor: not-allowed; border-style: dashed; }
+  
+  .btn-primary { background: var(--active); color: var(--active-text); }
+  .btn-primary:active:not(:disabled) { background: var(--bg); color: var(--text); }
+  
+  input[type="text"] {
+    padding: 16px; border: 4px solid var(--border); background: var(--bg); color: var(--text);
+    font-size: 1.2rem; font-weight: 900; width: 100%; outline: none; font-family: var(--font-mono);
+    text-transform: uppercase; flex-shrink: 0;
+  }
+  input[type="text"]:focus { background: var(--active); color: var(--active-text); }
+
+  /* --- CAMERA & OVERLAYS --- */
+  #camera-container {
+    flex: 1; position: relative; border-bottom: 4px solid var(--border);
+    background: var(--active); min-height: 0; overflow: hidden;
+  }
+  video { width: 100%; height: 100%; object-fit: cover; display: block; filter: grayscale(100%) contrast(150%); }
+  
+  .solid-overlay {
+    position: absolute; inset: 0; background: var(--active); color: var(--active-text);
+    display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10; text-align: center; padding: 20px;
+  }
+  .solid-overlay h2 { color: var(--bg); }
+
+  /* --- DRAWING (ECHOLOCATION) --- */
+  #canvas-container { flex: 1; position: relative; touch-action: none; background: var(--bg); border-bottom: 4px solid var(--border); min-height: 0; overflow: hidden; }
+  canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+  
+  .audio-controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; flex-shrink: 0; }
+  .audio-btn { font-size: 0.8rem; padding: 12px 4px; }
+  .audio-btn.playing { background: var(--active); color: var(--active-text); }
+
+  /* --- VISUAL CAPTIONS (HARD OF HEARING) --- */
+  #visual-caption {
+    background: var(--active); color: var(--active-text); padding: 12px;
+    font-family: var(--font-mono); font-weight: 900; font-size: 1.1rem;
+    text-align: center; border-bottom: 4px solid var(--border);
+    min-height: 60px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+
+  /* --- RESOLUTION MATRIX & SCORECARD --- */
+  .res-layout { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .res-top { flex: 1; display: flex; border-bottom: 4px solid var(--border); min-height: 0; }
+  .res-img-block { flex: 1; position: relative; display: flex; flex-direction: column; border-right: 4px solid var(--border); }
+  .res-img-block:last-child { border-right: none; }
+  .res-img-block img { flex: 1; object-fit: cover; width: 100%; filter: grayscale(100%); min-height: 0; }
+  .res-label { background: var(--active); color: var(--active-text); padding: 4px 8px; font-family: var(--font-mono); font-weight: 900; font-size: 0.7rem; text-align: center; flex-shrink: 0; }
+  
+  .res-bottom { display: flex; flex-direction: column; flex-shrink: 0; padding: 8px; gap: 4px; overflow-y: auto; }
+  .data-row { display: flex; justify-content: space-between; align-items: center; border: 4px solid var(--border); padding: 6px 8px; }
+  .data-label { font-family: var(--font-mono); font-weight: 900; font-size: 0.8rem; flex-shrink: 0;}
+  .data-value { font-size: 1rem; font-weight: 900; text-transform: uppercase; text-align: right;}
+  .score-btn { padding: 8px 12px; font-size: 0.8rem; margin-left: 8px; min-width: 140px;}
+
+  /* Scorecard specific */
+  .score-grid { display: grid; grid-template-columns: 1fr 2fr 1fr; border: 4px solid var(--border); margin-bottom: 10px; }
+  .score-hdr { background: var(--active); color: var(--active-text); font-family: var(--font-mono); font-size: 0.8rem; padding: 4px; font-weight: 900; text-align: center; }
+  .score-cell { padding: 8px; border-top: 2px solid var(--border); border-right: 2px solid var(--border); text-align: center; font-weight: 900; font-size: 0.9rem; display: flex; align-items: center; justify-content: center;}
+  .score-cell:last-child { border-right: none; }
+
+  /* --- ARCHIVE --- */
+  .archive-item { border: 4px solid var(--border); margin-bottom: 16px; display: flex; flex-direction: column; flex-shrink: 0; }
+  .archive-header { background: var(--active); color: var(--active-text); padding: 8px; font-family: var(--font-mono); font-weight: 900; font-size: 0.8rem; display: flex; justify-content: space-between;}
+  .archive-body { padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <h1>ELEPHANT_OS</h1>
+    <div class="hud">
+      <div class="score-badge">ROUND: <span id="frame-display">1/3</span></div>
+      <div class="score-badge">PTS: <span id="score-display">0</span></div>
+    </div>
+  </header>
+
+  <div id="a11y-announcer" class="sr-only" aria-live="assertive" role="status">READY.</div>
+
+  <!-- VIEW: HOME (ONBOARDING) -->
+  <div id="view-home" class="view active" role="main">
+    <div class="content-pad" style="justify-content: center;">
+      
+      <div style="border: 4px solid var(--border); padding: 12px; margin-bottom: 12px; background: var(--active); color: var(--active-text);">
+        <h2 style="color: var(--bg); font-size: 1.2rem; margin-bottom: 8px;">THE STORY</h2>
+        <p style="font-size: 0.8rem; line-height: 1.3;">
+          SIX BLIND MEN TOUCHED AN ELEPHANT. ONE FELT A WALL. ONE FELT A SPEAR. ONE FELT A SNAKE. THEY WERE ALL RIGHT. THEY WERE ALL WRONG. YOU ARE ABOUT TO REPEAT THEIR MISTAKE.
+        </p>
+      </div>
+
+      <h2 style="font-size: 1.2rem; margin-bottom: 8px;">HOW TO PLAY</h2>
+      <p style="font-size: 0.85rem;">1. YOU SNAP A PHOTO OF A THING.</p>
+      <p style="font-size: 0.85rem;">2. YOU TYPE WHAT IT IS. WE HIDE IT.</p>
+      <p style="font-size: 0.85rem;">3. PASS THE PHONE.</p>
+      <p style="font-size: 0.85rem;">4. YOUR FRIEND HEARS CLUES AND DRAWS IT.</p>
+      <p style="font-size: 0.85rem;">5. EVERYONE GUESSES THE DRAWING FOR POINTS.</p>
+      
+      <button id="btn-start" class="btn-primary" style="margin-top: 16px;">START CAMERA</button>
+      <button id="btn-view-archive" style="margin-top: 8px;">SEE PAST GAMES</button>
+    </div>
+  </div>
+
+  <!-- VIEW: PROBE (CAMERA) -->
+  <div id="view-probe" class="view" role="main">
+    <div id="camera-container">
+      <video id="camera-feed" autoplay playsinline muted aria-hidden="true"></video>
+      <div id="scan-overlay" class="solid-overlay" aria-hidden="true">
+        <h2>HOLD STILL</h2>
+        <p class="mono-text">THE AI IS BREAKING THE IMAGE APART</p>
+      </div>
+    </div>
+    <div class="content-pad" style="flex: none;">
+      <button id="btn-scan" class="btn-primary">SNAP PHOTO</button>
+    </div>
+  </div>
+
+  <!-- VIEW: DEFINE TARGET (OP1) -->
+  <div id="view-define" class="view" role="main">
+    <div class="res-layout">
+      <div class="res-img-block" style="flex: 1; border-right: none; border-bottom: 4px solid var(--border);">
+        <div class="res-label">THE REAL THING</div>
+        <img id="define-photo-preview" src="" style="width: 100%; height: 100%; object-fit: contain;">
+      </div>
+      <div class="content-pad" style="flex: none; justify-content: center;">
+        <h2>LOCK IN THE ANSWER</h2>
+        <p>TYPE WHAT THIS IS BEFORE YOU PASS THE PHONE.</p>
+        <input type="text" id="input-define-target" placeholder="WHAT IS IT?" autocomplete="off" style="margin-top: 10px;">
+        <button id="btn-lock-target" class="btn-primary" style="margin-top: 10px;">LOCK IT IN & PASS THE PHONE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW: DRAW (COMPETING CHANNELS) -->
+  <div id="view-draw" class="view" role="main">
+    <div id="visual-caption" aria-hidden="true">DO NOT LET THEM SEE THE TARGET.</div>
+    <div class="content-pad" style="flex: none; padding-bottom: 8px;">
+      <div class="audio-controls" role="group">
+        <button class="audio-btn" data-index="0">FEEL</button>
+        <button class="audio-btn" data-index="1">SHAPE</button>
+        <button class="audio-btn" data-index="2">USE</button>
+      </div>
+    </div>
+    <div id="canvas-container">
+      <div class="sr-only">Drawing Canvas Active.</div>
+      <canvas id="drawing-canvas"></canvas>
+      <div id="draw-overlay" class="solid-overlay">
+        <h2>WAIT...</h2>
+        <p class="mono-text">THE AI IS LOOKING AT YOUR DRAWING</p>
+      </div>
+    </div>
+    <div class="content-pad" style="flex: none;">
+      <button id="btn-done-drawing" class="btn-primary">DONE DRAWING</button>
+    </div>
+  </div>
+
+  <!-- VIEW: GUESS -->
+  <div id="view-guess" class="view" role="main">
+    <div class="content-pad" style="justify-content: center;">
+      <h2>TIME TO GUESS</h2>
+      <p>LOOK AT THIS DRAWING. WHAT WAS THE ORIGINAL OBJECT?</p>
+      
+      <div style="flex: 1; border: 4px solid var(--border); min-height: 0; display: flex; flex-direction: column;">
+        <img id="guess-drawing-preview" src="" style="width: 100%; height: 100%; object-fit: contain;">
+      </div>
+
+      <input type="text" id="input-guess" placeholder="WHAT IS IT?" autocomplete="off" style="margin-top: 10px;">
+      <button id="btn-submit-guess" class="btn-primary" style="margin-top: 10px;">SUBMIT GUESS</button>
+    </div>
+  </div>
+
+  <!-- VIEW: REVEAL & SCORING -->
+  <div id="view-reveal" class="view" role="main">
+    <div class="res-layout">
+      <div class="res-top">
+        <div class="res-img-block" style="flex: 1.2;">
+          <div class="res-label">THE REAL THING</div>
+          <img id="reveal-photo" src="">
+        </div>
+        <div class="res-img-block" style="flex: 1;">
+          <div class="res-label">THE DRAWING</div>
+          <img id="reveal-drawing" src="">
+        </div>
+      </div>
+
+      <div class="res-bottom">
+        <div id="scoring-section" style="display:flex; flex-direction:column; gap:4px;">
+          <div class="data-row" style="background: var(--active); color: var(--active-text);">
+            <span class="data-label">THE REAL THING WAS:</span>
+            <span class="data-value" id="reveal-target-def">...</span>
+          </div>
+          
+          <div class="data-row">
+            <div style="display:flex; flex-direction:column; flex: 1; min-width: 0;">
+              <span class="data-label">AI GUESSED:</span>
+              <span class="data-value" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="reveal-ai-guess">...</span>
+            </div>
+            <button id="btn-score-ai" class="score-btn btn-primary">RIGHT (+2)</button>
+          </div>
+          
+          <div class="data-row">
+            <div style="display:flex; flex-direction:column; flex: 1; min-width: 0;">
+              <span class="data-label">FRIEND GUESSED:</span>
+              <span class="data-value" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="reveal-human-guess">...</span>
+            </div>
+            <button id="btn-score-human" class="score-btn btn-primary">RIGHT (+1)</button>
+          </div>
+
+          <button id="btn-next-frame" class="btn-primary" style="margin-top: 4px;">NEXT ROUND</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW: FINAL SCORECARD / RECEIPT -->
+  <div id="view-scorecard" class="view" role="main">
+    <div class="content-pad">
+      <h2>GAME OVER</h2>
+      <p style="margin-bottom: 10px;">GET YOUR RECEIPT.</p>
+      
+      <div class="score-grid" id="score-matrix">
+        <!-- Injected via JS -->
+      </div>
+      
+      <div class="data-row" style="background: var(--active); color: var(--active-text); margin-bottom: 20px;">
+        <span class="data-label">TOTAL SCORE:</span>
+        <span class="data-value" id="receipt-total-score">0</span>
+      </div>
+
+      <button id="btn-export-receipt" class="btn-primary">DOWNLOAD RECEIPT (PNG)</button>
+      <button id="btn-restart" style="margin-top: 10px;">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <!-- VIEW: ARCHIVE -->
+  <div id="view-archive" class="view" role="main">
+    <div class="content-pad">
+      <h2>PAST GAMES</h2>
+      <button id="btn-archive-home" class="btn-primary" style="margin-bottom: 16px;">GO BACK</button>
+      <div id="archive-list" style="display: flex; flex-direction: column; overflow-y: auto; flex: 1;"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ==========================================
+// CONFIGURATION & GLOBAL STATE
+// ==========================================
+const API_KEY = ""; // Runtime Injected
+const MODEL_NAME = "gemini-2.5-flash-preview-09-2025";
+
+const PROMPT_FRACTURE = `Analyze this image from the perspective of three different blind investigators. 
+Investigator 1 only perceives surface texture and material temperature. 
+Investigator 2 only perceives structural geometry, weight distribution, and hard edges. 
+Investigator 3 only perceives mechanical affordances, joints, and interactive functions. 
+Return exactly three short sentences separated by a "|" character. Do not name the object.`;
+
+const PROMPT_SECOND_ORDER = `You are observing a sketch. Based ONLY on this sketch, identify the object. Reply with exactly one word or short phrase. Be blunt.`;
+
+const MAX_FRAMES = 3;
+
+const State = {
+  score: parseInt(localStorage.getItem('elephant_score') || '0'),
+  currentFrame: parseInt(localStorage.getItem('elephant_frame') || '1'),
+  frames: JSON.parse(localStorage.getItem('elephant_frames') || '[]'),
+  archive: JSON.parse(localStorage.getItem('elephant_archive') || '[]'),
+  currentRound: null, // Initialized on start
+  cameraStream: null
+};
+
+function saveState() {
+  localStorage.setItem('elephant_score', State.score);
+  localStorage.setItem('elephant_frame', State.currentFrame);
+  localStorage.setItem('elephant_frames', JSON.stringify(State.frames));
+  localStorage.setItem('elephant_archive', JSON.stringify(State.archive));
+}
+
+function initRoundState() {
+  State.currentRound = {
+    targetName: "",
+    photoBase64: null,
+    descriptions: ["", "", ""],
+    drawingBase64: null,
+    humanGuess: "",
+    aiGuess: "",
+    aiPts: 0,
+    humanPts: 0
+  };
+}
+
+const DOM = {
+  views: document.querySelectorAll('.view'),
+  announcer: document.getElementById('a11y-announcer'),
+  scoreDisplay: document.getElementById('score-display'),
+  frameDisplay: document.getElementById('frame-display'),
+  captionBox: document.getElementById('visual-caption'),
+  
+  btnStart: document.getElementById('btn-start'),
+  btnViewArchive: document.getElementById('btn-view-archive'),
+  
+  video: document.getElementById('camera-feed'),
+  btnScan: document.getElementById('btn-scan'),
+  scanOverlay: document.getElementById('scan-overlay'),
+  
+  definePhotoPreview: document.getElementById('define-photo-preview'),
+  inputDefineTarget: document.getElementById('input-define-target'),
+  btnLockTarget: document.getElementById('btn-lock-target'),
+
+  audioBtns: document.querySelectorAll('.audio-btn'),
+  canvas: document.getElementById('drawing-canvas'),
+  btnDoneDrawing: document.getElementById('btn-done-drawing'),
+  drawOverlay: document.getElementById('draw-overlay'),
+  
+  guessDrawingPreview: document.getElementById('guess-drawing-preview'),
+  inputGuess: document.getElementById('input-guess'),
+  btnSubmitGuess: document.getElementById('btn-submit-guess'),
+  
+  revealTargetDef: document.getElementById('reveal-target-def'),
+  revealPhoto: document.getElementById('reveal-photo'),
+  revealDrawing: document.getElementById('reveal-drawing'),
+  revealAiGuess: document.getElementById('reveal-ai-guess'),
+  revealHumanGuess: document.getElementById('reveal-human-guess'),
+  btnScoreAi: document.getElementById('btn-score-ai'),
+  btnScoreHuman: document.getElementById('btn-score-human'),
+  btnNextFrame: document.getElementById('btn-next-frame'),
+
+  scoreMatrix: document.getElementById('score-matrix'),
+  receiptTotalScore: document.getElementById('receipt-total-score'),
+  btnExportReceipt: document.getElementById('btn-export-receipt'),
+  btnRestart: document.getElementById('btn-restart'),
+
+  btnArchiveHome: document.getElementById('btn-archive-home'),
+  archiveList: document.getElementById('archive-list')
+};
+
+// ==========================================
+// A11Y & VISUAL CAPTIONS
+// ==========================================
+function updateHUD() {
+  DOM.scoreDisplay.innerText = State.score;
+  DOM.frameDisplay.innerText = `${State.currentFrame}/${MAX_FRAMES}`;
+}
+updateHUD();
+
+function announce(text, updateCaption = false) {
+  DOM.announcer.innerText = text;
+  if (updateCaption) DOM.captionBox.innerText = text.toUpperCase();
+}
+
+function speakAudio(text, onEndCallback) {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0; utterance.pitch = 0.5;
+    
+    utterance.onstart = () => { announce(text, true); };
+    utterance.onend = () => { 
+      DOM.captionBox.innerText = "PRESS A BUTTON TO HEAR CLUES";
+      if (onEndCallback) onEndCallback(); 
+    };
+    window.speechSynthesis.speak(utterance);
+  } else {
+    announce(text, true);
+    setTimeout(() => {
+      DOM.captionBox.innerText = "PRESS A BUTTON TO HEAR CLUES";
+      if(onEndCallback) onEndCallback();
+    }, 4000);
+  }
+}
+
+// ==========================================
+// ECHOLOCATION ENGINE
+// ==========================================
+class EchoSynth {
+  constructor() {
+    this.ctx = null; this.pingOsc = null; this.pingGain = null;
+    this.panner = null; this.filter = null; this.lastPingTime = 0; this.isActive = false;
+  }
+  init() {
+    if (this.ctx) return;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    this.ctx = new AudioContext();
+
+    this.pingOsc = this.ctx.createOscillator(); this.pingOsc.type = 'triangle';
+    this.filter = this.ctx.createBiquadFilter(); this.filter.type = 'lowpass';
+    
+    if (this.ctx.createStereoPanner) this.panner = this.ctx.createStereoPanner();
+    else this.panner = this.ctx.createGain();
+
+    this.pingGain = this.ctx.createGain(); this.pingGain.gain.value = 0;
+    this.pingOsc.connect(this.filter); this.filter.connect(this.panner);
+    if (this.panner.connect) this.panner.connect(this.pingGain);
+    this.pingGain.connect(this.ctx.destination); this.pingOsc.start();
+  }
+  activate() {
+    if (!this.ctx) this.init();
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    this.isActive = true;
+  }
+  triggerPing(xRatio, yRatio, speed) {
+    if (!this.isActive || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const interval = Math.max(0.05, 0.3 - (speed * 0.01));
+    if (now - this.lastPingTime < interval) return;
+    this.lastPingTime = now;
+
+    if (this.panner.pan) this.panner.pan.setTargetAtTime((xRatio * 2) - 1, now, 0.01);
+    this.filter.frequency.setTargetAtTime(200 + ((1 - yRatio) * 3000), now, 0.01);
+    
+    const scale = [261.63, 293.66, 329.63, 392.00, 440.00];
+    this.pingOsc.frequency.setValueAtTime(scale[Math.floor(Math.random() * scale.length)], now);
+
+    this.pingGain.gain.cancelScheduledValues(now);
+    this.pingGain.gain.setValueAtTime(0, now);
+    this.pingGain.gain.linearRampToValueAtTime(0.3, now + 0.02);
+    this.pingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    
+    if (navigator.vibrate) navigator.vibrate(10);
+  }
+  deactivate() { this.isActive = false; }
+}
+const AudioEngine = new EchoSynth();
+
+// ==========================================
+// WORKFLOW
+// ==========================================
+function navigateTo(viewId) {
+  DOM.views.forEach(v => v.classList.remove('active'));
+  document.getElementById(viewId).classList.add('active');
+  
+  if (viewId === 'view-draw') { AudioEngine.init(); initCanvas(); }
+  if (viewId !== 'view-probe' && State.cameraStream) {
+    State.cameraStream.getTracks().forEach(t => t.stop());
+    State.cameraStream = null;
+  }
+}
+
+// --- INIT ---
+DOM.btnStart.addEventListener('click', async () => {
+  initRoundState();
+  
+  try {
+    State.cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    DOM.video.srcObject = State.cameraStream;
+    navigateTo('view-probe');
+    announce("CAMERA ON.");
+  } catch (err) { alert("CAMERA BROKEN."); }
+});
+
+// --- CAPTURE & FRACTURE ---
+DOM.btnScan.addEventListener('click', async () => {
+  if (!State.cameraStream) return;
+  DOM.btnScan.disabled = true; DOM.scanOverlay.style.display = 'flex';
+  announce("PROCESSING IMAGE.");
+
+  const captureCanvas = document.createElement('canvas');
+  captureCanvas.width = DOM.video.videoWidth; captureCanvas.height = DOM.video.videoHeight;
+  const ctx = captureCanvas.getContext('2d');
+  ctx.filter = 'grayscale(100%) contrast(150%)'; 
+  ctx.drawImage(DOM.video, 0, 0);
+  State.currentRound.photoBase64 = captureCanvas.toDataURL('image/jpeg', 0.8);
+  const base64Data = State.currentRound.photoBase64.split(',')[1];
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: PROMPT_FRACTURE }, { inlineData: { mimeType: "image/jpeg", data: base64Data } }] }] })
+    });
+    if (!response.ok) throw new Error("API Fault");
+    const data = await response.json();
+    const parts = (data.candidates?.[0]?.content?.parts?.[0]?.text || "Void|Void|Void").split('|').map(s => s.trim());
+    State.currentRound.descriptions = [parts[0]||"ERROR", parts[1]||"ERROR", parts[2]||"ERROR"];
+    
+    DOM.definePhotoPreview.src = State.currentRound.photoBase64;
+    DOM.inputDefineTarget.value = '';
+    navigateTo('view-define');
+    announce("IMAGE SAVED. TYPE WHAT IT IS.", true);
+  } catch (error) {
+    State.currentRound.descriptions = ["Smooth surface.", "Cylindrical shape.", "Contains a lever."];
+    DOM.definePhotoPreview.src = State.currentRound.photoBase64;
+    DOM.inputDefineTarget.value = '';
+    navigateTo('view-define');
+    announce("IMAGE SAVED. TYPE WHAT IT IS.", true);
+  } finally {
+    DOM.scanOverlay.style.display = 'none'; DOM.btnScan.disabled = false;
+  }
+});
+
+// --- LOCK TARGET ---
+DOM.btnLockTarget.addEventListener('click', () => {
+  const tName = DOM.inputDefineTarget.value.trim();
+  if (!tName) return alert("TYPE WHAT IT IS FIRST.");
+  
+  State.currentRound.targetName = tName;
+  navigateTo('view-draw');
+  announce("PASS THE PHONE.", true);
+});
+
+// --- AUDIO CONTROLS ---
+DOM.audioBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const index = parseInt(btn.getAttribute('data-index'));
+    DOM.audioBtns.forEach(b => b.classList.remove('playing'));
+    btn.classList.add('playing');
+    speakAudio(State.currentRound.descriptions[index], () => { btn.classList.remove('playing'); });
+  });
+});
+
+// --- CANVAS ---
+let drawCtx, isDrawing = false, lastPt = { x: 0, y: 0, time: 0 };
+function initCanvas() {
+  const container = DOM.canvas.parentElement;
+  DOM.canvas.width = container.clientWidth; DOM.canvas.height = container.clientHeight;
+  drawCtx = DOM.canvas.getContext('2d');
+  drawCtx.fillStyle = '#FFFFFF'; drawCtx.fillRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+  drawCtx.strokeStyle = '#000000'; drawCtx.lineWidth = 10; drawCtx.lineCap = 'square';
+
+  const start = (e) => { e.preventDefault(); isDrawing = true; lastPt = getPointerPos(e); drawCtx.beginPath(); drawCtx.moveTo(lastPt.x, lastPt.y); AudioEngine.activate(); };
+  const move = (e) => {
+    if(!isDrawing) return; e.preventDefault(); const pt = getPointerPos(e);
+    drawCtx.lineTo(pt.x, pt.y); drawCtx.stroke();
+    const dt = pt.time - lastPt.time;
+    const speed = dt > 0 ? Math.sqrt((pt.x-lastPt.x)**2 + (pt.y-lastPt.y)**2) / dt : 0;
+    AudioEngine.triggerPing(pt.x / DOM.canvas.width, pt.y / DOM.canvas.height, speed);
+    lastPt = pt;
+  };
+  const end = () => { if(!isDrawing) return; isDrawing = false; drawCtx.closePath(); AudioEngine.deactivate(); };
+  DOM.canvas.onmousedown = start; DOM.canvas.onmousemove = move; DOM.canvas.onmouseup = end; DOM.canvas.onmouseout = end;
+  DOM.canvas.addEventListener('touchstart', start, {passive: false}); DOM.canvas.addEventListener('touchmove', move, {passive: false}); DOM.canvas.addEventListener('touchend', end);
+}
+function getPointerPos(e) {
+  const r = DOM.canvas.getBoundingClientRect();
+  const cX = e.touches ? e.touches[0].clientX : e.clientX;
+  const cY = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: cX - r.left, y: cY - r.top, time: Date.now() };
+}
+
+// --- TRANSMIT STROKES (SECOND ORDER) ---
+DOM.btnDoneDrawing.addEventListener('click', async () => {
+  window.speechSynthesis.cancel(); AudioEngine.deactivate();
+  State.currentRound.drawingBase64 = DOM.canvas.toDataURL('image/jpeg', 1.0);
+  DOM.btnDoneDrawing.disabled = true; DOM.drawOverlay.style.display = 'flex';
+  
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: PROMPT_SECOND_ORDER }, { inlineData: { mimeType: "image/jpeg", data: State.currentRound.drawingBase64.split(',')[1] } }] }] })
+    });
+    if (!response.ok) throw new Error("API Fault");
+    const data = await response.json();
+    State.currentRound.aiGuess = data.candidates?.[0]?.content?.parts?.[0]?.text || "UNKNOWN";
+  } catch (error) { State.currentRound.aiGuess = "ERROR"; } 
+  finally {
+    DOM.drawOverlay.style.display = 'none'; DOM.btnDoneDrawing.disabled = false;
+    DOM.inputGuess.value = ''; 
+    DOM.guessDrawingPreview.src = State.currentRound.drawingBase64;
+    navigateTo('view-guess'); announce("TIME TO GUESS.");
+  }
+});
+
+// --- OBSERVER INPUT & REVEAL ---
+DOM.btnSubmitGuess.addEventListener('click', () => {
+  const guess = DOM.inputGuess.value.trim();
+  if (!guess) return alert("INPUT REQUIRED");
+  State.currentRound.humanGuess = guess;
+  
+  DOM.revealPhoto.src = State.currentRound.photoBase64;
+  DOM.revealDrawing.src = State.currentRound.drawingBase64;
+  DOM.revealTargetDef.innerText = State.currentRound.targetName.toUpperCase();
+  DOM.revealAiGuess.innerText = State.currentRound.aiGuess.toUpperCase();
+  DOM.revealHumanGuess.innerText = guess.toUpperCase();
+  
+  // Reset score buttons
+  DOM.btnScoreAi.disabled = false; DOM.btnScoreAi.innerText = "RIGHT (+2)";
+  DOM.btnScoreHuman.disabled = false; DOM.btnScoreHuman.innerText = "RIGHT (+1)";
+
+  if (State.currentFrame >= MAX_FRAMES) {
+    DOM.btnNextFrame.innerText = "FINISH GAME";
+  } else {
+    DOM.btnNextFrame.innerText = "NEXT ROUND";
+  }
+
+  navigateTo('view-reveal');
+  announce("SEE WHO WAS RIGHT.");
+});
+
+// --- SCORING LOGIC ---
+DOM.btnScoreAi.addEventListener('click', () => {
+  if (State.currentRound.aiPts > 0) return;
+  State.currentRound.aiPts = 2; State.score += 2; saveState(); updateHUD();
+  DOM.btnScoreAi.disabled = true; DOM.btnScoreAi.innerText = "SCORED";
+});
+
+DOM.btnScoreHuman.addEventListener('click', () => {
+  if (State.currentRound.humanPts > 0) return;
+  State.currentRound.humanPts = 1; State.score += 1; saveState(); updateHUD();
+  DOM.btnScoreHuman.disabled = true; DOM.btnScoreHuman.innerText = "SCORED";
+});
+
+// --- ADVANCE FRAME / SCORECARD ---
+DOM.btnNextFrame.addEventListener('click', () => {
+  // Push round to frames
+  State.frames.push({...State.currentRound});
+  
+  // Save to archive
+  State.archive.unshift({...State.currentRound, id: Date.now()});
+  if (State.archive.length > 30) State.archive = State.archive.slice(0, 30);
+  
+  saveState();
+
+  if (State.currentFrame >= MAX_FRAMES) {
+    buildScorecard();
+    navigateTo('view-scorecard');
+  } else {
+    State.currentFrame++;
+    saveState();
+    updateHUD();
+    navigateTo('view-home');
+  }
+});
+
+function buildScorecard() {
+  DOM.scoreMatrix.innerHTML = `
+    <div class="score-hdr">ROUND</div>
+    <div class="score-hdr">TARGET</div>
+    <div class="score-hdr">PTS</div>
+  `;
+  
+  State.frames.forEach((fr, idx) => {
+    const pts = fr.aiPts + fr.humanPts;
+    DOM.scoreMatrix.innerHTML += `
+      <div class="score-cell">${idx + 1}</div>
+      <div class="score-cell" style="font-size:0.8rem; text-align:left;">${fr.targetName}</div>
+      <div class="score-cell">${pts}</div>
+    `;
+  });
+  
+  DOM.receiptTotalScore.innerText = State.score;
+}
+
+// --- CYCLE COMPLETE & EXPORT ---
+DOM.btnRestart.addEventListener('click', () => {
+  State.score = 0; State.currentFrame = 1; State.frames = []; 
+  saveState();
+  updateHUD();
+  navigateTo('view-home');
+});
+
+// --- FULL TICKET EXPORT LOGIC ---
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  for(let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + ' ';
+    const metrics = ctx.measureText(testLine);
+    const testWidth = metrics.width;
+    if (testWidth > maxWidth && n > 0) {
+      ctx.fillText(line, x, y);
+      line = words[n] + ' ';
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, x, y);
+  return y + lineHeight;
+}
+
+async function exportTickets(rounds, filename, isFinalReceipt = false) {
+  const loadImage = (src) => new Promise(res => { const img = new Image(); img.onload = () => res(img); img.src = src; });
+
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = 640; 
+  tempCanvas.height = 200 + (rounds.length * 800) + (isFinalReceipt ? 150 : 0);
+  const ctx = tempCanvas.getContext('2d');
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+  ctx.fillStyle = '#000000';
+  
+  let y = 40;
+  ctx.font = '900 28px Courier New';
+  ctx.fillText('ELEPHANT_OS // RECEIPT', 20, y);
+  y += 20;
+  ctx.fillRect(20, y, 600, 8);
+  y += 40;
+
+  for (let i = 0; i < rounds.length; i++) {
+    const fr = rounds[i];
+    ctx.font = '900 20px Courier New';
+    ctx.fillText(`ROUND: ${isFinalReceipt ? (i+1) : 'PAST GAME'} | TARGET: ${fr.targetName.toUpperCase()}`, 20, y);
+    y += 30;
+
+    ctx.font = '900 16px Courier New';
+    ctx.fillText('AI CLUES:', 20, y); y += 24;
+    ctx.font = '16px Courier New';
+    y = wrapText(ctx, `[FEEL]  ${fr.descriptions[0]}`, 20, y, 600, 20); y += 10;
+    y = wrapText(ctx, `[SHAPE] ${fr.descriptions[1]}`, 20, y, 600, 20); y += 10;
+    y = wrapText(ctx, `[USE]   ${fr.descriptions[2]}`, 20, y, 600, 20); y += 20;
+
+    if (fr.photoBase64 && fr.drawingBase64) {
+      try {
+        const img1 = await loadImage(fr.photoBase64);
+        const img2 = await loadImage(fr.drawingBase64);
+        
+        ctx.filter = 'grayscale(100%) contrast(150%)';
+        ctx.drawImage(img1, 20, y, 290, 290);
+        ctx.drawImage(img2, 330, y, 290, 290);
+        ctx.filter = 'none'; 
+        
+        ctx.lineWidth = 4;
+        ctx.strokeRect(20, y, 290, 290);
+        ctx.strokeRect(330, y, 290, 290);
+
+        ctx.fillStyle = '#000';
+        ctx.fillRect(20, y, 140, 28);
+        ctx.fillRect(330, y, 140, 28);
+        ctx.fillStyle = '#FFF';
+        ctx.font = '900 14px Courier New';
+        ctx.fillText('THE REAL THING', 28, y + 18);
+        ctx.fillText('THE DRAWING', 338, y + 18);
+        ctx.fillStyle = '#000';
+        
+        y += 310;
+      } catch(e) { console.error(e); }
+    }
+
+    ctx.font = '900 18px Courier New';
+    ctx.fillText(`AI GUESSED     : ${fr.aiGuess.toUpperCase()} (+${fr.aiPts})`, 20, y); y += 30;
+    ctx.fillText(`FRIEND GUESSED : ${fr.humanGuess.toUpperCase()} (+${fr.humanPts})`, 20, y); y += 30;
+    ctx.fillText(`POINTS THIS ROUND: ${fr.aiPts + fr.humanPts}`, 20, y); y += 40;
+
+    ctx.fillRect(20, y, 600, 4);
+    y += 40;
+  }
+
+  if (isFinalReceipt) {
+    ctx.font = '900 24px Courier New';
+    ctx.fillText(`TOTAL GAME SCORE: ${State.score}`, 20, y);
+    y += 40;
+  }
+
+  // Crop to actual used height
+  const finalCanvas = document.createElement('canvas');
+  finalCanvas.width = 640;
+  finalCanvas.height = y;
+  const fCtx = finalCanvas.getContext('2d');
+  
+  fCtx.fillStyle = '#FFFFFF';
+  fCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+  fCtx.drawImage(tempCanvas, 0, 0);
+
+  fCtx.lineWidth = 8;
+  fCtx.strokeRect(0, 0, finalCanvas.width, finalCanvas.height);
+
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = finalCanvas.toDataURL('image/png', 1.0);
+  link.click();
+}
+
+DOM.btnExportReceipt.addEventListener('click', async () => {
+  const originalText = DOM.btnExportReceipt.innerText;
+  DOM.btnExportReceipt.innerText = "GENERATING TICKET...";
+  DOM.btnExportReceipt.disabled = true;
+  
+  await exportTickets(State.frames, `elephant_os_final_receipt_${Date.now()}.png`, true);
+  
+  DOM.btnExportReceipt.innerText = originalText;
+  DOM.btnExportReceipt.disabled = false;
+});
+
+window.exportSingleTicket = async function(id) {
+  const item = State.archive.find(fr => fr.id === id);
+  if (!item) return;
+  await exportTickets([item], `elephant_os_ticket_${id}.png`, false);
+};
+
+// --- ARCHIVE LOGIC ---
+function renderArchive() {
+  DOM.archiveList.innerHTML = '';
+  if (State.archive.length === 0) {
+    DOM.archiveList.innerHTML = '<p style="text-align:center;">PAST GAMES EMPTY.</p>';
+    return;
+  }
+  
+  State.archive.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'archive-item';
+    el.innerHTML = `
+      <div class="archive-header">
+        <span>TARGET: ${item.targetName.toUpperCase()}</span>
+        <span>PTS: ${item.aiPts + item.humanPts}</span>
+      </div>
+      <div style="display:flex; border-bottom: 4px solid var(--border);">
+        <img src="${item.photoBase64}" style="width:50%; aspect-ratio:1; object-fit:cover; border-right: 4px solid var(--border); filter:grayscale(100%);">
+        <img src="${item.drawingBase64}" style="width:50%; aspect-ratio:1; object-fit:cover; filter:grayscale(100%);">
+      </div>
+      <div class="archive-body">
+        <span class="mono-text" style="font-size:0.8rem;">AI GUESSED: ${item.aiGuess.toUpperCase()}</span>
+        <span class="mono-text" style="font-size:0.8rem;">FRIEND GUESSED: ${item.humanGuess.toUpperCase()}</span>
+        <button class="btn-primary" style="margin-top: 8px; padding: 12px; font-size: 0.9rem;" onclick="exportSingleTicket(${item.id})">DOWNLOAD RECEIPT (PNG)</button>
+      </div>
+    `;
+    DOM.archiveList.appendChild(el);
+  });
+}
+
+DOM.btnViewArchive.addEventListener('click', () => {
+  renderArchive();
+  navigateTo('view-archive');
+});
+
+DOM.btnArchiveHome.addEventListener('click', () => {
+  navigateTo('view-home');
+});
+
+// --- BOOTSTRAP CHECK ---
+if (State.currentFrame > MAX_FRAMES) {
+  buildScorecard();
+  navigateTo('view-scorecard');
+}
+</script>
+</body>
+</html>
