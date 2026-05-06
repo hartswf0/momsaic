@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ORAMICS - OPERATIONAL PRAGMATIST</title>
+  <style>
+    /* 
+     * PHASE 01: ABSOLUTE CONTRAST & TOPOGRAPHY 
+     * Force absolute white and black palette. Destroy all mid-tones.
+     */
+    :root {
+      --black: #000000;
+      --white: #FFFFFF;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      /* Frictionless glass mandate */
+      touch-action: none; 
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      font-family: ui-monospace, 'Courier New', Courier, monospace;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: -0.5px;
+      /* Eradicate soft geometry */
+      border-radius: 0 !important; 
+      box-shadow: none !important; 
+    }
+
+    /* EXPLICIT HEIGHT LAW */
+    html, body {
+      width: 100vw;
+      height: 100dvh;
+      background-color: var(--white);
+      color: var(--black);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* STRUCTURAL ZONES */
+    .zone {
+      border-bottom: 2px solid var(--black);
+      flex-shrink: 0;
+    }
+    .zone:last-child {
+      border-bottom: none;
+    }
+
+    /* M0: ONE LINE HEADER */
+    #M0_HEADER {
+      height: 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 8px;
+      font-size: 14px;
+      background-color: var(--white);
+      z-index: 10;
+    }
+
+    /* M1: OPTICAL FILM FIELD */
+    #M1_FILM_FIELD {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background-color: var(--white);
+    }
+
+    .film-track {
+      flex: 1;
+      position: relative;
+      border-bottom: 2px solid var(--black);
+      /* RIGID DOTTED SYNCHRONIZATION MATRIX */
+      background-image: radial-gradient(circle, var(--black) 1px, transparent 1px);
+      background-size: 8px 16px;
+      background-position: left center;
+      overflow: hidden;
+    }
+    .film-track:last-child {
+      border-bottom: none;
+    }
+
+    .track-label {
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-color: var(--black);
+      color: var(--white);
+      padding: 2px 6px;
+      font-size: 11px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    canvas.film-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+      cursor: crosshair;
+      image-rendering: pixelated;
+    }
+
+    #READHEAD {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 2px;
+      background-color: var(--white);
+      mix-blend-mode: difference;
+      z-index: 20;
+      pointer-events: none;
+      display: none;
+    }
+
+    /* M2: THIN ORAM BUS STRIP */
+    #M2_BUS_STRIP {
+      height: 24px;
+      display: flex;
+      align-items: center;
+      padding: 0;
+      font-size: 11px;
+      background-color: var(--white);
+    }
+
+    .bus-cell {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      border-right: 2px solid var(--black);
+    }
+    .bus-cell:last-child {
+      border-right: none;
+      flex-grow: 1;
+      justify-content: flex-end;
+    }
+
+    #LIVE_DOT {
+      width: 8px;
+      height: 8px;
+      border: 2px solid var(--black);
+      background-color: var(--white);
+      margin-right: 6px;
+    }
+    #LIVE_DOT.active {
+      background-color: var(--black);
+    }
+
+    /* M3: DOCKED ACTION CELLS (BRUTALIST COMMAND LEDGER) */
+    #M3_ACTION_CELLS {
+      height: 80px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      background-color: var(--black);
+      gap: 2px; /* Creates inner hard borders */
+    }
+
+    .cmd-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--white);
+      color: var(--black);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .cmd-btn.active {
+      background-color: var(--black);
+      color: var(--white);
+    }
+
+    /* M4: BINDING LEDGER (BASE ANCHOR) */
+    #M4_LEDGER_SLIP {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      font-size: 12px;
+      line-height: 1.2;
+      background-color: var(--white);
+      color: var(--black);
+      cursor: pointer;
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+
+    #M4_LEDGER_SLIP.inverted {
+      background-color: var(--black);
+      color: var(--white);
+    }
+
+    #M4_LEDGER_SLIP.fault {
+      background-color: var(--black);
+      color: var(--white);
+      animation: fault-pulse 0.8s infinite step-end;
+    }
+
+    @keyframes fault-pulse {
+      0%, 100% { background-color: var(--black); color: var(--white); }
+      50% { background-color: var(--white); color: var(--black); }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="M0_HEADER" class="zone">
+    <span>ORAMICS SYNTHESIS</span>
+    <span id="PLAY_STATE">HALTED</span>
+  </div>
+
+  <div id="M1_FILM_FIELD" class="zone">
+    <div id="READHEAD"></div>
+    <div class="film-track" id="TRACK_PITCH">
+      <div class="track-label">PITCH_FLOAT32</div>
+      <canvas id="CANVAS_PITCH" class="film-canvas"></canvas>
+    </div>
+    <div class="film-track" id="TRACK_VOLUME">
+      <div class="track-label">VOLUME_FLOAT32</div>
+      <canvas id="CANVAS_VOLUME" class="film-canvas"></canvas>
+    </div>
+    <div class="film-track" id="TRACK_REVERB">
+      <div class="track-label">REVERB_FLOAT32</div>
+      <canvas id="CANVAS_REVERB" class="film-canvas"></canvas>
+    </div>
+  </div>
+
+  <div id="M2_BUS_STRIP" class="zone">
+    <div class="bus-cell"><div id="LIVE_DOT"></div> BUS</div>
+    <div class="bus-cell" id="BUS_IDX">IDX: 0000</div>
+    <div class="bus-cell" id="BUS_VER">VER: 0</div>
+    <div class="bus-cell" id="BUS_FLT">SYS: OK</div>
+  </div>
+
+  <div id="M3_ACTION_CELLS" class="zone">
+    <div class="cmd-btn" id="CMD_RUN">RUN</div>
+    <div class="cmd-btn" id="CMD_CLR">CLEAR</div>
+    <div class="cmd-btn" id="CMD_RESYNC">RESYNC</div>
+    <div class="cmd-btn" id="CMD_ARM_PITCH">ARM PITCH</div>
+    <div class="cmd-btn" id="CMD_ARM_VOLUME">ARM VOL</div>
+    <div class="cmd-btn" id="CMD_ARM_REVERB">ARM RVB</div>
+  </div>
+
+  <div id="M4_LEDGER_SLIP">
+    AUDIO CONTEXT LOCKED. AWAITING RUN INSTRUCTION.
+  </div>
+
+  <script>
+    /**
+     * ORAMICS ARCHITECTURE - THE OPERATIONAL PRAGMATIST
+     * Employs strictly decoupled AudioWorklet, absolute physical buffer mapping, 
+     * and typed ORAM_BUS. Executes entirely in binary B/W.
+     */
+
+    const CONSTANTS = {
+      BUFFER_SIZE: 1024,
+      STRIPS: ['PITCH', 'VOLUME', 'REVERB']
+    };
+
+    // ==========================================
+    // AUDIO ENGINE (INLINE BLOB SURVIVAL)
+    // ==========================================
+    const workletCode = `
+      class OramProcessor extends AudioWorkletProcessor {
+        constructor() {
+          super();
+          this.bufferSize = ${CONSTANTS.BUFFER_SIZE};
+          this.pitch = new Float32Array(this.bufferSize).fill(0.2);
+          this.volume = new Float32Array(this.bufferSize).fill(0.0);
+          this.reverb = new Float32Array(this.bufferSize).fill(0.0);
+          
+          this.playing = false;
+          this.phase = 0;
+          this.oscPhase = 0;
+          
+          // Reverb Delay Buffer (0.35s physical emulation)
+          this.delayLine = new Float32Array(sampleRate);
+          this.delayIndex = 0;
+          this.frameCount = 0;
+
+          this.port.onmessage = (e) => {
+            const msg = e.data;
+            if (msg.type === 'PLAY_SYNC') {
+              this.playing = msg.playing;
+            } else if (msg.type === 'BUFFER_PATCH') {
+              const target = msg.stripId === 'PITCH' ? this.pitch :
+                             msg.stripId === 'VOLUME' ? this.volume : this.reverb;
+              // Delta mandate: Directly apply touch mutation to memory
+              for (let i = 0; i < msg.values.length; i++) {
+                let idx = (msg.startIndex + i) % this.bufferSize;
+                if (idx < 0) idx += this.bufferSize;
+                target[idx] = msg.values[i];
+              }
+            } else if (msg.type === 'FULL_SYNC') {
+              if (msg.stripId === 'PITCH') this.pitch.set(msg.values);
+              if (msg.stripId === 'VOLUME') this.volume.set(msg.values);
+              if (msg.stripId === 'REVERB') this.reverb.set(msg.values);
+            }
+          };
+        }
+
+        process(inputs, outputs) {
+          const channel = outputs[0][0];
+          if (!channel) return true;
+
+          if (!this.playing) {
+            for (let i = 0; i < channel.length; i++) channel[i] = 0;
+            return true;
+          }
+
+          // Mechanical Rotation (2.0s timeline cycle)
+          const step = this.bufferSize / (sampleRate * 2.0);
+
+          for (let i = 0; i < channel.length; i++) {
+            let readIdx = Math.floor(this.phase);
+            let pVal = this.pitch[readIdx];
+            let vVal = this.volume[readIdx];
+            let rVal = this.reverb[readIdx];
+
+            // 50Hz to 1250Hz explicit spatial mapping
+            let freq = 50 + (pVal * 1200);
+            this.oscPhase += freq / sampleRate;
+            if (this.oscPhase > 1.0) this.oscPhase -= 1.0;
+
+            // Brutalist Sawtooth Generator (Preserves raw mechanical jitter)
+            let dry = (this.oscPhase * 2.0 - 1.0) * vVal;
+
+            // Simple Tape Delay Routing
+            let delaySamples = Math.floor(sampleRate * 0.35);
+            let readDelayIdx = this.delayIndex - delaySamples;
+            if (readDelayIdx < 0) readDelayIdx += this.delayLine.length;
+            
+            let wet = this.delayLine[readDelayIdx] * rVal * 0.85;
+            let outputSample = dry + wet;
+
+            // Write back to delay with slight analog feedback
+            this.delayLine[this.delayIndex] = dry + (wet * 0.4);
+            this.delayIndex = (this.delayIndex + 1) % this.delayLine.length;
+
+            // Hard clip execution
+            channel[i] = Math.max(-1, Math.min(1, outputSample));
+
+            this.phase += step;
+            if (this.phase >= this.bufferSize) this.phase -= this.bufferSize;
+          }
+
+          // PLAYHEAD_SYNC Dispatch (Throttled for thread survival)
+          this.frameCount++;
+          if (this.frameCount % 128 === 0) {
+            this.port.postMessage({ type: 'PLAYHEAD_SYNC', index: Math.floor(this.phase) });
+          }
+
+          return true;
+        }
+      }
+      registerProcessor('oram-processor', OramProcessor);
+    `;
+
+    // ==========================================
+    // STATE & ORAM BUS HARNESS
+    // ==========================================
+    const STATE = {
+      buffers: {
+        PITCH: new Float32Array(CONSTANTS.BUFFER_SIZE).fill(0.2),
+        VOLUME: new Float32Array(CONSTANTS.BUFFER_SIZE).fill(0.0),
+        REVERB: new Float32Array(CONSTANTS.BUFFER_SIZE).fill(0.0)
+      },
+      armedStrip: 'PITCH',
+      playing: false,
+      version: 0,
+      audioReady: false,
+      fault: null
+    };
+
+    let audioCtx, workletNode, dotTimer;
+
+    const OramBus = {
+      listeners: [],
+      subscribe(fn) { this.listeners.push(fn); },
+      dispatch(msg) {
+        if (!msg || !msg.type) return;
+
+        if (msg.type === 'FAULT_SYNC') STATE.fault = msg.faultCode;
+
+        // Visual bus pulse
+        const dot = document.getElementById('LIVE_DOT');
+        dot.classList.add('active');
+        clearTimeout(dotTimer);
+        dotTimer = setTimeout(() => dot.classList.remove('active'), 50);
+
+        this.listeners.forEach(fn => fn(msg));
+      }
+    };
+
+    // ==========================================
+    // DRAW ENGINE
+    // ==========================================
+    const DrawEngine = {
+      canvases: {},
+      ctxs: {},
+      isDrawing: false,
+      lastIdx: -1,
+
+      init() {
+        CONSTANTS.STRIPS.forEach(id => {
+          const cvs = document.getElementById(`CANVAS_${id}`);
+          this.canvases[id] = cvs;
+          this.ctxs[id] = cvs.getContext('2d', { willReadFrequently: true });
+          
+          cvs.addEventListener('pointerdown', (e) => this.start(e, id));
+          cvs.addEventListener('pointermove', (e) => this.move(e, id));
+          cvs.addEventListener('pointerup', () => this.stop());
+          cvs.addEventListener('pointercancel', () => this.stop());
+        });
+
+        window.addEventListener('resize', () => this.resize());
+        this.resize();
+      },
+
+      resize() {
+        CONSTANTS.STRIPS.forEach(id => {
+          const cvs = this.canvases[id];
+          const rect = cvs.parentElement.getBoundingClientRect();
+          cvs.width = rect.width;
+          cvs.height = rect.height;
+          this.ctxs[id].imageSmoothingEnabled = false; // Destroy algorithmic approximation
+          this.redraw(id);
+        });
+      },
+
+      start(e, id) {
+        if (STATE.armedStrip !== id) {
+          OramBus.dispatch({ type: 'FAULT_SYNC', faultCode: `STRIP ${id} NOT ARMED` });
+          return;
+        }
+        this.isDrawing = true;
+        this.lastIdx = -1;
+        this.canvases[id].setPointerCapture(e.pointerId);
+        
+        // Perspective Camera Physics: Anchor to ground
+        document.getElementById('M4_LEDGER_SLIP').scrollIntoView();
+        
+        this.move(e, id);
+      },
+
+      move(e, id) {
+        if (!this.isDrawing) return;
+        const cvs = this.canvases[id];
+        const rect = cvs.getBoundingClientRect();
+        
+        // Literal physical coordinate extraction
+        let x = Math.max(0, Math.min(e.clientX - rect.left, rect.width - 1));
+        let y = Math.max(0, Math.min(e.clientY - rect.top, rect.height - 1));
+        
+        let idx = Math.floor((x / rect.width) * CONSTANTS.BUFFER_SIZE);
+        // Clamp to buffer index boundaries
+        idx = Math.max(0, Math.min(idx, CONSTANTS.BUFFER_SIZE - 1));
+        let val = 1.0 - (y / rect.height);
+        
+        const buf = STATE.buffers[id];
+        
+        // Delta Compilation Patching (Strictly linear, retains tremor)
+        if (this.lastIdx !== -1 && Math.abs(idx - this.lastIdx) > 1) {
+          let startI = Math.min(this.lastIdx, idx);
+          let endI = Math.max(this.lastIdx, idx);
+          let startV = this.lastIdx < idx ? buf[this.lastIdx] : val;
+          let endV = this.lastIdx < idx ? val : buf[this.lastIdx];
+          
+          let patch = new Float32Array(endI - startI + 1);
+          for (let i = startI; i <= endI; i++) {
+            let t = (i - startI) / (endI - startI);
+            let v = startV + t * (endV - startV);
+            buf[i] = v;
+            patch[i - startI] = v;
+          }
+          STATE.version++;
+          OramBus.dispatch({ type: 'BUFFER_PATCH', stripId: id, startIndex: startI, values: patch });
+        } else {
+          buf[idx] = val;
+          STATE.version++;
+          OramBus.dispatch({ type: 'BUFFER_PATCH', stripId: id, startIndex: idx, values: [val] });
+        }
+
+        this.lastIdx = idx;
+        this.redraw(id);
+        OramBus.dispatch({ type: 'DRAW_ACTIVE', stripId: id, index: idx });
+      },
+
+      stop() {
+        this.isDrawing = false;
+        OramBus.dispatch({ type: 'DRAW_STOP' });
+      },
+
+      redraw(id) {
+        const cvs = this.canvases[id];
+        const ctx = this.ctxs[id];
+        const buf = STATE.buffers[id];
+        const w = cvs.width;
+        const h = cvs.height;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#000000';
+        
+        // Raw brutalist bar plotting
+        for (let i = 0; i < CONSTANTS.BUFFER_SIZE; i++) {
+          let x = (i / CONSTANTS.BUFFER_SIZE) * w;
+          let barW = Math.max(1, w / CONSTANTS.BUFFER_SIZE);
+          let barH = buf[i] * h;
+          // Absolute vertical tracking
+          ctx.fillRect(Math.floor(x), Math.floor(h - barH), Math.ceil(barW), Math.ceil(barH));
+        }
+      }
+    };
+
+    // ==========================================
+    // UI CONTROLLER & BINDINGS
+    // ==========================================
+    const UIController = {
+      init() {
+        // Core Commands
+        document.getElementById('CMD_RUN').addEventListener('pointerdown', async () => {
+          if (!STATE.audioReady) await this.bootAudio();
+          STATE.playing = !STATE.playing;
+          if (STATE.playing && audioCtx.state === 'suspended') await audioCtx.resume();
+          
+          OramBus.dispatch({ type: 'PLAY_SYNC', playing: STATE.playing });
+          if (workletNode) workletNode.port.postMessage({ type: 'PLAY_SYNC', playing: STATE.playing });
+        });
+
+        document.getElementById('CMD_CLR').addEventListener('pointerdown', () => {
+          let fillVal = STATE.armedStrip === 'PITCH' ? 0.2 : 0.0;
+          STATE.buffers[STATE.armedStrip].fill(fillVal);
+          STATE.version++;
+          
+          OramBus.dispatch({ type: 'BUFFER_PATCH', stripId: STATE.armedStrip, startIndex: 0, values: Array.from(STATE.buffers[STATE.armedStrip]) });
+          DrawEngine.redraw(STATE.armedStrip);
+          OramBus.dispatch({ type: 'LEDGER_MSG', text: `${STATE.armedStrip} ANNIHILATED.`, inverted: true });
+        });
+
+        document.getElementById('CMD_RESYNC').addEventListener('pointerdown', async () => {
+          if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
+          OramBus.dispatch({ type: 'FAULT_SYNC', faultCode: null });
+          if (workletNode) {
+            CONSTANTS.STRIPS.forEach(id => {
+              workletNode.port.postMessage({ type: 'FULL_SYNC', stripId: id, values: STATE.buffers[id] });
+            });
+          }
+          OramBus.dispatch({ type: 'LEDGER_MSG', text: `CONTRACT RESTORED.` });
+          DrawEngine.resize();
+        });
+
+        // Strip Arming Matrix
+        CONSTANTS.STRIPS.forEach(id => {
+          document.getElementById(`CMD_ARM_${id}`).addEventListener('pointerdown', () => {
+            STATE.armedStrip = id;
+            OramBus.dispatch({ type: 'STRIP_SELECT', stripId: id });
+          });
+        });
+
+        // Ledger fault reset & Ground Anchor Relay
+        document.getElementById('M4_LEDGER_SLIP').addEventListener('pointerdown', () => {
+          if (STATE.fault) {
+            document.getElementById('CMD_RESYNC').dispatchEvent(new Event('pointerdown'));
+          } else {
+            document.getElementById(`TRACK_${STATE.armedStrip}`).scrollIntoView({behavior: "smooth", block: "end"});
+          }
+        });
+
+        // Bus subscriptions
+        OramBus.subscribe(msg => this.handleBus(msg));
+
+        // Initial Hardware Set
+        OramBus.dispatch({ type: 'STRIP_SELECT', stripId: 'PITCH' });
+      },
+
+      async bootAudio() {
+        if (STATE.audioReady) return;
+        try {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const blob = new Blob([workletCode], { type: 'application/javascript' });
+          await audioCtx.audioWorklet.addModule(URL.createObjectURL(blob));
+          workletNode = new AudioWorkletNode(audioCtx, 'oram-processor');
+          workletNode.connect(audioCtx.destination);
+          
+          workletNode.port.onmessage = (e) => OramBus.dispatch(e.data);
+          STATE.audioReady = true;
+          
+          CONSTANTS.STRIPS.forEach(id => {
+            workletNode.port.postMessage({ type: 'FULL_SYNC', stripId: id, values: STATE.buffers[id] });
+          });
+        } catch (err) {
+          OramBus.dispatch({ type: 'FAULT_SYNC', faultCode: 'WORKLET_FAILED' });
+        }
+      },
+
+      handleBus(msg) {
+        if (msg.type === 'PLAYHEAD_SYNC') {
+          document.getElementById('BUS_IDX').innerText = `IDX: ${msg.index.toString().padStart(4, '0')}`;
+          const readhead = document.getElementById('READHEAD');
+          const w = document.getElementById('M1_FILM_FIELD').clientWidth;
+          readhead.style.transform = `translateX(${(msg.index / CONSTANTS.BUFFER_SIZE) * w}px)`;
+        }
+        else if (msg.type === 'PLAY_SYNC') {
+          const btn = document.getElementById('CMD_RUN');
+          btn.classList.toggle('active', msg.playing);
+          btn.innerText = msg.playing ? 'STOP' : 'RUN';
+          document.getElementById('PLAY_STATE').innerText = msg.playing ? 'CYCLING' : 'HALTED';
+          document.getElementById('READHEAD').style.display = msg.playing ? 'block' : 'none';
+          this.setLedger(msg.playing ? 'READHEAD CONVERTS FILM INTO SOUND.' : 'MECHANICAL LOOP HALTED.');
+        }
+        else if (msg.type === 'STRIP_SELECT') {
+          CONSTANTS.STRIPS.forEach(id => {
+            document.getElementById(`CMD_ARM_${id}`).classList.toggle('active', id === msg.stripId);
+            // Highlight track explicitly
+            document.getElementById(`TRACK_${id}`).style.opacity = (id === msg.stripId) ? '1' : '0.4';
+          });
+          this.setLedger(`${msg.stripId} BOUND. TOUCH WILL OVERWRITE BUFFER.`);
+        }
+        else if (msg.type === 'BUFFER_PATCH') {
+          if (workletNode) workletNode.port.postMessage(msg);
+          document.getElementById('BUS_VER').innerText = `VER: ${STATE.version}`;
+        }
+        else if (msg.type === 'DRAW_ACTIVE') {
+          this.setLedger(`HAND IS OVERWRITING ${msg.stripId} AT ${msg.index}`, true);
+        }
+        else if (msg.type === 'DRAW_STOP') {
+          this.setLedger(`${STATE.armedStrip} BOUND. TOUCH WILL OVERWRITE BUFFER.`);
+        }
+        else if (msg.type === 'FAULT_SYNC') {
+          const flt = document.getElementById('BUS_FLT');
+          if (msg.faultCode) {
+            flt.innerText = `SYS: ERR`;
+            this.setLedger(`FAULT: ${msg.faultCode} (TAP TO RESYNC)`, false, true);
+          } else {
+            flt.innerText = `SYS: OK`;
+            this.setLedger(`${STATE.armedStrip} BOUND. TOUCH WILL OVERWRITE BUFFER.`);
+          }
+        }
+        else if (msg.type === 'LEDGER_MSG') {
+          this.setLedger(msg.text, msg.inverted);
+          if (msg.inverted) {
+            setTimeout(() => {
+              if(!DrawEngine.isDrawing) this.setLedger(`${STATE.armedStrip} BOUND. TOUCH WILL OVERWRITE BUFFER.`);
+            }, 800);
+          }
+        }
+      },
+
+      setLedger(text, inverted = false, fault = false) {
+        const l = document.getElementById('M4_LEDGER_SLIP');
+        l.innerText = text;
+        l.className = '';
+        if (fault) l.classList.add('fault');
+        else if (inverted) l.classList.add('inverted');
+      }
+    };
+
+    // EXECUTION BOOT SEQUENCE
+    window.onload = () => {
+      DrawEngine.init();
+      UIController.init();
+    };
+  </script>
+</body>
+</html>
