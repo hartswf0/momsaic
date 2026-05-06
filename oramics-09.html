@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+<meta name="theme-color" content="#ffffff" />
+<title>ORAMICS PRO — LINE SURFACE ENGINE</title>
+<style>
+  :root {
+    --bg:#fff; --ink:#000;
+    --safe-top:env(safe-area-inset-top,0px);
+    --safe-bottom:env(safe-area-inset-bottom,0px);
+    --line:1px solid #000; --fat:2px solid #000;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+    --sans:Arial,Helvetica,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;border-radius:0!important;-webkit-tap-highlight-color:transparent}
+  html,body{position:fixed;inset:0;width:100vw;height:100dvh;overflow:hidden;background:var(--bg);color:var(--ink);touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;font-family:var(--mono)}
+  button{appearance:none;-webkit-appearance:none;font:inherit;color:var(--ink);background:var(--bg);border:var(--line);cursor:pointer}
+  button:focus-visible{outline:2px solid var(--ink);outline-offset:-4px}
+  .machine{width:100%;height:100%;display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+  .header{flex:0 0 auto;padding:calc(6px + var(--safe-top)) 6px 5px;border-bottom:var(--fat);display:flex;align-items:stretch;justify-content:space-between;gap:6px}
+  .brand{display:flex;flex-direction:column;justify-content:center;min-width:0;flex:1 1 auto;padding-right:4px}
+  .title{font-family:var(--sans);font-weight:900;font-size:clamp(20px,6.3vw,36px);line-height:.85;letter-spacing:-.05em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .subtitle{font-size:10px;font-weight:900;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .top-actions{flex:0 0 auto;display:grid;grid-template-columns:96px 110px;gap:6px}
+  .mode-cell,.play-cell{display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 6px;border:var(--fat);font-weight:900;text-transform:uppercase;white-space:nowrap;background:var(--bg);color:var(--ink)}
+  .mode-cell{font-size:12px}.play-cell{font-size:17px}.mode-cell.on,.play-cell.on{background:var(--ink);color:var(--bg)}
+  .play-cell.on{animation:pulsePlay 1.2s infinite alternate}@keyframes pulsePlay{0%{background:#000}100%{background:#444}}
+  .film-deck{flex:1 1 0;position:relative;width:100%;min-height:0;background:var(--bg)}
+  canvas#film{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;touch-action:none}
+  .bus{flex:0 0 24px;display:flex;border-top:var(--fat);border-bottom:var(--line);background:var(--bg)}
+  .bus-cell{display:flex;align-items:center;justify-content:center;border-right:var(--line);font-size:10px;font-weight:900;padding:0 6px;white-space:nowrap}
+  .bus-cell:last-child{border-right:none;flex:1;justify-content:flex-end;min-width:0;overflow:hidden;text-overflow:ellipsis}.bus-cell.live-on{background:var(--ink);color:var(--bg)}
+  .ledger{flex:0 0 34px;display:flex;background:var(--bg);cursor:pointer;border-bottom:var(--fat)}
+  .ledger-tag{width:64px;display:flex;align-items:center;justify-content:center;background:var(--ink);color:var(--bg);font-size:10px;font-weight:900}
+  .ledger-slip{flex:1;display:flex;align-items:center;padding:0 8px;font-size:10px;font-weight:900;text-transform:uppercase;border-left:var(--fat);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.ledger-slip.engaged{background:var(--ink);color:var(--bg)}
+  .commands{flex:0 0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:6px;padding-bottom:max(6px,var(--safe-bottom));background:var(--bg)}
+  .cmd{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:4px 6px;border:var(--fat);min-height:42px;background:var(--bg);color:var(--ink)}
+  .cmd b{font-size:clamp(10px,3.4vw,14px);font-weight:900;text-transform:uppercase;line-height:1.1;letter-spacing:-.5px}.cmd span{font-size:8px;font-weight:900;text-transform:uppercase;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;text-align:left}.cmd.active{background:var(--ink);color:var(--bg)}
+  .modal{display:none;position:absolute;inset:0;z-index:100;background:var(--bg);flex-direction:column;padding:calc(10px + var(--safe-top)) 10px max(10px,var(--safe-bottom)) 10px}.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px}.modal-title{font-weight:900;font-size:20px;text-transform:uppercase;letter-spacing:-1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.modal-close{padding:4px 12px;font-weight:900;font-size:16px;border:var(--fat);background:var(--bg);color:var(--ink)}
+  textarea{flex:1 1 auto;width:100%;border:var(--fat);background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:10px;padding:8px;resize:none;user-select:text;-webkit-user-select:text;touch-action:auto}.modal-actions{flex:0 0 auto;display:flex;gap:10px;margin-top:10px}.modal-action{flex:1;padding:16px;font-weight:900;font-size:16px;border:var(--fat);background:var(--ink);color:var(--bg)}
+  @media(max-width:520px){.top-actions{grid-template-columns:84px 96px}.mode-cell{font-size:11px}.play-cell{font-size:15px}}
+</style>
+</head>
+<body>
+<div class="machine" id="machine">
+  <header class="header">
+    <div class="brand">
+      <h1 class="title">ORAMICS PRO</h1>
+      <p class="subtitle">LINE SURFACE — SONG CURVE CONTROLS THE SOUND</p>
+    </div>
+    <div class="top-actions">
+      <button id="btnMode" class="mode-cell on" type="button">SURFACE</button>
+      <button id="btnPlay" class="play-cell" type="button">► PLAY</button>
+    </div>
+  </header>
+
+  <main class="film-deck" id="filmDeck"><canvas id="film"></canvas></main>
+
+  <section class="bus">
+    <div class="bus-cell" id="busLive">LIVE</div>
+    <div class="bus-cell" id="busIdx">TIME 0:00.0</div>
+    <div class="bus-cell" id="busVer">VER 000</div>
+    <div class="bus-cell" id="busGenome">ROUTE 004</div>
+    <div class="bus-cell" id="busFault">NO SOURCE</div>
+  </section>
+
+  <section class="ledger" id="ledgerRelay">
+    <div class="ledger-tag" id="ledgerTag">SURFACE</div>
+    <div id="ledgerSlip" class="ledger-slip">LINE-SURFACE ENGINE READY. IMPORT MAKES SONG CURVES INTO CONTROL VARIABLES.</div>
+  </section>
+
+  <nav class="commands">
+    <button class="cmd active" data-cmd="DRAW" type="button"><b>DRAW</b><span>WRITE CONTROL VARIABLE</span></button>
+    <button class="cmd" data-cmd="CUT" type="button"><b>CUT</b><span>ZERO CONTROL SPAN</span></button>
+    <button class="cmd" data-cmd="WIPE" type="button"><b>WIPE</b><span>RESET CONTROL LANE</span></button>
+
+    <button class="cmd" data-cmd="ARM" id="btnArm" type="button"><b>ARM: PTCH</b><span>CYCLE CONTROLLER</span></button>
+    <button class="cmd" data-cmd="LIFT" type="button"><b>LIFT</b><span>COPY CONTROL</span></button>
+    <button class="cmd" data-cmd="DROP" type="button"><b>DROP</b><span>PASTE CONTROL</span></button>
+
+    <button class="cmd" data-cmd="PASTE" type="button"><b>PASTE</b><span>CODE</span></button>
+    <button class="cmd" data-cmd="IMPORT" type="button"><b>IMPORT</b><span>SONG → SURFACE</span></button>
+    <button class="cmd" data-cmd="EXPORT" type="button"><b>EXPORT</b><span>.SURFACE JSON</span></button>
+  </nav>
+  <input type="file" id="fileImport" accept=".surface,.json,.bflix,.txt,.mp3,.wav,.ogg,.m4a,.aac,.flac,.mp4,.mov,.webm" style="display:none" />
+</div>
+
+<div id="pasteModal" class="modal">
+  <div class="modal-head"><div class="modal-title">PASTE SURFACE / BFLIX SCRIPT</div><button id="btnCancelPaste" class="modal-close" type="button">X</button></div>
+  <textarea id="pasteInput" spellcheck="false" placeholder="Paste .surface JSON or legacy BFLIX here."></textarea>
+  <div class="modal-actions"><button id="btnLoadPaste" class="modal-action" type="button">LOAD SURFACE</button></div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const FPS = 100;
+  const PIXELS_PER_SECOND = 150;
+  const BASELINES = { PITCH: 0.5, VOLUME: 0.8, SPACE: 0.0, GATE: 1.0 };
+  const STRIPS = [
+    { id:'PITCH', share:0.34, baseline:BASELINES.PITCH },
+    { id:'VOLUME', share:0.26, baseline:BASELINES.VOLUME },
+    { id:'SPACE', share:0.22, baseline:BASELINES.SPACE },
+    { id:'GATE', share:0.18, baseline:BASELINES.GATE }
+  ];
+  const STRIP_ORDER = STRIPS.map(s => s.id);
+  const MODES = ['SURFACE','BYPASS','SYNTH','A/B'];
+
+  const state = {
+    editMode:'DRAW', activeStrip:'PITCH', playbackMode:'SURFACE', running:false,
+    currentTime:0, duration:10, sourcePosition:0,
+    versions:{ PITCH:0, VOLUME:0, SPACE:0, GATE:0 },
+    pen:{ active:false, pointerId:null, x:0, y:0, lastIdx:-1, lastVal:-1, startIdx:-1 },
+    clipboard:null, needsPaint:true, dpr:1, w:1, h:1, lanes:[],
+    source:{ available:false, buffer:null, fileName:'', sampleRate:0, channels:0, duration:0 },
+    genome:{ lanes:0, brightness:null, transient:null, noise:null, width:null },
+    last:{ p:null, v:null, s:null, g:null }
+  };
+
+  let bufferLength = Math.ceil(state.duration * FPS);
+  const buffers = {};
+  STRIPS.forEach(s => buffers[s.id] = new Float32Array(bufferLength).fill(s.baseline));
+
+  const canvas = document.getElementById('film');
+  const ctx = canvas.getContext('2d',{alpha:false,desynchronized:true});
+  const ledgerTag = document.getElementById('ledgerTag');
+  const ledgerSlip = document.getElementById('ledgerSlip');
+  const busIdx = document.getElementById('busIdx');
+  const busVer = document.getElementById('busVer');
+  const busGenome = document.getElementById('busGenome');
+  const busFault = document.getElementById('busFault');
+  const btnMode = document.getElementById('btnMode');
+  const btnPlay = document.getElementById('btnPlay');
+  const btnArm = document.getElementById('btnArm');
+  const strokeTrail = [];
+
+  let audioCtx = null;
+  let startTime = 0;
+  let pauseTime = 0;
+  let raf = 0;
+  let sourceNode = null, sourceFilter = null, sourceGain = null, sourceDelay = null, sourceFeedback = null, sourceWet = null;
+  let synthOsc1 = null, synthOsc2 = null, synthFilter = null, synthGain = null, synthDelay = null, synthFeedback = null, synthWet = null;
+
+  function clamp01(v){return Math.max(0,Math.min(1,v));}
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  function now(){return performance.now();}
+  function padTime(t){const m=Math.floor(t/60);const s=Math.floor(t%60).toString().padStart(2,'0');const d=Math.floor((t%1)*10);return `${m}:${s}.${d}`;}
+  function ensureAudio(){if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); return audioCtx;}
+  function stripFor(id){return STRIPS.find(s=>s.id===id)||STRIPS[0];}
+
+  function setLedger(msg){
+    ledgerTag.textContent = state.playbackMode;
+    ledgerSlip.textContent = msg;
+    ledgerSlip.classList.add('engaged');
+    setTimeout(()=>ledgerSlip.classList.remove('engaged'),150);
+    busVer.textContent = 'VER ' + String(state.versions[state.activeStrip]).padStart(3,'0');
+    busGenome.textContent = 'ROUTE ' + String(4 + state.genome.lanes).padStart(3,'0');
+    busFault.textContent = state.source.available ? 'SOURCE OK' : 'NO SOURCE';
+  }
+
+  function resetBuffers(duration){
+    state.duration = Math.max(0.25, duration || 10);
+    bufferLength = Math.max(1, Math.ceil(state.duration * FPS));
+    STRIPS.forEach(s => buffers[s.id] = new Float32Array(bufferLength).fill(s.baseline));
+    state.currentTime = 0; pauseTime = 0;
+  }
+
+  function resize(){
+    const rect = canvas.parentElement.getBoundingClientRect();
+    if(!rect.width || !rect.height) return;
+    state.dpr = Math.max(1,Math.min(2.5,window.devicePixelRatio||1));
+    state.w = Math.floor(rect.width); state.h = Math.floor(rect.height);
+    canvas.width = Math.floor(state.w*state.dpr); canvas.height = Math.floor(state.h*state.dpr);
+    ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
+    const padY=7,gap=7; let avail=state.h-(padY*2)-(gap*(STRIPS.length-1)); if(avail<50) avail=50;
+    let y=padY;
+    state.lanes = STRIPS.map(strip=>{const h=Math.max(10,Math.floor(avail*strip.share)); const lane={id:strip.id,x:7,y,w:state.w-14,h,baseline:strip.baseline}; y+=h+gap; return lane;});
+    state.needsPaint = true;
+  }
+
+  function laneFor(id){return state.lanes.find(l=>l.id===id)||state.lanes[0];}
+  function getCanvasPoint(ev){const r=canvas.getBoundingClientRect(); return {x:ev.clientX-r.left,y:ev.clientY-r.top};}
+  function getIndexAtX(x){const rx=state.w/2; const t=state.currentTime+(x-rx)/PIXELS_PER_SECOND; return clamp(Math.floor(t*FPS),0,bufferLength-1);}
+  function indexToX(idx){const rx=state.w/2; return rx+((idx/FPS)-state.currentTime)*PIXELS_PER_SECOND;}
+  function yToValue(y,lane,id){const pad=2; const raw=1-((y-(lane.y+pad))/Math.max(1,lane.h-pad*2)); return id==='GATE' ? (clamp01(raw)>0.48?1:0) : clamp01(raw);}
+
+  function surfaceAt(time){
+    const i = clamp(Math.floor(time*FPS),0,bufferLength-1);
+    const p = buffers.PITCH[i] ?? 0.5;
+    const v = buffers.VOLUME[i] ?? 0.8;
+    const s = buffers.SPACE[i] ?? 0;
+    const g = (buffers.GATE[i] ?? 1) > 0.48 ? 1 : 0;
+    const playbackRate = 1.0;
+    const filterHz = 6500 + Math.pow(clamp01(p), 1.5) * 12000 + s * 2000;
+    const gain = g ? Math.max(0.12, Math.pow(clamp01(v), 1.15)) : 0;
+    const wet = clamp01(s) * 0.28;
+    const oscHz = 55 * Math.pow(2, p * 4.25);
+    const synthLayerGain = g ? Math.pow(clamp01(v), 1.8) * 0.08 : 0;
+    return { p, v, s, g, playbackRate, filterHz, gain, wet, oscHz, synthLayerGain };
+  }
+
+  function stopNodes(){
+    const nodes=[sourceNode,sourceFilter,sourceGain,sourceDelay,sourceFeedback,sourceWet,synthOsc1,synthOsc2,synthFilter,synthGain,synthDelay,synthFeedback,synthWet];
+    for(const n of nodes){try{if(n&&typeof n.stop==='function')n.stop();}catch(e){} try{if(n&&typeof n.disconnect==='function')n.disconnect();}catch(e){}}
+    sourceNode=sourceFilter=sourceGain=sourceDelay=sourceFeedback=sourceWet=null;
+    synthOsc1=synthOsc2=synthFilter=synthGain=synthDelay=synthFeedback=synthWet=null;
+    state.last={p:null,v:null,s:null,g:null};
+  }
+
+  function buildSourceSurfaceGraph(){
+    const ac=ensureAudio(); if(!state.source.buffer) return false;
+    sourceNode = ac.createBufferSource(); sourceNode.buffer = state.source.buffer; sourceNode.loop = false;
+    sourceFilter = ac.createBiquadFilter(); sourceFilter.type='lowpass'; sourceFilter.Q.value=0.8;
+    sourceGain = ac.createGain(); sourceGain.gain.value=0.85;
+    sourceDelay = ac.createDelay(2); sourceDelay.delayTime.value=0.28;
+    sourceFeedback = ac.createGain(); sourceFeedback.gain.value=0.38;
+    sourceWet = ac.createGain(); sourceWet.gain.value=0;
+    sourceNode.connect(sourceFilter); sourceFilter.connect(sourceGain); sourceGain.connect(ac.destination);
+    sourceGain.connect(sourceDelay); sourceDelay.connect(sourceFeedback); sourceFeedback.connect(sourceDelay); sourceDelay.connect(sourceWet); sourceWet.connect(ac.destination);
+    sourceNode.onended=()=>{ if(state.running && state.currentTime>=state.duration-0.08) stopPlayback(true); };
+    const offset=clamp(pauseTime,0,Math.max(0,state.source.buffer.duration-0.01));
+    sourceNode.start(0,offset);
+    return true;
+  }
+
+  function buildSynthGraph(){
+    const ac=ensureAudio();
+    synthOsc1=ac.createOscillator(); synthOsc2=ac.createOscillator(); synthFilter=ac.createBiquadFilter(); synthGain=ac.createGain(); synthDelay=ac.createDelay(2); synthFeedback=ac.createGain(); synthWet=ac.createGain();
+    synthOsc1.type='sawtooth'; synthOsc2.type='triangle'; synthFilter.type='lowpass'; synthFilter.Q.value=4.2; synthGain.gain.value=0.45; synthDelay.delayTime.value=0.33; synthFeedback.gain.value=0.55; synthWet.gain.value=0;
+    synthOsc1.connect(synthFilter); synthOsc2.connect(synthFilter); synthFilter.connect(synthGain); synthGain.connect(ac.destination); synthGain.connect(synthDelay); synthDelay.connect(synthFeedback); synthFeedback.connect(synthDelay); synthDelay.connect(synthWet); synthWet.connect(ac.destination);
+    synthOsc1.start(); synthOsc2.start(); return true;
+  }
+
+  function startPlayback(){
+    const ac=ensureAudio(); stopNodes();
+    let ok=false;
+    if((state.playbackMode==='SURFACE'||state.playbackMode==='BYPASS'||state.playbackMode==='A/B') && state.source.available) ok=buildSourceSurfaceGraph();
+    if(!ok && state.playbackMode==='BYPASS'){
+      setLedger('NO SOURCE AVAILABLE. BYPASS NEEDS AN IMPORTED AUDIO FILE.');
+      return;
+    }
+    if(!ok && !state.source.available){
+      state.playbackMode='SYNTH';
+      btnMode.textContent='SYNTH';
+      btnMode.classList.remove('on');
+      setLedger('NO SOURCE YET. FALLING FORWARD TO AUDIBLE SYNTH MODE.');
+    }
+    if((state.playbackMode==='SYNTH') || (!ok && state.playbackMode!=='BYPASS')) ok=buildSynthGraph();
+    if(!ok){setLedger('AUDIO GRAPH FAILED TO START.'); return;}
+    if(state.playbackMode==='A/B') buildSynthGraph();
+    startTime = ac.currentTime - pauseTime;
+    state.running=true; btnPlay.textContent='■ STOP'; btnPlay.classList.add('on');
+    const msg = state.playbackMode==='SURFACE' ? 'SURFACE ACTIVE. SONG LINE IS CONTROLLING PLAYBACKRATE / FILTER / GAIN / SPACE / GATE.' : state.playbackMode==='BYPASS' ? 'BYPASS ACTIVE. ORIGINAL SOURCE ONLY; LINES DO NOT CONTROL.' : state.playbackMode==='A/B' ? 'A/B ACTIVE. SOURCE AND LINE-SYNTH ALTERNATE EVERY TWO SECONDS.' : 'SYNTH ACTIVE. LINE SURFACE CONTROLS OSCILLATORS.';
+    setLedger(msg);
+  }
+
+  function stopPlayback(ended){
+    if(audioCtx && state.running) pauseTime = ended ? 0 : clamp(audioCtx.currentTime-startTime,0,state.duration);
+    stopNodes(); state.running=false; if(ended) state.currentTime=0;
+    btnPlay.textContent='► PLAY'; btnPlay.classList.remove('on'); state.needsPaint=true;
+    setLedger(ended?'PLAYBACK COMPLETE.':'PLAYBACK HALTED.');
+  }
+
+  function applySurfaceToAudio(){
+    if(!state.running || !audioCtx) return;
+    const ac=audioCtx; const t=state.currentTime; const s=surfaceAt(t); const when=ac.currentTime+0.035;
+    if(state.playbackMode==='BYPASS'){
+      if(sourceNode) sourceNode.playbackRate.setTargetAtTime(1,when,0.03);
+      if(sourceFilter) sourceFilter.frequency.setTargetAtTime(20000,when,0.04);
+      if(sourceGain) sourceGain.gain.setTargetAtTime(1,when,0.015);
+      if(sourceWet) sourceWet.gain.setTargetAtTime(0,when,0.03);
+      return;
+    }
+    if(state.playbackMode==='SURFACE' || state.playbackMode==='A/B'){
+      const abSynth = state.playbackMode==='A/B' && Math.floor(t/2)%2===1;
+      const srcAudible = state.playbackMode==='SURFACE' || !abSynth;
+      if(sourceNode) sourceNode.playbackRate.setTargetAtTime(s.playbackRate,when,0.035);
+      if(sourceFilter) sourceFilter.frequency.setTargetAtTime(s.filterHz,when,0.05);
+      if(sourceGain) sourceGain.gain.setTargetAtTime(srcAudible ? s.gain : 0,when,0.018);
+      if(sourceWet) sourceWet.gain.setTargetAtTime(srcAudible ? s.wet : 0,when,0.04);
+    }
+    if(state.playbackMode==='SYNTH' || state.playbackMode==='A/B'){
+      const synthAudible = state.playbackMode==='SYNTH' || Math.floor(t/2)%2===1;
+      if(synthOsc1){synthOsc1.frequency.setTargetAtTime(s.oscHz,when,0.012); synthOsc2.frequency.setTargetAtTime(s.oscHz*0.5,when,0.012);}
+      if(synthFilter) synthFilter.frequency.setTargetAtTime(Math.min(9000,s.filterHz),when,0.02);
+      if(synthGain) synthGain.gain.setTargetAtTime(synthAudible ? (state.source.available && state.playbackMode==='A/B' ? s.synthLayerGain : s.gain*0.65) : 0,when,0.018);
+      if(synthWet) synthWet.gain.setTargetAtTime(synthAudible ? s.wet : 0,when,0.025);
+    }
+  }
+
+  function monoFromBuffer(buffer){
+    const len=buffer.length, chans=buffer.numberOfChannels, mono=new Float32Array(len);
+    for(let c=0;c<chans;c++){const d=buffer.getChannelData(c); for(let i=0;i<len;i++) mono[i]+=d[i]/chans;}
+    return mono;
+  }
+
+  async function importSongAsSurface(file){
+    setLedger(`DECODING SONG INTO LINE SURFACE: ${file.name.substring(0,22).toUpperCase()}...`);
+    try{
+      const ac=ensureAudio(); if(state.running) stopPlayback(false);
+      const ab=await file.arrayBuffer(); const decoded=await ac.decodeAudioData(ab.slice(0));
+      state.source={available:true,buffer:decoded,fileName:file.name,sampleRate:decoded.sampleRate,channels:decoded.numberOfChannels,duration:decoded.duration};
+      resetBuffers(decoded.duration);
+      const mono=monoFromBuffer(decoded);
+      const left=decoded.getChannelData(0); const right=decoded.numberOfChannels>1?decoded.getChannelData(1):left;
+      const spf=decoded.sampleRate/FPS;
+      const rmsRaw=new Float32Array(bufferLength); const pitchRaw=new Float32Array(bufferLength); const spaceRaw=new Float32Array(bufferLength);
+      let maxRms=0, lastRms=0;
+      const brightness=new Float32Array(bufferLength), transient=new Float32Array(bufferLength), noise=new Float32Array(bufferLength), width=new Float32Array(bufferLength);
+      for(let i=0;i<bufferLength;i++){
+        const a=Math.floor(i*spf), b=Math.min(mono.length,Math.floor((i+1)*spf)); const span=Math.max(1,b-a);
+        let ss=0,hf=0,cross=0,midE=0,sideE=0; let prev=mono[a]||0;
+        for(let j=a;j<b;j++){
+          const x=mono[j]||0; ss+=x*x; const d=x-prev; hf+=d*d; if((x>=0&&prev<0)||(x<0&&prev>=0)) cross++; prev=x;
+          const l=left[j]||0, r=right[j]||0; const m=(l+r)*0.5, sd=(l-r)*0.5; midE+=m*m; sideE+=sd*sd;
+        }
+        const rms=Math.sqrt(ss/span); rmsRaw[i]=rms; maxRms=Math.max(maxRms,rms);
+        const hfR=Math.sqrt(hf/span); const zcr=cross/span; const freq=clamp((cross*FPS)/2,32,1200);
+        pitchRaw[i]=Math.log2(freq/32)/Math.log2(1200/32);
+        const bright=clamp01((hfR/Math.max(0.0001,rms))*0.18 + zcr*24);
+        const wid=Math.sqrt(sideE/span)/Math.max(0.0001,Math.sqrt(midE/span)+Math.sqrt(sideE/span));
+        brightness[i]=bright; width[i]=clamp01(wid); noise[i]=clamp01((hfR/Math.max(0.0001,rms))*0.25); transient[i]=Math.max(0,rms-lastRms); lastRms=rms;
+        spaceRaw[i]=clamp01(bright*0.5 + width[i]*0.5);
+      }
+      let sv=0, sp=0.5, ss=0; let maxTransient=0; for(let i=0;i<transient.length;i++) maxTransient=Math.max(maxTransient,transient[i]);
+      for(let i=0;i<bufferLength;i++){
+        const v=maxRms>0?rmsRaw[i]/maxRms:0; sv += (v-sv)*0.28; buffers.VOLUME[i]=Math.pow(clamp01(sv),0.58); buffers.GATE[i]=sv>0.028?1:0;
+        if(sv>0.035) sp += (clamp01(pitchRaw[i])-sp)*0.14; buffers.PITCH[i]=clamp01(sp);
+        ss += (spaceRaw[i]-ss)*0.12; buffers.SPACE[i]=clamp01(ss);
+        transient[i]=maxTransient>0?clamp01(transient[i]/maxTransient):0;
+      }
+      state.genome={lanes:96,brightness,transient,noise,width};
+      state.playbackMode='SURFACE'; btnMode.textContent='SURFACE'; btnMode.classList.add('on');
+      STRIP_ORDER.forEach(id=>state.versions[id]++); state.needsPaint=true;
+      setLedger('SONG → LINE SURFACE COMPLETE. THE CURVES NOW CONTROL THE AUDIO VARIABLES.');
+    }catch(err){console.error(err); setLedger('IMPORT FAILED. BROWSER COULD NOT DECODE THIS FILE.');}
+  }
+
+  function applyStroke(idxA,valA,idxB,valB,id){
+    const buf=buffers[id]; const lo=Math.max(0,Math.min(idxA,idxB)); const hi=Math.min(bufferLength-1,Math.max(idxA,idxB));
+    if(lo===hi){buf[lo]=valB; return;}
+    for(let i=lo;i<=hi;i++){const t=idxB!==idxA?(i-idxA)/(idxB-idxA):0; buf[i]=valA+(valB-valA)*t;}
+  }
+  function recordPen(x,y){
+    const lane=laneFor(state.activeStrip); const idx=getIndexAtX(x); const val=state.editMode==='CUT'?lane.baseline:yToValue(y,lane,state.activeStrip);
+    if(state.pen.lastIdx!==-1) applyStroke(state.pen.lastIdx,state.pen.lastVal,idx,val,state.activeStrip);
+    state.pen.lastIdx=idx; state.pen.lastVal=val; strokeTrail.push({x,y,t:now()}); state.needsPaint=true;
+  }
+  function pointerDown(ev){
+    if(state.pen.active)return; ev.preventDefault(); state.pen.pointerId=ev.pointerId; try{canvas.setPointerCapture(ev.pointerId)}catch(e){}
+    const p=getCanvasPoint(ev); const lane=state.lanes.find(l=>p.y>=l.y&&p.y<=l.y+l.h)||laneFor(state.activeStrip);
+    if(lane.id!==state.activeStrip){state.activeStrip=lane.id; btnArm.querySelector('b').textContent=`ARM: ${state.activeStrip.substring(0,4)}`; setLedger(`${state.activeStrip} IS NOW THE CONTROLLING SURFACE.`);}
+    state.pen.active=true; state.pen.x=p.x; state.pen.y=p.y; const idx=getIndexAtX(p.x); state.pen.startIdx=idx; state.pen.lastIdx=idx; state.pen.lastVal=state.editMode==='CUT'?lane.baseline:yToValue(p.y,lane,state.activeStrip);
+    if(state.editMode==='DRAW'||state.editMode==='CUT') recordPen(p.x,p.y);
+    else if(state.editMode==='DROP'){
+      if(!state.clipboard) setLedger('NO CONTROL MASS HELD. LIFT FIRST.');
+      else{const buf=buffers[state.activeStrip]; for(let i=0;i<state.clipboard.length;i++){if(idx+i<bufferLength) buf[idx+i]=state.clipboard[i];} state.versions[state.activeStrip]++; setLedger(`DROPPED ${state.clipboard.length} CONTROL SAMPLES.`);}
+      state.pen.active=false; try{canvas.releasePointerCapture(ev.pointerId)}catch(e){}
+    }
+  }
+  function pointerMove(ev){
+    if(!state.pen.active||ev.pointerId!==state.pen.pointerId)return; ev.preventDefault(); const pts=ev.getCoalescedEvents?ev.getCoalescedEvents():[ev];
+    for(const q of pts){const p=getCanvasPoint(q); state.pen.x=p.x; state.pen.y=p.y; if(state.editMode==='DRAW'||state.editMode==='CUT') recordPen(p.x,p.y);}
+  }
+  function pointerUp(ev){
+    if(ev.pointerId!==state.pen.pointerId)return; ev.preventDefault();
+    if(state.pen.active&&state.editMode==='LIFT'){
+      const lane=laneFor(state.activeStrip); const sx=indexToX(state.pen.startIdx); const minX=Math.max(lane.x,Math.min(sx,state.pen.x)); const maxX=Math.min(lane.x+lane.w,Math.max(sx,state.pen.x));
+      const a=getIndexAtX(minX), b=getIndexAtX(maxX), n=Math.max(0,b-a); const copy=new Float32Array(n+1); for(let i=0;i<=n;i++) copy[i]=buffers[state.activeStrip][a+i]; state.clipboard=copy; setEditMode('DROP'); setLedger(`LIFTED ${n} CONTROL SAMPLES.`);
+    } else if(state.pen.active&&(state.editMode==='DRAW'||state.editMode==='CUT')){state.versions[state.activeStrip]++; setLedger(`${state.activeStrip} CONTROL SURFACE MODIFIED. AUDIO ROUTING UPDATED.`);}
+    state.pen.active=false; state.pen.pointerId=null; try{canvas.releasePointerCapture(ev.pointerId)}catch(e){} state.needsPaint=true;
+  }
+
+  function setEditMode(m){
+    state.editMode=m; document.querySelectorAll('.cmd').forEach(b=>b.classList.remove('active')); document.querySelector(`.cmd[data-cmd="${m}"]`)?.classList.add('active');
+    setLedger(m==='DRAW'?`DRAW WRITES ${state.activeStrip} CONTROL VARIABLE.`:m==='CUT'?`CUT ZEROS ${state.activeStrip} CONTROL SPAN.`:m==='LIFT'?`LIFT COPIES ${state.activeStrip} CONTROL MASS.`:state.clipboard?'DROP PASTES CONTROL MASS.':'CLIPBOARD EMPTY.');
+  }
+
+  function cycleMode(){
+    const i=MODES.indexOf(state.playbackMode); state.playbackMode=MODES[(i+1)%MODES.length]; btnMode.textContent=state.playbackMode; btnMode.classList.toggle('on',state.playbackMode==='SURFACE');
+    if(state.running){pauseTime=audioCtx?clamp(audioCtx.currentTime-startTime,0,state.duration):state.currentTime; startPlayback();}
+    setLedger(state.playbackMode==='SURFACE'?'SURFACE MODE: LINES CONTROL SOURCE VARIABLES.':state.playbackMode==='BYPASS'?'BYPASS MODE: SOURCE WITHOUT LINE CONTROL.':state.playbackMode==='A/B'?'A/B MODE: ALTERNATE SOURCE AND SYNTH INTERPRETATION.':'SYNTH MODE: LINES CONTROL OSCILLATOR VARIABLES.');
+  }
+
+  function parts(line){return line.trim().split(' ').filter(Boolean);}
+  function importBflix(text){
+    resetBuffers(state.duration); const lines=text.split(String.fromCharCode(10));
+    for(let line of lines){line=line.trim(); if(!line.startsWith('PNT'))continue; const p=parts(line); if(p.length<5)continue; const x=parseInt(p[1],10), y=parseInt(p[2],10), w=parseInt(p[3],10); let track=null,val=0;
+      if(y>=8&&y<=41){track='PITCH';val=clamp01(1-(y-10)/31)} else if(y>=42&&y<=60){track='VOLUME';val=clamp01(1-(y-42)/18)} else if(y>=61&&y<=85){track='SPACE';val=clamp01(1-(y-61)/24)} else if(y>=86){track='GATE';val=0}
+      if(track) for(let px=x;px<x+w;px++){if(px<10||px>128)continue; const t=((px-10)/118)*Math.min(4.8,state.duration); const idx=Math.floor(t*FPS); if(idx>=0&&idx<bufferLength) buffers[track][idx]=val;}
+    }
+    STRIP_ORDER.forEach(id=>state.versions[id]++); state.needsPaint=true; setLedger('BFLIX LOADED AS CONTROL SURFACE.');
+  }
+
+  function exportSurface(){
+    const payload={format:'ORAMICS_LINE_SURFACE_V2',claim:'VISIBLE SONG LINES ARE CONTROL VARIABLES, NOT DECORATIVE OVERLAYS.',source:{available:state.source.available,fileName:state.source.fileName,sampleRate:state.source.sampleRate,channels:state.source.channels,duration:state.source.duration},visible:{fps:FPS,duration:state.duration,pitch:Array.from(buffers.PITCH),volume:Array.from(buffers.VOLUME),space:Array.from(buffers.SPACE),gate:Array.from(buffers.GATE)},routing:{PITCH:['source.playbackRate','source.filterHz','synth.oscHz'],VOLUME:['vca.gain'],SPACE:['delay.wet','air.filter'],GATE:['hard.vca.permission']}};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='oramics-line-surface.surface.json'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000); setLedger('LINE SURFACE EXPORTED.');
+  }
+  function importSurfaceText(text){
+    const o=JSON.parse(text); if(!o.visible) throw new Error('missing visible surface'); resetBuffers(o.visible.duration||10);
+    function put(id,arr){if(!Array.isArray(arr))return; for(let i=0;i<Math.min(arr.length,buffers[id].length);i++) buffers[id][i]=clamp01(Number(arr[i])||0);}
+    put('PITCH',o.visible.pitch); put('VOLUME',o.visible.volume); put('SPACE',o.visible.space); put('GATE',o.visible.gate); state.source.available=false; state.source.buffer=null; state.playbackMode='SYNTH'; btnMode.textContent='SYNTH'; STRIP_ORDER.forEach(id=>state.versions[id]++); state.needsPaint=true; setLedger('SURFACE JSON LOADED. NO RAW SOURCE EMBEDDED; SYNTH MODE READY.');
+  }
+
+  document.querySelectorAll('.cmd').forEach(btn=>btn.addEventListener('pointerdown',ev=>{
+    ev.preventDefault(); const cmd=btn.dataset.cmd;
+    if(['DRAW','CUT','LIFT','DROP'].includes(cmd)) setEditMode(cmd);
+    else if(cmd==='ARM'){state.activeStrip=STRIP_ORDER[(STRIP_ORDER.indexOf(state.activeStrip)+1)%STRIP_ORDER.length]; btnArm.querySelector('b').textContent=`ARM: ${state.activeStrip.substring(0,4)}`; state.needsPaint=true; setLedger(`${state.activeStrip} ARMED AS CONTROL VARIABLE.`);}
+    else if(cmd==='WIPE'){buffers[state.activeStrip].fill(stripFor(state.activeStrip).baseline); state.versions[state.activeStrip]++; state.needsPaint=true; setLedger(`${state.activeStrip} CONTROL RESET TO BASELINE.`);}
+    else if(cmd==='IMPORT') document.getElementById('fileImport').click();
+    else if(cmd==='PASTE'){document.getElementById('pasteModal').style.display='flex'; document.getElementById('pasteInput').value=''; document.getElementById('pasteInput').focus();}
+    else if(cmd==='EXPORT') exportSurface();
+  }));
+  btnMode.addEventListener('click',ev=>{ev.preventDefault();cycleMode();});
+  btnPlay.addEventListener('click',async ev=>{ev.preventDefault(); const ac=ensureAudio(); if(ac.state==='suspended') await ac.resume(); if(state.running) stopPlayback(false); else startPlayback();});
+  document.getElementById('btnCancelPaste').addEventListener('click',()=>document.getElementById('pasteModal').style.display='none');
+  document.getElementById('btnLoadPaste').addEventListener('click',()=>{const text=document.getElementById('pasteInput').value.trim(); try{if(text.startsWith('{')) importSurfaceText(text); else if(text.includes('PNT')) importBflix(text); else setLedger('UNKNOWN PASTE STRUCTURE.');}catch(e){setLedger('PASTE FAILED: '+e.message)} document.getElementById('pasteModal').style.display='none';});
+  document.getElementById('fileImport').addEventListener('change',async ev=>{const file=ev.target.files[0]; if(!file)return; const lower=file.name.toLowerCase(); const audioExts=['.mp3','.ogg','.wav','.m4a','.aac','.flac','.mp4','.mov','.webm']; const audio=file.type.startsWith('audio')||file.type.startsWith('video')||audioExts.some(ext=>lower.endsWith(ext)); try{if(audio) await importSongAsSurface(file); else {const text=await file.text(); if(text.trim().startsWith('{')) importSurfaceText(text); else importBflix(text);}}catch(e){setLedger('IMPORT FAILED: '+e.message)} ev.target.value='';});
+
+  function drawGenomeGhost(lane){
+    if(!state.genome.brightness)return; const arr=lane.id==='PITCH'?state.genome.brightness:lane.id==='VOLUME'?state.genome.transient:lane.id==='SPACE'?state.genome.width:state.genome.noise; if(!arr)return;
+    const h=Math.max(6,Math.floor(lane.h*.16)), y0=lane.y+lane.h-h-2; ctx.save(); ctx.globalAlpha=.22; ctx.fillStyle='#000';
+    for(let x=0;x<lane.w;x+=4){const vx=lane.x+x; const time=state.currentTime+((vx-state.w/2)/PIXELS_PER_SECOND); if(time<0||time>state.duration)continue; const idx=clamp(Math.floor(time*FPS),0,arr.length-1); const bh=clamp01(arr[idx])*h; ctx.fillRect(vx,y0+h-bh,2,bh);}
+    ctx.restore();
+  }
+
+  function draw(){
+    const t=now();
+    if(state.running&&audioCtx){state.currentTime=clamp(audioCtx.currentTime-startTime,0,state.duration); if(state.currentTime>=state.duration) stopPlayback(true); if(state.pen.active&&(state.editMode==='DRAW'||state.editMode==='CUT')) recordPen(state.pen.x,state.pen.y); applySurfaceToAudio();}
+    busIdx.textContent='TIME '+padTime(state.currentTime);
+    if(state.running&&Math.floor(state.currentTime*10)%10===0){const b=document.getElementById('busLive'); b.classList.add('live-on'); setTimeout(()=>b.classList.remove('live-on'),50);}
+    if(!state.needsPaint&&!state.running&&strokeTrail.length===0&&!state.pen.active){raf=requestAnimationFrame(draw);return;} state.needsPaint=false;
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,state.w,state.h); ctx.strokeStyle='#000'; ctx.lineWidth=2; ctx.strokeRect(1,1,state.w-2,state.h-2);
+    for(const lane of state.lanes){const active=lane.id===state.activeStrip; ctx.strokeStyle='#000'; ctx.lineWidth=active?3:2; ctx.strokeRect(lane.x,lane.y,lane.w,lane.h);
+      ctx.fillStyle='#000'; const dx=Math.max(10,Math.floor(lane.w/28)), dy=Math.max(10,Math.floor(lane.h/7)), off=(state.currentTime*PIXELS_PER_SECOND)%dx;
+      for(let y=lane.y+8;y<lane.y+lane.h-4;y+=dy) for(let x=lane.x+8-off;x<lane.x+lane.w-4;x+=dx) ctx.fillRect(Math.round(x),Math.round(y),2,2);
+      drawGenomeGhost(lane);
+      if(lane.id!=='GATE'){ctx.beginPath(); const arr=buffers[lane.id]; let started=false; for(let x=0;x<=Math.floor(lane.w);x+=2){const vx=lane.x+x, idx=getIndexAtX(vx); const val=Number.isFinite(arr[idx])?arr[idx]:lane.baseline; const y=lane.y+2+(1-val)*(lane.h-4); if(!started){ctx.moveTo(vx,y);started=true}else ctx.lineTo(vx,y);} ctx.strokeStyle='#000'; ctx.lineWidth=active?4:2; ctx.lineJoin='round'; ctx.stroke();}
+      else {ctx.fillStyle='#000'; const arr=buffers.GATE; for(let c=0;c<96;c++){const x=lane.x+(c/96)*lane.w, idx=getIndexAtX(x); if(arr[idx]<.5) ctx.fillRect(Math.floor(x),lane.y+2,Math.ceil(lane.w/96)+1,lane.h-4);}}
+      if(state.editMode==='LIFT'&&state.pen.active&&active){const sx=indexToX(state.pen.startIdx), minX=Math.max(lane.x,Math.min(sx,state.pen.x)), maxX=Math.min(lane.x+lane.w,Math.max(sx,state.pen.x)); ctx.fillStyle='rgba(0,0,0,.15)'; ctx.fillRect(minX,lane.y,Math.max(1,maxX-minX),lane.h); ctx.strokeStyle='#000'; ctx.lineWidth=1; ctx.setLineDash([4,4]); ctx.strokeRect(minX,lane.y,Math.max(1,maxX-minX),lane.h); ctx.setLineDash([]);}
+      const lw=Math.min(118,Math.max(64,lane.w*.28)); ctx.fillStyle=active?'#000':'#fff'; ctx.fillRect(lane.x,lane.y,lw,22); ctx.strokeStyle='#000'; ctx.lineWidth=1; ctx.strokeRect(lane.x,lane.y,lw,22); ctx.fillStyle=active?'#fff':'#000'; ctx.font='900 11px ui-monospace,monospace'; ctx.textBaseline='middle'; ctx.fillText(lane.id,lane.x+6,lane.y+11);
+    }
+    const rx=Math.floor(state.w/2)+.5; ctx.strokeStyle='#000'; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(rx,0); ctx.lineTo(rx,state.h); ctx.stroke();
+    while(strokeTrail.length&&t-strokeTrail[0].t>400) strokeTrail.shift(); ctx.fillStyle='#000'; for(const p of strokeTrail){const age=t-p.t, size=age<100?10:age<200?6:3; ctx.fillRect(p.x-size/2,p.y-size/2,size,size);}
+    raf=requestAnimationFrame(draw);
+  }
+
+  canvas.addEventListener('pointerdown',pointerDown,{passive:false}); canvas.addEventListener('pointermove',pointerMove,{passive:false}); window.addEventListener('pointerup',pointerUp,{passive:false}); window.addEventListener('pointercancel',pointerUp,{passive:false});
+  document.addEventListener('touchmove',e=>{if(e.target.tagName!=='TEXTAREA')e.preventDefault()},{passive:false}); document.addEventListener('gesturestart',e=>e.preventDefault()); window.addEventListener('resize',resize);
+  resetBuffers(10); setTimeout(()=>{resize(); setLedger('LINE-SURFACE ENGINE READY. IMPORT SONG → CURVES → CONTROL VARIABLES.'); raf=requestAnimationFrame(draw);},50);
+})();
+</script>
+</body>
+</html>
