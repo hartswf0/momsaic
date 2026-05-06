@@ -1,0 +1,1224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#ffffff" />
+<title>ORAMICS TOUCH FILM — FINAL</title>
+<style>
+  :root{
+    --bg:#fff;
+    --ink:#000;
+    --vh:1vh;
+    --safe-top:env(safe-area-inset-top,0px);
+    --safe-bottom:env(safe-area-inset-bottom,0px);
+    --line:1px solid #000;
+    --fat:2px solid #000;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+    --sans:Arial,Helvetica,sans-serif;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; border-radius:0 !important; -webkit-tap-highlight-color:transparent; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#fff; color:#000; }
+  body{ font-family:var(--mono); touch-action:none; overscroll-behavior:none; -webkit-user-select:none; user-select:none; }
+  button{ appearance:none; -webkit-appearance:none; font:inherit; color:#000; background:#fff; border:var(--line); border-radius:0; }
+  button:focus-visible{ outline:2px solid #000; outline-offset:-4px; }
+
+  .machine{
+    position:fixed;
+    inset:0;
+    width:100vw;
+    height:calc(var(--vh) * 100);
+    display:grid;
+    grid-template-rows:auto 1fr 24px 34px auto;
+    background:#fff;
+    color:#000;
+    overflow:hidden;
+  }
+
+  .header{
+    padding:calc(6px + var(--safe-top)) 6px 5px;
+    border-bottom:var(--fat);
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:6px;
+    min-height:44px;
+    background:#fff;
+  }
+  .brand{ min-width:0; display:grid; gap:2px; }
+  .title{
+    font-family:var(--sans);
+    font-weight:900;
+    font-size:clamp(20px,7.8vw,42px);
+    line-height:.84;
+    letter-spacing:-.055em;
+    white-space:nowrap;
+    overflow:hidden;
+    text-transform:uppercase;
+  }
+  .subtitle{
+    font-size:9px;
+    line-height:1;
+    text-transform:uppercase;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    font-weight:900;
+  }
+  .aperture-cell{
+    min-width:86px;
+    height:34px;
+    display:grid;
+    place-items:center;
+    font-size:10px;
+    font-weight:900;
+    text-transform:uppercase;
+    border:var(--fat);
+    background:#fff;
+  }
+  .aperture-cell.on{ background:#000; color:#fff; }
+
+  .film-deck{
+    position:relative;
+    min-height:0;
+    overflow:hidden;
+    background:#fff;
+  }
+  canvas#film{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+    background:#fff;
+    touch-action:none;
+  }
+  .loupe{
+    position:absolute;
+    left:10px;
+    top:10px;
+    min-width:132px;
+    max-width:calc(100% - 20px);
+    min-height:28px;
+    border:var(--fat);
+    background:#fff;
+    color:#000;
+    padding:4px 6px;
+    font-size:10px;
+    font-weight:900;
+    line-height:1.1;
+    text-transform:uppercase;
+    pointer-events:none;
+    display:none;
+    z-index:4;
+  }
+  .loupe.show{ display:block; }
+  .loupe.invert{ background:#000; color:#fff; }
+
+  .bus{
+    height:24px;
+    display:grid;
+    grid-template-columns:42px 1fr 48px 54px 42px;
+    border-top:var(--fat);
+    background:#fff;
+    overflow:hidden;
+  }
+  .bus-cell{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-right:var(--line);
+    font-size:9px;
+    line-height:1;
+    font-weight:900;
+    text-transform:uppercase;
+    white-space:nowrap;
+    overflow:hidden;
+  }
+  .bus-cell:last-child{ border-right:0; }
+  .bus-cell.live-on{ background:#000; color:#fff; }
+  .bus-cell.fault-on{ animation:hardPulse .6s steps(1,end) infinite; }
+
+  .ledger{
+    height:34px;
+    border-top:var(--line);
+    display:grid;
+    grid-template-columns:56px 1fr;
+    background:#fff;
+  }
+  .ledger-tag{
+    display:grid;
+    place-items:center;
+    border-right:var(--fat);
+    font-size:10px;
+    font-weight:900;
+    text-transform:uppercase;
+    background:#000;
+    color:#fff;
+  }
+  .ledger-slip{
+    border:0;
+    width:100%;
+    height:100%;
+    padding:0 7px;
+    text-align:left;
+    font-size:10px;
+    font-weight:900;
+    line-height:1.05;
+    text-transform:uppercase;
+    overflow:hidden;
+    background:#fff;
+    color:#000;
+  }
+  .ledger-slip.engaged,
+  .ledger-slip.fault{ background:#000; color:#fff; }
+  .ledger-slip.fault{ animation:hardPulse .6s steps(1,end) infinite; }
+
+  .commands{
+    padding:6px 6px calc(6px + var(--safe-bottom));
+    border-top:var(--fat);
+    background:#fff;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:5px;
+  }
+  .cmd{
+    min-height:42px;
+    padding:3px 4px;
+    display:grid;
+    grid-template-rows:1fr auto;
+    align-items:center;
+    justify-items:start;
+    text-align:left;
+    border:var(--fat);
+    font-weight:900;
+    text-transform:uppercase;
+    overflow:hidden;
+  }
+  .cmd b{ font-size:14px; line-height:1; letter-spacing:-.04em; }
+  .cmd span{ font-size:8px; line-height:1.05; white-space:nowrap; overflow:hidden; max-width:100%; }
+  .cmd.active{ background:#000; color:#fff; }
+  .cmd.locked{ background:#fff; color:#000; background-image:repeating-linear-gradient(45deg,#000 0,#000 1px,#fff 1px,#fff 6px); }
+  .cmd.locked b,.cmd.locked span{ background:#fff; }
+
+  @keyframes hardPulse{
+    0%,49%{ background:#000; color:#fff; }
+    50%,100%{ background:#fff; color:#000; }
+  }
+
+  @media (min-width:760px){
+    .machine{
+      grid-template-columns:330px 1fr;
+      grid-template-rows:auto 1fr 24px 36px;
+    }
+    .header{
+      grid-column:1;
+      grid-row:1;
+      border-right:var(--fat);
+    }
+    .film-deck{
+      grid-column:2;
+      grid-row:1 / 5;
+    }
+    .bus{
+      grid-column:1;
+      grid-row:2;
+      align-self:end;
+      border-right:var(--fat);
+    }
+    .ledger{
+      grid-column:1;
+      grid-row:3;
+      border-right:var(--fat);
+    }
+    .commands{
+      grid-column:1;
+      grid-row:4;
+      border-right:var(--fat);
+      align-content:end;
+    }
+    .title{ font-size:42px; white-space:normal; }
+    .subtitle{ white-space:normal; font-size:10px; }
+    .cmd{ min-height:52px; }
+    .cmd b{ font-size:18px; }
+    .cmd span{ font-size:9px; }
+  }
+</style>
+</head>
+<body>
+<div class="machine" id="machine">
+  <header class="header">
+    <div class="brand">
+      <h1 class="title">ORAMICS TOUCH FILM</h1>
+      <p class="subtitle" id="subtitle">DOTTED SUBSTRATE · FIXED APERTURE · HAND WRITES SOUND</p>
+    </div>
+    <button id="apertureToggle" class="aperture-cell" type="button" aria-label="Open or close audio aperture">CLOSED</button>
+  </header>
+
+  <main class="film-deck" id="filmDeck" aria-label="Optical film deck">
+    <canvas id="film"></canvas>
+    <div class="loupe" id="loupe">IDX 0000 · VALUE 0.000</div>
+  </main>
+
+  <section class="bus" aria-label="ORAM bus strip">
+    <div class="bus-cell" id="busLive">LIVE</div>
+    <div class="bus-cell" id="busIdx">IDX 0000</div>
+    <div class="bus-cell" id="busVer">VER 000</div>
+    <div class="bus-cell" id="busMode">DRAW</div>
+    <div class="bus-cell" id="busFault">OK</div>
+  </section>
+
+  <section class="ledger" aria-label="Mechanical relay ledger">
+    <div class="ledger-tag" id="ledgerTag">DRAW</div>
+    <button id="ledgerSlip" class="ledger-slip" type="button">DRAW: HAND MASS WRITES SOUND INTO PITCH.</button>
+  </section>
+
+  <nav class="commands" aria-label="Six-cell command instrument">
+    <button class="cmd" data-command="ARM" type="button"><b>ARM</b><span>PITCH→VOL→REV→GATE</span></button>
+    <button class="cmd active" data-command="DRAW" type="button"><b>DRAW</b><span>INK INTO BUFFER</span></button>
+    <button class="cmd" data-command="CUT" type="button"><b>CUT</b><span>RETURN BASELINE</span></button>
+    <button class="cmd" data-command="LIFT" type="button"><b>LIFT</b><span>HOLD SEGMENT</span></button>
+    <button class="cmd" data-command="DROP" type="button"><b>DROP</b><span>WRITE HELD MASS</span></button>
+    <button class="cmd" data-command="BUILD" type="button"><b>BUILD</b><span>OPEN APERTURE</span></button>
+  </nav>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const BUFFER_SIZE = 2048;
+  const CYCLE_SECONDS = 4.8;
+  const BASELINES = { PITCH:0.42, VOLUME:0.32, REVERB:0.08, GATE:1.0 };
+  const STRIPS = [
+    { id:'PITCH', label:'PITCH', share:.34, baseline:BASELINES.PITCH, map:'frequency multiplier' },
+    { id:'VOLUME', label:'VOLUME', share:.26, baseline:BASELINES.VOLUME, map:'amplitude multiplier' },
+    { id:'REVERB', label:'REVERB', share:.22, baseline:BASELINES.REVERB, map:'internal space' },
+    { id:'GATE', label:'GATE', share:.18, baseline:BASELINES.GATE, map:'optical interruption' }
+  ];
+  const COMMANDS = ['ARM','DRAW','CUT','LIFT','DROP','BUILD'];
+  const STRIP_ORDER = STRIPS.map(s => s.id);
+
+  const state = {
+    command:'DRAW',
+    activeStrip:'PITCH',
+    running:false,
+    cold:true,
+    fault:null,
+    audioIndex:0,
+    phase:0,
+    versions:{ PITCH:0, VOLUME:0, REVERB:0, GATE:0 },
+    liveStamp:0,
+    drawing:false,
+    pointerId:null,
+    last:null,
+    selectionStart:null,
+    lifted:null,
+    needsPaint:true,
+    dpr:1,
+    w:1,
+    h:1,
+    lanes:[],
+    filmOffset:0
+  };
+
+  const buffers = {};
+  STRIPS.forEach(strip => {
+    const arr = new Float32Array(BUFFER_SIZE);
+    arr.fill(strip.baseline);
+    buffers[strip.id] = arr;
+  });
+
+  const canvas = document.getElementById('film');
+  const ctx = canvas.getContext('2d', { alpha:false, desynchronized:true });
+  const filmDeck = document.getElementById('filmDeck');
+  const loupe = document.getElementById('loupe');
+  const apertureToggle = document.getElementById('apertureToggle');
+  const ledgerSlip = document.getElementById('ledgerSlip');
+  const ledgerTag = document.getElementById('ledgerTag');
+  const subtitle = document.getElementById('subtitle');
+  const busLive = document.getElementById('busLive');
+  const busIdx = document.getElementById('busIdx');
+  const busVer = document.getElementById('busVer');
+  const busMode = document.getElementById('busMode');
+  const busFault = document.getElementById('busFault');
+  const commandButtons = Array.from(document.querySelectorAll('[data-command]'));
+
+  let audioCtx = null;
+  let worklet = null;
+  let fallbackTimer = null;
+  let raf = 0;
+  const strokeTrail = [];
+
+  function pad(n, len=4){ return String(Math.max(0, Math.floor(n))).padStart(len, '0'); }
+  function clamp01(v){ return Math.max(0, Math.min(1, v)); }
+  function now(){ return performance.now(); }
+
+  function setViewportHeight(){
+    const vv = window.visualViewport;
+    const h = vv ? vv.height : window.innerHeight;
+    document.documentElement.style.setProperty('--vh', (h * 0.01) + 'px');
+  }
+
+  function resize(){
+    setViewportHeight();
+    const rect = canvas.getBoundingClientRect();
+    state.dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+    state.w = Math.max(1, Math.floor(rect.width));
+    state.h = Math.max(1, Math.floor(rect.height));
+    canvas.width = Math.floor(state.w * state.dpr);
+    canvas.height = Math.floor(state.h * state.dpr);
+    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    computeLanes();
+    state.needsPaint = true;
+  }
+
+  function computeLanes(){
+    const padX = 7;
+    const padY = 7;
+    const gap = 7;
+    const available = Math.max(140, state.h - padY * 2 - gap * (STRIPS.length - 1));
+    let y = padY;
+    state.lanes = STRIPS.map((strip, i) => {
+      const remainingStrips = STRIPS.length - i;
+      const remainingShare = STRIPS.slice(i).reduce((sum, s) => sum + s.share, 0);
+      const laneH = Math.max(46, Math.floor((available - gap * (remainingStrips - 1)) * (strip.share / remainingShare)));
+      const lane = { id:strip.id, x:padX, y, w:state.w - padX * 2, h:laneH };
+      y += laneH + gap;
+      return lane;
+    });
+  }
+
+  function laneFor(id){ return state.lanes.find(l => l.id === id) || state.lanes[0]; }
+  function stripFor(id){ return STRIPS.find(s => s.id === id) || STRIPS[0]; }
+
+  function visibleToIndex(x, lane){
+    const local = clamp01((x - lane.x) / Math.max(1, lane.w));
+    const shifted = (local + state.phase) % 1;
+    return Math.max(0, Math.min(BUFFER_SIZE - 1, Math.floor(shifted * BUFFER_SIZE)));
+  }
+
+  function indexToVisible(index, lane){
+    const norm = (index / BUFFER_SIZE - state.phase + 1) % 1;
+    return lane.x + norm * lane.w;
+  }
+
+  function yToValue(y, lane, stripId){
+    const raw = 1 - ((y - lane.y) / Math.max(1, lane.h));
+    const v = clamp01(raw);
+    if(stripId === 'GATE') return v > .48 ? 1 : 0;
+    return v;
+  }
+
+  function valueToY(value, lane){
+    return lane.y + (1 - clamp01(value)) * lane.h;
+  }
+
+  function stripFromPoint(x, y){
+    for(const lane of state.lanes){
+      if(x >= lane.x && x <= lane.x + lane.w && y >= lane.y && y <= lane.y + lane.h) return lane.id;
+    }
+    return state.activeStrip;
+  }
+
+  const OramBus = {
+    handlers:new Map(),
+    on(type, fn){
+      const list = this.handlers.get(type) || [];
+      list.push(fn);
+      this.handlers.set(type, list);
+    },
+    dispatch(message){
+      const result = validateMessage(message);
+      if(!result.ok){
+        fault('BAD_MESSAGE', result.reason + '. TAP TO RESYNC.', 'bus');
+        return false;
+      }
+      const list = this.handlers.get(message.type) || [];
+      for(const fn of list) fn(message);
+      const any = this.handlers.get('*') || [];
+      for(const fn of any) fn(message);
+      return true;
+    }
+  };
+
+  function validateMessage(m){
+    if(!m || typeof m !== 'object') return { ok:false, reason:'NONOBJECT BUS PAYLOAD' };
+    if(!m.type || typeof m.type !== 'string') return { ok:false, reason:'MESSAGE WITHOUT TYPE' };
+    if(!m.origin || typeof m.origin !== 'string') return { ok:false, reason:'MESSAGE WITHOUT ORIGIN' };
+    const types = ['STRIP_SELECT','COMMAND_SELECT','BUFFER_PATCH','BUILD_ACK','AUDIO_INDEX_TICK','FAULT_SYNC','REQUEST_RESYNC','RUN_SYNC'];
+    if(!types.includes(m.type)) return { ok:false, reason:'REJECTED MESSAGE ' + m.type };
+    if(m.type === 'STRIP_SELECT' && !STRIP_ORDER.includes(m.stripId)) return { ok:false, reason:'BAD STRIP' };
+    if(m.type === 'COMMAND_SELECT' && !COMMANDS.includes(m.command)) return { ok:false, reason:'BAD COMMAND' };
+    if(m.type === 'BUFFER_PATCH'){
+      if(!STRIP_ORDER.includes(m.stripId)) return { ok:false, reason:'BAD PATCH STRIP' };
+      if(!Number.isInteger(m.startIndex)) return { ok:false, reason:'BAD PATCH INDEX' };
+      if(!m.values || typeof m.values.length !== 'number') return { ok:false, reason:'PATCH WITHOUT VALUES' };
+      if(!Number.isInteger(m.version)) return { ok:false, reason:'PATCH WITHOUT VERSION' };
+      if(m.version < state.versions[m.stripId]) return { ok:false, reason:'STALE PATCH' };
+    }
+    return { ok:true };
+  }
+
+  OramBus.on('STRIP_SELECT', m => {
+    state.activeStrip = m.stripId;
+    state.needsPaint = true;
+    updateLedger();
+    updateBus();
+  });
+
+  OramBus.on('COMMAND_SELECT', m => {
+    state.command = m.command;
+    if(m.command === 'ARM') cycleStrip();
+    if(m.command === 'BUILD') buildOrToggleAudio();
+    state.needsPaint = true;
+    updateLedger(true);
+    updateCommandCells();
+    updateBus();
+  });
+
+  OramBus.on('BUFFER_PATCH', m => {
+    applyPatch(m.stripId, m.startIndex, m.values, m.version, false);
+    sendPatchToAudio(m.stripId, m.startIndex, m.values, m.version);
+    state.liveStamp = now();
+    state.needsPaint = true;
+    updateBus();
+  });
+
+  OramBus.on('AUDIO_INDEX_TICK', m => {
+    state.audioIndex = m.index | 0;
+    state.phase = clamp01(m.phase || 0);
+    state.liveStamp = now();
+    state.needsPaint = true;
+    updateBus();
+  });
+
+  OramBus.on('FAULT_SYNC', m => {
+    state.fault = { code:m.faultCode, sentence:m.faultSentence, severity:m.severity };
+    state.drawing = false;
+    updateLedger();
+    updateBus();
+    state.needsPaint = true;
+  });
+
+  OramBus.on('REQUEST_RESYNC', () => {
+    state.fault = null;
+    state.drawing = false;
+    state.last = null;
+    state.selectionStart = null;
+    sendFullSync();
+    updateLedger();
+    updateBus();
+    state.needsPaint = true;
+  });
+
+  function cycleStrip(){
+    const idx = STRIP_ORDER.indexOf(state.activeStrip);
+    const next = STRIP_ORDER[(idx + 1) % STRIP_ORDER.length];
+    OramBus.dispatch({ type:'STRIP_SELECT', stripId:next, origin:'ledger_surface' });
+  }
+
+  function selectCommand(command){
+    OramBus.dispatch({ type:'COMMAND_SELECT', command, origin:'ledger_surface' });
+  }
+
+  function applyPatch(stripId, startIndex, values, version, alreadyWritten){
+    const arr = buffers[stripId];
+    if(!alreadyWritten){
+      for(let i = 0; i < values.length; i++){
+        const idx = (startIndex + i + BUFFER_SIZE) % BUFFER_SIZE;
+        arr[idx] = clamp01(values[i]);
+      }
+    }
+    state.versions[stripId] = Math.max(state.versions[stripId], version);
+  }
+
+  function versionBump(stripId){
+    state.versions[stripId] += 1;
+    return state.versions[stripId];
+  }
+
+  function commandSentence(){
+    const s = state.activeStrip;
+    if(state.fault) return state.fault.sentence;
+    switch(state.command){
+      case 'ARM': return 'ARM: NEXT STROKE TARGETS ' + s + '.';
+      case 'DRAW': return 'DRAW: HAND MASS WRITES SOUND INTO ' + s + '.';
+      case 'CUT': return 'CUT: DRAG RETURNS ' + s + ' RANGE TO BASELINE.';
+      case 'LIFT': return 'LIFT: DRAG HOLDS ' + s + ' SEGMENT ABOVE FILM.';
+      case 'DROP': return state.lifted ? 'DROP: TAP TARGET ADDRESS TO WRITE HELD MASS.' : 'DROP: NO HELD MASS. LIFT FIRST.';
+      case 'BUILD': return state.running ? 'BUILD: APERTURE OPEN. AUDIO ENGINE ACKNOWLEDGED.' : 'BUILD: TAP TO OPEN AUDIO APERTURE.';
+      default: return 'HAND WRITES SOUND.';
+    }
+  }
+
+  function updateLedger(engaged=false){
+    ledgerTag.textContent = state.fault ? 'FAULT' : state.command;
+    ledgerSlip.textContent = commandSentence();
+    ledgerSlip.classList.toggle('fault', !!state.fault);
+    ledgerSlip.classList.toggle('engaged', !state.fault && engaged);
+    if(engaged && !state.fault){
+      window.clearTimeout(updateLedger.timer);
+      updateLedger.timer = window.setTimeout(() => ledgerSlip.classList.remove('engaged'), 180);
+    }
+  }
+
+  function updateCommandCells(){
+    commandButtons.forEach(btn => {
+      const active = btn.dataset.command === state.command;
+      btn.classList.toggle('active', active && !state.fault);
+      btn.classList.toggle('locked', !!state.fault);
+    });
+  }
+
+  function updateBus(){
+    const live = state.running && (now() - state.liveStamp < 700);
+    busLive.classList.toggle('live-on', live);
+    busLive.textContent = live ? 'LIVE' : 'STALE';
+    busIdx.textContent = 'IDX ' + pad(state.audioIndex, 4);
+    busVer.textContent = 'VER ' + pad(state.versions[state.activeStrip], 3);
+    busMode.textContent = state.command;
+    busFault.textContent = state.fault ? 'FAULT' : 'OK';
+    busFault.classList.toggle('fault-on', !!state.fault);
+    apertureToggle.textContent = state.running ? 'OPEN' : 'CLOSED';
+    apertureToggle.classList.toggle('on', state.running);
+    subtitle.textContent = state.fault ? state.fault.code : (state.activeStrip + ' · ' + stripFor(state.activeStrip).map + ' · ' + (state.running ? 'FILM PULLING' : 'APERTURE CLOSED'));
+  }
+
+  function fault(code, sentence, origin='system'){
+    OramBus.dispatch({ type:'FAULT_SYNC', faultCode:code, faultSentence:sentence, severity:'structural', origin });
+  }
+
+  function canvasPoint(ev){
+    const rect = canvas.getBoundingClientRect();
+    return { x:ev.clientX - rect.left, y:ev.clientY - rect.top, t:ev.timeStamp || now(), p:ev.pressure || 0 };
+  }
+
+  function rawPointsFromEvent(ev){
+    const events = typeof ev.getCoalescedEvents === 'function' ? ev.getCoalescedEvents() : [ev];
+    return events.map(canvasPoint);
+  }
+
+  function pointerDown(ev){
+    ev.preventDefault();
+    if(state.fault) return;
+    state.pointerId = ev.pointerId;
+    try{ canvas.setPointerCapture(ev.pointerId); }catch(_){ }
+    const p = canvasPoint(ev);
+    const stripId = stripFromPoint(p.x, p.y);
+    if(stripId !== state.activeStrip){
+      OramBus.dispatch({ type:'STRIP_SELECT', stripId, origin:'draw_engine' });
+    }
+    state.drawing = true;
+    state.last = p;
+    state.selectionStart = visibleToIndex(p.x, laneFor(state.activeStrip));
+
+    if(state.command === 'DROP'){
+      dropAtPoint(p);
+      state.drawing = false;
+      return;
+    }
+
+    if(state.command === 'DRAW') writeSampleSequence([p]);
+    if(state.command === 'CUT') cutBetween(state.selectionStart, state.selectionStart, state.activeStrip);
+    updateLoupe(p, true);
+    state.needsPaint = true;
+  }
+
+  function pointerMove(ev){
+    if(!state.drawing || ev.pointerId !== state.pointerId || state.fault) return;
+    ev.preventDefault();
+    const pts = rawPointsFromEvent(ev);
+    const lane = laneFor(state.activeStrip);
+    if(state.command === 'DRAW'){
+      const chain = [];
+      if(state.last) chain.push(state.last);
+      chain.push(...pts);
+      writeSampleSequence(chain);
+    }
+    if(state.command === 'CUT'){
+      const last = pts[pts.length - 1];
+      const a = state.selectionStart;
+      const b = visibleToIndex(last.x, lane);
+      cutBetween(a, b, state.activeStrip);
+    }
+    if(state.command === 'LIFT'){
+      const last = pts[pts.length - 1];
+      updateLoupe(last, true, 'LIFTING ' + state.activeStrip + ' RANGE');
+    }
+    state.last = pts[pts.length - 1] || state.last;
+    if(state.last) updateLoupe(state.last, true);
+    state.needsPaint = true;
+  }
+
+  function pointerUp(ev){
+    if(ev.pointerId !== state.pointerId) return;
+    ev.preventDefault();
+    if(state.command === 'LIFT' && state.selectionStart != null && state.last){
+      liftRange(state.selectionStart, visibleToIndex(state.last.x, laneFor(state.activeStrip)), state.activeStrip);
+    }
+    state.drawing = false;
+    state.pointerId = null;
+    state.last = null;
+    state.selectionStart = null;
+    try{ canvas.releasePointerCapture(ev.pointerId); }catch(_){ }
+    loupe.classList.remove('show');
+    updateLedger();
+    state.needsPaint = true;
+  }
+
+  function contiguousRange(a,b){
+    // For destructive/edit commands, choose the shortest non-wrapping visible range.
+    const start = Math.max(0, Math.min(a,b));
+    const end = Math.min(BUFFER_SIZE - 1, Math.max(a,b));
+    return { start, end, length:end - start + 1 };
+  }
+
+  function writeSampleSequence(points){
+    if(!points.length) return;
+    const stripId = state.activeStrip;
+    const lane = laneFor(stripId);
+    const arr = buffers[stripId];
+    const writes = [];
+    for(let i = 0; i < points.length - 1; i++){
+      const a = points[i];
+      const b = points[i + 1];
+      const ia = visibleToIndex(a.x, lane);
+      const ib = visibleToIndex(b.x, lane);
+      const delta = ib - ia;
+      // If the film wraps visually, do not smear across the whole buffer.
+      if(Math.abs(delta) > BUFFER_SIZE / 2){
+        writeOne(stripId, ia, yToValue(a.y, lane, stripId));
+        writeOne(stripId, ib, yToValue(b.y, lane, stripId));
+        writes.push(ia, ib);
+        continue;
+      }
+      const start = Math.min(ia, ib);
+      const end = Math.max(ia, ib);
+      const span = Math.max(1, end - start);
+      for(let idx = start; idx <= end; idx++){
+        const t = Math.abs(delta) < 1 ? 1 : (idx - start) / span;
+        const y = ia <= ib ? a.y + (b.y - a.y) * t : b.y + (a.y - b.y) * t;
+        const value = yToValue(y, lane, stripId);
+        arr[idx] = value;
+        writes.push(idx);
+      }
+    }
+    if(points.length === 1){
+      const p = points[0];
+      const idx = visibleToIndex(p.x, lane);
+      arr[idx] = yToValue(p.y, lane, stripId);
+      writes.push(idx);
+    }
+    emitPatchFromWrites(stripId, writes);
+    pushTrail(points, stripId);
+    updateLedger(true);
+  }
+
+  function writeOne(stripId, index, value){ buffers[stripId][index] = clamp01(value); }
+
+  function emitPatchFromWrites(stripId, writes){
+    if(!writes.length) return;
+    let min = BUFFER_SIZE - 1;
+    let max = 0;
+    for(const idx of writes){ min = Math.min(min, idx); max = Math.max(max, idx); }
+    const len = max - min + 1;
+    if(len <= 0 || len > BUFFER_SIZE / 2){ return; }
+    const values = Array.from(buffers[stripId].subarray(min, max + 1));
+    const version = versionBump(stripId);
+    OramBus.dispatch({ type:'BUFFER_PATCH', stripId, startIndex:min, values, version, origin:'draw_engine' });
+  }
+
+  function cutBetween(a,b,stripId){
+    const r = contiguousRange(a,b);
+    const baseline = stripFor(stripId).baseline;
+    buffers[stripId].fill(baseline, r.start, r.end + 1);
+    const values = new Array(r.length).fill(baseline);
+    const version = versionBump(stripId);
+    OramBus.dispatch({ type:'BUFFER_PATCH', stripId, startIndex:r.start, values, version, origin:'draw_engine' });
+    updateLedger(true);
+  }
+
+  function liftRange(a,b,stripId){
+    const r = contiguousRange(a,b);
+    state.lifted = {
+      sourceStripId:stripId,
+      start:r.start,
+      end:r.end,
+      values:Array.from(buffers[stripId].subarray(r.start, r.end + 1))
+    };
+    updateLedger(true);
+  }
+
+  function dropAtPoint(p){
+    if(!state.lifted){
+      updateLoupe(p, true, 'NO HELD MASS. LIFT FIRST.');
+      updateLedger(true);
+      return;
+    }
+    const stripId = stripFromPoint(p.x, p.y);
+    OramBus.dispatch({ type:'STRIP_SELECT', stripId, origin:'draw_engine' });
+    const lane = laneFor(stripId);
+    const target = visibleToIndex(p.x, lane);
+    const maxLen = Math.min(state.lifted.values.length, BUFFER_SIZE - target);
+    const values = state.lifted.values.slice(0, maxLen);
+    for(let i = 0; i < values.length; i++) buffers[stripId][target + i] = values[i];
+    const version = versionBump(stripId);
+    OramBus.dispatch({ type:'BUFFER_PATCH', stripId, startIndex:target, values, version, origin:'draw_engine' });
+    state.lifted = null;
+    updateLedger(true);
+  }
+
+  function pushTrail(points, stripId){
+    const t = now();
+    for(const p of points){ strokeTrail.push({ x:p.x, y:p.y, stripId, t }); }
+    while(strokeTrail.length > 220) strokeTrail.shift();
+  }
+
+  function updateLoupe(p, show, text){
+    if(!show){ loupe.classList.remove('show'); return; }
+    const lane = laneFor(state.activeStrip);
+    const idx = visibleToIndex(p.x, lane);
+    const value = buffers[state.activeStrip][idx];
+    loupe.textContent = text || ('IDX ' + pad(idx,4) + ' · ' + state.activeStrip + ' · VALUE ' + value.toFixed(3));
+    const x = Math.min(state.w - 150, Math.max(8, p.x + 18));
+    const y = Math.min(state.h - 42, Math.max(8, p.y - 48));
+    loupe.style.left = x + 'px';
+    loupe.style.top = y + 'px';
+    loupe.classList.toggle('invert', state.drawing);
+    loupe.classList.add('show');
+  }
+
+  function draw(){
+    state.needsPaint = false;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, state.w, state.h);
+    drawFilmDeckBorder();
+    for(const lane of state.lanes){ drawLane(lane); }
+    drawAperture();
+    drawLifted();
+    drawStrokeTrail();
+    if(state.fault) drawFaultSeal();
+  }
+
+  function drawFilmDeckBorder(){
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, state.w - 2, state.h - 2);
+  }
+
+  function drawLane(lane){
+    const strip = stripFor(lane.id);
+    const active = lane.id === state.activeStrip;
+    ctx.save();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.strokeRect(lane.x, lane.y, lane.w, lane.h);
+
+    drawSubstrateDots(lane);
+    drawBufferInk(lane);
+    drawLabel(lane, strip, active);
+    drawBaseline(lane, strip.baseline);
+    drawLaneAddressTicks(lane);
+    ctx.restore();
+  }
+
+  function drawSubstrateDots(lane){
+    ctx.fillStyle = '#000';
+    const dx = Math.max(10, Math.floor(lane.w / 28));
+    const dy = Math.max(10, Math.floor(lane.h / 7));
+    const offset = (state.phase * dx * 8) % dx;
+    for(let y = lane.y + 8; y < lane.y + lane.h - 4; y += dy){
+      for(let x = lane.x + 8 - offset; x < lane.x + lane.w - 4; x += dx){
+        ctx.fillRect(Math.round(x), Math.round(y), 2, 2);
+      }
+    }
+  }
+
+  function drawBufferInk(lane){
+    const arr = buffers[lane.id];
+    ctx.beginPath();
+    const samples = Math.min(BUFFER_SIZE, Math.max(140, Math.floor(lane.w * 1.4)));
+    for(let s = 0; s <= samples; s++){
+      const visibleX = lane.x + (s / samples) * lane.w;
+      const idx = visibleToIndex(visibleX, lane);
+      const y = valueToY(arr[idx], lane);
+      if(s === 0) ctx.moveTo(visibleX, y);
+      else ctx.lineTo(visibleX, y);
+    }
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = lane.id === state.activeStrip ? 5 : 4;
+    ctx.lineJoin = 'miter';
+    ctx.lineCap = 'butt';
+    ctx.stroke();
+
+    // Gate strip also shows square optical mass.
+    if(lane.id === 'GATE'){
+      ctx.fillStyle = '#000';
+      const cells = 72;
+      for(let c = 0; c < cells; c++){
+        const x = lane.x + (c / cells) * lane.w;
+        const idx = visibleToIndex(x, lane);
+        if(arr[idx] < .5){
+          ctx.fillRect(x, lane.y + 2, Math.ceil(lane.w / cells), lane.h - 4);
+        }
+      }
+    }
+  }
+
+  function drawLabel(lane, strip, active){
+    const labelW = Math.min(118, Math.max(72, lane.w * .28));
+    ctx.fillStyle = active ? '#000' : '#fff';
+    ctx.fillRect(lane.x, lane.y, labelW, 22);
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(lane.x, lane.y, labelW, 22);
+    ctx.fillStyle = active ? '#fff' : '#000';
+    ctx.font = '900 11px ui-monospace, monospace';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(strip.label, lane.x + 6, lane.y + 11);
+  }
+
+  function drawBaseline(lane, baseline){
+    const y = valueToY(baseline, lane);
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    dashed(lane.x, y, lane.x + lane.w, y, 4, 5);
+  }
+
+  function drawLaneAddressTicks(lane){
+    ctx.fillStyle = '#000';
+    ctx.font = '900 8px ui-monospace, monospace';
+    ctx.textBaseline = 'bottom';
+    const leftIndex = visibleToIndex(lane.x, lane);
+    const midIndex = visibleToIndex(lane.x + lane.w * .5, lane);
+    const rightIndex = visibleToIndex(lane.x + lane.w, lane);
+    ctx.fillText(pad(leftIndex,4), lane.x + 3, lane.y + lane.h - 3);
+    ctx.fillText(pad(midIndex,4), lane.x + lane.w * .5 - 16, lane.y + lane.h - 3);
+    ctx.fillText(pad(rightIndex,4), lane.x + lane.w - 36, lane.y + lane.h - 3);
+  }
+
+  function dashed(x1,y1,x2,y2,d,g){
+    ctx.beginPath();
+    let x = x1;
+    while(x < x2){
+      ctx.moveTo(x,y1);
+      ctx.lineTo(Math.min(x+d,x2),y2);
+      x += d + g;
+    }
+    ctx.stroke();
+  }
+
+  function drawAperture(){
+    const x = Math.floor(state.w / 2) + .5;
+    ctx.save();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, state.h);
+    ctx.stroke();
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x - 42, state.h - 26, 84, 20);
+    ctx.fillStyle = '#fff';
+    ctx.font = '900 9px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('APERTURE ' + pad(state.audioIndex,4), x, state.h - 16);
+
+    for(const lane of state.lanes){
+      const idx = visibleToIndex(x, lane);
+      const y = valueToY(buffers[lane.id][idx], lane);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x - 6, y - 6, 12, 12);
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x - 6, y - 6, 12, 12);
+    }
+    ctx.restore();
+  }
+
+  function drawLifted(){
+    if(!state.lifted) return;
+    const lane = laneFor(state.lifted.sourceStripId);
+    const x1 = indexToVisible(state.lifted.start, lane);
+    const x2 = indexToVisible(state.lifted.end, lane);
+    const minX = Math.min(x1,x2);
+    const maxX = Math.max(x1,x2);
+    ctx.save();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(minX, lane.y + 4, Math.max(8, maxX - minX), lane.h - 8);
+    for(let x = minX - lane.h; x < maxX + lane.h; x += 8){
+      ctx.beginPath();
+      ctx.moveTo(x, lane.y + lane.h - 4);
+      ctx.lineTo(x + lane.h, lane.y + 4);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawStrokeTrail(){
+    const t = now();
+    ctx.save();
+    for(const p of strokeTrail){
+      const age = t - p.t;
+      if(age > 900) continue;
+      const size = age < 180 ? 12 : age < 420 ? 8 : 5;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(p.x - size/2, p.y - size/2, size, size);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(p.x - size/2, p.y - size/2, size, size);
+    }
+    ctx.restore();
+  }
+
+  function drawFaultSeal(){
+    ctx.save();
+    ctx.fillStyle = '#000';
+    ctx.fillRect(12, Math.max(18, state.h * .42 - 28), state.w - 24, 56);
+    ctx.fillStyle = '#fff';
+    ctx.font = '900 13px ui-monospace, monospace';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    ctx.fillText('CONTRACT BROKEN', state.w / 2, Math.max(18, state.h * .42 - 4));
+    ctx.font = '900 10px ui-monospace, monospace';
+    ctx.fillText('TAP LEDGER TO RESYNC', state.w / 2, Math.max(18, state.h * .42 + 16));
+    ctx.restore();
+  }
+
+  async function buildOrToggleAudio(){
+    if(state.fault) return;
+    if(!state.running){
+      const ok = await ensureAudio();
+      if(!ok) return;
+      try{ await audioCtx.resume(); }catch(_){ fault('AUDIO_LOCK', 'AUDIO CLOCK LOCKED. TAP TO REOPEN APERTURE.', 'audio_engine'); return; }
+      state.running = true;
+      state.cold = false;
+      sendFullSync();
+      if(worklet) worklet.port.postMessage({ type:'RUN_SYNC', running:true, cycleSeconds:CYCLE_SECONDS });
+      if(!worklet) startVisualOnlyClock();
+    }else{
+      state.running = false;
+      if(worklet) worklet.port.postMessage({ type:'RUN_SYNC', running:false, cycleSeconds:CYCLE_SECONDS });
+      stopVisualOnlyClock();
+    }
+    updateLedger(true);
+    updateBus();
+    state.needsPaint = true;
+  }
+
+  async function ensureAudio(){
+    if(worklet) return true;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC){
+      fault('NO_WEB_AUDIO', 'VISUAL ONLY. SOUND CONTRACT BROKEN. TAP TO RESYNC.', 'audio_engine');
+      return false;
+    }
+    try{
+      audioCtx = audioCtx || new AC({ latencyHint:'interactive' });
+      if(!audioCtx.audioWorklet){
+        fault('NO_AUDIO_WORKLET', 'VISUAL ONLY. SOUND CONTRACT BROKEN. TAP TO RESYNC.', 'audio_engine');
+        return false;
+      }
+      const processor = `
+class OramicsFinalProcessor extends AudioWorkletProcessor{
+  constructor(){
+    super();
+    this.size=${BUFFER_SIZE};
+    this.cycleSeconds=${CYCLE_SECONDS};
+    this.running=false;
+    this.idx=0;
+    this.phase=0;
+    this.sampleCounter=0;
+    this.tickCounter=0;
+    this.oscPhase=0;
+    this.pitch=new Float32Array(this.size); this.pitch.fill(${BASELINES.PITCH});
+    this.volume=new Float32Array(this.size); this.volume.fill(${BASELINES.VOLUME});
+    this.reverb=new Float32Array(this.size); this.reverb.fill(${BASELINES.REVERB});
+    this.gate=new Float32Array(this.size); this.gate.fill(${BASELINES.GATE});
+    this.delay=new Float32Array(44100);
+    this.delayIndex=0;
+    this.port.onmessage=(e)=>this.receive(e.data||{});
+  }
+  receive(m){
+    if(m.type==='RUN_SYNC'){
+      this.running=!!m.running;
+      if(m.cycleSeconds) this.cycleSeconds=m.cycleSeconds;
+    }
+    if(m.type==='FULL_SYNC'){
+      if(m.buffers){
+        if(m.buffers.PITCH) this.pitch.set(m.buffers.PITCH);
+        if(m.buffers.VOLUME) this.volume.set(m.buffers.VOLUME);
+        if(m.buffers.REVERB) this.reverb.set(m.buffers.REVERB);
+        if(m.buffers.GATE) this.gate.set(m.buffers.GATE);
+      }
+    }
+    if(m.type==='BUFFER_PATCH'){
+      const target = m.stripId==='PITCH' ? this.pitch : m.stripId==='VOLUME' ? this.volume : m.stripId==='REVERB' ? this.reverb : this.gate;
+      const start = m.startIndex|0;
+      const values = m.values || [];
+      for(let i=0;i<values.length;i++) target[(start+i)%this.size] = Math.max(0, Math.min(1, values[i]));
+    }
+  }
+  process(inputs, outputs){
+    const out=outputs[0];
+    const L=out[0];
+    const R=out[1]||L;
+    const cycleSamples=Math.max(1, Math.floor(sampleRate*this.cycleSeconds));
+    for(let i=0;i<L.length;i++){
+      if(!this.running){
+        L[i]=0; if(R!==L) R[i]=0;
+        continue;
+      }
+      this.phase=(this.sampleCounter % cycleSamples)/cycleSamples;
+      this.idx=Math.floor(this.phase*(this.size-1));
+      const p=this.pitch[this.idx];
+      const v=this.volume[this.idx];
+      const rv=this.reverb[this.idx];
+      const g=this.gate[this.idx]>.5?1:0;
+      const freq=32*Math.pow(2, p*7.25);
+      const amp=Math.min(.85, Math.pow(Math.max(0,v),1.35))*g;
+      this.oscPhase += 2*Math.PI*freq/sampleRate;
+      if(this.oscPhase > Math.PI*2) this.oscPhase -= Math.PI*2;
+      const raw=Math.sin(this.oscPhase)*amp;
+      const delaySamples=Math.floor(600 + rv*16000);
+      const read=(this.delayIndex-delaySamples+this.delay.length)%this.delay.length;
+      const wet=this.delay[read]||0;
+      this.delay[this.delayIndex]=raw + wet*Math.min(.82, rv*.92);
+      this.delayIndex=(this.delayIndex+1)%this.delay.length;
+      const sample=Math.tanh(raw + wet*rv*.72)*.7;
+      L[i]=sample; if(R!==L) R[i]=sample;
+      this.sampleCounter++;
+      this.tickCounter++;
+      if(this.tickCounter>=Math.floor(sampleRate/30)){
+        this.tickCounter=0;
+        this.port.postMessage({type:'AUDIO_INDEX_TICK', index:this.idx, phase:this.phase, cycleSeconds:this.cycleSeconds, origin:'audio_engine'});
+      }
+    }
+    return true;
+  }
+}
+registerProcessor('oramics-final-processor', OramicsFinalProcessor);
+      `;
+      const blob = new Blob([processor], { type:'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      await audioCtx.audioWorklet.addModule(url);
+      URL.revokeObjectURL(url);
+      worklet = new AudioWorkletNode(audioCtx, 'oramics-final-processor', { numberOfOutputs:1, outputChannelCount:[2] });
+      worklet.port.onmessage = e => {
+        const m = e.data || {};
+        if(m.type === 'AUDIO_INDEX_TICK') OramBus.dispatch(m);
+      };
+      worklet.connect(audioCtx.destination);
+      sendFullSync();
+      return true;
+    }catch(err){
+      console.error(err);
+      fault('WORKLET_FAILED', 'AUDIO WORKLET FAILED. LOW-LEVEL CONTRACT BROKE.', 'audio_engine');
+      return false;
+    }
+  }
+
+  function sendFullSync(){
+    if(!worklet) return;
+    worklet.port.postMessage({
+      type:'FULL_SYNC',
+      buffers:{
+        PITCH:Array.from(buffers.PITCH),
+        VOLUME:Array.from(buffers.VOLUME),
+        REVERB:Array.from(buffers.REVERB),
+        GATE:Array.from(buffers.GATE)
+      }
+    });
+    state.liveStamp = now();
+  }
+
+  function sendPatchToAudio(stripId, startIndex, values, version){
+    if(!worklet) return;
+    worklet.port.postMessage({ type:'BUFFER_PATCH', stripId, startIndex, values, version });
+  }
+
+  function startVisualOnlyClock(){
+    if(fallbackTimer) return;
+    const started = now() - state.phase * CYCLE_SECONDS * 1000;
+    fallbackTimer = window.setInterval(() => {
+      if(!state.running) return;
+      const phase = ((now() - started) / (CYCLE_SECONDS * 1000)) % 1;
+      OramBus.dispatch({ type:'AUDIO_INDEX_TICK', index:Math.floor(phase * (BUFFER_SIZE - 1)), phase, cycleSeconds:CYCLE_SECONDS, origin:'audio_engine' });
+    }, 33);
+  }
+
+  function stopVisualOnlyClock(){
+    if(fallbackTimer){ window.clearInterval(fallbackTimer); fallbackTimer = null; }
+  }
+
+  function frame(){
+    if(!state.running && !state.drawing && !state.needsPaint){
+      raf = requestAnimationFrame(frame);
+      return;
+    }
+    if(state.running && !worklet){
+      const phase = (state.phase + 1 / (60 * CYCLE_SECONDS)) % 1;
+      state.phase = phase;
+      state.audioIndex = Math.floor(phase * (BUFFER_SIZE - 1));
+      state.needsPaint = true;
+    }
+    draw();
+    raf = requestAnimationFrame(frame);
+  }
+
+  commandButtons.forEach(btn => {
+    btn.addEventListener('pointerdown', ev => {
+      ev.preventDefault();
+      if(state.fault){ updateLedger(); return; }
+      selectCommand(btn.dataset.command);
+    });
+  });
+
+  apertureToggle.addEventListener('pointerdown', ev => {
+    ev.preventDefault();
+    selectCommand('BUILD');
+  });
+
+  ledgerSlip.addEventListener('pointerdown', ev => {
+    ev.preventDefault();
+    if(state.fault){
+      OramBus.dispatch({ type:'REQUEST_RESYNC', reason:state.fault.code, origin:'ledger_surface' });
+      return;
+    }
+    // Text relay cycles target when in ARM, otherwise re-engages current command.
+    if(state.command === 'ARM') cycleStrip();
+    else updateLedger(true);
+  });
+
+  canvas.addEventListener('pointerdown', pointerDown, { passive:false });
+  canvas.addEventListener('pointermove', pointerMove, { passive:false });
+  canvas.addEventListener('pointerup', pointerUp, { passive:false });
+  canvas.addEventListener('pointercancel', pointerUp, { passive:false });
+
+  document.addEventListener('touchmove', e => e.preventDefault(), { passive:false });
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 80));
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', resize);
+    window.visualViewport.addEventListener('scroll', resize);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if(!document.hidden && state.running){
+      OramBus.dispatch({ type:'REQUEST_RESYNC', reason:'TAB_RETURN', origin:'ledger_surface' });
+    }
+  });
+
+  resize();
+  updateCommandCells();
+  updateLedger();
+  updateBus();
+  raf = requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
