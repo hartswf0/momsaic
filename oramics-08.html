@@ -1,0 +1,1200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+<meta name="theme-color" content="#ffffff" />
+<title>ORAMICS TOUCH — LOOPING GENOME SOURCE SCULPTOR</title>
+<style>
+  :root{
+    --bg:#fff; --ink:#000; --line:1px solid #000; --fat:2px solid #000;
+    --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+    --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+    --sans:Arial,Helvetica,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;border-radius:0!important;-webkit-tap-highlight-color:transparent}
+  html,body{position:fixed;inset:0;width:100vw;height:100dvh;overflow:hidden;background:var(--bg);color:var(--ink);touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;font-family:var(--mono)}
+  button,input{font:inherit;color:var(--ink);background:var(--bg)}
+  button{appearance:none;-webkit-appearance:none;border:var(--line);cursor:pointer}
+  .machine{width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#fff;color:#000}
+  .header{flex:0 0 auto;padding:calc(6px + var(--safe-top)) 6px 5px;border-bottom:var(--fat);display:flex;gap:6px;align-items:stretch;justify-content:space-between}
+  .brand{display:flex;flex-direction:column;justify-content:center;min-width:0;padding-right:6px;flex:1}
+  .title{font-family:var(--sans);font-weight:900;font-size:clamp(19px,6vw,36px);line-height:.85;letter-spacing:-.055em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .subtitle{font-size:10px;font-weight:900;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .play-cell{flex:0 0 102px;border:var(--fat);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;text-transform:uppercase}
+  .play-cell.on{background:#000;color:#fff}
+  .film-deck{flex:1 1 0;position:relative;min-height:0;width:100%;background:#fff}
+  #film{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;touch-action:none}
+  .bus{flex:0 0 28px;display:flex;border-top:var(--fat);border-bottom:var(--line);background:#fff;overflow:hidden}
+  .bus-cell{display:flex;align-items:center;justify-content:center;border-right:var(--line);font-size:10px;font-weight:900;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bus-cell:last-child{border-right:none;flex:1;justify-content:flex-end}
+  .bus-cell.on{background:#000;color:#fff}
+  .ledger{flex:0 0 36px;display:flex;border-bottom:var(--fat);background:#fff;overflow:hidden}
+  .ledger-tag{width:70px;display:flex;align-items:center;justify-content:center;background:#000;color:#fff;font-size:10px;font-weight:900;text-transform:uppercase}
+  .ledger-slip{flex:1;display:flex;align-items:center;padding:0 8px;border-left:var(--fat);font-size:10px;font-weight:900;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ledger-slip.flash{background:#000;color:#fff}
+  .commands{flex:0 0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:6px;padding-bottom:max(6px,var(--safe-bottom));background:#fff}
+  .cmd{min-height:42px;border:var(--fat);display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:4px 6px;overflow:hidden}
+  .cmd b{font-size:clamp(10px,3vw,14px);font-weight:900;line-height:1.05;text-transform:uppercase;letter-spacing:-.5px}
+  .cmd span{font-size:8px;font-weight:900;line-height:1.05;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:left}
+  .cmd.active,.cmd.hot{background:#000;color:#fff}
+  @media(max-width:520px){.commands{grid-template-columns:repeat(3,1fr)}.play-cell{flex-basis:92px}.ledger-tag{width:58px}.bus-cell{padding:0 4px;font-size:9px}}
+</style>
+</head>
+<body>
+<div class="machine">
+  <header class="header">
+    <div class="brand">
+      <h1 class="title">ORAMICS TOUCH</h1>
+      <p class="subtitle">LOOPING SOURCE BODY + HIDDEN GENOME + VISIBLE SCORE</p>
+    </div>
+    <button id="btnPlay" class="play-cell" type="button">► PLAY</button>
+  </header>
+
+  <main class="film-deck"><canvas id="film"></canvas></main>
+
+  <section class="bus">
+    <div class="bus-cell" id="busMonitor">CARVED</div>
+    <div class="bus-cell" id="busLane">PITCH</div>
+    <div class="bus-cell" id="busTime">00:00 / 00:00</div>
+    <div class="bus-cell" id="busGenome">GENOME 000</div>
+    <div class="bus-cell" id="busStatus">NO SOURCE</div>
+  </section>
+
+  <section class="ledger">
+    <div class="ledger-tag" id="ledgerTag">READY</div>
+    <div class="ledger-slip" id="ledgerSlip">IMPORT AUDIO OR PRESS SEQ. TRANSPORT ALWAYS LOOPS; EXPORT SONG AS WAV.</div>
+  </section>
+
+  <nav class="commands">
+    <button class="cmd active" data-cmd="DRAW" type="button"><b>DRAW</b><span>WRITE VISIBLE LINE</span></button>
+    <button class="cmd" data-cmd="CUT" type="button"><b>CUT</b><span>FORCE LANE LOW</span></button>
+    <button class="cmd" data-cmd="ARM" id="btnArm" type="button"><b>ARM: PITCH</b><span>CYCLE VISIBLE LINE</span></button>
+    <button class="cmd" data-cmd="MONITOR" id="btnMonitor" type="button"><b>CARVED</b><span>DRY / CARVE / GHOST</span></button>
+    <button class="cmd" data-cmd="SEQ" type="button"><b>SEQ</b><span>CARVING TEMPLATES</span></button>
+    <button class="cmd" data-cmd="MACRO" type="button"><b>MACRO</b><span>SHAPE CURRENT LANE</span></button>
+    <button class="cmd" data-cmd="UNDO" type="button"><b>UNDO</b><span>LAST LINE EDIT</span></button>
+    <button class="cmd" data-cmd="CLEAR" type="button"><b>CLEAR</b><span>ACTIVE LANE ONLY</span></button>
+    <button class="cmd" data-cmd="RESET" type="button"><b>RESET</b><span>OPEN ALL LANES</span></button>
+    <button class="cmd" data-cmd="SMOOTH" type="button"><b>SMOOTH</b><span>IRON ACTIVE LANE</span></button>
+    <button class="cmd" data-cmd="IMPORT" type="button"><b>IMPORT</b><span>MP3 / WAV / OGG</span></button>
+    <button class="cmd" data-cmd="ZOOM" id="btnZoom" type="button"><b>ZOOM</b><span>FULL SONG</span></button>
+    <button class="cmd hot" data-cmd="LOOP" id="btnLoop" type="button"><b>LOOP: FULL</b><span>ALWAYS WRAPS</span></button>
+    <button class="cmd" data-cmd="EXPORT_WAV" type="button"><b>SONG</b><span>EXPORT .WAV</span></button>
+    <button class="cmd" data-cmd="EXPORT_PROJECT" type="button"><b>PROJECT</b><span>.ORAGENOME JSON</span></button>
+  </nav>
+  <input id="fileImport" type="file" accept="audio/*,.mp3,.wav,.ogg,.oga,.opus,.webm,.m4a,.aac,.flac,.json,.oragenome" style="display:none" />
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  /******************************************************************
+   * ORAMICS TOUCH — GENOME SOURCE SCULPTOR
+   *
+   * Program theory:
+   *   SOURCE BODY   = decoded PCM, preserved.
+   *   HIDDEN GENOME = spectral/transient/noise/stereo strands.
+   *   VISIBLE SCORE = four human-editable macro lanes.
+   *
+   * No AudioWorklet is used. This avoids blob:null / local file
+   * worklet failures. The custom playback engine is a ScriptProcessor
+   * so the file can run directly from Downloads or from localhost.
+   ******************************************************************/
+
+  const CONTROL_FPS = 100;           // visible score resolution
+  const GENOME_FPS = 12;             // hidden genome resolution
+  const HISTORY_LIMIT = 32;           // bounded undo snapshots
+  const SPECTRAL_BANDS = 64;
+  const TRANSIENT_BANDS = 16;
+  const NOISE_BANDS = 8;
+  const FFT_SIZE = 1024;
+  const DEFAULT_DURATION = 8;
+  const ZOOMS = [Infinity, 180, 60, 20, 8, 3];
+  const LANES = [
+    { id:'PITCH', label:'PITCH / VARISPEED', neutral:0.5, cut:0.5, help:'UP = FASTER/BRIGHTER, DOWN = SLOWER/DARKER' },
+    { id:'VOLUME', label:'VOLUME / PRESSURE', neutral:1.0, cut:0.0, help:'UP = OPEN SOURCE, DOWN = SILENCE' },
+    { id:'SPACE', label:'REVERB / SPACE', neutral:0.0, cut:0.0, help:'UP = ECHO SMEAR, DOWN = DRY' },
+    { id:'GATE', label:'GATE / PERMISSION', neutral:1.0, cut:0.0, help:'UP = PASS, DOWN = CUT' }
+  ];
+  const LANE_IDS = LANES.map(l => l.id);
+
+  const canvas = document.getElementById('film');
+  const ctx = canvas.getContext('2d', { alpha:false, desynchronized:true });
+  const btnPlay = document.getElementById('btnPlay');
+  const btnArm = document.getElementById('btnArm');
+  const btnMonitor = document.getElementById('btnMonitor');
+  const btnZoom = document.getElementById('btnZoom');
+  const btnLoop = document.getElementById('btnLoop');
+  const fileImport = document.getElementById('fileImport');
+  const ledgerTag = document.getElementById('ledgerTag');
+  const ledgerSlip = document.getElementById('ledgerSlip');
+  const busMonitor = document.getElementById('busMonitor');
+  const busLane = document.getElementById('busLane');
+  const busTime = document.getElementById('busTime');
+  const busGenome = document.getElementById('busGenome');
+  const busStatus = document.getElementById('busStatus');
+
+  const state = {
+    mode:'DRAW', activeLane:'VOLUME', monitor:'CARVED', running:false,
+    loopVisible:false, zoomIndex:0, viewStart:0, viewDuration:Infinity, exportRunning:false,
+    dpr:1, w:1, h:1, lanes:[], waveformLane:null,
+    playhead:0, sourceCursor:0, lastDrawT:0,
+    pen:{active:false,pointerId:null,lastTime:null,lastVal:null},
+    seqIndex:0, macroIndex:0, needsPaint:true,
+    audioReady:false, genomeReady:false, analysisRunning:false,
+    smoothedGate:1, delayL:null, delayR:null, delayIndex:0,
+    ghostPhases:new Float32Array(12),
+    history:[]
+  };
+
+  const source = {
+    name:'NO SOURCE', sampleRate:44100, duration:DEFAULT_DURATION,
+    left:null, right:null, waveform:null
+  };
+
+  const score = {};         // visible macro lanes at CONTROL_FPS
+  const genome = {          // hidden genome, lower-rate, large body-map
+    frames:0, ready:0,
+    spectral:Array.from({length:SPECTRAL_BANDS}, () => new Float32Array(0)),
+    transient:Array.from({length:TRANSIENT_BANDS}, () => new Float32Array(0)),
+    noise:Array.from({length:NOISE_BANDS}, () => new Float32Array(0)),
+    stereo:{ left:new Float32Array(0), right:new Float32Array(0), pan:new Float32Array(0), width:new Float32Array(0) },
+    global:{ brightness:new Float32Array(0), noisiness:new Float32Array(0), harmonicity:new Float32Array(0), roughness:new Float32Array(0), density:new Float32Array(0) }
+  };
+
+  let audioCtx = null;
+  let processor = null;
+  let raf = 0;
+
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+  function clamp01(v){ return clamp(v, 0, 1); }
+  function fmtTime(t){
+    if(!isFinite(t) || isNaN(t)) t = 0;
+    const m = Math.floor(t/60); const s = Math.floor(t%60);
+    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+  function laneMeta(id){ return LANES.find(l => l.id === id) || LANES[0]; }
+  function log(msg, tag){
+    ledgerTag.textContent = tag || state.mode;
+    ledgerSlip.textContent = msg;
+    ledgerSlip.classList.add('flash');
+    setTimeout(() => ledgerSlip.classList.remove('flash'), 130);
+  }
+
+  function visibleDuration(){ return isFinite(state.viewDuration) ? state.viewDuration : source.duration; }
+  function visibleEnd(){ return Math.min(source.duration, state.viewStart + visibleDuration()); }
+  function controlLengthForDuration(duration){ return Math.max(800, Math.ceil(duration * CONTROL_FPS)); }
+  function genomeLengthForDuration(duration){ return Math.max(16, Math.ceil(duration * GENOME_FPS)); }
+
+  function createScore(duration){
+    const len = controlLengthForDuration(duration);
+    LANE_IDS.forEach(id => {
+      score[id] = new Float32Array(len);
+      score[id].fill(laneMeta(id).neutral);
+    });
+    // PITCH neutral by default. It is a macro handle, not the whole pitch truth.
+    score.PITCH.fill(0.5);
+    score.VOLUME.fill(1.0);
+    score.SPACE.fill(0.0);
+    score.GATE.fill(1.0);
+  }
+
+  function clearHistory(){
+    state.history.length = 0;
+  }
+
+  function pushUndo(label, ids){
+    if(!score.VOLUME) return;
+    const laneIds = ids && ids.length ? ids : [state.activeLane];
+    const snap = { label:label || 'EDIT', activeLane:state.activeLane, lanes:{} };
+    laneIds.forEach(id => {
+      if(score[id]) snap.lanes[id] = new Float32Array(score[id]);
+    });
+    if(Object.keys(snap.lanes).length === 0) return;
+    state.history.push(snap);
+    while(state.history.length > HISTORY_LIMIT) state.history.shift();
+  }
+
+  function undoLast(){
+    const snap = state.history.pop();
+    if(!snap){ log('UNDO STACK EMPTY. NO LINE EDIT TO RESTORE.', 'UNDO'); return; }
+    Object.keys(snap.lanes).forEach(id => {
+      if(score[id] && score[id].length === snap.lanes[id].length) score[id].set(snap.lanes[id]);
+      else score[id] = new Float32Array(snap.lanes[id]);
+    });
+    if(snap.activeLane && LANE_IDS.includes(snap.activeLane)){
+      state.activeLane = snap.activeLane;
+      btnArm.querySelector('b').textContent = 'ARM: ' + state.activeLane;
+      busLane.textContent = state.activeLane;
+    }
+    state.needsPaint = true;
+    log('UNDO RESTORED: ' + snap.label + '.', 'UNDO');
+  }
+
+  function clearActiveLane(){
+    const id = state.activeLane;
+    if(!score[id]) return;
+    pushUndo('CLEAR ' + id, [id]);
+    score[id].fill(laneMeta(id).neutral);
+    state.needsPaint = true;
+    log(id + ' CLEARED TO NEUTRAL. OTHER LINES PRESERVED.', 'CLEAR');
+  }
+
+  function scoreIndexAtTime(t){
+    if(!score.VOLUME || score.VOLUME.length === 0) return 0;
+    return clamp(Math.floor((t / Math.max(0.001, source.duration)) * score.VOLUME.length), 0, score.VOLUME.length - 1);
+  }
+
+  function scoreValue(id, t){
+    const arr = score[id];
+    if(!arr || arr.length === 0) return laneMeta(id).neutral;
+    const pos = clamp((t / Math.max(0.001, source.duration)) * (arr.length - 1), 0, arr.length - 1);
+    const i = Math.floor(pos), f = pos - i;
+    const a = arr[i], b = arr[Math.min(arr.length - 1, i + 1)];
+    return a + (b - a) * f;
+  }
+
+  function writeScoreSpan(id, timeA, valA, timeB, valB){
+    const arr = score[id]; if(!arr) return;
+    let ia = scoreIndexAtTime(timeA), ib = scoreIndexAtTime(timeB);
+    if(ia > ib){ const ti = ia; ia = ib; ib = ti; const tv = valA; valA = valB; valB = tv; }
+    const dist = Math.max(1, ib - ia);
+    for(let i=ia;i<=ib;i++){
+      const f = (i - ia) / dist;
+      arr[i] = clamp01(valA + (valB - valA) * f);
+    }
+    state.needsPaint = true;
+  }
+
+  function resetScore(record=true){
+    if(!score.VOLUME) createScore(source.duration || DEFAULT_DURATION);
+    if(record) pushUndo('RESET ALL LANES', LANE_IDS);
+    LANE_IDS.forEach(id => score[id].fill(laneMeta(id).neutral));
+    state.needsPaint = true;
+    log('VISIBLE SCORE RESET: SOURCE BODY OPEN, GHOST SUBORDINATE.', 'RESET');
+  }
+
+  function smoothLane(id, passes=1, record=true){
+    const arr = score[id]; if(!arr) return;
+    if(record) pushUndo('SMOOTH ' + id, [id]);
+    const temp = new Float32Array(arr.length);
+    for(let p=0;p<passes;p++){
+      for(let i=0;i<arr.length;i++){
+        const a = arr[Math.max(0,i-1)], b = arr[i], c = arr[Math.min(arr.length-1,i+1)];
+        temp[i] = (a + b*2 + c) / 4;
+      }
+      arr.set(temp);
+    }
+    state.needsPaint = true;
+    log(id + ' SMOOTHED.', 'SMOOTH');
+  }
+
+  function resize(){
+    const rect = canvas.parentElement.getBoundingClientRect();
+    state.dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+    state.w = Math.max(1, Math.floor(rect.width));
+    state.h = Math.max(1, Math.floor(rect.height));
+    canvas.width = Math.floor(state.w * state.dpr);
+    canvas.height = Math.floor(state.h * state.dpr);
+    ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
+
+    const pad = 7, gap = 7;
+    const waveH = Math.max(52, Math.floor(state.h * 0.24));
+    const rest = state.h - pad*2 - waveH - gap*4;
+    const laneH = Math.max(36, Math.floor(rest / 4));
+    let y = pad;
+    state.waveformLane = { id:'WAVEFORM', x:7, y, w:state.w-14, h:waveH };
+    y += waveH + gap;
+    state.lanes = LANE_IDS.map(id => {
+      const lane = { id, x:7, y, w:state.w-14, h:laneH };
+      y += laneH + gap;
+      return lane;
+    });
+    state.needsPaint = true;
+  }
+
+  function xToTime(x){
+    const lane = state.waveformLane || {x:0,w:state.w};
+    const f = clamp01((x - lane.x) / Math.max(1, lane.w));
+    return clamp(state.viewStart + f * visibleDuration(), 0, source.duration);
+  }
+  function timeToX(t){
+    const lane = state.waveformLane || {x:0,w:state.w};
+    const f = (t - state.viewStart) / Math.max(0.001, visibleDuration());
+    return lane.x + f * lane.w;
+  }
+  function yToValue(y, lane, id){
+    const f = 1 - clamp01((y - lane.y) / Math.max(1, lane.h));
+    if(id === 'GATE') return f > 0.48 ? 1 : 0;
+    return clamp01(f);
+  }
+  function valueToY(v, lane){ return lane.y + (1 - clamp01(v)) * lane.h; }
+  function canvasPoint(ev){ const r = canvas.getBoundingClientRect(); return {x:ev.clientX-r.left, y:ev.clientY-r.top}; }
+  function laneAtY(y){ return state.lanes.find(l => y >= l.y && y <= l.y + l.h) || null; }
+
+  function createWaveformSummary(width=4000){
+    const bins = Math.max(512, width);
+    const min = new Float32Array(bins), max = new Float32Array(bins), rms = new Float32Array(bins);
+    if(!source.left){ source.waveform = {min,max,rms,bins}; return; }
+    const n = source.left.length;
+    for(let i=0;i<bins;i++){
+      const a = Math.floor(i * n / bins);
+      const b = Math.max(a+1, Math.floor((i+1) * n / bins));
+      let lo=1, hi=-1, ss=0, c=0;
+      for(let j=a;j<b && j<n;j++){
+        const s = source.left[j]; if(s<lo)lo=s; if(s>hi)hi=s; ss += s*s; c++;
+      }
+      min[i]=lo; max[i]=hi; rms[i]=Math.sqrt(ss/Math.max(1,c));
+    }
+    source.waveform = {min,max,rms,bins};
+  }
+
+  async function ensureAudio(){
+    if(!audioCtx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC({ latencyHint:'interactive' });
+    }
+    if(audioCtx.state === 'suspended') await audioCtx.resume();
+    if(!processor) createProcessor();
+  }
+
+  function createProcessor(){
+    const size = 1024;
+    processor = audioCtx.createScriptProcessor(size, 0, 2);
+    state.delayL = new Float32Array(Math.floor(audioCtx.sampleRate * 2.2));
+    state.delayR = new Float32Array(Math.floor(audioCtx.sampleRate * 2.2));
+    state.delayIndex = 0;
+    processor.onaudioprocess = processAudio;
+    processor.connect(audioCtx.destination);
+  }
+
+  function sourceSampleAt(channel, pos){
+    const arr = channel === 0 ? source.left : source.right;
+    if(!arr || arr.length === 0) return 0;
+    const i = Math.floor(pos);
+    if(i < 0 || i >= arr.length - 1) return 0;
+    const f = pos - i;
+    return arr[i] + (arr[i+1] - arr[i]) * f;
+  }
+
+  function genomeFrameAtTime(t){
+    if(!state.genomeReady || genome.frames <= 0) return 0;
+    return clamp(Math.floor((t / Math.max(0.001, source.duration)) * genome.frames), 0, genome.frames - 1);
+  }
+
+  function ghostSample(t, outRate){
+    // Genome ghost: intentionally labeled as ghost, not original.
+    // It uses a small oscillator bank driven by hidden spectral bands and visible score.
+    if(!state.genomeReady) return 0;
+    const gf = genomeFrameAtTime(t);
+    const p = scoreValue('PITCH', t);
+    const vol = scoreValue('VOLUME', t);
+    const gate = scoreValue('GATE', t) > 0.5 ? 1 : 0;
+    const bright = genome.global.brightness[gf] || 0.4;
+    const density = genome.global.density[gf] || 0.3;
+    const base = 55 * Math.pow(2, (p - 0.5) * 2.0 + bright * 1.5);
+    let y = 0;
+    for(let k=0;k<12;k++){
+      const band = Math.min(SPECTRAL_BANDS-1, Math.floor(k * SPECTRAL_BANDS / 12));
+      const amp = Math.pow(genome.spectral[band][gf] || 0, 0.7) * (1 - k/15);
+      state.ghostPhases[k] += 2 * Math.PI * base * (k+1) / outRate;
+      if(state.ghostPhases[k] > Math.PI*2) state.ghostPhases[k] -= Math.PI*2;
+      y += Math.sin(state.ghostPhases[k]) * amp;
+    }
+    return Math.tanh(y * vol * gate * (0.18 + density));
+  }
+
+  function processAudio(ev){
+    const outL = ev.outputBuffer.getChannelData(0);
+    const outR = ev.outputBuffer.getChannelData(1);
+    const srOut = audioCtx.sampleRate;
+    if(!state.running || !source.left){
+      outL.fill(0); outR.fill(0); return;
+    }
+    const durSamples = source.left.length;
+    const loopStart = state.loopVisible ? Math.floor(state.viewStart * source.sampleRate) : 0;
+    const loopEnd = state.loopVisible ? Math.floor(visibleEnd() * source.sampleRate) : durSamples;
+
+    for(let i=0;i<outL.length;i++){
+      let t = state.sourceCursor / source.sampleRate;
+      // Transport is never one-shot: it always wraps.
+      // loopVisible=false means full-song loop; loopVisible=true means visible-window loop.
+      if(t >= source.duration || state.sourceCursor >= durSamples - 2){
+        state.sourceCursor = loopStart;
+        t = state.sourceCursor / source.sampleRate;
+      }
+      if(state.sourceCursor >= loopEnd){
+        state.sourceCursor = loopStart;
+        t = state.sourceCursor / source.sampleRate;
+      }
+
+      const pitch = scoreValue('PITCH', t);
+      const volume = scoreValue('VOLUME', t);
+      const space = scoreValue('SPACE', t);
+      const gate = scoreValue('GATE', t);
+
+      // Varispeed is intentionally mild. 0.5 is neutral.
+      const rate = Math.pow(2, (pitch - 0.5) * 0.65);
+      const lDry = sourceSampleAt(0, state.sourceCursor);
+      const rDry = sourceSampleAt(1, state.sourceCursor);
+      let l = lDry, r = rDry;
+
+      if(state.monitor === 'DRY'){
+        // untouched source, no score applied
+      } else if(state.monitor === 'GHOST'){
+        l = r = ghostSample(t, srOut);
+      } else if(state.monitor === 'SKELETON'){
+        // Four visible lines only, deliberately skeletal.
+        const freq = 55 * Math.pow(2, pitch * 5.2);
+        state.ghostPhases[0] += 2 * Math.PI * freq / srOut;
+        if(state.ghostPhases[0] > Math.PI*2) state.ghostPhases[0] -= Math.PI*2;
+        l = r = Math.sin(state.ghostPhases[0]) * volume * (gate > .5 ? 1 : 0) * 0.45;
+      } else {
+        // CARVED: source body through visible score.
+        state.smoothedGate += ((gate > 0.5 ? 1 : 0) - state.smoothedGate) * 0.08;
+        const gain = Math.pow(volume, 1.35) * state.smoothedGate;
+
+        // Cheap tone response from pitch macro: lower values darken, higher values brighten.
+        // This is not a replacement for source audio; it is a tactile spectral tilt.
+        const tilt = clamp01((pitch - 0.18) / 0.82);
+        const mono = (l + r) * 0.5;
+        l = mono * (1 - tilt*0.35) + l * (0.45 + tilt*0.9);
+        r = mono * (1 - tilt*0.35) + r * (0.45 + tilt*0.9);
+
+        // Space lane controls delay feedback/wetness.
+        const dSamp = Math.floor((0.06 + space * 0.42) * srOut);
+        const dLen = state.delayL.length;
+        const read = (state.delayIndex - dSamp + dLen) % dLen;
+        const wetL = state.delayL[read] || 0;
+        const wetR = state.delayR[read] || 0;
+        const fb = Math.min(0.78, space * 0.68);
+        state.delayL[state.delayIndex] = l * gain + wetL * fb;
+        state.delayR[state.delayIndex] = r * gain + wetR * fb;
+        state.delayIndex = (state.delayIndex + 1) % dLen;
+        l = Math.tanh(l * gain + wetL * space * 0.75);
+        r = Math.tanh(r * gain + wetR * space * 0.75);
+      }
+
+      outL[i] = l;
+      outR[i] = r;
+      state.sourceCursor += (source.sampleRate / srOut) * (state.monitor === 'DRY' ? 1 : rate);
+      state.playhead = state.sourceCursor / source.sampleRate;
+    }
+  }
+
+  async function playPause(){
+    await ensureAudio();
+    if(!source.left){ makeDemoSource(); }
+    if(state.playhead >= source.duration - 0.02){ seek(0); }
+    state.running = !state.running;
+    btnPlay.classList.toggle('on', state.running);
+    btnPlay.textContent = state.running ? '■ STOP' : '► PLAY';
+    log(state.running ? 'ONE CLOCK RUNNING. TRANSPORT WILL LOOP ' + (state.loopVisible ? 'THE VISIBLE WINDOW.' : 'THE FULL SOURCE.') : 'TRANSPORT STOPPED; LOOP STATE PRESERVED.', state.running ? 'PLAY' : 'STOP');
+  }
+
+  function seek(t){
+    state.playhead = clamp(t, 0, source.duration);
+    state.sourceCursor = state.playhead * source.sampleRate;
+    state.smoothedGate = 1;
+    state.needsPaint = true;
+  }
+
+  async function importAudioFile(file){
+    await ensureAudio();
+    log('DECODING SOURCE BODY: ' + file.name.toUpperCase(), 'IMPORT');
+    try{
+      const buf = await file.arrayBuffer();
+      const audioBuf = await audioCtx.decodeAudioData(buf.slice(0));
+      source.name = file.name;
+      source.sampleRate = audioBuf.sampleRate;
+      source.duration = audioBuf.duration;
+      source.left = new Float32Array(audioBuf.getChannelData(0));
+      source.right = audioBuf.numberOfChannels > 1 ? new Float32Array(audioBuf.getChannelData(1)) : new Float32Array(source.left);
+      createScore(source.duration);
+      clearHistory();
+      createWaveformSummary(5000);
+      state.viewStart = 0; state.zoomIndex = 0; state.viewDuration = Infinity;
+      seek(0);
+      state.audioReady = true; state.genomeReady = false;
+      busStatus.textContent = 'SOURCE BODY';
+      log('SOURCE PRESERVED. BUILDING HIDDEN GENOME IN BACKGROUND.', 'IMPORT');
+      extractVisibleScoreFromSource();
+      analyzeGenomeAsync();
+    }catch(err){
+      console.error(err);
+      log('IMPORT FAILED: ' + err.message + '. TRY WAV/MP3/OGG OPUS/VORBIS SUPPORTED BY THIS BROWSER.', 'FAULT');
+    }
+  }
+
+  function extractVisibleScoreFromSource(){
+    if(!source.left || !score.VOLUME) return;
+    const len = score.VOLUME.length;
+    let maxRms = 0;
+    const tempVol = new Float32Array(len);
+    const tempGate = new Float32Array(len);
+    const tempSpace = new Float32Array(len);
+    for(let i=0;i<len;i++){
+      const a = Math.floor(i * source.left.length / len);
+      const b = Math.max(a+1, Math.floor((i+1) * source.left.length / len));
+      let ss=0, diff=0, c=0;
+      for(let j=a;j<b && j<source.left.length-1;j++){
+        const s = source.left[j]; ss += s*s;
+        const d = source.left[j+1] - s; diff += d*d;
+        c++;
+      }
+      const rms = Math.sqrt(ss/Math.max(1,c));
+      const dr = Math.sqrt(diff/Math.max(1,c));
+      tempVol[i] = rms; if(rms > maxRms) maxRms = rms;
+      tempGate[i] = rms > 0.012 ? 1 : 0;
+      tempSpace[i] = clamp01((dr / Math.max(0.0001, rms)) * 0.18);
+    }
+    for(let i=0;i<len;i++){
+      score.VOLUME[i] = maxRms > 0 ? clamp01(Math.pow(tempVol[i] / maxRms, 0.55)) : 1;
+      score.GATE[i] = tempGate[i];
+      score.SPACE[i] = tempSpace[i] * 0.25;
+      score.PITCH[i] = 0.5; // neutral source-preserving default
+    }
+    smoothLane('VOLUME', 2, false);
+    smoothLane('SPACE', 2, false);
+    score.PITCH.fill(0.5);
+    state.needsPaint = true;
+  }
+
+  function allocGenome(frames){
+    genome.frames = frames; genome.ready = 0;
+    genome.spectral = Array.from({length:SPECTRAL_BANDS}, () => new Float32Array(frames));
+    genome.transient = Array.from({length:TRANSIENT_BANDS}, () => new Float32Array(frames));
+    genome.noise = Array.from({length:NOISE_BANDS}, () => new Float32Array(frames));
+    genome.stereo = { left:new Float32Array(frames), right:new Float32Array(frames), pan:new Float32Array(frames), width:new Float32Array(frames) };
+    genome.global = { brightness:new Float32Array(frames), noisiness:new Float32Array(frames), harmonicity:new Float32Array(frames), roughness:new Float32Array(frames), density:new Float32Array(frames) };
+  }
+
+  function makeHann(n){
+    const w = new Float32Array(n);
+    for(let i=0;i<n;i++) w[i] = 0.5 - 0.5 * Math.cos(2*Math.PI*i/(n-1));
+    return w;
+  }
+  const hann = makeHann(FFT_SIZE);
+
+  function fftRadix2(re, im){
+    const n = re.length;
+    let j = 0;
+    for(let i=1;i<n;i++){
+      let bit = n >> 1;
+      for(; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if(i < j){
+        let tr = re[i]; re[i] = re[j]; re[j] = tr;
+        let ti = im[i]; im[i] = im[j]; im[j] = ti;
+      }
+    }
+    for(let len=2; len<=n; len<<=1){
+      const ang = -2 * Math.PI / len;
+      const wlenR = Math.cos(ang), wlenI = Math.sin(ang);
+      for(let i=0;i<n;i+=len){
+        let wr=1, wi=0;
+        for(let k=0;k<len/2;k++){
+          const uR = re[i+k], uI = im[i+k];
+          const vR = re[i+k+len/2]*wr - im[i+k+len/2]*wi;
+          const vI = re[i+k+len/2]*wi + im[i+k+len/2]*wr;
+          re[i+k] = uR + vR; im[i+k] = uI + vI;
+          re[i+k+len/2] = uR - vR; im[i+k+len/2] = uI - vI;
+          const nwr = wr*wlenR - wi*wlenI;
+          wi = wr*wlenI + wi*wlenR; wr = nwr;
+        }
+      }
+    }
+  }
+
+  function bandForFreq(freq){
+    const lo = 30, hi = Math.min(16000, source.sampleRate / 2);
+    const f = clamp((Math.log(freq/lo) / Math.log(hi/lo)), 0, 0.9999);
+    return Math.floor(f * SPECTRAL_BANDS);
+  }
+
+  async function analyzeGenomeAsync(){
+    if(!source.left) return;
+    state.analysisRunning = true;
+    state.genomeReady = false;
+    const frames = genomeLengthForDuration(source.duration);
+    allocGenome(frames);
+    const re = new Float32Array(FFT_SIZE), im = new Float32Array(FFT_SIZE);
+    let prevBands = new Float32Array(SPECTRAL_BANDS);
+    let maxBandSeen = 0.000001;
+    const hop = source.left.length / frames;
+
+    for(let f=0; f<frames; f++){
+      const center = Math.floor(f * hop);
+      let rmsL=0, rmsR=0, c=0;
+      re.fill(0); im.fill(0);
+      for(let i=0;i<FFT_SIZE;i++){
+        const idx = center + i - (FFT_SIZE>>1);
+        const l = idx>=0 && idx<source.left.length ? source.left[idx] : 0;
+        const r = idx>=0 && idx<source.right.length ? source.right[idx] : l;
+        const m = (l + r) * 0.5;
+        re[i] = m * hann[i];
+        rmsL += l*l; rmsR += r*r; c++;
+      }
+      fftRadix2(re, im);
+      const bands = new Float32Array(SPECTRAL_BANDS);
+      let total=0, bright=0, rough=0, peak=0;
+      for(let bin=1; bin<FFT_SIZE/2; bin++){
+        const freq = bin * source.sampleRate / FFT_SIZE;
+        const band = bandForFreq(freq);
+        const mag = Math.sqrt(re[bin]*re[bin] + im[bin]*im[bin]);
+        bands[band] += mag;
+      }
+      for(let b=0;b<SPECTRAL_BANDS;b++){
+        const val = Math.log1p(bands[b]) / 8;
+        bands[b] = val;
+        if(val > maxBandSeen) maxBandSeen = val;
+        total += val;
+        bright += val * (b / (SPECTRAL_BANDS-1));
+        if(b>0) rough += Math.abs(val - bands[b-1]);
+        if(val > peak) peak = val;
+      }
+      const normTotal = Math.max(0.0001, total);
+      for(let b=0;b<SPECTRAL_BANDS;b++){
+        const v = clamp01(bands[b] / Math.max(maxBandSeen, 0.0001));
+        genome.spectral[b][f] = v;
+        const diff = Math.max(0, bands[b] - prevBands[b]);
+        const tb = Math.min(TRANSIENT_BANDS-1, Math.floor(b * TRANSIENT_BANDS / SPECTRAL_BANDS));
+        genome.transient[tb][f] = Math.max(genome.transient[tb][f], clamp01(diff * 3));
+        const nb = Math.min(NOISE_BANDS-1, Math.floor(b * NOISE_BANDS / SPECTRAL_BANDS));
+        genome.noise[nb][f] += clamp01(rough / SPECTRAL_BANDS) / (SPECTRAL_BANDS / NOISE_BANDS);
+      }
+      genome.stereo.left[f] = clamp01(Math.sqrt(rmsL/Math.max(1,c)) * 3);
+      genome.stereo.right[f] = clamp01(Math.sqrt(rmsR/Math.max(1,c)) * 3);
+      const sumLR = genome.stereo.left[f] + genome.stereo.right[f] + 0.0001;
+      genome.stereo.pan[f] = clamp01((genome.stereo.right[f] - genome.stereo.left[f]) / sumLR * 0.5 + 0.5);
+      genome.stereo.width[f] = clamp01(Math.abs(genome.stereo.right[f] - genome.stereo.left[f]) * 2);
+      genome.global.brightness[f] = clamp01(bright / normTotal);
+      genome.global.noisiness[f] = clamp01((rough / SPECTRAL_BANDS) * 2.4);
+      genome.global.harmonicity[f] = clamp01(peak / normTotal * 8);
+      genome.global.roughness[f] = clamp01(rough / normTotal * 2);
+      genome.global.density[f] = clamp01(normTotal / 8);
+      prevBands = bands;
+      genome.ready = f + 1;
+      if(f % 18 === 0){
+        busGenome.textContent = 'GENOME ' + String(Math.floor((f+1)/frames*100)).padStart(3,'0') + '%';
+        await new Promise(requestAnimationFrame);
+      }
+    }
+    state.genomeReady = true;
+    state.analysisRunning = false;
+    busGenome.textContent = 'GENOME 100%';
+    log('HIDDEN GENOME READY: 64 SPECTRAL + 16 TRANSIENT + 8 NOISE STRANDS.', 'GENOME');
+    state.needsPaint = true;
+  }
+
+  function makeDemoSource(){
+    const sr = 44100, dur = 8, n = Math.floor(sr * dur);
+    source.name = 'INTERNAL TEST SOURCE'; source.sampleRate = sr; source.duration = dur;
+    source.left = new Float32Array(n); source.right = new Float32Array(n);
+    const notes = [60,64,67,72,74,72,67,64,60,62,64,67,72,67,64,55];
+    for(let i=0;i<n;i++){
+      const t = i / sr;
+      const beat = Math.floor((t / dur) * 16) % 16;
+      const f = 440 * Math.pow(2, (notes[beat]-69)/12);
+      const local = ((t / dur) * 16) % 1;
+      const env = Math.min(1, local/0.08) * Math.max(0, Math.min(1, (1-local)/0.18));
+      const kick = Math.exp(-local * 20) * (beat % 4 === 0 ? Math.sin(2*Math.PI*(48 + 60*(1-local))*t) : 0);
+      const s = (Math.sin(2*Math.PI*f*t) + 0.3*Math.sin(2*Math.PI*f*2*t)) * env * 0.32 + kick * 0.28;
+      source.left[i] = Math.tanh(s);
+      source.right[i] = Math.tanh(s * (0.94 + 0.06*Math.sin(2*Math.PI*0.1*t)));
+    }
+    createScore(dur);
+    clearHistory();
+    createWaveformSummary(2000);
+    state.viewStart = 0; state.zoomIndex = 0; state.viewDuration = Infinity;
+    state.audioReady = true; state.genomeReady = false;
+    seek(0);
+    extractVisibleScoreFromSource();
+    analyzeGenomeAsync();
+    busStatus.textContent = 'TEST SOURCE';
+    log('INTERNAL TEST SOURCE GENERATED. DRAW VOLUME DOWN TO MUTE REAL SOURCE.', 'SEQ');
+  }
+
+  function applyTemplate(){
+    if(!source.left) makeDemoSource();
+    const names = ['SIDECHAIN PUMP','TAPE GATE','DUB THROW','PHONE WINDOW','VOCAL APPARITION','DRUM X-RAY','BREATH FADE','STUTTER GRID'];
+    const name = names[state.seqIndex++ % names.length];
+    const start = state.viewStart, end = visibleEnd(), dur = Math.max(0.1, end - start);
+    const ia = scoreIndexAtTime(start), ib = scoreIndexAtTime(end);
+    for(let i=ia;i<=ib;i++){
+      const t = (i - ia) / Math.max(1, ib - ia);
+      const beat = (t * 16) % 1;
+      if(name === 'SIDECHAIN PUMP'){
+        score.VOLUME[i] = clamp01(0.45 + Math.pow(beat, 0.45) * 0.55);
+        score.GATE[i] = 1; score.SPACE[i] = 0.04; score.PITCH[i] = 0.5;
+      } else if(name === 'TAPE GATE'){
+        score.VOLUME[i] = 0.92;
+        score.GATE[i] = beat < 0.62 ? 1 : 0;
+        score.SPACE[i] = 0.08; score.PITCH[i] = 0.5 + Math.sin(t*Math.PI*8)*0.025;
+      } else if(name === 'DUB THROW'){
+        score.VOLUME[i] = 0.95; score.GATE[i] = 1; score.PITCH[i] = 0.5;
+        const phrase = (t * 4) % 1;
+        score.SPACE[i] = phrase > 0.78 ? 0.85 : 0.08;
+      } else if(name === 'PHONE WINDOW'){
+        score.VOLUME[i] = 0.8; score.GATE[i] = 1; score.SPACE[i] = 0.04;
+        score.PITCH[i] = 0.26;
+      } else if(name === 'VOCAL APPARITION'){
+        score.VOLUME[i] = 0.72 + Math.sin(t*Math.PI*2)*0.1;
+        score.GATE[i] = 1; score.SPACE[i] = 0.55 + Math.sin(t*Math.PI*6)*0.18; score.PITCH[i] = 0.54;
+      } else if(name === 'DRUM X-RAY'){
+        score.VOLUME[i] = beat < 0.18 ? 1 : 0.22;
+        score.GATE[i] = beat < 0.22 ? 1 : 0;
+        score.SPACE[i] = 0.02; score.PITCH[i] = 0.72;
+      } else if(name === 'BREATH FADE'){
+        const wave = 0.5 - 0.5*Math.cos(t*Math.PI*2);
+        score.VOLUME[i] = 0.15 + wave*0.85; score.GATE[i] = 1; score.SPACE[i] = wave*0.35; score.PITCH[i] = 0.48 + wave*0.06;
+      } else if(name === 'STUTTER GRID'){
+        const cell = Math.floor(t*64) % 4;
+        score.VOLUME[i] = 0.9; score.GATE[i] = cell < 2 ? 1 : 0; score.SPACE[i] = 0.03; score.PITCH[i] = 0.5;
+      }
+    }
+    state.needsPaint = true;
+    log(name + ' WRITTEN INTO VISIBLE SCORE OVER CURRENT WINDOW.', 'SEQ');
+  }
+
+  function applyMacro(){
+    if(!score[state.activeLane]) return;
+    const names = ['INVERT','STAIR','RAMP UP','RAMP DOWN','HUMANIZE','PULSE'];
+    const name = names[state.macroIndex++ % names.length];
+    pushUndo('MACRO ' + name + ' ' + state.activeLane, [state.activeLane]);
+    const arr = score[state.activeLane];
+    const ia = scoreIndexAtTime(state.viewStart), ib = scoreIndexAtTime(visibleEnd());
+    for(let i=ia;i<=ib;i++){
+      const t = (i - ia) / Math.max(1, ib - ia);
+      if(name === 'INVERT') arr[i] = 1 - arr[i];
+      else if(name === 'STAIR') arr[i] = Math.round(arr[i] * 5) / 5;
+      else if(name === 'RAMP UP') arr[i] = t;
+      else if(name === 'RAMP DOWN') arr[i] = 1 - t;
+      else if(name === 'HUMANIZE') arr[i] = clamp01(arr[i] + (Math.random() - 0.5) * 0.12);
+      else if(name === 'PULSE') arr[i] = ((t * 16) % 1) < 0.5 ? 1 : laneMeta(state.activeLane).cut;
+    }
+    if(state.activeLane !== 'GATE') smoothLane(state.activeLane, 1, false);
+    state.needsPaint = true;
+    log(name + ' APPLIED TO ' + state.activeLane + '.', 'MACRO');
+  }
+
+
+  function encodeWav16(left, right, sampleRate){
+    const n = left.length;
+    const bytesPerSample = 2;
+    const blockAlign = 2 * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = n * blockAlign;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+    function writeStr(offset, str){ for(let i=0;i<str.length;i++) view.setUint8(offset+i, str.charCodeAt(i)); }
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 2, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, dataSize, true);
+    let off = 44;
+    for(let i=0;i<n;i++){
+      const l = Math.max(-1, Math.min(1, left[i]));
+      const r = Math.max(-1, Math.min(1, right[i]));
+      view.setInt16(off, l < 0 ? l * 0x8000 : l * 0x7fff, true); off += 2;
+      view.setInt16(off, r < 0 ? r * 0x8000 : r * 0x7fff, true); off += 2;
+    }
+    return new Blob([buffer], {type:'audio/wav'});
+  }
+
+  function renderOfflineSample(render, cursor, srOut){
+    let t = cursor / source.sampleRate;
+    const pitch = scoreValue('PITCH', t);
+    const volume = scoreValue('VOLUME', t);
+    const space = scoreValue('SPACE', t);
+    const gate = scoreValue('GATE', t);
+    const rate = Math.pow(2, (pitch - 0.5) * 0.65);
+    const lDry = sourceSampleAt(0, cursor);
+    const rDry = sourceSampleAt(1, cursor);
+    let l = lDry, r = rDry;
+
+    if(render.monitor === 'DRY'){
+      // dry source reference
+    } else if(render.monitor === 'GHOST'){
+      l = r = renderGhostOffline(t, srOut, render);
+    } else if(render.monitor === 'SKELETON'){
+      const freq = 55 * Math.pow(2, pitch * 5.2);
+      render.ghostPhases[0] += 2 * Math.PI * freq / srOut;
+      if(render.ghostPhases[0] > Math.PI*2) render.ghostPhases[0] -= Math.PI*2;
+      l = r = Math.sin(render.ghostPhases[0]) * volume * (gate > .5 ? 1 : 0) * 0.45;
+    } else {
+      render.smoothedGate += ((gate > 0.5 ? 1 : 0) - render.smoothedGate) * 0.08;
+      const gain = Math.pow(volume, 1.35) * render.smoothedGate;
+      const tilt = clamp01((pitch - 0.18) / 0.82);
+      const mono = (l + r) * 0.5;
+      l = mono * (1 - tilt*0.35) + l * (0.45 + tilt*0.9);
+      r = mono * (1 - tilt*0.35) + r * (0.45 + tilt*0.9);
+      const dSamp = Math.floor((0.06 + space * 0.42) * srOut);
+      const dLen = render.delayL.length;
+      const read = (render.delayIndex - dSamp + dLen) % dLen;
+      const wetL = render.delayL[read] || 0;
+      const wetR = render.delayR[read] || 0;
+      const fb = Math.min(0.78, space * 0.68);
+      render.delayL[render.delayIndex] = l * gain + wetL * fb;
+      render.delayR[render.delayIndex] = r * gain + wetR * fb;
+      render.delayIndex = (render.delayIndex + 1) % dLen;
+      l = Math.tanh(l * gain + wetL * space * 0.75);
+      r = Math.tanh(r * gain + wetR * space * 0.75);
+    }
+    return {l, r, rate};
+  }
+
+  function renderGhostOffline(t, outRate, render){
+    if(!state.genomeReady) return 0;
+    const gf = genomeFrameAtTime(t);
+    const p = scoreValue('PITCH', t);
+    const vol = scoreValue('VOLUME', t);
+    const gate = scoreValue('GATE', t) > 0.5 ? 1 : 0;
+    const bright = genome.global.brightness[gf] || 0.4;
+    const density = genome.global.density[gf] || 0.3;
+    const base = 55 * Math.pow(2, (p - 0.5) * 2.0 + bright * 1.5);
+    let y = 0;
+    for(let k=0;k<12;k++){
+      const band = Math.min(SPECTRAL_BANDS-1, Math.floor(k * SPECTRAL_BANDS / 12));
+      const amp = Math.pow(genome.spectral[band][gf] || 0, 0.7) * (1 - k/15);
+      render.ghostPhases[k] += 2 * Math.PI * base * (k+1) / outRate;
+      if(render.ghostPhases[k] > Math.PI*2) render.ghostPhases[k] -= Math.PI*2;
+      y += Math.sin(render.ghostPhases[k]) * amp;
+    }
+    return Math.tanh(y * vol * gate * (0.18 + density));
+  }
+
+  async function exportSongWav(){
+    if(state.exportRunning){ log('EXPORT ALREADY RUNNING.', 'EXPORT'); return; }
+    if(!source.left) makeDemoSource();
+    state.exportRunning = true;
+    try{
+      const sr = source.sampleRate || 44100;
+      const startT = state.loopVisible ? state.viewStart : 0;
+      const endT = state.loopVisible ? visibleEnd() : source.duration;
+      const exportDur = Math.max(0.1, endT - startT);
+      const n = Math.ceil(exportDur * sr);
+      const left = new Float32Array(n);
+      const right = new Float32Array(n);
+      const render = {
+        monitor: state.monitor,
+        smoothedGate: 1,
+        delayL: new Float32Array(Math.floor(sr * 2.2)),
+        delayR: new Float32Array(Math.floor(sr * 2.2)),
+        delayIndex: 0,
+        ghostPhases: new Float32Array(12)
+      };
+      let cursor = startT * source.sampleRate;
+      const loopStart = startT * source.sampleRate;
+      const loopEnd = endT * source.sampleRate;
+      log('RENDERING ' + (state.loopVisible ? 'VISIBLE LOOP' : 'FULL SONG') + ' TO WAV...', 'EXPORT');
+      await new Promise(requestAnimationFrame);
+      for(let i=0;i<n;i++){
+        if(cursor >= loopEnd || cursor >= source.left.length - 2) cursor = loopStart;
+        const smp = renderOfflineSample(render, cursor, sr);
+        left[i] = smp.l;
+        right[i] = smp.r;
+        cursor += (source.sampleRate / sr) * (render.monitor === 'DRY' ? 1 : smp.rate);
+        if((i % (sr * 2)) === 0) await new Promise(requestAnimationFrame);
+      }
+      const blob = encodeWav16(left, right, sr);
+      const a = document.createElement('a');
+      const safeName = (source.name || 'oramics_source').replace(/\.[^.]+$/, '').replace(/[^a-z0-9_-]+/gi, '_').slice(0, 48);
+      a.href = URL.createObjectURL(blob);
+      a.download = safeName + '_' + state.monitor.toLowerCase() + (state.loopVisible ? '_visible_loop' : '_full_loop') + '_' + Date.now() + '.wav';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      log('WAV EXPORTED. THIS IS THE SHAREABLE FINAL SONG FILE.', 'EXPORT');
+    }catch(err){
+      console.error(err);
+      log('WAV EXPORT FAILED: ' + err.message, 'FAULT');
+    }finally{
+      state.exportRunning = false;
+    }
+  }
+
+  function exportGenome(){
+    const data = {
+      version:'ORAMICS-GENOME-SCULPTOR-1',
+      source:{name:source.name,duration:source.duration,sampleRate:source.sampleRate, note:'PCM audio is not embedded; this exports score/genome metadata only.'},
+      visibleScore:{ fps:CONTROL_FPS, lanes:{} },
+      monitor:state.monitor
+    };
+    LANE_IDS.forEach(id => data.visibleScore.lanes[id] = Array.from(score[id] || []));
+    const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'oramics_visible_score_' + Date.now() + '.oragenome.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    log('PROJECT EXPORTED. SHARE WAV FOR LISTENING; KEEP JSON FOR RE-EDITING.', 'PROJECT');
+  }
+
+  async function importGenomeJson(file){
+    try{
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if(!data.visibleScore || !data.visibleScore.lanes) throw new Error('No visibleScore.lanes found.');
+      const first = data.visibleScore.lanes[LANE_IDS[0]] || [];
+      source.duration = data.source && data.source.duration ? data.source.duration : Math.max(DEFAULT_DURATION, first.length / CONTROL_FPS);
+      if(!source.left) makeDemoSource();
+      createScore(source.duration);
+      clearHistory();
+      LANE_IDS.forEach(id => {
+        if(data.visibleScore.lanes[id]) score[id].set(data.visibleScore.lanes[id].slice(0, score[id].length));
+      });
+      state.needsPaint = true;
+      log('VISIBLE SCORE IMPORTED. LOAD MATCHING AUDIO FOR TRUE SOURCE BODY.', 'IMPORT');
+    }catch(err){ log('SCORE IMPORT FAILED: ' + err.message, 'FAULT'); }
+  }
+
+  function cycleMonitor(){
+    const list = ['CARVED','DRY','GHOST','SKELETON'];
+    state.monitor = list[(list.indexOf(state.monitor) + 1) % list.length];
+    busMonitor.textContent = state.monitor;
+    btnMonitor.querySelector('b').textContent = state.monitor;
+    log('MONITOR = ' + state.monitor + '. DRY IS REFERENCE; CARVED IS THE INSTRUMENT.', 'MONITOR');
+  }
+
+  function cycleZoom(){
+    state.zoomIndex = (state.zoomIndex + 1) % ZOOMS.length;
+    const z = ZOOMS[state.zoomIndex];
+    state.viewDuration = z;
+    if(!isFinite(z)){ state.viewStart = 0; btnZoom.querySelector('span').textContent = 'FULL SONG'; }
+    else {
+      state.viewStart = clamp(state.playhead - z/2, 0, Math.max(0, source.duration - z));
+      btnZoom.querySelector('span').textContent = z + ' SEC WINDOW';
+    }
+    state.needsPaint = true;
+    log('ZOOM WINDOW = ' + (isFinite(z) ? z + ' SECONDS.' : 'FULL SONG.'), 'ZOOM');
+  }
+
+  function setMode(mode){
+    state.mode = mode;
+    document.querySelectorAll('.cmd').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.cmd[data-cmd="${mode}"]`)?.classList.add('active');
+    log(mode === 'DRAW' ? 'DRAW WRITES THE ACTIVE VISIBLE LINE.' : 'CUT FORCES THE ACTIVE LANE TO ITS CUT VALUE.', mode);
+  }
+
+  function cycleLane(){
+    const i = (LANE_IDS.indexOf(state.activeLane) + 1) % LANE_IDS.length;
+    state.activeLane = LANE_IDS[i];
+    btnArm.querySelector('b').textContent = 'ARM: ' + state.activeLane;
+    busLane.textContent = state.activeLane;
+    log('ARMED ' + laneMeta(state.activeLane).label + ': ' + laneMeta(state.activeLane).help, 'ARM');
+    state.needsPaint = true;
+  }
+
+  function pointerDown(ev){
+    ev.preventDefault();
+    if(!source.left) makeDemoSource();
+    const p = canvasPoint(ev);
+    const lane = laneAtY(p.y);
+    if(lane){
+      state.activeLane = lane.id;
+      btnArm.querySelector('b').textContent = 'ARM: ' + state.activeLane;
+      busLane.textContent = state.activeLane;
+    }
+    if(!lane) { seek(xToTime(p.x)); return; }
+    state.pen.active = true; state.pen.pointerId = ev.pointerId;
+    try{ canvas.setPointerCapture(ev.pointerId); }catch(e){}
+    const t = xToTime(p.x);
+    const v = state.mode === 'CUT' ? laneMeta(state.activeLane).cut : yToValue(p.y, lane, state.activeLane);
+    pushUndo('STROKE ' + state.activeLane, [state.activeLane]);
+    state.pen.lastTime = t; state.pen.lastVal = v;
+    writeScoreSpan(state.activeLane, t, v, t, v);
+    log(state.activeLane + ' TOUCH WRITES DIRECTLY INTO AUDIBLE SCORE.', state.mode);
+  }
+
+  function pointerMove(ev){
+    if(!state.pen.active || ev.pointerId !== state.pen.pointerId) return;
+    ev.preventDefault();
+    const pts = ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev];
+    const lane = state.lanes.find(l => l.id === state.activeLane);
+    if(!lane) return;
+    for(const e of pts){
+      const p = canvasPoint(e);
+      const t = xToTime(p.x);
+      const v = state.mode === 'CUT' ? laneMeta(state.activeLane).cut : yToValue(p.y, lane, state.activeLane);
+      writeScoreSpan(state.activeLane, state.pen.lastTime, state.pen.lastVal, t, v);
+      state.pen.lastTime = t; state.pen.lastVal = v;
+    }
+  }
+
+  function pointerUp(ev){
+    if(ev.pointerId !== state.pen.pointerId) return;
+    ev.preventDefault();
+    state.pen.active = false; state.pen.pointerId = null;
+    try{ canvas.releasePointerCapture(ev.pointerId); }catch(e){}
+    log(state.activeLane + ' MODIFICATION COMPLETE.', state.mode);
+  }
+
+  function drawWaveform(lane){
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(lane.x,lane.y,lane.w,lane.h);
+    ctx.fillStyle = '#000'; ctx.font = '900 11px ui-monospace,monospace'; ctx.textBaseline='middle';
+    ctx.fillText('SOURCE BODY: ' + source.name, lane.x+6, lane.y+12);
+    const mid = lane.y + lane.h * 0.55;
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(lane.x, mid); ctx.lineTo(lane.x + lane.w, mid); ctx.stroke();
+    if(!source.waveform){ return; }
+    const wf = source.waveform;
+    ctx.fillStyle = '#000';
+    for(let x=0; x<lane.w; x++){
+      const t0 = state.viewStart + (x / lane.w) * visibleDuration();
+      const wi = clamp(Math.floor((t0 / Math.max(0.001, source.duration)) * wf.bins), 0, wf.bins-1);
+      const lo = wf.min[wi], hi = wf.max[wi];
+      const y1 = mid + lo * lane.h * 0.36;
+      const y2 = mid + hi * lane.h * 0.36;
+      ctx.fillRect(lane.x+x, Math.min(y1,y2), 1, Math.max(1, Math.abs(y2-y1)));
+    }
+    // Hidden genome spectral dust behind source waveform.
+    if(state.genomeReady || genome.ready > 0){
+      const ready = Math.max(1, genome.ready || genome.frames);
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = '#000';
+      for(let x=0; x<lane.w; x+=4){
+        const t0 = state.viewStart + (x / lane.w) * visibleDuration();
+        const gf = clamp(Math.floor((t0/source.duration)*ready),0,ready-1);
+        const bright = genome.global.brightness[gf] || 0;
+        const dens = genome.global.density[gf] || 0;
+        const y = lane.y + 22 + bright * (lane.h - 30);
+        ctx.fillRect(lane.x+x, y, 2, Math.max(1, dens * 18));
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawControlLane(lane){
+    const active = lane.id === state.activeLane;
+    ctx.strokeStyle = '#000'; ctx.lineWidth = active ? 3 : 2; ctx.strokeRect(lane.x,lane.y,lane.w,lane.h);
+    // Genome sub-visible hatching: tells user there is more body underneath the macro line.
+    if(state.genomeReady || genome.ready > 0){
+      ctx.globalAlpha = 0.12; ctx.fillStyle = '#000';
+      const ready = Math.max(1, genome.ready || genome.frames);
+      for(let x=0; x<lane.w; x+=6){
+        const t = state.viewStart + (x / lane.w) * visibleDuration();
+        const gf = clamp(Math.floor((t/source.duration)*ready),0,ready-1);
+        let val = 0;
+        if(lane.id === 'PITCH') val = genome.global.brightness[gf] || 0;
+        if(lane.id === 'VOLUME') val = genome.global.density[gf] || 0;
+        if(lane.id === 'SPACE') val = genome.stereo.width[gf] || 0;
+        if(lane.id === 'GATE') val = Math.max(...genome.transient.map(a => a[gf] || 0));
+        ctx.fillRect(lane.x+x, lane.y+lane.h-(val*lane.h), 2, val*lane.h);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    const arr = score[lane.id];
+    if(arr){
+      ctx.strokeStyle = '#000'; ctx.lineWidth = active ? 4 : 2; ctx.beginPath();
+      let started=false;
+      for(let x=0; x<=lane.w; x+=2){
+        const t = state.viewStart + (x / lane.w) * visibleDuration();
+        const y = valueToY(scoreValue(lane.id, t), lane);
+        if(!started){ ctx.moveTo(lane.x+x, y); started=true; }
+        else ctx.lineTo(lane.x+x, y);
+      }
+      ctx.stroke();
+    }
+
+    const labelW = Math.min(190, Math.max(90, lane.w * .35));
+    ctx.fillStyle = active ? '#000' : '#fff'; ctx.fillRect(lane.x,lane.y,labelW,22);
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(lane.x,lane.y,labelW,22);
+    ctx.fillStyle = active ? '#fff' : '#000'; ctx.font = '900 11px ui-monospace,monospace'; ctx.textBaseline = 'middle';
+    ctx.fillText(lane.id + (active ? ' *' : ''), lane.x+6, lane.y+11);
+  }
+
+  function drawPlayhead(){
+    const x = timeToX(state.playhead) + 0.5;
+    if(x < 0 || x > state.w) return;
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,state.h); ctx.stroke();
+  }
+
+  function draw(){
+    if(state.running){
+      if(isFinite(state.viewDuration)){
+        const margin = state.viewDuration * 0.18;
+        if(state.playhead < state.viewStart + margin || state.playhead > visibleEnd() - margin){
+          state.viewStart = clamp(state.playhead - state.viewDuration * 0.42, 0, Math.max(0, source.duration - state.viewDuration));
+        }
+      }
+      state.needsPaint = true;
+    }
+    if(state.needsPaint){
+      state.needsPaint = false;
+      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,state.w,state.h);
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(1,1,state.w-2,state.h-2);
+      if(state.waveformLane) drawWaveform(state.waveformLane);
+      state.lanes.forEach(drawControlLane);
+      drawPlayhead();
+      busTime.textContent = fmtTime(state.playhead) + ' / ' + fmtTime(source.duration);
+      busMonitor.textContent = state.monitor;
+      busLane.textContent = state.activeLane;
+      busStatus.textContent = source.left ? (state.running ? 'RUNNING' : 'SOURCE READY') : 'NO SOURCE';
+      if(state.analysisRunning) busGenome.textContent = 'GENOME ' + String(Math.floor((genome.ready/Math.max(1,genome.frames))*100)).padStart(3,'0') + '%';
+      else if(state.genomeReady) busGenome.textContent = 'GENOME 100%';
+    }
+    raf = requestAnimationFrame(draw);
+  }
+
+  document.querySelectorAll('.cmd').forEach(btn => {
+    btn.addEventListener('pointerdown', ev => {
+      ev.preventDefault();
+      const cmd = btn.dataset.cmd;
+      if(cmd === 'DRAW' || cmd === 'CUT') setMode(cmd);
+      else if(cmd === 'ARM') cycleLane();
+      else if(cmd === 'MONITOR') cycleMonitor();
+      else if(cmd === 'SEQ') applyTemplate();
+      else if(cmd === 'MACRO') applyMacro();
+      else if(cmd === 'UNDO') undoLast();
+      else if(cmd === 'CLEAR') clearActiveLane();
+      else if(cmd === 'RESET') resetScore();
+      else if(cmd === 'SMOOTH') smoothLane(state.activeLane, 4);
+      else if(cmd === 'IMPORT') fileImport.click();
+      else if(cmd === 'ZOOM') cycleZoom();
+      else if(cmd === 'LOOP') {
+        state.loopVisible = !state.loopVisible;
+        btnLoop.classList.add('hot');
+        btnLoop.querySelector('b').textContent = state.loopVisible ? 'LOOP: WINDOW' : 'LOOP: FULL';
+        btnLoop.querySelector('span').textContent = state.loopVisible ? 'VISIBLE WINDOW' : 'FULL SONG';
+        if(state.loopVisible) seek(clamp(state.playhead, state.viewStart, visibleEnd()));
+        log(state.loopVisible ? 'TRANSPORT WILL LOOP THE VISIBLE WINDOW.' : 'TRANSPORT WILL LOOP THE FULL SOURCE.', 'LOOP');
+      }
+      else if(cmd === 'EXPORT_WAV') exportSongWav();
+      else if(cmd === 'EXPORT_PROJECT') exportGenome();
+    });
+  });
+  btnPlay.addEventListener('click', ev => { ev.preventDefault(); playPause(); });
+  fileImport.addEventListener('change', async ev => {
+    const f = ev.target.files && ev.target.files[0]; if(!f) return;
+    if(f.name.match(/\.(json|oragenome)$/i)) await importGenomeJson(f);
+    else await importAudioFile(f);
+    ev.target.value = '';
+  });
+  canvas.addEventListener('pointerdown', pointerDown, {passive:false});
+  canvas.addEventListener('pointermove', pointerMove, {passive:false});
+  window.addEventListener('pointerup', pointerUp, {passive:false});
+  window.addEventListener('pointercancel', pointerUp, {passive:false});
+  window.addEventListener('resize', resize);
+  document.addEventListener('touchmove', e => { if(e.target.tagName !== 'TEXTAREA') e.preventDefault(); }, {passive:false});
+  document.addEventListener('gesturestart', e => e.preventDefault());
+
+  createScore(DEFAULT_DURATION);
+  resize();
+  draw();
+})();
+</script>
+</body>
+</html>
