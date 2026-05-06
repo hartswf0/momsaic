@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+<meta name="theme-color" content="#ffffff" />
+<title>ORAMICS TOUCH FILM — ABC-FLIX EDITION</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #000000;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --line: 1px solid #000000;
+    --fat: 2px solid #000000;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --sans: Arial, Helvetica, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; -webkit-tap-highlight-color: transparent; }
+  
+  /* ABSOLUTE VIEWPORT LOCK: Destroys the mobile URL-bar cut-off issue natively */
+  html, body {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%; height: 100%;
+    overflow: hidden; background: var(--bg); color: var(--ink);
+    touch-action: none; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+  }
+
+  body { font-family: var(--mono); }
+  button { appearance: none; -webkit-appearance: none; font: inherit; color: var(--ink); background: var(--bg); border: var(--line); cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
+
+  .machine {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    background: var(--bg); color: var(--ink); overflow: hidden;
+  }
+
+  /* M0: HEADER */
+  .header {
+    flex: 0 0 auto;
+    padding: calc(6px + var(--safe-top)) 6px 5px; border-bottom: var(--fat);
+    display: flex; align-items: stretch; justify-content: space-between;
+  }
+  .brand { display: flex; flex-direction: column; justify-content: center; min-width: 0; padding-right: 10px; }
+  .title { font-family: var(--sans); font-weight: 900; font-size: clamp(20px, 7vw, 36px); line-height: 0.85; letter-spacing: -0.05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .subtitle { font-size: 10px; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .play-cell {
+    flex: 0 0 110px; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 900; text-transform: uppercase;
+    border: var(--fat); background: var(--bg); color: var(--ink); transition: 0.1s;
+  }
+  .play-cell.on { background: var(--ink); color: var(--bg); animation: pulsePlay 1.2s infinite alternate; }
+  @keyframes pulsePlay { 0% { background: var(--ink); } 100% { background: #444; } }
+
+  /* M1: OPTICAL FILM DECK */
+  .film-deck { flex: 1 1 0; position: relative; width: 100%; min-height: 0; background: var(--bg); }
+  canvas#film { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+  
+  /* M2: ORAM BUS */
+  .bus { flex: 0 0 24px; display: flex; border-top: var(--fat); border-bottom: var(--line); background: var(--bg); }
+  .bus-cell { display: flex; align-items: center; justify-content: center; border-right: var(--line); font-size: 10px; font-weight: 900; padding: 0 6px; }
+  .bus-cell:last-child { border-right: none; flex: 1; justify-content: flex-end; }
+  .bus-cell.live-on { background: var(--ink); color: var(--bg); }
+
+  /* M3: RELAY LEDGER */
+  .ledger { flex: 0 0 34px; display: flex; background: var(--bg); cursor: pointer; border-bottom: var(--fat); }
+  .ledger-tag { width: 56px; display: flex; align-items: center; justify-content: center; background: var(--ink); color: var(--bg); font-size: 10px; font-weight: 900; }
+  .ledger-slip { flex: 1; display: flex; align-items: center; padding: 0 8px; font-size: 10px; font-weight: 900; text-transform: uppercase; border-left: var(--fat); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .ledger-slip.engaged { background: var(--ink); color: var(--bg); }
+
+  /* M4: ACTION COMMAND MATRIX */
+  .commands {
+    flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;
+    padding: 6px; padding-bottom: max(6px, var(--safe-bottom));
+    background: var(--bg);
+  }
+  .cmd {
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+    padding: 6px; border: var(--fat); min-height: 46px; background: var(--bg); color: var(--ink);
+  }
+  .cmd b { font-size: clamp(12px, 3.5vw, 15px); font-weight: 900; text-transform: uppercase; line-height: 1.1; letter-spacing: -0.5px; }
+  .cmd span { font-size: 9px; font-weight: 900; text-transform: uppercase; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; text-align: left; }
+  .cmd.active { background: var(--ink); color: var(--bg); }
+
+</style>
+</head>
+<body>
+<div class="machine" id="machine">
+  <header class="header">
+    <div class="brand">
+      <h1 class="title">ORAMICS TOUCH</h1>
+      <p class="subtitle">ICARO-ATO BFLIX SPLICING ENGINE</p>
+    </div>
+    <button id="btnPlay" class="play-cell" type="button">► PLAY</button>
+  </header>
+
+  <main class="film-deck" id="filmDeck">
+    <canvas id="film"></canvas>
+  </main>
+
+  <section class="bus">
+    <div class="bus-cell" id="busLive">LIVE</div>
+    <div class="bus-cell" id="busIdx">IDX 0000</div>
+    <div class="bus-cell" id="busVer">VER 000</div>
+    <div class="bus-cell" id="busFault">OK</div>
+  </section>
+
+  <section class="ledger" id="ledgerRelay">
+    <div class="ledger-tag" id="ledgerTag">DRAW</div>
+    <div id="ledgerSlip" class="ledger-slip">SYSTEM IDLE. AWAITING RUN COMMAND.</div>
+  </section>
+
+  <nav class="commands">
+    <button class="cmd active" data-cmd="DRAW" type="button"><b>DRAW</b><span>WRITE MASS</span></button>
+    <button class="cmd" data-cmd="CUT" type="button"><b>CUT</b><span>ERASE SPAN</span></button>
+    <button class="cmd" data-cmd="ARM" id="btnArm" type="button"><b>ARM: PITCH</b><span>CYCLE TRACK</span></button>
+    
+    <button class="cmd" data-cmd="LIFT" type="button"><b>LIFT</b><span>HOLD MASS</span></button>
+    <button class="cmd" data-cmd="DROP" type="button"><b>DROP</b><span>PASTE CLIP</span></button>
+    <button class="cmd" data-cmd="EXPORT" type="button"><b>EXPORT</b><span>.BFLIX</span></button>
+  </nav>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // --- ARCHITECTURE CONSTANTS ---
+  const BUFFER_SIZE = 2048;
+  const CYCLE_SECONDS = 4.8;
+  const BASELINES = { PITCH: 0.42, VOLUME: 0.32, REVERB: 0.08, GATE: 1.0 };
+  const STRIPS = [
+    { id: 'PITCH', share: 0.34, baseline: BASELINES.PITCH },
+    { id: 'VOLUME', share: 0.26, baseline: BASELINES.VOLUME },
+    { id: 'REVERB', share: 0.22, baseline: BASELINES.REVERB },
+    { id: 'GATE', share: 0.18, baseline: BASELINES.GATE }
+  ];
+  const STRIP_ORDER = STRIPS.map(s => s.id);
+
+  const state = {
+    mode: 'DRAW', // DRAW, CUT, LIFT, DROP
+    activeStrip: 'PITCH', running: false, audioIndex: 0, phase: 0,
+    versions: { PITCH: 0, VOLUME: 0, REVERB: 0, GATE: 0 },
+    pen: { active: false, pointerId: null, x: 0, y: 0, lastIdx: -1, lastVal: -1, startX: -1, startIdx: -1 },
+    clipboard: null, // Holds copied Float32Array segment
+    needsPaint: true, dpr: 1, w: 1, h: 1, lanes: []
+  };
+
+  const buffers = {};
+  STRIPS.forEach(s => buffers[s.id] = new Float32Array(BUFFER_SIZE).fill(s.baseline));
+
+  const canvas = document.getElementById('film');
+  const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+  const ledgerSlip = document.getElementById('ledgerSlip');
+  const ledgerTag = document.getElementById('ledgerTag');
+  const busIdx = document.getElementById('busIdx');
+  
+  let audioCtx = null, worklet = null, raf = 0, lastFrameTime = performance.now();
+
+  function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+  function pad(n) { return String(Math.floor(n || 0)).padStart(4, '0'); }
+  function now() { return performance.now(); }
+
+  // --- STRICT MATHEMATICAL LAYOUT ---
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    state.dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+    state.w = Math.max(1, Math.floor(rect.width));
+    state.h = Math.max(1, Math.floor(rect.height));
+    canvas.width = Math.floor(state.w * state.dpr);
+    canvas.height = Math.floor(state.h * state.dpr);
+    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    
+    const padY = 7, gap = 7;
+    // Guaranteed non-exploding static height allocation
+    const available = Math.max(10, state.h - (padY * 2) - (gap * (STRIPS.length - 1)));
+    let y = padY;
+    
+    state.lanes = STRIPS.map((strip) => {
+      const laneH = Math.max(10, Math.floor(available * strip.share));
+      const lane = { id: strip.id, x: 7, y: y, w: state.w - 14, h: laneH, baseline: strip.baseline };
+      y += laneH + gap;
+      return lane;
+    });
+    state.needsPaint = true;
+  }
+
+  // --- SPATIAL MATH (Exact Chronological Interpolation) ---
+  function getCanvasPoint(ev) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+  }
+
+  function getCurrentPhase() {
+    if (!state.running || !lastFrameTime) return state.phase;
+    return (state.phase + ((now() - lastFrameTime) / 1000) / CYCLE_SECONDS) % 1;
+  }
+
+  function getVisibleIndexAtPhase(x, lane, phase) {
+    const rx = state.w / 2;
+    const phaseOffset = (x - rx) / Math.max(1, lane.w);
+    let shifted = (phase + phaseOffset) % 1;
+    if (shifted < 0) shifted += 1;
+    return Math.max(0, Math.min(BUFFER_SIZE - 1, Math.floor(shifted * BUFFER_SIZE)));
+  }
+
+  function indexToVisibleX(idx, lane, phase) {
+    const rx = state.w / 2;
+    let normalized = (idx / BUFFER_SIZE) - phase;
+    if (normalized > 0.5) normalized -= 1;
+    if (normalized < -0.5) normalized += 1;
+    return rx + (normalized * Math.max(1, lane.w));
+  }
+
+  function yToValue(y, lane, stripId) {
+    const padding = 2;
+    const raw = 1 - ((y - (lane.y + padding)) / Math.max(1, lane.h - padding * 2));
+    return stripId === 'GATE' ? (clamp01(raw) > 0.48 ? 1 : 0) : clamp01(raw);
+  }
+
+  function laneFor(id) { return state.lanes.find(l => l.id === id) || state.lanes[0]; }
+
+  // --- AUDIO WORKLET ENGINE (STABILIZED WARM SYNTH) ---
+  async function bootAudio() {
+    if (audioCtx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AC({ latencyHint: 'interactive' });
+    const code = `
+class OramicsAnalog extends AudioWorkletProcessor {
+  constructor(){
+    super();
+    this.s=2048; this.ph=0; this.oscPh=0;
+    this.p=new Float32Array(this.s); this.v=new Float32Array(this.s); 
+    this.r=new Float32Array(this.s); this.g=new Float32Array(this.s);
+    this.slewP=0; this.slewV=0; this.slewR=0; this.slewG=0; this.hpState=0;
+    this.delay=new Float32Array(44100); this.dIdx=0; this.run=false;
+    this.ticks=0; 
+    
+    this.port.onmessage=e=>{
+      const m=e.data;
+      if(m.type==='RUN') this.run=m.run;
+      if(m.type==='SYNC'){ this.p.set(m.b.PITCH); this.v.set(m.b.VOLUME); this.r.set(m.b.REVERB); this.g.set(m.b.GATE); }
+      if(m.type==='PATCH'){
+        const t=m.id==='PITCH'?this.p:m.id==='VOLUME'?this.v:m.id==='REVERB'?this.r:this.g;
+        for(let i=0;i<m.val.length;i++) t[(m.start+i)%this.s]=m.val[i];
+      }
+    };
+  }
+  process(ins, outs){
+    const outL=outs[0][0], outR=outs[0][1]; if(!outL) return true;
+    for(let i=0; i<outL.length; i++){
+      if(!this.run){ outL[i]=0; if(outR) outR[i]=0; continue; }
+      const idx = Math.floor(this.ph*(this.s-1));
+      
+      this.slewP += (this.p[idx] - this.slewP) * 0.005;
+      this.slewV += (this.v[idx] - this.slewV) * 0.005;
+      this.slewR += (this.r[idx] - this.slewR) * 0.005;
+      this.slewG += ((this.g[idx]>0.48?1:0) - this.slewG) * 0.05; 
+
+      const freq = 32 * Math.pow(2, this.slewP * 7.25);
+      const amp = Math.pow(this.slewV, 1.3) * this.slewG;
+      
+      this.oscPh += 2*Math.PI*freq/sampleRate; 
+      if(this.oscPh > Math.PI*2) this.oscPh -= Math.PI*2;
+      const raw = (Math.sin(this.oscPh) + 0.3 * Math.sin(2 * this.oscPh)) * amp;
+      
+      const dSmp = Math.floor(0.3 * sampleRate);
+      const wet = this.delay[(this.dIdx - dSmp + 44100) % 44100] || 0;
+      this.hpState += (300 / sampleRate) * (wet - this.hpState);
+      const hpWet = wet - this.hpState;
+      this.delay[this.dIdx] = raw + hpWet * Math.min(0.85, this.slewR * 0.9);
+      this.dIdx = (this.dIdx + 1) % 44100;
+      
+      outL[i] = Math.tanh(raw + wet * this.slewR * 0.7);
+      if(outR) outR[i] = outL[i];
+
+      this.ph += 1/(sampleRate * ${CYCLE_SECONDS});
+      if(this.ph >= 1.0) this.ph -= 1.0;
+      
+      this.ticks++;
+    }
+    
+    // Explicit 30Hz IPC Thread Throttle to prevent browser dropping frames
+    if (this.ticks >= sampleRate / 30) {
+      this.ticks = 0;
+      this.port.postMessage({ idx: Math.floor(this.ph*(this.s-1)), ph: this.ph });
+    }
+    return true;
+  }
+}
+registerProcessor('oram', OramicsAnalog);`;
+    const url = URL.createObjectURL(new Blob([code], {type:'application/javascript'}));
+    await audioCtx.audioWorklet.addModule(url);
+    worklet = new AudioWorkletNode(audioCtx, 'oram', { outputChannelCount: [2] });
+    worklet.port.onmessage = e => {
+      state.audioIndex = e.data.idx;
+      if (Math.abs(state.phase - e.data.ph) > 0.05 && Math.abs(state.phase - e.data.ph) < 0.95) state.phase = e.data.ph; 
+      const busLive = document.getElementById('busLive');
+      busLive.classList.add('live-on'); setTimeout(() => busLive.classList.remove('live-on'), 50);
+    };
+    worklet.connect(audioCtx.destination);
+    worklet.port.postMessage({ type:'SYNC', b:buffers });
+  }
+
+  // --- TACTILE ENGINE (DRAW / CUT / LIFT / DROP) ---
+  function updateLedger(txt) {
+    ledgerTag.textContent = state.mode;
+    ledgerSlip.textContent = txt;
+    ledgerSlip.classList.add('engaged');
+    setTimeout(() => ledgerSlip.classList.remove('engaged'), 150);
+    busIdx.textContent = 'IDX ' + pad(state.audioIndex);
+    document.getElementById('busVer').textContent = 'VER ' + String(state.versions[state.activeStrip]).padStart(3, '0');
+  }
+
+  function broadcastPatch(stripId, startIndex, values) {
+    state.versions[stripId]++;
+    if (worklet) worklet.port.postMessage({ type:'PATCH', id: stripId, start: startIndex, val: values });
+    state.needsPaint = true;
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    ledgerTag.textContent = mode;
+    document.querySelectorAll('.cmd').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.cmd[data-cmd="${mode}"]`)?.classList.add('active');
+    
+    if(mode === 'DRAW') updateLedger(`HAND WRITES INTO ${state.activeStrip}.`);
+    if(mode === 'CUT') updateLedger(`SCRUB TO ERASE MASS ON ${state.activeStrip}.`);
+    if(mode === 'LIFT') updateLedger(`DRAG TO COPY MASS ON ${state.activeStrip}.`);
+    if(mode === 'DROP') updateLedger(state.clipboard ? `TAP TO PASTE COPIED MASS.` : `CLIPBOARD EMPTY. LIFT FIRST.`);
+  }
+
+  function applyStrokeWrites(idxA, valA, idxB, valB, stripId) {
+    const buf = buffers[stripId];
+    let dist = idxB - idxA;
+    if (dist > BUFFER_SIZE / 2) dist -= BUFFER_SIZE;
+    if (dist < -BUFFER_SIZE / 2) dist += BUFFER_SIZE;
+
+    const steps = Math.abs(dist);
+    const writes = [];
+
+    if (steps === 0) {
+      if (buf[idxB] !== valB) { buf[idxB] = valB; writes.push(idxB); }
+      return writes;
+    }
+
+    const dir = Math.sign(dist);
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      let writeIdx = (idxA + i * dir) % BUFFER_SIZE;
+      if (writeIdx < 0) writeIdx += BUFFER_SIZE;
+      buf[writeIdx] = valA + (valB - valA) * t;
+      writes.push(writeIdx);
+    }
+    return writes;
+  }
+
+  const strokeTrail = [];
+
+  function pointerDown(ev) {
+    if (state.pen.active) return; 
+    ev.preventDefault(); 
+    state.pointerId = ev.pointerId;
+    try { canvas.setPointerCapture(ev.pointerId); } catch(e){}
+    
+    const p = getCanvasPoint(ev);
+    const lane = state.lanes.find(l => p.y >= l.y && p.y <= l.y + l.h) || laneFor(state.activeStrip);
+    
+    if (lane.id !== state.activeStrip) {
+      state.activeStrip = lane.id;
+      document.getElementById('btnArm').querySelector('b').textContent = `ARM: ${state.activeStrip}`;
+      updateLedger(`FOCUS BOUND TO ${state.activeStrip}.`);
+    }
+    
+    const currentPhase = getCurrentPhase();
+    state.pen.active = true;
+    state.pen.startX = p.x; state.pen.x = p.x; state.pen.y = p.y;
+    
+    const currentIdx = getVisibleIndexAtPhase(p.x, lane, currentPhase);
+    state.pen.startIdx = currentIdx;
+    state.pen.lastIdx = currentIdx;
+
+    if (state.mode === 'DRAW' || state.mode === 'CUT') {
+      state.pen.lastVal = state.mode === 'CUT' ? lane.baseline : yToValue(p.y, lane, state.activeStrip);
+      const writes = applyStrokeWrites(state.pen.lastIdx, state.pen.lastVal, state.pen.lastIdx, state.pen.lastVal, state.activeStrip);
+      if (writes.length) broadcastPatch(state.activeStrip, writes[0], [state.pen.lastVal]);
+      strokeTrail.push({x: p.x, y: p.y, t: now()});
+    } else if (state.mode === 'DROP') {
+      if (!state.clipboard) {
+        updateLedger("NO MASS HELD. LIFT FIRST.");
+      } else {
+        const buf = buffers[state.activeStrip];
+        for (let i = 0; i < state.clipboard.length; i++) {
+          buf[(currentIdx + i) % BUFFER_SIZE] = state.clipboard[i];
+        }
+        broadcastPatch(state.activeStrip, currentIdx, Array.from(state.clipboard));
+        updateLedger(`DROPPED ${state.clipboard.length} SAMPLES AT IDX ${pad(currentIdx)}.`);
+      }
+      state.pen.active = false;
+      state.pointerId = null;
+      try { canvas.releasePointerCapture(ev.pointerId); } catch(e){}
+    }
+    state.needsPaint = true;
+  }
+
+  function pointerMove(ev) {
+    if (!state.pen.active || ev.pointerId !== state.pointerId) return;
+    ev.preventDefault();
+    const pts = (ev.getCoalescedEvents && typeof ev.getCoalescedEvents === 'function') ? ev.getCoalescedEvents() : [ev];
+    const lane = laneFor(state.activeStrip);
+    const currentPhase = getCurrentPhase();
+    let minIdx = BUFFER_SIZE, maxIdx = -1;
+
+    for (const evPt of pts) {
+      const p = getCanvasPoint(evPt);
+      state.pen.x = p.x; state.pen.y = p.y;
+      
+      if (state.mode === 'DRAW' || state.mode === 'CUT') {
+        const currentIdx = getVisibleIndexAtPhase(p.x, lane, currentPhase);
+        const currentVal = state.mode === 'CUT' ? lane.baseline : yToValue(p.y, lane, state.activeStrip);
+        const writes = applyStrokeWrites(state.pen.lastIdx, state.pen.lastVal, currentIdx, currentVal, state.activeStrip);
+        
+        if (writes.length) {
+          minIdx = Math.min(minIdx, ...writes); maxIdx = Math.max(maxIdx, ...writes);
+        }
+        state.pen.lastIdx = currentIdx; state.pen.lastVal = currentVal;
+        strokeTrail.push({x: p.x, y: p.y, t: now()});
+      }
+    }
+
+    if (maxIdx !== -1) {
+      if (maxIdx - minIdx > BUFFER_SIZE / 2) broadcastPatch(state.activeStrip, 0, Array.from(buffers[state.activeStrip]));
+      else broadcastPatch(state.activeStrip, minIdx, Array.from(buffers[state.activeStrip].subarray(minIdx, maxIdx + 1)));
+    }
+    state.needsPaint = true;
+  }
+
+  function pointerUp(ev) {
+    if(ev.pointerId !== state.pointerId) return;
+    ev.preventDefault(); 
+    const currentPhase = getCurrentPhase();
+    
+    if (state.pen.active && state.mode === 'LIFT') {
+      const lane = laneFor(state.activeStrip);
+      const startX = indexToVisibleX(state.pen.startIdx, lane, currentPhase);
+      const minX = Math.max(lane.x, Math.min(startX, state.pen.x));
+      const maxX = Math.min(lane.x + lane.w, Math.max(startX, state.pen.x));
+      
+      const idxA = getVisibleIndexAtPhase(minX, lane, currentPhase);
+      const idxB = getVisibleIndexAtPhase(maxX, lane, currentPhase);
+      
+      let dist = idxB - idxA;
+      if (dist < 0) dist += BUFFER_SIZE;
+      
+      const copied = new Float32Array(dist + 1);
+      for (let i = 0; i <= dist; i++) {
+        copied[i] = buffers[state.activeStrip][(idxA + i) % BUFFER_SIZE];
+      }
+      state.clipboard = copied;
+      setMode('DROP');
+      updateLedger(`LIFTED ${dist} SAMPLES.`);
+    } else if (state.pen.active && (state.mode === 'DRAW' || state.mode === 'CUT')) {
+      updateLedger(`MODIFICATION COMPLETE.`);
+    }
+
+    state.pen.active = false; state.pointerId = null;
+    try { canvas.releasePointerCapture(ev.pointerId); } catch(e){}
+    state.needsPaint = true;
+  }
+
+  // --- ICARO-ATO BFLIX EXPORT (RLE COMPILER) ---
+  function exportBflix() {
+    let out = `; @ICARO-ATO v1.0\n; @FRAMES 25\n;\n`;
+    const trackOffsets = { PITCH: 10, VOLUME: 36, REVERB: 62, GATE: 88 };
+    const colors = { PITCH: 7, VOLUME: 3, REVERB: 7, GATE: 3 };
+    
+    for (let f = 1; f <= 25; f++) {
+      out += `C FRAME ${f}\nCLR 0\n`;
+      let phase = (f - 1) / 25;
+      
+      for (let s of STRIP_ORDER) {
+        let c = colors[s];
+        let yOffset = trackOffsets[s];
+        let prevY = -1, startX = -1;
+        
+        for (let x = 10; x <= 128; x++) {
+          let y = -1;
+          if (x < 128) {
+            let idx = Math.floor((((x - 10) / 118) + phase) % 1.0 * BUFFER_SIZE);
+            if (idx < 0) idx += BUFFER_SIZE;
+            let val = buffers[s][idx];
+            
+            if (s === 'GATE') {
+              y = val < 0.5 ? yOffset + 2 : -1;
+            } else {
+              y = yOffset + Math.floor((1 - val) * 20);
+            }
+          }
+
+          if (y !== prevY) {
+            if (startX !== -1 && prevY !== -1) {
+              let w = x - startX;
+              let h = s === 'GATE' ? 18 : 2;
+              out += `PNT ${startX} ${prevY} ${w} ${h} ${c}\n`;
+            }
+            startX = x; prevY = y;
+          }
+        }
+      }
+      out += `REC 1\n`;
+    }
+    out += `; @END\n`;
+
+    const blob = new Blob([out], {type: "text/plain"});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `oramics_${Date.now()}.bflix`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    updateLedger("BFLIX 25-FRAME ANIMATION EXPORTED.");
+  }
+
+  // --- UI COMMAND BINDINGS ---
+  document.getElementById('btnPlay').addEventListener('pointerdown', async (ev) => {
+    ev.preventDefault();
+    try {
+      if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AC({ latencyHint: 'interactive' });
+      }
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+      if (!worklet) await bootAudio();
+
+      state.running = !state.running;
+      if (worklet) worklet.port.postMessage({ type:'RUN', run: state.running });
+      
+      ev.target.textContent = state.running ? "■ STOP" : "► PLAY";
+      ev.target.classList.toggle('on', state.running);
+      updateLedger(state.running ? "APERTURE OPEN. READING FILM." : "APERTURE CLOSED. LOOP HALTED.");
+    } catch (err) {
+      updateLedger(`AUDIO ERROR: ${err.message}`);
+    }
+  });
+
+  document.querySelectorAll('.cmd').forEach(btn => {
+    btn.addEventListener('pointerdown', ev => {
+      ev.preventDefault();
+      const cmd = btn.dataset.cmd;
+      if (['DRAW', 'CUT', 'LIFT', 'DROP'].includes(cmd)) {
+        setMode(cmd);
+      } else if (cmd === 'ARM') {
+        state.activeStrip = STRIP_ORDER[(STRIP_ORDER.indexOf(state.activeStrip) + 1) % STRIP_ORDER.length];
+        document.getElementById('btnArm').querySelector('b').textContent = `ARM: ${state.activeStrip}`;
+        updateLedger(`ARMED: ${state.activeStrip}`);
+        state.needsPaint = true;
+      } else if (cmd === 'EXPORT') exportBflix();
+    });
+  });
+
+  // --- CORE RENDER PIPELINE WITH FATAL CRASH PROTECTION ---
+  function draw() {
+    try {
+      const t = now(); 
+      if (!lastFrameTime) lastFrameTime = t;
+      const dt = t - lastFrameTime; lastFrameTime = t;
+      
+      if (!state.needsPaint && !state.running && strokeTrail.length === 0 && !state.pen.active) {
+        raf = requestAnimationFrame(draw); return;
+      }
+      state.needsPaint = false;
+
+      if (state.running) {
+        state.phase += (dt / 1000) / CYCLE_SECONDS;
+        if (state.phase >= 1.0) state.phase -= 1.0;
+        state.audioIndex = Math.floor(state.phase * (BUFFER_SIZE - 1));
+        busIdx.textContent = 'IDX ' + pad(state.audioIndex);
+      }
+      
+      const renderPhase = state.phase; 
+
+      if (state.pen.active && (state.mode === 'DRAW' || state.mode === 'CUT')) {
+        const lane = laneFor(state.activeStrip);
+        if (lane) {
+          const currentIdx = getVisibleIndexAtPhase(state.pen.x, lane, renderPhase);
+          const currentVal = state.mode === 'CUT' ? lane.baseline : yToValue(state.pen.y, lane, state.activeStrip);
+          const writes = applyStrokeWrites(state.pen.lastIdx, state.pen.lastVal, currentIdx, currentVal, state.activeStrip);
+          
+          if (writes.length) {
+            const minIdx = Math.min(...writes), maxIdx = Math.max(...writes);
+            if (maxIdx - minIdx > BUFFER_SIZE / 2) broadcastPatch(state.activeStrip, 0, Array.from(buffers[state.activeStrip]));
+            else broadcastPatch(state.activeStrip, minIdx, Array.from(buffers[state.activeStrip].subarray(minIdx, maxIdx + 1)));
+          }
+          state.pen.lastIdx = currentIdx; state.pen.lastVal = currentVal;
+        }
+      }
+
+      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,state.w,state.h);
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(1,1,state.w-2,state.h-2);
+      
+      for(const lane of state.lanes){
+        if (!lane) continue;
+        const active = lane.id === state.activeStrip;
+        ctx.strokeStyle = '#000'; ctx.lineWidth = active ? 3 : 2;
+        ctx.strokeRect(lane.x, lane.y, lane.w, lane.h);
+        
+        ctx.fillStyle = '#000';
+        const dx = Math.max(10, Math.floor(lane.w / 28)), dy = Math.max(10, Math.floor(lane.h / 7));
+        const offset = (renderPhase * lane.w) % dx;
+        for(let y = lane.y+8; y < lane.y+lane.h-4; y+=dy){
+          for(let x = lane.x+8-offset; x < lane.x+lane.w-4; x+=dx){
+            ctx.fillRect(Math.round(x), Math.round(y), 2, 2);
+          }
+        }
+
+        if (lane.id !== 'GATE') {
+          ctx.beginPath();
+          const arr = buffers[lane.id];
+          if (arr) {
+            let prevIdx = -1; let started = false;
+            const padH = 2;
+            for(let x=0; x<=Math.floor(lane.w); x+=2){
+              const vx = lane.x + x;
+              const idx = getVisibleIndexAtPhase(vx, lane, renderPhase); 
+              const val = arr[idx] || 0;
+              const y = lane.y + padH + (1 - val) * (lane.h - padH * 2);
+              
+              if(!started || Math.abs(idx - prevIdx) > BUFFER_SIZE / 2) {
+                  ctx.moveTo(vx, y); started = true;
+              } else { ctx.lineTo(vx, y); }
+              prevIdx = idx;
+            }
+            ctx.lineWidth = active ? 4 : 2; ctx.lineJoin = 'round'; ctx.stroke();
+          }
+        } else {
+          ctx.fillStyle = '#000';
+          const arr = buffers[lane.id];
+          if (arr) {
+            for(let c=0; c<72; c++){
+              const x = lane.x + (c/72)*lane.w;
+              if(arr[getVisibleIndexAtPhase(x, lane, renderPhase)] < 0.5) {
+                ctx.fillRect(Math.floor(x), lane.y+2, Math.ceil(lane.w/72)+1, lane.h-4);
+              }
+            }
+          }
+        }
+
+        if (state.mode === 'LIFT' && state.pen.active && active) {
+          const startX = indexToVisibleX(state.pen.startIdx, lane, renderPhase);
+          const minX = Math.max(lane.x, Math.min(startX, state.pen.x));
+          const maxX = Math.min(lane.x + lane.w, Math.max(startX, state.pen.x));
+          ctx.fillStyle = 'rgba(0,0,0,0.15)';
+          ctx.fillRect(minX, lane.y, Math.max(1, maxX - minX), lane.h);
+          ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+          ctx.strokeRect(minX, lane.y, Math.max(1, maxX - minX), lane.h);
+          ctx.setLineDash([]);
+        }
+
+        const lw = Math.min(118, Math.max(64, lane.w*.28));
+        ctx.fillStyle = active ? '#000' : '#fff'; ctx.fillRect(lane.x, lane.y, lw, 22);
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(lane.x, lane.y, lw, 22);
+        ctx.fillStyle = active ? '#fff' : '#000'; ctx.font = '900 11px ui-monospace, monospace';
+        ctx.textBaseline = 'middle'; ctx.fillText(lane.id, lane.x+6, lane.y+11);
+      }
+
+      const rx = Math.floor(state.w / 2) + .5;
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(rx, 0); ctx.lineTo(rx, state.h); ctx.stroke();
+
+      while(strokeTrail.length && t - strokeTrail[0].t > 400) strokeTrail.shift();
+      ctx.fillStyle = '#000';
+      for(const p of strokeTrail){
+        const age = t - p.t;
+        const size = age < 100 ? 10 : age < 200 ? 6 : 3;
+        ctx.fillRect(p.x - size/2, p.y - size/2, size, size);
+      }
+    } catch (err) {
+      console.error("Safeguard caught rendering fault:", err);
+      if (document.getElementById('ledgerSlip')) {
+        document.getElementById('ledgerSlip').textContent = "RENDER CRASH: " + err.message;
+      }
+    }
+    
+    raf = requestAnimationFrame(draw);
+  }
+
+  canvas.addEventListener('pointerdown', pointerDown, { passive:false });
+  canvas.addEventListener('pointermove', pointerMove, { passive:false });
+  window.addEventListener('pointerup', pointerUp, { passive:false });
+  window.addEventListener('pointercancel', pointerUp, { passive:false });
+
+  document.addEventListener('touchmove', e => e.preventDefault(), { passive:false });
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  window.addEventListener('resize', resize);
+  
+  resize(); raf = requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
