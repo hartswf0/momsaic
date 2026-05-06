@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#ffffff" />
+<title>ORAMICS TOUCH FILM — BFLIX EDITION</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #000000;
+    --vh: 1vh;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --line: 1px solid #000000;
+    --fat: 2px solid #000000;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --sans: Arial, Helvetica, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); }
+  body { font-family: var(--mono); touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
+  button { appearance: none; -webkit-appearance: none; font: inherit; color: var(--ink); background: var(--bg); border: var(--line); cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
+
+  .machine {
+    position: fixed; inset: 0; width: 100vw; height: calc(var(--vh) * 100);
+    display: grid; grid-template-rows: auto 1fr 24px 34px auto; background: var(--bg); color: var(--ink); overflow: hidden;
+  }
+
+  /* M0: HEADER & MASSIVE PLAY BUTTON */
+  .header {
+    padding: calc(6px + var(--safe-top)) 6px 5px; border-bottom: var(--fat);
+    display: grid; grid-template-columns: 1fr auto; gap: 6px; min-height: 52px; background: var(--bg);
+  }
+  .brand { min-width: 0; display: grid; gap: 2px; align-content: center; padding-left: 4px; }
+  .title { font-family: var(--sans); font-weight: 900; font-size: clamp(22px, 8vw, 36px); line-height: .84; letter-spacing: -.05em; text-transform: uppercase; }
+  .subtitle { font-size: 10px; line-height: 1; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 900; }
+  
+  .play-cell {
+    min-width: 120px; height: 100%; display: grid; place-items: center; font-size: 20px; font-weight: 900;
+    text-transform: uppercase; border: var(--fat); background: var(--bg); color: var(--ink); transition: 0.1s; letter-spacing: -0.5px;
+  }
+  .play-cell.on {
+    background: var(--ink); color: var(--bg); animation: pulsePlay 1.2s infinite alternate;
+  }
+  @keyframes pulsePlay { 0% { background: var(--ink); color: var(--bg); } 100% { background: #444; color: var(--bg); } }
+
+  /* M1: OPTICAL FILM DECK */
+  .film-deck { position: relative; min-height: 0; overflow: hidden; background: var(--bg); }
+  canvas#film { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: var(--bg); touch-action: none; image-rendering: pixelated; }
+  
+  /* M2: ORAM BUS */
+  .bus { height: 24px; display: grid; grid-template-columns: 42px 1fr 48px 54px; border-top: var(--fat); background: var(--bg); overflow: hidden; }
+  .bus-cell { display: flex; align-items: center; justify-content: center; border-right: var(--line); font-size: 9px; line-height: 1; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+  .bus-cell:last-child { border-right: 0; }
+  .bus-cell.live-on { background: var(--ink); color: var(--bg); }
+
+  /* M3: RELAY LEDGER */
+  .ledger { height: 34px; border-top: var(--line); display: grid; grid-template-columns: 56px 1fr; background: var(--bg); }
+  .ledger-tag { display: grid; place-items: center; border-right: var(--fat); font-size: 10px; font-weight: 900; text-transform: uppercase; background: var(--ink); color: var(--bg); }
+  .ledger-slip { border: 0; width: 100%; height: 100%; padding: 0 7px; text-align: left; font-size: 10px; font-weight: 900; line-height: 1.05; text-transform: uppercase; overflow: hidden; background: var(--bg); color: var(--ink); }
+  .ledger-slip.engaged { background: var(--ink); color: var(--bg); }
+
+  /* M4: ACTION COMMANDS */
+  .commands {
+    padding: 6px 6px calc(6px + var(--safe-bottom)); border-top: var(--fat); background: var(--bg);
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;
+  }
+  .cmd {
+    min-height: 52px; padding: 4px 6px; display: grid; grid-template-rows: 1fr auto; align-items: center;
+    justify-items: start; text-align: left; border: var(--fat); font-weight: 900; text-transform: uppercase; overflow: hidden;
+  }
+  .cmd b { font-size: 15px; line-height: 1; letter-spacing: -.04em; }
+  .cmd span { font-size: 9px; line-height: 1.05; white-space: nowrap; overflow: hidden; max-width: 100%; }
+  .cmd:active { background: var(--ink); color: var(--bg); }
+  .cmd.active { background: var(--ink); color: var(--bg); }
+
+  @media (min-width: 760px) {
+    .machine { grid-template-columns: 330px 1fr; grid-template-rows: auto 1fr 24px 36px; }
+    .header { grid-column: 1; grid-row: 1; border-right: var(--fat); }
+    .film-deck { grid-column: 2; grid-row: 1 / 5; }
+    .bus { grid-column: 1; grid-row: 2; align-self: end; border-right: var(--fat); }
+    .ledger { grid-column: 1; grid-row: 3; border-right: var(--fat); }
+    .commands { grid-column: 1; grid-row: 4; border-right: var(--fat); align-content: end; }
+  }
+</style>
+</head>
+<body>
+<div class="machine" id="machine">
+  <header class="header">
+    <div class="brand">
+      <h1 class="title">ORAMICS TOUCH</h1>
+      <p class="subtitle">SLEW-LIMITED WARM SYNTHESIS</p>
+    </div>
+    <button id="btnPlay" class="play-cell" type="button" aria-label="Play Synthesis">► PLAY</button>
+  </header>
+
+  <main class="film-deck" id="filmDeck">
+    <canvas id="film"></canvas>
+  </main>
+
+  <section class="bus">
+    <div class="bus-cell" id="busLive">LIVE</div>
+    <div class="bus-cell" id="busIdx">IDX 0000</div>
+    <div class="bus-cell" id="busVer">VER 000</div>
+    <div class="bus-cell" id="busFault">OK</div>
+  </section>
+
+  <section class="ledger">
+    <div class="ledger-tag" id="ledgerTag">DRAW</div>
+    <div id="ledgerSlip" class="ledger-slip">HAND MASS WRITES SOUND INTO PITCH.</div>
+  </section>
+
+  <nav class="commands">
+    <button class="cmd active" id="btnArm" type="button"><b>ARM: PITCH</b><span>CYCLE TRACK</span></button>
+    <button class="cmd" id="btnWipe" type="button"><b>WIPE</b><span>CLEAR TRACK</span></button>
+    <button class="cmd" id="btnResync" type="button"><b>RESYNC</b><span>FIX GLITCH</span></button>
+    <button class="cmd" id="btnBflix" type="button"><b>EXPORT</b><span>.BFLIX</span></button>
+  </nav>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // --- ARCHITECTURE CONSTANTS ---
+  const BUFFER_SIZE = 2048;
+  const CYCLE_SECONDS = 4.8;
+  const BASELINES = { PITCH: 0.42, VOLUME: 0.32, REVERB: 0.08, GATE: 1.0 };
+  const STRIPS = [
+    { id: 'PITCH', share: .34, baseline: BASELINES.PITCH },
+    { id: 'VOLUME', share: .26, baseline: BASELINES.VOLUME },
+    { id: 'REVERB', share: .22, baseline: BASELINES.REVERB },
+    { id: 'GATE', share: .18, baseline: BASELINES.GATE }
+  ];
+  const STRIP_ORDER = STRIPS.map(s => s.id);
+
+  const state = {
+    activeStrip: 'PITCH', running: false, audioIndex: 0, phase: 0,
+    versions: { PITCH: 0, VOLUME: 0, REVERB: 0, GATE: 0 },
+    drawing: false, pointerId: null, last: null,
+    needsPaint: true, dpr: 1, w: 1, h: 1, lanes: []
+  };
+
+  const buffers = {};
+  STRIPS.forEach(s => buffers[s.id] = new Float32Array(BUFFER_SIZE).fill(s.baseline));
+
+  const canvas = document.getElementById('film');
+  const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+  const btnPlay = document.getElementById('btnPlay');
+  const ledgerSlip = document.getElementById('ledgerSlip');
+  const busIdx = document.getElementById('busIdx');
+  const busVer = document.getElementById('busVer');
+  
+  let audioCtx = null, worklet = null, raf = 0, lastFrameTime = performance.now();
+  const strokeTrail = [];
+
+  function pad(n, len=4) { return String(Math.max(0, Math.floor(n))).padStart(len, '0'); }
+  function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+  function now() { return performance.now(); }
+
+  // --- LAYOUT & COORDINATE MATH ---
+  function resize() {
+    const vv = window.visualViewport;
+    const vh = vv ? vv.height : window.innerHeight;
+    document.documentElement.style.setProperty('--vh', (vh * 0.01) + 'px');
+    const rect = canvas.getBoundingClientRect();
+    state.dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+    state.w = Math.max(1, Math.floor(rect.width));
+    state.h = Math.max(1, Math.floor(rect.height));
+    canvas.width = Math.floor(state.w * state.dpr);
+    canvas.height = Math.floor(state.h * state.dpr);
+    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    
+    const padY = 7, gap = 7, available = Math.max(140, state.h - padY * 2 - gap * (STRIPS.length - 1));
+    let y = padY;
+    state.lanes = STRIPS.map((strip, i) => {
+      const remainShare = STRIPS.slice(i).reduce((sum, s) => sum + s.share, 0);
+      const laneH = Math.max(46, Math.floor((available - gap * (STRIPS.length - 1 - i)) * (strip.share / remainShare)));
+      const lane = { id: strip.id, x: 7, y, w: state.w - 14, h: laneH };
+      y += laneH + gap;
+      return lane;
+    });
+    state.needsPaint = true;
+  }
+
+  // Maps physical screen X directly into circular buffer index, accommodating the moving phase.
+  function visibleToIndex(x, lane) {
+    const rx = state.w / 2;
+    const phaseOffset = (x - rx) / lane.w;
+    let shifted = (state.phase + phaseOffset) % 1;
+    if (shifted < 0) shifted += 1;
+    return Math.max(0, Math.min(BUFFER_SIZE - 1, Math.floor(shifted * BUFFER_SIZE)));
+  }
+
+  function yToValue(y, lane, stripId) {
+    const raw = 1 - ((y - lane.y) / Math.max(1, lane.h));
+    return stripId === 'GATE' ? (clamp01(raw) > .48 ? 1 : 0) : clamp01(raw);
+  }
+
+  function valueToY(value, lane, stripId) {
+    const v = stripId === 'GATE' ? (value > .48 ? 1 : 0) : clamp01(value);
+    return lane.y + (1 - v) * lane.h;
+  }
+
+  function laneFor(id) { return state.lanes.find(l => l.id === id) || state.lanes[0]; }
+  
+  function getCanvasPoint(ev) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: ev.clientX - rect.left, y: ev.clientY - rect.top, t: now() };
+  }
+
+  // --- AUDIO WORKLET ENGINE (ANALOG SLEW LIMITERS) ---
+  async function bootAudio() {
+    if (audioCtx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AC({ latencyHint: 'interactive' });
+    const code = `
+class OramicsAnalog extends AudioWorkletProcessor {
+  constructor(){
+    super();
+    this.s=2048; this.ph=0; this.oscPh=0;
+    this.p=new Float32Array(this.s); this.v=new Float32Array(this.s); 
+    this.r=new Float32Array(this.s); this.g=new Float32Array(this.s);
+    
+    // ANTI-GLITCH SLEW LIMITERS (Control Voltage Smoothers)
+    this.slewP=0; this.slewV=0; this.slewR=0; this.slewG=0;
+    this.hpState=0; // High-pass feedback state
+    
+    this.delay=new Float32Array(44100); this.dIdx=0;
+    this.run=false;
+    
+    this.port.onmessage=e=>{
+      const m=e.data;
+      if(m.type==='RUN') this.run=m.run;
+      if(m.type==='SYNC'){ this.p.set(m.b.PITCH); this.v.set(m.b.VOLUME); this.r.set(m.b.REVERB); this.g.set(m.b.GATE); }
+      if(m.type==='PATCH'){
+        const t=m.id==='PITCH'?this.p:m.id==='VOLUME'?this.v:m.id==='REVERB'?this.r:this.g;
+        for(let i=0;i<m.val.length;i++) t[(m.start+i)%this.s]=m.val[i];
+      }
+    };
+  }
+  process(ins, outs){
+    const outL=outs[0][0], outR=outs[0][1]; if(!outL) return true;
+    for(let i=0; i<outL.length; i++){
+      if(!this.run){ outL[i]=0; if(outR) outR[i]=0; continue; }
+      
+      const idx = Math.floor(this.ph*(this.s-1));
+      
+      // Slew Limiting: Glides instantaneous jumps over ~5ms
+      this.slewP += (this.p[idx] - this.slewP) * 0.005;
+      this.slewV += (this.v[idx] - this.slewV) * 0.005;
+      this.slewR += (this.r[idx] - this.slewR) * 0.005;
+      this.slewG += ((this.g[idx]>.48?1:0) - this.slewG) * 0.05; // Gates glide faster
+
+      // Exponential pitch: ~32Hz to ~4kHz
+      const freq = 32 * Math.pow(2, this.slewP * 7.25);
+      const amp = Math.pow(this.slewV, 1.3) * this.slewG;
+      
+      this.oscPh += 2*Math.PI*freq/sampleRate; 
+      if(this.oscPh > Math.PI*2) this.oscPh -= Math.PI*2;
+      
+      // Warm Analog Wave (Sine folded with harmonic)
+      const raw = (Math.sin(this.oscPh) + 0.3 * Math.sin(2 * this.oscPh)) * amp;
+      
+      // Tape Delay (300ms) with HPF Feedback to kill low-end mud
+      const dSmp = Math.floor(0.3 * sampleRate);
+      const wet = this.delay[(this.dIdx - dSmp + 44100) % 44100] || 0;
+      
+      this.hpState += (300 / sampleRate) * (wet - this.hpState);
+      const hpWet = wet - this.hpState;
+      
+      this.delay[this.dIdx] = raw + hpWet * Math.min(0.85, this.slewR * 0.9);
+      this.dIdx = (this.dIdx + 1) % 44100;
+      
+      // Tape Saturation Output Mix
+      const mix = Math.tanh(raw + wet * this.slewR * 0.7);
+      
+      outL[i] = mix; if(outR) outR[i] = mix;
+
+      this.ph += 1/(sampleRate * ${CYCLE_SECONDS});
+      if(this.ph >= 1.0) this.ph -= 1.0;
+    }
+    
+    // Throttled UI Sync emission
+    if(Math.random() < 0.05) this.port.postMessage({ idx: Math.floor(this.ph*(this.s-1)), ph: this.ph });
+    return true;
+  }
+}
+registerProcessor('oram', OramicsAnalog);`;
+    const url = URL.createObjectURL(new Blob([code], {type:'application/javascript'}));
+    await audioCtx.audioWorklet.addModule(url);
+    worklet = new AudioWorkletNode(audioCtx, 'oram', { outputChannelCount: [2] });
+    worklet.port.onmessage = e => {
+      state.audioIndex = e.data.idx;
+      if (Math.abs(state.phase - e.data.ph) > 0.05 && Math.abs(state.phase - e.data.ph) < 0.95) {
+        state.phase = e.data.ph; // Sync drift correction
+      }
+      document.getElementById('busLive').classList.add('live-on');
+      setTimeout(() => document.getElementById('busLive').classList.remove('live-on'), 50);
+    };
+    worklet.connect(audioCtx.destination);
+    worklet.port.postMessage({ type:'SYNC', b:buffers });
+  }
+
+  // --- INTERACTION & LOGIC ---
+  function updateLedger(txt) {
+    ledgerSlip.textContent = txt;
+    ledgerSlip.classList.add('engaged');
+    setTimeout(() => ledgerSlip.classList.remove('engaged'), 150);
+    
+    document.getElementById('btnArm').querySelector('b').textContent = `ARM: ${state.activeStrip}`;
+    busIdx.textContent = 'IDX ' + pad(state.audioIndex, 4);
+    busVer.textContent = 'VER ' + pad(state.versions[state.activeStrip], 3);
+  }
+
+  function broadcastPatch(stripId, startIndex, values) {
+    state.versions[stripId]++;
+    if (worklet) worklet.port.postMessage({ type:'PATCH', id: stripId, start: startIndex, val: values });
+    updateLedger(`HAND WRITES SOUND INTO ${stripId}.`);
+    state.needsPaint = true;
+  }
+
+  function pointerDown(ev) {
+    ev.preventDefault(); state.pointerId = ev.pointerId;
+    const p = getCanvasPoint(ev);
+    
+    const touched = state.lanes.find(l => p.y >= l.y && p.y <= l.y + l.h);
+    if (touched && touched.id !== state.activeStrip) {
+      state.activeStrip = touched.id;
+      updateLedger(`ARMED: NEXT DRAW WILL TARGET ${state.activeStrip}.`);
+    }
+    
+    state.drawing = true; state.last = p;
+    writeSampleSequence([p]);
+  }
+
+  function pointerMove(ev) {
+    if(!state.drawing || ev.pointerId !== state.pointerId) return;
+    ev.preventDefault();
+    const pts = (ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev]).map(getCanvasPoint);
+    writeSampleSequence([state.last, ...pts]);
+    state.last = pts[pts.length-1];
+  }
+
+  function pointerUp(ev) {
+    if(ev.pointerId !== state.pointerId) return;
+    ev.preventDefault(); state.drawing = false; state.pointerId = null;
+  }
+
+  // Glitch-Free Sub-Frame Stroke Interpolation (Wraps smoothly)
+  function writeSampleSequence(points) {
+    const id = state.activeStrip; const lane = laneFor(id);
+    const writes = [];
+    
+    if (points.length === 1) {
+      const idx = visibleToIndex(points[0].x, lane);
+      buffers[id][idx] = yToValue(points[0].y, lane, id);
+      writes.push(idx);
+    } else {
+      for(let i=0; i<points.length-1; i++){
+        const a = points[i], b = points[i+1];
+        let ia = visibleToIndex(a.x, lane);
+        let ib = visibleToIndex(b.x, lane);
+        
+        let start = ia, end = ib;
+        if(Math.abs(ia - ib) > BUFFER_SIZE / 2) {
+          if (ia < ib) { start = ia + BUFFER_SIZE; end = ib; }
+          else { start = ia; end = ib + BUFFER_SIZE; }
+        }
+        
+        const startX = Math.min(start, end);
+        const endX = Math.max(start, end);
+        const span = Math.max(1, endX - startX);
+        
+        for(let idx = startX; idx <= endX; idx++) {
+          const t = (idx - startX) / span;
+          const y = start === startX ? a.y + (b.y - a.y)*t : b.y + (a.y - b.y)*t;
+          const wIdx = idx % BUFFER_SIZE;
+          buffers[id][wIdx] = yToValue(y, lane, id);
+          writes.push(wIdx);
+        }
+      }
+    }
+    
+    if(writes.length) {
+      const min = Math.min(...writes), max = Math.max(...writes);
+      if (max - min < BUFFER_SIZE / 2) {
+        broadcastPatch(id, min, Array.from(buffers[id].subarray(min, max+1)));
+      } else {
+        broadcastPatch(id, 0, Array.from(buffers[id])); // Safe full array sync on massive wrap
+      }
+      strokeTrail.push({x:points[points.length-1].x, y:points[points.length-1].y, t:now()});
+    }
+  }
+
+  // --- ACTIONS ---
+  btnPlay.addEventListener('pointerdown', async (ev) => {
+    ev.preventDefault();
+    await bootAudio();
+    if(audioCtx.state === 'suspended') await audioCtx.resume();
+    state.running = !state.running;
+    worklet.port.postMessage({ type:'RUN', run: state.running });
+    btnPlay.textContent = state.running ? "■ STOP" : "► PLAY";
+    btnPlay.classList.toggle('on', state.running);
+    updateLedger(state.running ? "APERTURE OPEN. CONVERTING FILM TO SOUND." : "APERTURE CLOSED. LOOP HALTED.");
+  });
+
+  document.getElementById('btnArm').addEventListener('pointerdown', ev => {
+    ev.preventDefault();
+    state.activeStrip = STRIP_ORDER[(STRIP_ORDER.indexOf(state.activeStrip) + 1) % STRIP_ORDER.length];
+    updateLedger(`ARMED: NEXT DRAW WILL TARGET ${state.activeStrip}.`);
+    state.needsPaint = true;
+  });
+
+  document.getElementById('btnWipe').addEventListener('pointerdown', ev => {
+    ev.preventDefault();
+    const bl = STRIPS.find(s=>s.id===state.activeStrip).baseline;
+    buffers[state.activeStrip].fill(bl);
+    broadcastPatch(state.activeStrip, 0, Array.from(buffers[state.activeStrip]));
+    updateLedger(`${state.activeStrip} WIPED TO BASELINE.`);
+  });
+
+  document.getElementById('btnResync').addEventListener('pointerdown', async (ev) => {
+    ev.preventDefault();
+    if(audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
+    if(worklet) worklet.port.postMessage({ type:'SYNC', b:buffers });
+    updateLedger(`CONTRACT RESTORED. AUDIO GLITCHES CLEARED.`);
+  });
+
+  document.getElementById('btnBflix').addEventListener('pointerdown', ev => {
+    ev.preventDefault();
+    const payload = {
+      format: "abc-flix", version: "1.0", type: "oramics-emulation",
+      length: BUFFER_SIZE, cycleSeconds: CYCLE_SECONDS,
+      tracks: {
+        PITCH: Array.from(buffers.PITCH), VOLUME: Array.from(buffers.VOLUME),
+        REVERB: Array.from(buffers.REVERB), GATE: Array.from(buffers.GATE)
+      }
+    };
+    const blob = new Blob([JSON.stringify(payload)], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `oramics_${Date.now()}.bflix`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    updateLedger("BFLIX FILE EXPORTED SUCCESSFULLY.");
+  });
+
+  // --- RENDER LOOP ---
+  function draw() {
+    const t = now();
+    const dt = t - lastFrameTime;
+    lastFrameTime = t;
+
+    if (!state.needsPaint && !state.running && strokeTrail.length === 0) {
+      raf = requestAnimationFrame(draw); return;
+    }
+    state.needsPaint = false;
+
+    // Sub-frame phase interpolation
+    if (state.running) {
+      state.phase += (dt / 1000) / CYCLE_SECONDS;
+      if (state.phase >= 1.0) state.phase -= 1.0;
+      state.audioIndex = Math.floor(state.phase * (BUFFER_SIZE - 1));
+      busIdx.textContent = 'IDX ' + pad(state.audioIndex, 4);
+    }
+
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,state.w,state.h);
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(1,1,state.w-2,state.h-2);
+    
+    for(const lane of state.lanes){
+      const active = lane.id === state.activeStrip;
+      ctx.strokeStyle = '#000'; ctx.lineWidth = active ? 3 : 2;
+      ctx.strokeRect(lane.x, lane.y, lane.w, lane.h);
+      
+      // Moving Dots Substrate
+      ctx.fillStyle = '#000';
+      const dx = Math.max(10, Math.floor(lane.w / 28)), dy = Math.max(10, Math.floor(lane.h / 7));
+      const offset = (state.phase * lane.w) % dx;
+      for(let y = lane.y+8; y < lane.y+lane.h-4; y+=dy){
+        for(let x = lane.x+8-offset; x < lane.x+lane.w-4; x+=dx){
+          ctx.fillRect(Math.round(x), Math.round(y), 2, 2);
+        }
+      }
+
+      // Ink Line (Handles Seam Visually)
+      if (lane.id !== 'GATE') {
+        ctx.beginPath();
+        const arr = buffers[lane.id];
+        let prevIdx = -1;
+        for(let s=0; s<=Math.floor(lane.w); s+=2){
+          const vx = lane.x + s;
+          const idx = visibleToIndex(vx, lane);
+          const y = valueToY(arr[idx], lane, lane.id);
+          
+          if(s===0 || Math.abs(idx - prevIdx) > BUFFER_SIZE / 2) ctx.moveTo(vx, y);
+          else ctx.lineTo(vx, y);
+          
+          prevIdx = idx;
+        }
+        ctx.lineWidth = active ? 5 : 3; 
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      }
+
+      // Gate Optical Mass Logic
+      if(lane.id === 'GATE'){
+        ctx.fillStyle = '#000';
+        for(let c=0; c<72; c++){
+          const x = lane.x + (c/72)*lane.w;
+          if(buffers[lane.id][visibleToIndex(x, lane)] < .5) {
+            ctx.fillRect(Math.floor(x), lane.y+2, Math.ceil(lane.w/72)+1, lane.h-4);
+          }
+        }
+      }
+
+      // Labels
+      const lw = Math.min(118, lane.w*.28);
+      ctx.fillStyle = active ? '#000' : '#fff'; ctx.fillRect(lane.x, lane.y, lw, 22);
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(lane.x, lane.y, lw, 22);
+      ctx.fillStyle = active ? '#fff' : '#000'; ctx.font = '900 11px ui-monospace, monospace';
+      ctx.textBaseline = 'middle'; ctx.fillText(lane.id, lane.x+6, lane.y+11);
+    }
+
+    // Fixed Central Readhead
+    const rx = Math.floor(state.w / 2) + .5;
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(rx, 0); ctx.lineTo(rx, state.h); ctx.stroke();
+
+    // Clean up stroke trail
+    while(strokeTrail.length && t - strokeTrail[0].t > 400) strokeTrail.shift();
+    ctx.fillStyle = '#000';
+    for(const p of strokeTrail){
+      const age = t - p.t;
+      const size = age < 100 ? 10 : age < 200 ? 6 : 3;
+      ctx.fillRect(p.x - size/2, p.y - size/2, size, size);
+    }
+
+    raf = requestAnimationFrame(draw);
+  }
+
+  canvas.addEventListener('pointerdown', pointerDown, { passive:false });
+  canvas.addEventListener('pointermove', pointerMove, { passive:false });
+  canvas.addEventListener('pointerup', pointerUp, { passive:false });
+  canvas.addEventListener('pointercancel', pointerUp, { passive:false });
+
+  // Override Safari Gestures Globally
+  document.addEventListener('touchmove', e => e.preventDefault(), { passive:false });
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  window.addEventListener('resize', resize);
+  
+  // Init Boot
+  resize(); 
+  updateLedger("SYSTEM IDLE. TAP PLAY TO START OPTICAL ENGINE.");
+  raf = requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
