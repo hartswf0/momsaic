@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<title>FANTROL — Free Kick</title>
+<style>
+:root{--w:#fff;--k:#0a0c0e;--gold:#ffcf3f;--red:#ff4242;--blue:#3fa9ff}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:var(--k);color:var(--w);overflow:hidden;
+  font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  display:flex;flex-direction:column;height:100dvh;user-select:none;-webkit-user-select:none}
+button{font-family:inherit;border:0;cursor:pointer;background:none;color:inherit}
+.stage{flex:1 1 auto;position:relative;overflow:hidden}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:0;transition:opacity .4s}
+#cam.on{opacity:1}
+#game{position:absolute;inset:0;width:100%;height:100%;z-index:1;touch-action:none}
+
+.hud{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;pointer-events:none}
+.tally{display:flex;gap:9px}
+.tally i{width:18px;height:18px;border:3px solid #fff;border-radius:50%;display:block;box-shadow:0 1px 4px rgba(0,0,0,.6)}
+.tally i.goal{background:var(--gold);border-color:var(--gold)}.tally i.miss{background:var(--red);border-color:var(--red)}
+.streak{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--gold);text-shadow:0 2px 8px #000;min-width:60px;text-align:right}
+
+.tools{position:absolute;top:54px;right:14px;z-index:5;display:flex;gap:8px}
+.tbtn{width:42px;height:42px;border:2px solid rgba(255,255,255,.5);border-radius:8px;background:rgba(10,12,14,.55);display:grid;place-items:center;color:#fff}
+.tbtn.act{border-color:var(--gold);color:var(--gold)}.tbtn svg{width:20px;height:20px}
+
+.readout{position:absolute;bottom:0;left:0;right:0;z-index:3;padding:14px 18px 22px;pointer-events:none;display:flex;flex-direction:column;gap:8px;background:linear-gradient(to top,rgba(0,0,0,.75),transparent)}
+.meter{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:1px;font-weight:700}
+.meter .lbl{width:64px;color:#cdd}
+.meter .track{flex:1;height:14px;border:2px solid #fff;position:relative;overflow:hidden;background:rgba(0,0,0,.3)}
+.meter .fill{position:absolute;top:0;bottom:0;left:0;background:var(--gold);width:0%}
+.meter .fill.curve{left:50%;width:0%;background:var(--blue)}
+.cue{text-align:center;font-size:14px;letter-spacing:2px;font-weight:700;color:#fff;text-shadow:0 2px 8px #000;margin-top:2px}
+
+.calib{position:absolute;left:0;right:0;bottom:0;z-index:6;background:rgba(8,10,12,.94);padding:18px 20px 26px;transform:translateY(110%);transition:transform .3s;border-top:2px solid var(--gold)}
+.calib.on{transform:translateY(0)}
+.calib h3{font-size:12px;letter-spacing:3px;color:var(--gold);margin-bottom:14px}
+.crow{display:flex;align-items:center;gap:12px;margin-bottom:13px;font-size:12px;letter-spacing:1px}
+.crow label{width:96px;color:#cdd}
+.crow input[type=range]{flex:1;height:28px;accent-color:#ffcf3f}
+.crow .val{width:48px;text-align:right;color:#fff;font-variant-numeric:tabular-nums}
+.cdone{width:100%;margin-top:6px;border:2px solid var(--gold);color:var(--gold);padding:11px;font-size:12px;letter-spacing:2px;font-weight:700;border-radius:6px}
+.cdone:active{background:var(--gold);color:#000}
+
+.veil,.over{position:absolute;inset:0;z-index:8;background:var(--k);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:22px;text-align:center;padding:28px;transition:opacity .3s}
+.over{display:none;background:rgba(8,10,12,.95)}.over.on{display:flex}.veil.gone{opacity:0;pointer-events:none}
+.eye{font-size:11px;letter-spacing:5px;color:var(--gold);font-weight:700}
+h1{font-size:38px;line-height:1.02;letter-spacing:-1px;font-weight:800}h1 em{color:var(--gold);font-style:normal}
+.subt{font-size:14px;color:#9aa;line-height:1.6;max-width:27ch}
+.play{width:120px;height:120px;border-radius:50%;border:3px solid var(--gold);color:var(--gold);display:grid;place-items:center;background:rgba(255,207,63,.08)}
+.play:active{background:var(--gold);color:#000}.play svg{width:46px;height:46px}
+.choices{display:flex;gap:12px}
+.chip{border:2px solid rgba(255,255,255,.4);border-radius:8px;padding:11px 16px;font-size:12px;letter-spacing:1px}
+.chip.sel{border-color:var(--gold);color:var(--gold)}
+.tip{font-size:12px;color:#667;letter-spacing:1px}
+.big{font-size:84px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;line-height:1}
+.res{font-size:14px;letter-spacing:4px;color:#9aa;font-weight:700}
+</style>
+</head>
+<body>
+<div class="stage">
+  <video id="cam" playsinline muted autoplay></video>
+  <canvas id="game"></canvas>
+  <div class="hud"><div class="tally" id="tally"></div><div class="streak" id="streak"></div></div>
+  <div class="tools">
+    <button class="tbtn" id="camBtn" aria-label="camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h4l2-2h6l2 2h4v12H3z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+    <button class="tbtn" id="calBtn" aria-label="calibrate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button>
+  </div>
+  <div class="readout" id="readout" style="opacity:0">
+    <div class="meter"><span class="lbl">POWER</span><span class="track"><span class="fill" id="pf"></span></span></div>
+    <div class="meter"><span class="lbl">CURVE</span><span class="track"><span class="fill curve" id="cf"></span></span></div>
+    <div class="cue" id="cue">DRAG BACK &middot; FLICK TO BEND</div>
+  </div>
+  <div class="calib" id="calib">
+    <h3>CORRECT PROPORTIONS</h3>
+    <div class="crow"><label>GOAL SIZE</label><input type="range" id="cGoal" min="0.5" max="1.6" step="0.02" value="1.0"><span class="val" id="vcGoal">1.00</span></div>
+    <div class="crow"><label>HORIZON</label><input type="range" id="cHor" min="0.15" max="0.5" step="0.01" value="0.30"><span class="val" id="vcHor">0.30</span></div>
+    <div class="crow"><label>FIELD DEPTH</label><input type="range" id="cDepth" min="0.5" max="0.95" step="0.01" value="0.70"><span class="val" id="vcDepth">0.70</span></div>
+    <button class="cdone" id="calDone">LOCK PROPORTIONS</button>
+  </div>
+</div>
+
+<div class="veil" id="veil">
+  <div class="eye">FANTROL</div>
+  <h1>Bend it<br><em>around the wall.</em></h1>
+  <div class="subt">Drag the ball back to aim. Flick sideways to curve it around the wall.</div>
+  <div class="choices"><button class="chip sel" id="modeCam">REAL CAMERA</button><button class="chip" id="modeDrawn">DRAWN PITCH</button></div>
+  <button class="play" id="start" aria-label="play"><svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg></button>
+  <div class="tip">5 kicks &middot; sliders icon fixes proportions</div>
+</div>
+
+<div class="over" id="over">
+  <div class="res" id="resTxt">FULL TIME</div><div class="big" id="bigScore">0/5</div>
+  <button class="play" id="again" aria-label="again"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M4 12a8 8 0 1 1 2.3 5.6"/><polyline points="4,20 4,13 11,13"/></svg></button>
+</div>
+
+<script>
+const cv=document.getElementById('game'),ctx=cv.getContext('2d'),camEl=document.getElementById('cam');
+let W,H,DPR,U; // U = single reference unit fixes aspect ratio
+function fit(){ DPR=Math.min(devicePixelRatio||1,2);
+  cv.width=innerWidth*DPR;cv.height=innerHeight*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);
+  W=innerWidth;H=innerHeight; U=Math.min(W,H*0.62); }  // one unit, screen-independent
+addEventListener('resize',fit); fit();
+
+/* ---------- ASPECT-RATIO FIX ----------
+   Both axes scale from the SAME reference unit U (not W for x and H
+   for y independently). World metres -> pixels is now isotropic, so
+   the goal keeps real proportions on any phone. Real goal ~ 3:1 (w:h):
+   half-width = goalHalf metres, height = goalHalf/3 * heightRatio. */
+const C={ goalScale:1.0, hor:0.36, depth:0.70 };
+let camZoom=1.0, camZoomTarget=1.0;   // shot-cam: eases toward goal during flight
+const GOAL_HALF_M = 3.8;          // half goal width (much bigger)
+const FIELD_W_M   = 5.0;          // visible field half-width
+let useCamera=true, camActive=false;
+
+function HOR(){ return H*C.hor; }
+function fieldBottom(){ return H*0.96; }
+function proj(x,z,y){
+  const depthScale = 0.32 + z*C.depth;            // near small? no: far is small
+  const persp = 1.0 - z*0.72;                      // 1 near .. small far
+  const unit = U*0.22*C.goalScale*camZoom;         // metre -> px, isotropic (much bigger) + shot-cam
+  const py = HOR() + (1-z)*(fieldBottom()-HOR());
+  return { x: W/2 + x*persp*unit, y: py - y*persp*unit, s: persp };
+}
+function groundY(x,z){ return HOR() + (1-z)*(fieldBottom()-HOR()); }
+
+let ball,wall,keeper,shots,score,streak,best,MAX=5,state='aim';
+const GW = ()=> GOAL_HALF_M*C.goalScale;
+const GH = ()=> (GOAL_HALF_M*2/3)*C.goalScale;     // enforce ~3:1 goal
+function resetBall(){ ball={x:0,z:0.04,y:0.06,vx:0,vz:0,vy:0,spin:0,live:false}; }
+function buildWall(){ wall=[];const n=3+((Math.random()*2)|0);const cx=(Math.random()*2-1)*0.8;
+  for(let i=0;i<n;i++) wall.push({x:cx+(i-(n-1)/2)*0.5,z:0.46}); }
+function placeKeeper(){ keeper={dive:0,tx:0,react:22+Math.random()*10}; }
+
+let drag=false,sx=0,sy=0,cxp=0,cyp=0,lastx=0,flick=0,curveAccum=0;
+function pt(e){const r=cv.getBoundingClientRect(),t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top};}
+function down(e){if(state!=='aim')return;const p=pt(e);drag=true;sx=p.x;sy=p.y;cxp=p.x;cyp=p.y;lastx=p.x;flick=0;curveAccum=0;e.preventDefault();}
+function move(e){if(!drag)return;const p=pt(e);cxp=p.x;cyp=p.y;flick=p.x-lastx;curveAccum=curveAccum*0.7+flick*0.3;lastx=p.x;e.preventDefault();}
+function up(e){if(!drag)return;drag=false;const dx=sx-cxp,dy=sy-cyp,power=Math.min(1,Math.hypot(dx,dy)/170);
+  if(power<0.1)return;ball.live=true;state='flight';
+  ball.vx=(-dx/130)*0.85;ball.vz=Math.max(0.022,(dy/130)*0.05);ball.vy=0.05+power*0.07;
+  ball.spin=(curveAccum/34)*0.9;placeKeeper();keeper.tx=ball.x*0.35+ball.vx*7;
+  kickSound(power); buzz(20+Math.round(power*40)); camZoomTarget=1.0+power*0.5;  // shot-cam pushes in
+  e.preventDefault();}
+cv.addEventListener('touchstart',down,{passive:false});cv.addEventListener('touchmove',move,{passive:false});cv.addEventListener('touchend',up,{passive:false});
+cv.addEventListener('mousedown',down);addEventListener('mousemove',move);addEventListener('mouseup',up);
+
+let AC;function beep(f,d,t){try{AC=AC||new(window.AudioContext||webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();
+  o.frequency.value=f;o.type=t||'square';o.connect(g);g.connect(AC.destination);g.gain.value=.06;o.start();
+  g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);o.stop(AC.currentTime+d);}catch{}}
+function buzz(p){if(navigator.vibrate)navigator.vibrate(p);}
+/* kick = pitch-falling whoosh, louder with power */
+function kickSound(pw){try{AC=AC||new(window.AudioContext||webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();
+  o.type='triangle';o.frequency.setValueAtTime(420+pw*260,AC.currentTime);
+  o.frequency.exponentialRampToValueAtTime(120,AC.currentTime+0.18);
+  o.connect(g);g.connect(AC.destination);g.gain.value=.04+pw*.05;o.start();
+  g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+0.2);o.stop(AC.currentTime+0.2);}catch{}}
+/* crowd roar = noise burst that swells */
+function roar(){try{AC=AC||new(window.AudioContext||webkitAudioContext)();const sr=AC.sampleRate,len=sr*0.9;
+  const buf=AC.createBuffer(1,len,sr),d=buf.getChannelData(0);
+  for(let i=0;i<len;i++){d[i]=(Math.random()*2-1)*Math.min(1,i/(sr*0.25))*Math.max(0,1-i/len);}
+  const src=AC.createBufferSource();src.buffer=buf;const g=AC.createGain();g.gain.value=.18;
+  const f=AC.createBiquadFilter();f.type='bandpass';f.frequency.value=700;f.Q.value=0.6;
+  src.connect(f);f.connect(g);g.connect(AC.destination);src.start();}catch{}}
+/* save/block = low thud */
+function thud(){try{AC=AC||new(window.AudioContext||webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();
+  o.type='sine';o.frequency.setValueAtTime(160,AC.currentTime);o.frequency.exponentialRampToValueAtTime(50,AC.currentTime+0.12);
+  o.connect(g);g.connect(AC.destination);g.gain.value=.12;o.start();
+  g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+0.14);o.stop(AC.currentTime+0.14);}catch{}}
+
+let flash=0,flashTxt='',flashGoal=false;
+function step(){if(!ball.live)return;
+  ball.vx+=ball.spin*0.0015;ball.x+=ball.vx;ball.z+=ball.vz;ball.y+=ball.vy;ball.vy-=0.0042;
+  if(ball.y<0){ball.y=0;ball.vy*=-0.4;ball.vx*=0.75;}
+  if(ball.z>0.42&&ball.z<0.5){for(const m of wall){if(Math.abs(ball.x-m.x)<0.3&&ball.y<0.7)return done(false,'WALL');}}
+  if(ball.z>0.78)keeper.dive+=(keeper.tx-keeper.dive)*(1/keeper.react);
+  if(ball.z>=1){const inGoal=Math.abs(ball.x)<GW()&&ball.y<GH()+0.3;
+    const saved=inGoal&&Math.abs(ball.x-keeper.dive)<0.45;
+    if(inGoal&&!saved)return done(true,'GOAL');if(saved)return done(false,'SAVE');return done(false,'WIDE');}
+  if(ball.z>1.4||Math.abs(ball.x)>6)return done(false,'WIDE');
+}
+function done(scored,txt){ball.live=false;state='result';flash=64;flashTxt=txt;flashGoal=scored;
+  camZoomTarget=1.0;
+  if(scored){score++;streak++;best=Math.max(best,streak);beep(880,.1);beep(1320,.16);roar();buzz([30,50,30,50,120]);}
+  else if(txt==='SAVE'||txt==='WALL'){streak=0;thud();buzz([60,40,80]);}
+  else{streak=0;beep(150,.16,'sawtooth');buzz(60);}
+  shots++;mark(shots-1,scored);setStreak();
+  if(shots>=MAX)setTimeout(endGame,850);else setTimeout(()=>{resetBall();buildWall();state='aim';},860);}
+function previewPath(){const dx=sx-cxp,dy=sy-cyp,power=Math.min(1,Math.hypot(dx,dy)/170);if(power<0.1)return null;
+  let x=0,z=0.04,y=0.06,vx=(-dx/130)*0.85,vz=Math.max(0.022,(dy/130)*0.05),vy=0.05+power*0.07;const spin=(curveAccum/34)*0.9;const pts=[];
+  for(let i=0;i<70;i++){vx+=spin*0.0015;x+=vx;z+=vz;y+=vy;vy-=0.0042;if(y<0)y=0;pts.push({x,z,y});if(z>=1.05)break;}return{pts,power};}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  const camOn=useCamera&&camActive;
+  if(!camOn){ctx.fillStyle='#10141a';ctx.fillRect(0,0,W,HOR());
+    for(let i=0;i<70;i++){ctx.fillStyle=i%3?'#1c2026':'#272c34';ctx.fillRect((i*61%W),(i*23%HOR()),4,3);}}
+  const g=ctx.createLinearGradient(0,HOR(),0,H);
+  if(camOn){g.addColorStop(0,'rgba(28,122,51,.5)');g.addColorStop(1,'rgba(43,180,87,.42)');}else{g.addColorStop(0,'#1c7a33');g.addColorStop(1,'#2bb457');}
+  ctx.fillStyle=g;ctx.fillRect(0,HOR(),W,H-HOR());
+  for(let s=0;s<8;s++){const a=proj(-FIELD_W_M,s/8,0),b=proj(FIELD_W_M,s/8,0),c=proj(FIELD_W_M,(s+1)/8,0),d=proj(-FIELD_W_M,(s+1)/8,0);
+    ctx.fillStyle=s%2?'rgba(255,255,255,.05)':'rgba(0,0,0,.06)';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.fill();}
+  // GOAL — true 3:1, isotropic so it can't stretch
+  const gl=proj(-GW(),1,0),gr=proj(GW(),1,0),tl=proj(-GW(),1,GH()),tr=proj(GW(),1,GH());
+  ctx.lineWidth=6;ctx.strokeStyle='#fff';ln(gl,tl);ln(gr,tr);ln(tl,tr);
+  ctx.lineWidth=1.5;ctx.strokeStyle='rgba(255,255,255,.32)';
+  for(let i=1;i<13;i++){const t=i/13;ln(lp(tl,tr,t),lp(gl,gr,t));}
+  for(let j=1;j<5;j++){const t=j/5;ln(lp(tl,gl,t),lp(tr,gr,t));}
+  // KEEPER grounded in mouth, sized to perspective
+  const kp=proj(keeper.dive,0.97,0),ks=kp.s,kh=GH()*0.85*U*0.22*C.goalScale*camZoom*ks;
+  ctx.fillStyle='#fff';ctx.fillRect(kp.x-kh*0.35,kp.y-kh,kh*0.7,kh);
+  ctx.fillStyle='#ff4242';ctx.fillRect(kp.x-kh*0.28,kp.y-kh*0.9,kh*0.56,kh*0.78);
+  // WALL grounded, sized to perspective
+  for(const m of wall){const p=proj(m.x,m.z,0),s=p.s,wh=0.7*U*0.22*C.goalScale*camZoom*s;
+    ctx.fillStyle='#06080a';ctx.fillRect(p.x-wh*0.26,p.y-wh,wh*0.52,wh);
+    ctx.fillStyle='#ffcf3f';ctx.fillRect(p.x-wh*0.2,p.y-wh*0.92,wh*0.4,wh*0.5);
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(p.x-wh*0.26,p.y-wh,wh*0.52,wh);}
+  if(drag){const pv=previewPath();if(pv){for(let i=0;i<pv.pts.length;i+=3){const p=pv.pts[i],pr=proj(p.x,Math.min(p.z,1),p.y),a=1-i/pv.pts.length;
+    ctx.fillStyle='rgba(255,207,63,'+(a*0.9)+')';ctx.beginPath();ctx.arc(pr.x,pr.y,Math.max(2,6*pr.s),0,7);ctx.fill();}
+    const last=pv.pts[pv.pts.length-1],l2=proj(last.x,Math.min(last.z,1),0);
+    ctx.strokeStyle='#ffcf3f';ctx.lineWidth=3;ctx.beginPath();ctx.arc(l2.x,l2.y,12,0,7);ctx.stroke();}}
+  const bp=proj(ball.x,ball.z,ball.y),bsz=Math.max(6,16*bp.s),gy=groundY(ball.x,ball.z);
+  ctx.fillStyle='rgba(0,0,0,.4)';ctx.beginPath();ctx.ellipse(bp.x,gy,bsz*1.1,bsz*0.4,0,0,7);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(bp.x,bp.y,bsz,0,7);ctx.fill();
+  ctx.strokeStyle='#000';ctx.lineWidth=2.5;ctx.stroke();ctx.fillStyle='#000';ctx.beginPath();ctx.arc(bp.x,bp.y,bsz*0.33,0,7);ctx.fill();
+  if(flash>0){flash--;const r=(64-flash)*5.5;ctx.globalAlpha=flash/64;
+    ctx.strokeStyle=flashGoal?'#ffcf3f':'#ff4242';ctx.lineWidth=6;ctx.beginPath();ctx.arc(W/2,H*.40,r,0,7);ctx.stroke();
+    ctx.fillStyle=flashGoal?'#ffcf3f':'#ff4242';ctx.font='800 44px monospace';ctx.textAlign='center';ctx.fillText(flashTxt,W/2,H*.40+15);ctx.globalAlpha=1;}
+  if(drag){const pv=previewPath(),pw=pv?pv.power:0;document.getElementById('pf').style.width=(pw*100)+'%';
+    const cu=Math.max(-1,Math.min(1,curveAccum/30)),cfl=document.getElementById('cf');cfl.style.width=Math.abs(cu)*50+'%';cfl.style.left=cu<0?(50-Math.abs(cu)*50)+'%':'50%';}
+  else{document.getElementById('pf').style.width='0%';document.getElementById('cf').style.width='0%';}
+}
+function ln(a,b){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+function lp(a,b,t){return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};}
+function loop(){requestAnimationFrame(loop);camZoom+=(camZoomTarget-camZoom)*0.10;step();draw();}
+
+let lastCamError='';
+async function startCamera(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    lastCamError='This view blocks the camera. Open the file in Chrome/Safari over https.';
+    camActive=false;useCamera=false;return false;
+  }
+  try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}});
+    camEl.srcObject=s;await camEl.play();camEl.classList.add('on');camActive=true;document.getElementById('camBtn').classList.add('act');return true;}
+  catch(e){
+    lastCamError = (e&&e.name==='NotAllowedError') ? 'Camera permission denied. Allow it and tap the camera icon.'
+                 : (location.protocol!=='https:' && location.hostname!=='localhost') ? 'Camera needs https. Host the file (Netlify Drop) and open the link.'
+                 : 'Camera unavailable here ('+(e&&e.name||'blocked')+'). Open outside this preview.';
+    camActive=false;useCamera=false;return false;}}
+function stopCamera(){if(camEl.srcObject)camEl.srcObject.getTracks().forEach(t=>t.stop());camEl.classList.remove('on');camActive=false;document.getElementById('camBtn').classList.remove('act');}
+
+const $=id=>document.getElementById(id);
+function mark(i,s){const e=$('tally').children[i];if(e)e.className=s?'goal':'miss';}
+function setStreak(){$('streak').textContent=streak>1?streak+'\u00D7':'';}
+function tallyInit(){const w=$('tally');w.innerHTML='';for(let i=0;i<MAX;i++)w.appendChild(document.createElement('i'));}
+function bindCal(id,key){const el=$(id),v=$('v'+id);el.addEventListener('input',()=>{C[key]=parseFloat(el.value);v.textContent=C[key].toFixed(2);});}
+bindCal('cGoal','goalScale');bindCal('cHor','hor');bindCal('cDepth','depth');
+$('calBtn').addEventListener('click',()=>{$('calib').classList.toggle('on');$('calBtn').classList.toggle('act');});
+$('calDone').addEventListener('click',()=>{$('calib').classList.remove('on');$('calBtn').classList.remove('act');});
+$('camBtn').addEventListener('click',async()=>{if(camActive){stopCamera();useCamera=false;}else{useCamera=true;await startCamera();}});
+$('modeCam').addEventListener('click',()=>{useCamera=true;$('modeCam').classList.add('sel');$('modeDrawn').classList.remove('sel');});
+$('modeDrawn').addEventListener('click',()=>{useCamera=false;$('modeDrawn').classList.add('sel');$('modeCam').classList.remove('sel');});
+async function startGame(){shots=0;score=0;streak=0;best=0;resetBall();buildWall();placeKeeper();state='aim';tallyInit();setStreak();
+  $('veil').classList.add('gone');$('over').classList.remove('on');$('readout').style.opacity='1';
+  if(useCamera){const ok=await startCamera();if(!ok)$('cue').textContent=lastCamError||'NO CAMERA \u2014 DRAWN PITCH';}}
+function endGame(){state='over';$('bigScore').textContent=score+'/'+MAX;$('resTxt').textContent=score>=4?'WORLD CLASS':score>=2?'DECENT BOOT':'KEEP TRAINING';$('over').classList.add('on');}
+$('start').addEventListener('click',startGame);$('again').addEventListener('click',startGame);
+resetBall();buildWall();placeKeeper();loop();
+</script>
+</body>
+</html>
