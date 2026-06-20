@@ -1,0 +1,2073 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<title>RECURSIVE PITCH — Germany v Côte d'Ivoire</title>
+<style>
+:root{--bg:#000;--ink:#000;--paper:#fff;--line:#fff;--soft:#3b3b3b;--softer:#1f1f1f;
+  --text:#fff;--muted:#9a9a9a;--dim:#6f6f6f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  -webkit-text-size-adjust:100%}
+body{min-height:100dvh;display:flex;flex-direction:column;font-size:14px;line-height:1.45}
+button,select,input{font:inherit;color:inherit}
+a{color:#fff}
+
+header{position:sticky;top:0;z-index:30;background:#000;border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.wordmark{font-weight:700;letter-spacing:.16em;font-size:13px}
+.wordmark small{display:block;font-weight:400;letter-spacing:.03em;font-size:10px;color:var(--muted);margin-top:2px}
+.bar .spacer{flex:1}
+.iconbtn{border:1px solid var(--line);background:#000;width:42px;height:42px;display:grid;place-items:center;cursor:pointer;padding:0}
+.iconbtn:active{background:#1a1a1a}
+.iconbtn svg{width:19px;height:19px}
+.iconbtn.on{background:#fff}
+.iconbtn.on svg [stroke]{stroke:#000}.iconbtn.on svg [fill]{fill:#000}
+
+/* verdict hero */
+.verdict{padding:14px 12px 6px}
+.matchline{display:flex;align-items:stretch;gap:8px}
+.side{flex:1;border:1px solid var(--line);padding:10px;min-width:0}
+.side .mark{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.mark .ring{width:16px;height:16px;border:2px solid #fff;border-radius:50%;flex:0 0 auto}
+.mark .sq{width:16px;height:16px;border:2px solid #fff;flex:0 0 auto}
+.mark b{font-size:13px;letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side .pct{font-size:34px;font-weight:700;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.side .pl{font-size:10px;color:var(--muted);letter-spacing:.08em;margin-top:3px}
+.side .xg{font-size:11px;margin-top:7px;border-top:1px solid var(--soft);padding-top:6px}
+.drawcol{flex:0 0 78px;border:1px solid var(--soft);padding:10px 6px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center}
+.drawcol .pct{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.drawcol .pl{font-size:10px;color:var(--muted);letter-spacing:.06em;margin-top:4px}
+.probbar{display:flex;height:10px;margin:10px 0 2px;border:1px solid var(--line)}
+.probbar i{display:block;height:100%}
+.probbar .ph{background:#fff}.probbar .pd{background:repeating-linear-gradient(90deg,#fff 0 2px,#000 2px 4px)}.probbar .pa{background:#555}
+.verdsrc{font-size:10px;color:var(--dim);letter-spacing:.04em;margin-top:5px;display:flex;justify-content:space-between}
+
+/* tabs */
+.tabs{position:sticky;top:62px;z-index:20;display:flex;background:#000;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1 0 auto;padding:12px 15px;background:#000;border:0;border-right:1px solid var(--soft);
+  cursor:pointer;font-size:11px;letter-spacing:.08em;color:var(--muted);white-space:nowrap}
+.tab:last-child{border-right:0}
+.tab[aria-selected=true]{color:#000;background:#fff;font-weight:700}
+
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 40px}
+.panel{display:none}.panel.active{display:block}
+.sec{border:1px solid var(--line);margin-bottom:12px}
+.sec>h2{margin:0;font-size:11px;letter-spacing:.1em;padding:9px 11px;border-bottom:1px solid var(--soft);
+  text-transform:uppercase;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.sec>h2 .note{font-size:10px;color:var(--muted);font-weight:400;letter-spacing:.03em;text-transform:none;text-align:right}
+.sec .body{padding:11px}
+
+/* pitch */
+#stageWrap{position:relative;border:1px solid var(--line);background:#000;aspect-ratio:105/68;width:100%}
+canvas{display:block;width:100%;height:100%;touch-action:manipulation}
+.scorestrip{display:flex;align-items:center;justify-content:center;gap:14px;padding:10px;border:1px solid var(--line);border-top:0;font-variant-numeric:tabular-nums}
+.scorestrip .sc{font-size:26px;font-weight:700}
+.scorestrip .clk{font-size:13px;border:1px solid var(--soft);padding:4px 9px;min-width:64px;text-align:center}
+.scorestrip .tlab{font-size:11px;letter-spacing:.06em;color:var(--muted)}
+.hudrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{border:1px solid var(--soft);padding:5px 8px;font-size:10px;letter-spacing:.03em}
+.runrow{display:flex;gap:8px;margin-top:10px}
+.runrow button{flex:1;border:1px solid var(--line);background:#000;padding:13px;cursor:pointer;letter-spacing:.06em;font-size:12px}
+.runrow button:active{background:#1a1a1a}
+.runrow button.primary{background:#fff;color:#000;font-weight:700}
+.speedrow{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:10px;color:var(--muted)}
+.seg{display:flex;border:1px solid var(--soft)}
+.seg button{background:#000;border:0;border-right:1px solid var(--soft);padding:8px 11px;cursor:pointer;font-size:11px;letter-spacing:.03em}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:#fff;color:#000;font-weight:700}
+
+/* agent inspector */
+.agenthead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.agentname{font-weight:700;letter-spacing:.02em}
+.agentmeta{color:var(--muted);font-size:10px;line-height:1.5;margin-top:2px}
+.intentbox{border:1px solid var(--line);padding:5px 9px;font-size:11px;letter-spacing:.05em;text-align:center;min-width:80px}
+.roleline{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.rtag{border:1px solid var(--line);padding:3px 7px;font-size:10px;letter-spacing:.03em;text-transform:uppercase}
+.rtag.op{background:#fff;color:#000}
+.subh{margin:11px 0 5px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--soft);padding-top:8px}
+.bars{display:grid;gap:4px}
+.brow{display:grid;grid-template-columns:116px 1fr 36px;gap:6px;align-items:center;font-size:10px}
+.btrack{height:7px;background:#161616;border:1px solid var(--soft);overflow:hidden}
+.btrack i{display:block;height:100%;background:#fff}
+.cand{display:grid;grid-template-columns:66px 1fr 40px;gap:6px;align-items:center;font-size:10px;margin-top:3px}
+.cand .ct{height:6px;background:#161616;border:1px solid var(--soft);overflow:hidden}
+.cand .ct i{display:block;height:100%;background:#fff}
+.cand.sel b{text-decoration:underline}
+.msg{font-size:10px;line-height:1.45;padding:5px 0;border-bottom:1px solid var(--soft)}
+.msg .h{display:flex;justify-content:space-between}.msg .e{color:var(--muted)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:10px;margin-top:8px}
+.kv div:nth-child(odd){color:var(--muted)}.kv div:nth-child(even){text-align:right}
+
+/* predict */
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{border:1px solid var(--soft);padding:9px}
+.stat b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+.stat span{font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.dist{display:grid;gap:6px}
+.distrow{display:grid;grid-template-columns:52px 1fr 46px;gap:8px;align-items:center;font-size:11px}
+.distrow .scl{font-variant-numeric:tabular-nums}
+.distrow .track{height:9px;border:1px solid var(--soft);overflow:hidden}.distrow .track i{display:block;height:100%;background:#fff}
+.distrow .pp{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.bigrun{width:100%;border:1px solid var(--line);background:#fff;color:#000;font-weight:700;padding:14px;cursor:pointer;letter-spacing:.06em;font-size:13px}
+.bigrun:active{opacity:.85}
+.runmeta{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
+.paramnote{font-size:11px;color:var(--muted);line-height:1.6;margin-top:6px}
+
+/* params */
+.param{margin-bottom:14px}
+.param .lab{display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px}
+.param .lab b{font-variant-numeric:tabular-nums;font-weight:700}
+input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:30px;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--soft)}
+input[type=range]::-moz-range-track{height:2px;background:var(--soft)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;background:#fff;border:2px solid #000;border-radius:0;margin-top:-8px}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;background:#fff;border:2px solid #000;border-radius:0}
+input[type=range]:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.resetparams{width:100%;border:1px solid var(--line);background:#000;padding:11px;cursor:pointer;letter-spacing:.06em;font-size:11px;margin-top:4px}
+
+/* radio */
+.radiohead{display:flex;align-items:center;gap:10px}
+.radiohead .big{border:1px solid var(--line);background:#fff;color:#000;font-weight:700;padding:13px 16px;cursor:pointer;letter-spacing:.06em;font-size:13px;flex:1}
+.radiohead .big.live{background:#000;color:#fff}
+.eq{display:flex;gap:3px;align-items:flex-end;height:22px;width:44px;flex:0 0 auto}
+.eq i{flex:1;background:#fff;height:20%}
+.eq.live i{animation:bounce .7s ease-in-out infinite}
+.eq.live i:nth-child(2){animation-delay:.12s}.eq.live i:nth-child(3){animation-delay:.24s}.eq.live i:nth-child(4){animation-delay:.36s}
+@keyframes bounce{0%,100%{height:18%}50%{height:95%}}
+.feed{margin-top:12px;display:flex;flex-direction:column;max-height:48dvh;overflow-y:auto;border:1px solid var(--soft)}
+.fitem{padding:10px 11px;border-bottom:1px solid var(--softer);font-size:12px;line-height:1.55;display:flex;gap:9px}
+.fitem:last-child{border-bottom:0}.fitem .ft{flex:0 0 auto;color:var(--muted);font-variant-numeric:tabular-nums}
+.fitem.goal{background:#fff;color:#000}.fitem.goal .ft{color:#000}
+.fitem.now{border-left:3px solid #fff;padding-left:8px}
+
+/* lineups */
+.xi{border:1px solid var(--soft);margin-bottom:10px}
+.xi h3{margin:0;font-size:11px;padding:8px 10px;border-bottom:1px solid var(--softer);letter-spacing:.04em;display:flex;justify-content:space-between}
+.xi h3 span{color:var(--muted);font-weight:400}
+.prow{display:grid;grid-template-columns:24px 1fr auto;gap:9px;padding:7px 10px;border-bottom:1px solid var(--softer);font-size:11px;align-items:center}
+.prow:last-child{border-bottom:0}
+.prow .no{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.prow .nm b{font-weight:700}.prow .nm small{color:var(--muted);display:block;font-size:10px}
+.prow .rt{font-variant-numeric:tabular-nums;font-size:10px;color:var(--muted);text-align:right;white-space:nowrap}
+.prow.key{background:#0e0e0e}
+
+.methodbox{font-size:12px;line-height:1.7;color:var(--muted)}
+.methodbox b{color:#fff}.methodbox code{color:#fff;background:#111;padding:1px 4px;border:1px solid var(--softer)}
+
+/* prompt */
+.promptwrap{position:relative}
+textarea#promptText{width:100%;min-height:340px;background:#0a0a0a;color:#fff;border:1px solid var(--soft);
+  padding:11px;font-family:inherit;font-size:11px;line-height:1.55;resize:vertical;white-space:pre}
+.copybtn{width:100%;border:1px solid var(--line);background:#fff;color:#000;font-weight:700;padding:13px;cursor:pointer;letter-spacing:.06em;font-size:12px;margin-top:8px}
+.copybtn.done{background:#000;color:#fff}
+.src{font-size:10px;color:var(--muted);line-height:1.7;margin-top:10px;word-break:break-word}.src a{color:var(--muted)}
+footer{padding:16px 12px;border-top:1px solid var(--soft);font-size:10px;color:var(--muted);text-align:center;letter-spacing:.03em}
+
+@media(min-width:1040px){
+  .bar,.verdict{max-width:1200px;margin:0 auto;width:100%}
+  main{max-width:1200px;margin:0 auto;width:100%;display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:16px;align-items:start}
+  .tabs{display:none}.panel{display:block!important}
+  #panel-watch{grid-column:1;grid-row:1/span 7}
+  #panel-predict{grid-column:2}#panel-tune{grid-column:2}#panel-teams{grid-column:2}
+  #panel-radio{grid-column:1}#panel-method{grid-column:2}#panel-prompt{grid-column:2}
+}
+@media(prefers-reduced-motion:reduce){.eq.live i{animation:none;height:60%}}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="wordmark">RECURSIVE PITCH<small>22-agent match engine · monte-carlo forecast</small></div>
+    <div class="spacer"></div>
+    <button class="iconbtn" id="radioToggleTop" aria-label="Toggle radio">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 9h16v10H4z" stroke="#fff" stroke-width="1.6"/><circle cx="16" cy="14" r="2.2" stroke="#fff" stroke-width="1.6"/><path d="M7 13h4M7 16h3" stroke="#fff" stroke-width="1.6"/><path d="M14 9 7 5" stroke="#fff" stroke-width="1.6"/></svg>
+    </button>
+  </div>
+</header>
+
+<section class="verdict">
+  <div class="matchline">
+    <div class="side">
+      <div class="mark"><span class="ring"></span><b>GERMANY</b></div>
+      <div class="pct" id="vGER">—</div><div class="pl">WIN PROBABILITY</div>
+      <div class="xg" id="xgGER">xG —</div>
+    </div>
+    <div class="drawcol"><div class="pct" id="vDRAW">—</div><div class="pl">DRAW</div></div>
+    <div class="side">
+      <div class="mark"><span class="sq"></span><b>CÔTE D'IVOIRE</b></div>
+      <div class="pct" id="vCIV">—</div><div class="pl">WIN PROBABILITY</div>
+      <div class="xg" id="xgCIV">xG —</div>
+    </div>
+  </div>
+  <div class="probbar"><i class="ph" id="barH"></i><i class="pd" id="barD"></i><i class="pa" id="barA"></i></div>
+  <div class="verdsrc"><span id="verdLabel">from 5,000 simulated matches</span><span id="verdN"></span></div>
+</section>
+
+<nav class="tabs" id="tabs" role="tablist">
+  <button class="tab" role="tab" aria-selected="true"  data-tab="watch">WATCH</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="predict">PREDICT</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="radio">RADIO</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="teams">TEAMS</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="tune">TUNE</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="prompt">PROMPT</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="method">METHOD</button>
+</nav>
+
+<main>
+  <!-- WATCH -->
+  <div class="panel active" id="panel-watch" role="tabpanel">
+    <div class="sec" style="border-bottom:0;margin-bottom:0">
+      <h2>Live recursive match <span class="note">22 agents · inner recursion ×3 · relation messages</span></h2>
+    </div>
+    <div id="stageWrap"><canvas id="pitch"></canvas></div>
+    <div class="scorestrip">
+      <span class="tlab">GER</span><span class="sc" id="scH">0</span>
+      <span class="clk" id="clk">00:00</span>
+      <span class="sc" id="scA">0</span><span class="tlab">CIV</span>
+    </div>
+    <div class="hudrow">
+      <span class="chip" id="phaseChip">DEAD BALL</span>
+      <span class="chip" id="possChip">— ball</span>
+      <span class="chip" id="shotChip">shots 0–0</span>
+      <span class="chip" id="assertChip">assert ok</span>
+    </div>
+    <div class="runrow">
+      <button class="primary" id="kickoffBtn">Kick off</button>
+      <button id="resetBtn">New match</button>
+    </div>
+    <div class="speedrow">
+      <span>SPEED</span>
+      <div class="seg" id="speedSeg" role="group" aria-label="Speed">
+        <button data-sp="6" aria-pressed="true">6×</button>
+        <button data-sp="14" aria-pressed="false">14×</button>
+        <button data-sp="30" aria-pressed="false">30×</button>
+        <button data-sp="80" aria-pressed="false">80×</button>
+      </div>
+      <span class="spacer" style="flex:1"></span>
+      <span style="font-size:10px">tap a player to inspect</span>
+    </div>
+
+    <div class="sec" id="agentCard" style="margin-top:12px">
+      <h2>Selected agent <span class="note" id="iterNote">no agent selected</span></h2>
+      <div class="body">
+        <div class="agenthead">
+          <div><div class="agentname" id="agName">—</div><div class="agentmeta" id="agMeta">tap any player on the pitch</div></div>
+          <div class="intentbox" id="agIntent">—</div>
+        </div>
+        <div class="roleline" id="agRoles"></div>
+        <div class="subh">Integrated affordance state</div>
+        <div class="bars" id="agBars"></div>
+        <div class="subh">Top action candidates</div>
+        <div id="agCands"></div>
+        <div class="subh">Incoming relation messages</div>
+        <div id="agMsgs"></div>
+        <div class="kv" id="agKV"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREDICT -->
+  <div class="panel" id="panel-predict" role="tabpanel">
+    <div class="sec">
+      <h2>Monte-Carlo forecast <span class="note">simulate the match, count results</span></h2>
+      <div class="body">
+        <button class="bigrun" id="runBatch">Run 5,000 matches</button>
+        <div class="runmeta" id="batchMeta">Each run is a fast simulation built from the same player ratings the live engine uses. The forecast at the top is the share of outcomes.</div>
+        <div class="speedrow" style="margin-top:12px"><span>SAMPLE</span>
+          <div class="seg" id="sampleSeg" role="group" aria-label="Sample size">
+            <button data-n="1000" aria-pressed="false">1k</button>
+            <button data-n="5000" aria-pressed="true">5k</button>
+            <button data-n="20000" aria-pressed="false">20k</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sec">
+      <h2>Simulated scorelines</h2>
+      <div class="body"><div class="dist" id="distList"></div></div>
+    </div>
+    <div class="sec">
+      <h2>Match markets <span class="note">from the sim</span></h2>
+      <div class="body">
+        <div class="statgrid">
+          <div class="stat"><b id="mOver">—</b><span>Over 2.5 goals</span></div>
+          <div class="stat"><b id="mBtts">—</b><span>Both teams score</span></div>
+          <div class="stat"><b id="mClean">—</b><span>Germany clean sheet</span></div>
+          <div class="stat"><b id="mAvg">—</b><span>Avg scoreline</span></div>
+        </div>
+        <div class="statgrid" style="margin-top:8px">
+          <div class="stat"><b id="oGER">—</b><span>Fair odds GER</span></div>
+          <div class="stat"><b id="oDRAW">—</b><span>Fair odds draw</span></div>
+          <div class="stat"><b id="oCIV">—</b><span>Fair odds CIV</span></div>
+          <div class="stat"><b id="mMargin">—</b><span>Most likely margin</span></div>
+        </div>
+        <div class="paramnote">Fair odds = 1 ÷ simulated probability, no bookmaker margin. Estimates from a model, not advice.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RADIO -->
+  <div class="panel" id="panel-radio" role="tabpanel">
+    <div class="sec">
+      <h2>Radio broadcast <span class="note">your device reads it aloud</span></h2>
+      <div class="body">
+        <div class="radiohead"><button class="big" id="radioBig">Go live</button>
+          <div class="eq" id="eq"><i></i><i></i><i></i><i></i></div></div>
+        <div class="speedrow" style="margin-top:12px"><span>VOICE</span>
+          <div class="seg" id="paceSeg" role="group" aria-label="Voice pace">
+            <button data-pace="0.9" aria-pressed="false">Calm</button>
+            <button data-pace="1.05" aria-pressed="true">Normal</button>
+            <button data-pace="1.3" aria-pressed="false">Excited</button>
+          </div></div>
+        <div class="paramnote" id="voiceNote">Commentary follows the live match in the Watch tab.</div>
+        <div class="feed" id="feed"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEAMS -->
+  <div class="panel" id="panel-teams" role="tabpanel">
+    <div class="sec">
+      <h2>Lineups & derived ratings <span class="note">2026 WC figures → 0–1 ratings</span></h2>
+      <div class="body" id="teamsBody"></div>
+    </div>
+  </div>
+
+  <!-- TUNE -->
+  <div class="panel" id="panel-tune" role="tabpanel">
+    <div class="sec">
+      <h2>Forecast parameters <span class="note">re-runs instantly</span></h2>
+      <div class="body" id="paramBody">
+        <button class="resetparams" id="resetParams">Reset to data-derived values</button>
+      </div>
+    </div>
+    <div class="sec">
+      <h2>What they do</h2>
+      <div class="body methodbox">
+        <p><b>Germany / CIV strength</b> scale each side's attacking and creating output in the fast forecast model.</p>
+        <p><b>Sample trust</b> regresses both teams toward average — low trusts the single match played (Germany's edge grows toward their 7–1), high shrinks the gap toward a coin-flip. One game is thin evidence; this is the dial for how much you believe it.</p>
+        <p><b>Home edge</b> nudges nominal-home Germany on a neutral pitch. Changing any slider re-runs the forecast and updates the verdict.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMPT -->
+  <div class="panel" id="panel-prompt" role="tabpanel">
+    <div class="sec">
+      <h2>Next-match prompt <span class="note">copy → paste for another fixture</span></h2>
+      <div class="body">
+        <p class="paramnote" style="margin-top:0">This generates the starting conditions for any other match. Fill the two rosters with the new teams' confirmed XI and tournament stats, paste it into a new conversation, and you get this same tool rebuilt for that fixture. Nothing else changes — the engine is fixture-agnostic.</p>
+        <div class="promptwrap"><textarea id="promptText" spellcheck="false" readonly></textarea></div>
+        <button class="copybtn" id="copyPrompt">Copy prompt to clipboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- METHOD -->
+  <div class="panel" id="panel-method" role="tabpanel">
+    <div class="sec">
+      <h2>How it works <span class="note">two models, one set of ratings</span></h2>
+      <div class="body methodbox">
+        <p><b>The watch engine</b> is a genuine recursive multi-agent simulation. Every tactical update runs a fixed pipeline on an immutable snapshot: each of 22 agents takes a bounded local observation, refines its action state through <b>three inner recursive iterations</b>, exchanges <b>relation-conditioned messages</b> with nearby players (a defender tells a teammate to drop and cover; a carrier tells a winger to make the run), then teams <b>jointly allocate operational roles</b> — exactly one primary challenger and one goal-cover each — and every agent <b>scores its action candidates</b> before physics moves anyone. Tap a player to watch all of it.</p>
+        <p><b>Player quality is real.</b> Each agent's pace, finishing, passing and tackling come from the roster ratings derived from the stat sheet — so Havertz finishes, Brown threatens from left-back, and Côte d'Ivoire defend like a side that just kept a clean sheet.</p>
+        <p><b>The forecast</b> is a Monte-Carlo readout. The full engine is too heavy to run thousands of times in a browser, so the Predict tab uses a <b>fast match model built from the very same ratings</b> — attacking quality, creation, finishing and defensive solidity per side — and simulates the match thousands of times. The verdict up top is the share of those outcomes. It is a prediction <i>by simulation</i>, not a formula, and it shares its inputs with the match you watch.</p>
+        <p><b>Honesty.</b> Both teams have played one match. Ratings from a single game are uncertain, which is why the sample-trust dial exists and why every number here is an estimate, not a tip.</p>
+      </div>
+      <div class="src" id="srcBox"></div>
+    </div>
+  </div>
+
+  <footer>RECURSIVE PITCH · interpretable agent simulation + Monte-Carlo forecast · single file · no tracking · estimates only</footer>
+</main>
+
+<script>
+'use strict';
+/* ============================================================================
+   The recursive engine (classes Match/Player/Team/PossessionTracker + helpers)
+   and the FIXTURE data block are spliced in immediately below this banner by the
+   build step. The UI / fast-forecast / radio / prompt code follows after.
+   ============================================================================ */
+/* ============================================================================
+   FIXTURE DATA — real 2026 World Cup figures from the confirmed-lineup sheet.
+   To run a different match, replace this block (a copyable generator prompt is
+   in the Prompt tab) and nothing else changes: the engine is fixture-agnostic.
+   ============================================================================ */
+const FORMATIONS={
+  // [formationRole, homeX(0..105 attacking +x), homeY(0..68)]
+  '4231':[['GK',5,34],['RB',24,57],['RCB',20,42],['LCB',20,26],['LB',24,11],
+          ['DM',38,34],['RM',54,46],['LM',54,22],['RW',72,57],['ST',82,34],['LW',72,11]],
+  '433': [['GK',5,34],['RB',24,57],['RCB',20,42],['LCB',20,26],['LB',24,11],
+          ['DM',40,34],['RM',56,48],['LM',56,20],['RW',74,57],['ST',82,34],['LW',74,11]],
+};
+
+// raw stat sheet: [name, club, formationRole, goals, assists, minutes, captain?]
+const SHEET={
+  GER:{name:'Germany',formation:'4231',teamGF:7,teamGA:1,matches:1,xi:[
+    ['Manuel Neuer','Bayern Munich','GK',0,0,90,0],
+    ['Joshua Kimmich','Bayern Munich','RB',0,2,83,1],
+    ['Jonathan Tah','Bayern Munich','RCB',0,0,73,0],
+    ['Nico Schlotterbeck','Borussia Dortmund','LCB',1,0,90,0],
+    ['Nathaniel Brown','Eintracht Frankfurt','LB',1,1,73,0],
+    ['Aleksandar Pavlovic','Bayern Munich','DM',0,0,90,0],
+    ['Felix Nmecha','Borussia Dortmund','RM',1,0,73,0],
+    ['Florian Wirtz','Liverpool','LM',0,1,90,0],
+    ['Leroy Sane','Galatasaray','RW',0,0,90,0],
+    ['Kai Havertz','Arsenal','ST',2,0,90,0],
+    ['Jamal Musiala','Bayern Munich','LW',1,0,64,0]]},
+  CIV:{name:"Cote d'Ivoire",formation:'433',teamGF:1,teamGA:0,matches:1,xi:[
+    ['Yahia Fofana','Caykur Rizespor','GK',0,0,90,0],
+    ['Wilfried Singo','Galatasaray','RB',0,1,90,0],
+    ['Odilon Kossounou','Atalanta','RCB',0,0,1,0],
+    ['Emmanuel Agbadou','Besiktas','LCB',0,0,90,0],
+    ['Ghislain Konan','Gil Vicente','LB',0,0,90,0],
+    ['Franck Kessie','Al-Ahli','DM',0,0,90,1],
+    ['Ibrahim Sangare','Nottingham Forest','RM',0,0,13,0],
+    ['Christ Inao Oulai','Trabzonspor','LM',0,0,13,0],
+    ['Amad Diallo','Manchester United','RW',1,0,34,0],
+    ['Ange-Yoan Bonny','Inter Milan','ST',0,0,34,0],
+    ['Yan Diomande','RB Leipzig','LW',0,0,90,0]]},
+};
+const THREAT_NAMES={'Kai Havertz':1,'Nathaniel Brown':1,'Amad Diallo':1,'Yan Diomande':1};
+
+const RATE_BASE=1.35, RATE_K=2.2;
+function _threat(g,a,min){return Math.min(1.8,(g+0.5*a)*(90/Math.max(30,min)));}
+function _teamAtt(t){const xi=t.xi.reduce((s,p)=>s+_threat(p[3],p[4],p[5]),0)/3.0;
+  const tr=(t.teamGF/t.matches)/RATE_BASE;const obs=0.5*tr+0.5*xi;
+  return (t.matches*obs+RATE_K*1)/(t.matches+RATE_K);}
+function _teamDef(t){const obs=(t.teamGA/t.matches)/RATE_BASE;
+  return (t.matches*obs+RATE_K*1)/(t.matches+RATE_K);}
+function clampN(v,a,b){return Math.max(a,Math.min(b,v));}
+
+function buildRatings(code){
+  const t=SHEET[code];const A=_teamAtt(t),D=_teamDef(t);
+  return t.xi.map((p,i)=>{
+    const [name,club,pos,g,a,min,cap]=p;const th=_threat(g,a,min);
+    const isDef=['RCB','LCB','RB','LB','DM'].includes(pos);
+    const isAtt=['ST','RW','LW','RM','LM'].includes(pos);
+    const fast=/Amad|Diomande|Sane|Musiala|Sing/.test(name);
+    return {
+      name,club,pos,cap:!!cap,threat:!!THREAT_NAMES[name],
+      g,a,min,
+      finishing:+clampN(0.35+th*0.16+(isAtt?0.15:0)+(A-1)*0.12,0.2,0.95).toFixed(3),
+      pace:+clampN(0.55+(isAtt?0.18:0)-(pos==='GK'?0.4:0)+(fast?0.12:0),0.3,1).toFixed(3),
+      passing:+clampN(0.45+a*0.06+(['DM','RM','LM'].includes(pos)?0.12:0)+(A-1)*0.1,0.25,0.95).toFixed(3),
+      defending:+clampN(0.4+(isDef?0.25:0)+(1-D)*0.3,0.2,0.95).toFixed(3),
+      teamAttack:+A.toFixed(3),teamDefence:+D.toFixed(3)
+    };
+  });
+}
+const FIXTURE={
+  GER:{label:'Germany',code:'GER',formation:'4231',ratings:buildRatings('GER'),sheet:SHEET.GER},
+  CIV:{label:"Cote d'Ivoire",code:'CIV',formation:'433',ratings:buildRatings('CIV'),sheet:SHEET.CIV},
+};
+
+
+/* ============================================================================
+   FÚTBOLMAS-22 — Relation-Conditioned Recursive Field Program
+   Single-file, zero-dependency, deterministic-seeded.
+
+   Tactical cycle, executed in strict order each tactical tick:
+     captureSnapshot
+       -> observePlayer (all)            local, observation-bounded
+       -> runInnerRecursion (all, ×3)    residual bounded refinement
+       -> buildRelationGraph             relation states between pairs
+       -> projectOuterMessage (all)      ALL produced before ANY integrated
+       -> integrateOuterMessages (all)   target-relative corrections, bounded
+       -> scoreOperationalRoles + allocateOperationalRoles (per team)
+       -> scoreActionCandidates (all)
+       -> reconcileTeamTargets (per team)
+       -> decodeMovementCommand (all)    intent -> command
+       -> integratePlayerPhysics (all)   only layer that moves players
+       -> PossessionTracker.update       open / close episodes
+       -> updateRoutePriors on close     bounded, decaying team memory
+   Nothing moves until every tactical decision for the tick exists.
+   ========================================================================== */
+
+const TAU=Math.PI*2;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const fmt=(n)=>String(Math.floor(n)).padStart(2,'0');
+const FIELD={w:105,h:68,goalW:7.32,boxD:16.5,boxW:40.32};
+
+const CONFIG={
+  seed:20260620,
+  hzPhysics:10,                 // physics integration steps per simulated second
+  innerIterations:3,
+  tacticalEvery:5,        // run heavy tactical cycle every N physics ticks (2Hz tactics @10Hz physics)            // inner recursive refinements per tactical tick
+  globalTacticalVision:false,   // when false, invisible players cannot enter local lane math
+  switchMargin:0.12,            // role hysteresis: required score gap to change role
+  roleLockTicks:9,              // ticks a role is held barring override
+  conflictRadius:2.5,           // metres: two teammates may not target within this
+  messageGain:0.16,             // bound on a single relational correction component
+  priorClamp:0.6,               // route prior magnitude clamp
+  priorDecay:0.00012,           // gentle per-tick decay (~match-length half-life, not a possession)
+  priorStep:0.10,               // base per-episode prior update (scaled by outcome value)
+  dev:true                      // runtime architecture assertions
+};
+
+/* ---- seeded RNG: the ONLY source of randomness. Math.random is never used ---- */
+class RNG{
+  constructor(seed){this.s=(seed>>>0)||1}
+  next(){this.s=(1664525*this.s+1013904223)>>>0;return this.s/4294967296}
+  range(a,b){return a+(b-a)*this.next()}
+  pick(a){return a[Math.floor(this.next()*a.length)]}
+}
+
+class V{
+  constructor(x=0,y=0){this.x=x;this.y=y}
+  clone(){return new V(this.x,this.y)}
+  add(v){return new V(this.x+v.x,this.y+v.y)}
+  sub(v){return new V(this.x-v.x,this.y-v.y)}
+  mul(s){return new V(this.x*s,this.y*s)}
+  len(){return Math.hypot(this.x,this.y)}
+  norm(){const l=this.len()||1;return new V(this.x/l,this.y/l)}
+  dot(v){return this.x*v.x+this.y*v.y}
+  angle(){return Math.atan2(this.y,this.x)}
+  static from(a,r=1){return new V(Math.cos(a)*r,Math.sin(a)*r)}
+}
+
+/* ---- Affordance dimensions. Each has a defined operational consumer (see USE_MAP).
+        Any dimension with no observable consumer would violate an assertion. ---- */
+const LATENT=['pressure_time','forward_lane','backward_lane','left_support','right_support',
+  'shot_window','pass_window','dribble_window','cover_duty','mark_pressure','offside_risk',
+  'fatigue_cost','turnover_risk'];
+const LX={}; LATENT.forEach((n,i)=>LX[n]=i);
+// Declared consumers — used by both scoring and the "no unused dimension" assertion.
+const USE_MAP={
+  pressure_time:'action',forward_lane:'action',backward_lane:'action',left_support:'role',
+  right_support:'role',shot_window:'action',pass_window:'action',dribble_window:'action',
+  cover_duty:'role',mark_pressure:'role',offside_risk:'action',fatigue_cost:'speed',
+  turnover_risk:'risk'
+};
+
+const FORMATION_ROLES=['GK','RB','RCB','LCB','LB','DM','RM','LM','RW','ST','LW'];
+const FORM_LABEL={GK:'Goalkeeper',RB:'Right Back',RCB:'Right Centre Back',LCB:'Left Centre Back',
+  LB:'Left Back',DM:'Holding Midfielder',RM:'Right Midfielder',LM:'Left Midfielder',
+  RW:'Right Winger',ST:'Striker',LW:'Left Winger'};
+const OP_ROLES=['PRIMARY_CHALLENGER','SECONDARY_SUPPORT','GOAL_COVER','PROGRESSOR','RUNNER','MARKER','RECOVERY'];
+const OP_SHORT={PRIMARY_CHALLENGER:'CHALLENGE',SECONDARY_SUPPORT:'SUPPORT',GOAL_COVER:'GOAL COVER',
+  PROGRESSOR:'PROGRESS',RUNNER:'RUNNER',MARKER:'MARKER',RECOVERY:'RECOVERY'};
+
+const FORM=[
+  ['GK',5,34],['RB',24,57],['RCB',20,42],['LCB',20,26],['LB',24,11],['DM',38,34],
+  ['RM',52,48],['LM',52,20],['RW',70,58],['ST',76,34],['LW',70,10]
+];
+
+const ROUTES=['LEFT','CENTER','RIGHT','DIRECT','RECYCLE'];
+
+/* ============================================================================
+   PLAYER AGENT
+   ========================================================================== */
+class Player{
+  constructor(team,index,formationRole,home,rng){
+    this.team=team;this.index=index;this.id=team.code+(index+1);this.number=index+1;
+    this.formationRole=formationRole;
+    this.home=home.clone();this.pos=home.clone();this.vel=new V();
+    this.orientation=team.attackDir>0?0:Math.PI;
+    // ----- roster-driven attributes (rt: per-player ratings 0..1) -----
+    const rt=this.rt=team.ratings? team.ratings[index] : null;
+    const fin=rt?rt.finishing:0.5, pac=rt?rt.pace:0.6, pas=rt?rt.passing:0.5, def=rt?rt.defending:0.5;
+    this.finishing=fin; this.pace=pac; this.passing=pas; this.defending=def;
+    this.displayName=rt?rt.name:this.id; this.club=rt?rt.club:''; this.cap=rt?!!rt.cap:false;
+    this.threatRank=rt?!!rt.threat:false;
+    // physical attributes scale with ratings (better players => faster, sharper)
+    this.maxSpeed=formationRole==='GK'?6.2:(6.9+pac*2.6);
+    this.accel=4.6+pac*2.2; this.turnRate=3.6+pac*1.8;
+    this.preferredFoot=rt&&rt.foot?rt.foot:(rng.next()<.74?'R':'L');
+    this.passRange=24+pas*20; this.passError=0.085-pas*0.055;     // better passers => less error
+    this.shootRange=(formationRole==='ST'?24:17)+fin*6;
+    this.tackleRadius=1.0+def*0.55;
+    this.stamina=1;this.card=0;this.subbed=false;this.subCount=0;
+
+    // operational role (distinct from formationRole) + hysteresis state
+    this.operationalRole='RECOVERY';
+    this.previousOperationalRole='RECOVERY';
+    this.roleLockUntil=0;
+    this.roleScores={};         // last computed role-score vector
+    this.roleScoreList=[];      // sorted [role,score] for inspection
+
+    // affordance state (bounded inner-recursive state)
+    this.affordance=Object.fromEntries(LATENT.map(n=>[n,0.3]));
+    this.integrated=Object.fromEntries(LATENT.map(n=>[n,0.3]));
+    this.innerIters=0;
+
+    // relation / message bookkeeping
+    this.incoming=[];           // outer messages addressed to this player (this tick)
+    this.outgoing=[];           // outer messages this player emitted (this tick)
+    this.relCorrection=Object.fromEntries(LATENT.map(n=>[n,0]));
+
+    // intent / command / inspection
+    this.intent=null;           // selected Action_Intent
+    this.candidates=[];         // scored action candidates (sorted)
+    this.command=null;          // decoded Movement_Command
+    this.markTarget=null;
+    this.selected=false;
+    this.lastTouch=-999;this.touches=0;
+
+    // observation cache (filled by observePlayer)
+    this.obs=null;
+    this.visibleMates=[];this.visibleOpps=[];this.nearestPressure=9.9;
+  }
+  alive(){return !this.subbed && this.stamina>0}
+}
+
+/* ============================================================================
+   TEAM
+   ========================================================================== */
+class Team{
+  constructor(code,name,attackDir){
+    this.code=code;this.name=name;this.attackDir=attackDir;this.players=[];
+    this.score=0;this.shots=0;this.xg=0;this.passes=0;this.recoveries=0;this.possessionTime=0;
+    // objective weights altered operationally by score context
+    this.objective={progress:.55,retain:.5,risk:.5,cover:.5};
+    // bounded route memory; updated only at episode closure, decays each tick
+    this.routePriors={LEFT:0,CENTER:0,RIGHT:0,DIRECT:0,RECYCLE:0};
+  }
+  active(){return this.players.filter(p=>p.alive())}
+}
+
+class Ball{
+  constructor(){this.pos=new V(FIELD.w/2,FIELD.h/2);this.vel=new V();this.owner=null;
+    this.targetPlayer=null;this.lastTeam=null;this.fromShot=false}
+}
+
+/* ============================================================================
+   RELATION STATE  (one immutable record per relevant ordered pair, this tick)
+   ========================================================================== */
+function makeRelation(source,target,type,snap,match){
+  const rel=target.pos.sub(source.pos);
+  const dist=rel.len();
+  const same=source.team===target.team;
+  const ballToTarget=match.ball.pos.sub(target.pos).len();
+  const ballToSource=match.ball.pos.sub(source.pos).len();
+  // goal-side relation: is target between source and source's defended goal?
+  const ownGoalX=source.team.attackDir>0?0:FIELD.w;
+  const goalSide=(source.team.attackDir>0)?(target.pos.x<source.pos.x):(target.pos.x>source.pos.x);
+  // lane width to target and interception advantage
+  const laneWidth=match.laneClearance(source.pos,target.pos);
+  const srcIntercept=match.timeToBall(source);
+  const tgtIntercept=match.timeToBall(target);
+  return {
+    source,target,type,same,dist,
+    relHeading:rel.norm().angle(),
+    relVel:target.vel.sub(source.vel).len(),
+    ballToTarget,ballToSource,
+    laneWidth,
+    interceptDiff:srcIntercept-tgtIntercept,
+    goalSide,
+    confidence:clamp(1-dist/45,0.05,1),
+    expireTick:match.tickCount+1
+  };
+}
+
+/* ============================================================================
+   MATCH
+   ========================================================================== */
+class Match{
+  constructor(){
+    this.rng=new RNG(CONFIG.seed);
+    // Germany (home/left) vs Cote d'Ivoire (away/right). ned/swe names retained
+    // internally for engine compatibility; relabelled everywhere user-facing.
+    this.ned=new Team('G','Germany',1);
+    this.swe=new Team('C',"Cote d'Ivoire",-1);
+    this.ned.ratings=FIXTURE.GER.ratings; this.ned.formationKey=FIXTURE.GER.formation;
+    this.swe.ratings=FIXTURE.CIV.ratings; this.swe.formationKey=FIXTURE.CIV.formation;
+    this.teams=[this.ned,this.swe];
+    this.createPlayers(this.ned,false);
+    this.createPlayers(this.swe,true);
+    this.players=[...this.ned.players,...this.swe.players];
+    this.ball=new Ball();
+    this.time=0;this.running=false;this.speed=12;this.phase='DEAD_BALL';
+    this.tickCount=0;
+    this.possessionTeam=this.ned;
+    this.deadTimer=1.0;this.pendingRestart='kickoff';
+    this.halftime=false;this.fulltime=false;
+    this.events=[];
+    this.relations=[];          // current relation graph (this tick)
+    this.snapshot=null;         // immutable Field_Snapshot for current tick
+    this.assertOK=true;this.assertMsg='ok';
+    this.tracker=new PossessionTracker(this);
+    this.selected=this.ned.players[5];this.selected.selected=true;
+    this.resetKickoff(this.ned);
+    this.log('Teams out at Toronto Stadium. Germany kick off.','info');
+  }
+  createPlayers(team,mirror){
+    const form=FORMATIONS[team.formationKey]||FORM;
+    for(let i=0;i<form.length;i++){
+      const [role,x,y]=form[i];
+      const home=new V(mirror?FIELD.w-x:x,y);
+      team.players.push(new Player(team,i,role,home,this.rng));
+    }
+  }
+  otherTeam(t){return t===this.ned?this.swe:this.ned}
+  log(text,kind='info'){this.events.unshift({t:this.time,text,kind});if(this.events.length>90)this.events.length=90}
+
+  resetKickoff(team){
+    for(const t of this.teams)for(const p of t.players){
+      if(p.subbed)continue;p.pos=p.home.clone();p.vel=new V();
+      p.orientation=t.attackDir>0?0:Math.PI;p.command=null;p.intent=null;
+    }
+    const striker=team.players.find(p=>p.formationRole==='ST'&&p.alive())||team.active()[0];
+    this.ball.pos=new V(FIELD.w/2,FIELD.h/2);this.ball.owner=striker;this.ball.vel=new V();
+    this.ball.targetPlayer=null;this.ball.lastTeam=team;
+    this.possessionTeam=team;this.phase='DEAD_BALL';this.deadTimer=1.0;this.pendingRestart='kickoff';
+    this.tracker.forceClose('restart');
+  }
+  mirrorSides(){
+    for(const t of this.teams){t.attackDir*=-1;for(const p of t.players){
+      p.home.x=FIELD.w-p.home.x;p.pos.x=FIELD.w-p.pos.x;p.orientation=t.attackDir>0?0:Math.PI;}}
+  }
+
+  /* ---------- geometry / shared public helpers ---------- */
+  laneClearance(from,to){
+    const opp=[];for(const t of this.teams)if(true)0;
+    const ab=to.sub(from);const len=ab.len();if(len<1)return 1;
+    let min=99;for(const o of this.players){
+      // both teams considered for raw clearance; observation filtering happens in observePlayer
+      const ap=o.pos.sub(from);const t=clamp(ap.dot(ab)/(len*len),0,1);
+      const proj=from.add(ab.mul(t));min=Math.min(min,o.pos.sub(proj).len());
+    }
+    return clamp(min/8,0,1);
+  }
+  laneClearanceVisible(player,to,visibleOpps){
+    const from=player.pos;const ab=to.sub(from);const len=ab.len();if(len<1)return 1;
+    const opp=CONFIG.globalTacticalVision?this.otherTeam(player.team).players:visibleOpps;
+    let min=99;for(const o of opp){const ap=o.pos.sub(from);const t=clamp(ap.dot(ab)/(len*len),0,1);
+      const proj=from.add(ab.mul(t));min=Math.min(min,o.pos.sub(proj).len());}
+    return opp.length?clamp(min/8,0,1):1;
+  }
+  timeToBall(p){const d=this.ball.pos.sub(p.pos).len();return d/Math.max(2,p.maxSpeed*(.5+.5*p.stamina))}
+  shootingLane(p){
+    const goalX=p.team.attackDir>0?FIELD.w:0;const goal=new V(goalX,FIELD.h/2);
+    const opp=this.otherTeam(p.team).players;const ab=goal.sub(p.pos);const len=ab.len();let blocks=0;
+    for(const o of opp){const ap=o.pos.sub(p.pos);const t=clamp(ap.dot(ab)/(len*len),0,1);
+      const proj=p.pos.add(ab.mul(t));if(o.pos.sub(proj).len()<1.8)blocks++}
+    return clamp(1-blocks*.23,0,1);
+  }
+  isTargetOffside(team,target){
+    const xs=this.otherTeam(team).players.filter(p=>p.formationRole!=='GK').map(p=>p.pos.x).sort((a,b)=>a-b);
+    const line=team.attackDir>0?xs[xs.length-2]:xs[1];
+    return team.attackDir>0?target.x>line+.5:target.x<line-.5;
+  }
+  closestActiveToBall(team){return team.active().reduce((a,b)=>
+    a.pos.sub(this.ball.pos).len()<b.pos.sub(this.ball.pos).len()?a:b)}
+  routeOf(p){ // classify a position into a route bucket for the attacking team
+    const y=p.pos.y;
+    if(y<FIELD.h*0.34)return p.team.attackDir>0?'LEFT':'RIGHT';
+    if(y>FIELD.h*0.66)return p.team.attackDir>0?'RIGHT':'LEFT';
+    return 'CENTER';
+  }
+
+  /* ======================================================================
+     STEP — one physics tick (dt = 1/hzPhysics seconds)
+     ====================================================================== */
+  step(dt){
+    if(this.fulltime)return;
+    this.tickCount++;this.time+=dt;
+
+    if(!this.halftime&&this.time>=45*60){
+      this.halftime=true;this.mirrorSides();this.resetKickoff(this.swe);
+      this.log('Halftime. Teams switch ends. Sweden restart.','info');
+    }
+    if(this.time>=90*60){
+      this.fulltime=true;this.running=false;
+      this.tracker.forceClose('fulltime');
+      this.log(`Full time: Netherlands ${this.ned.score}–${this.swe.score} Sweden.`,'episode');
+      return;
+    }
+
+    for(const t of this.teams)this.scoreContext(t);
+
+    if(this.deadTimer>0){
+      this.deadTimer-=dt;
+      if(this.deadTimer<=0&&this.ball.owner){
+        this.log(this.pendingRestart==='kickoff'?'Ball in play.':'Restart taken.','info');
+        this.tracker.open(this.possessionTeam);
+      }
+      this.settleDuringDeadBall(dt);
+      return;
+    }
+
+    this.phase=this.phaseFor();
+    if(this.possessionTeam)this.possessionTeam.possessionTime+=dt;
+
+    /* ---- THE TACTICAL CYCLE — run every CONFIG.tacticalEvery physics ticks.
+       Physics runs every tick; tactics (the heavy recursive part) are decimated,
+       which is both faithful ("tactical update once per simulation step") and the
+       key to running hundreds of full matches for the Monte-Carlo prediction. ---- */
+    const doTactics = (this.tickCount % (CONFIG.tacticalEvery||1))===0 || !this.players[0].intent;
+    if(doTactics){
+      this.snapshot=this.captureSnapshot();
+      for(const p of this.players)if(p.alive())this.observePlayer(p,this.snapshot);
+      for(const p of this.players)if(p.alive())this.runInnerRecursion(p,CONFIG.innerIterations);
+      this.relations=this.buildRelationGraph(this.snapshot);
+      for(const p of this.players)p.outgoing=[],p.incoming=[];
+      for(const rel of this.relations){
+        const msg=this.projectOuterMessage(rel.source,rel.target,rel);
+        if(msg){rel.source.outgoing.push(msg);rel.target.incoming.push(msg);}
+      }
+      for(const p of this.players)if(p.alive())this.integrateOuterMessages(p);
+      for(const team of this.teams){
+        const scores=this.scoreOperationalRoles(team,this.snapshot);
+        this.allocateOperationalRoles(team,scores);
+      }
+      for(const p of this.players)if(p.alive())this.scoreActionCandidates(p);
+      for(const team of this.teams)this.reconcileTeamTargets(team);
+      for(const p of this.players)if(p.alive())this.decodeMovementCommand(p);
+      if(CONFIG.dev)this.runAssertions();
+    }
+
+    // physics: the only layer that moves players, then resolves the ball (EVERY tick)
+    for(const p of this.players)if(p.alive())this.integratePlayerPhysics(p,dt);
+    this.resolveBall(dt);
+    this.resolveTackles(dt);
+    this.updateStamina(dt);
+
+    // 11. possession episode bookkeeping (may close & adapt route priors)
+    this.tracker.update(dt);
+
+    // route prior decay toward zero, every tick
+    for(const team of this.teams)for(const r of ROUTES)
+      team.routePriors[r]*= (1-CONFIG.priorDecay);
+
+    this.phase=this.phaseFor();
+  }
+
+  settleDuringDeadBall(dt){
+    for(const p of this.players){if(!p.alive())continue;p.vel=p.vel.mul(.82);
+      p.pos.x=clamp(p.pos.x+p.vel.x*dt,.2,FIELD.w-.2);p.pos.y=clamp(p.pos.y+p.vel.y*dt,.2,FIELD.h-.2);}
+    if(this.ball.owner){this.ball.pos=this.ball.owner.pos.add(V.from(this.ball.owner.orientation,.55));}
+  }
+
+  scoreContext(team){
+    const diff=team.score-this.otherTeam(team).score;
+    const late=this.time>75*60;
+    if(late&&diff>0){               // leading late: retain, cover, safe
+      team.objective.retain=.85;team.objective.cover=.8;team.objective.progress=.4;team.objective.risk=.3;
+    }else if(late&&diff<0){         // trailing late: progress, press, shoot, tolerate turnovers
+      team.objective.retain=.4;team.objective.cover=.42;team.objective.progress=.9;team.objective.risk=.82;
+    }else{
+      team.objective.retain=.5;team.objective.cover=.5;team.objective.progress=.58;team.objective.risk=.5;
+    }
+  }
+  phaseFor(){
+    if(this.deadTimer>0)return 'DEAD_BALL';
+    const t=this.possessionTeam;const x=t.attackDir>0?this.ball.pos.x:FIELD.w-this.ball.pos.x;
+    if(this.ball.vel.len()>14 && !this.ball.owner)return 'TRANSITION';
+    if(x<22)return 'BUILD_OUT';if(x<62)return 'PROGRESSION';return 'FINAL_THIRD';
+  }
+
+  /* ---------- 0. immutable snapshot ---------- */
+  captureSnapshot(){
+    return {
+      tick:this.tickCount,time:this.time,phase:this.phase,
+      possessionTeam:this.possessionTeam,
+      ball:{pos:this.ball.pos.clone(),vel:this.ball.vel.clone(),
+        ownerId:this.ball.owner?this.ball.owner.id:null,
+        targetId:this.ball.targetPlayer?this.ball.targetPlayer.id:null},
+      players:this.players.map(p=>({
+        id:p.id,team:p.team.code,pos:p.pos.clone(),vel:p.vel.clone(),
+        orientation:p.orientation,stamina:p.stamina,card:p.card,
+        formationRole:p.formationRole,operationalRole:p.operationalRole,alive:p.alive()
+      }))
+    };
+  }
+
+  /* ---------- 1. observation (bounded) ----------
+     Decision-relevant inputs only: visible mates/opps, ball relation, goals,
+     visible open lanes, offside estimate, nearest visible pressure, score+time. */
+  observePlayer(p,snap){
+    const opponents=this.otherTeam(p.team).players;
+    const mates=p.team.players.filter(q=>q!==p&&q.alive());
+    const viewDir=V.from(p.orientation);
+    const visible=(q)=>{const d=q.pos.sub(p.pos);const dist=d.len();
+      if(dist>34)return false;const c=viewDir.dot(d.norm());return c>-.35||dist<8;};
+    p.visibleMates=mates.filter(visible);
+    p.visibleOpps=opponents.filter(q=>q.alive()).filter(visible);
+
+    // nearest pressure among VISIBLE opponents only (no invisible-defender leakage)
+    let nearest=99,nearestP=null;
+    for(const q of p.visibleOpps){const d=q.pos.sub(p.pos).len();if(d<nearest){nearest=d;nearestP=q;}}
+    p.nearestPressure=nearest/Math.max(2,nearestP?nearestP.maxSpeed:8);
+
+    const goal=new V(p.team.attackDir>0?FIELD.w:0,FIELD.h/2);
+    const forward=goal.sub(p.pos).norm();
+    const shotDist=goal.sub(p.pos).len();
+
+    const laneTo=(target)=>this.laneClearanceVisible(p,target,p.visibleOpps);
+    const lanes=p.visibleMates.map(q=>({p:q,score:laneTo(q.pos)})).sort((a,b)=>b.score-a.score).slice(0,5);
+
+    const left=p.visibleMates.filter(q=>q.pos.y<p.pos.y);
+    const right=p.visibleMates.filter(q=>q.pos.y>p.pos.y);
+    const supportScore=(arr)=>arr.length?clamp(Math.max(...arr.map(q=>1-q.pos.sub(p.pos).len()/32)),0,1):0;
+
+    const obs={
+      nearestP,nearest,forward,goal,shotDist,lanes,
+      ballRel:this.ball.pos.sub(p.pos),
+      // raw feature vector keyed by dimension name (bounded 0..1)
+      f:{
+        pressure_time:clamp(p.nearestPressure/3,0,1),
+        forward_lane:lanes.length?lanes[0].score:0,
+        backward_lane:clamp((p.team.attackDir>0?p.pos.x:FIELD.w-p.pos.x)/FIELD.w,0,1),
+        left_support:supportScore(left),
+        right_support:supportScore(right),
+        shot_window:clamp(1-shotDist/30,0,1)*this.shootingLane(p),
+        pass_window:lanes.length?lanes[0].score:0,
+        dribble_window:clamp(nearest/12,0,1),
+        cover_duty:clamp(this.coverNeed(p),0,1),
+        mark_pressure:nearestP?clamp(1-nearest/18,0,1):0,
+        offside_risk:this.isTargetOffside(p.team,p.pos)?1:0,
+        fatigue_cost:1-p.stamina,
+        turnover_risk:clamp((1-(lanes[0]?.score||0))*(1-clamp(nearest/12,0,1)),0,1)
+      }
+    };
+    p.obs=obs;
+  }
+  coverNeed(p){
+    if(this.possessionTeam===p.team)return .2;
+    const d=this.ball.pos.sub(p.pos).len();const anchor=p.home.sub(p.pos).len();
+    return clamp(.22+d/45+anchor/35,0,1);
+  }
+
+  /* ---------- 2. inner recursion (residual, bounded, ×N) ----------
+     next = bound( prev + obsCorrection + recurrentCorrection + relationCorrection )
+     - prev: previous affordance state (carried across ticks)
+     - obsCorrection: pull toward observation feature
+     - recurrentCorrection: tanh of own previous state (operating-limit shaped)
+     - relationCorrection: last tick's integrated relational correction (decayed)
+     Three iterations run BEFORE any action is selected. */
+  runInnerRecursion(p,iterations){
+    const f=p.obs.f;
+    // operating-limit factor: tired players refine more sluggishly
+    const limit=0.55+0.45*p.stamina;
+    let state=Object.assign({},p.affordance);
+    let k=0;
+    for(;k<iterations;k++){
+      const next={};
+      for(const n of LATENT){
+        const prev=state[n];
+        const obsCorr=0.18*(f[n]-prev);
+        const recCorr=0.06*((Math.tanh(2*prev-1))*0.5)*limit;  // bounded self-coupling
+        const relCorr=0.5*(p.relCorrection[n]||0);             // decayed prior relational pull
+        next[n]=clamp(prev+obsCorr+recCorr+relCorr,0,1);
+      }
+      state=next;
+    }
+    p.affordance=state;
+    p.innerIters=k;
+    // integrated state starts as the inner result; outer messages add to it next.
+    p.integrated=Object.assign({},state);
+  }
+
+  /* ---------- 3. relation graph ---------- */
+  buildRelationGraph(snap){
+    const rels=[];
+    const owner=this.ball.owner;
+    for(const a of this.players){
+      if(!a.alive())continue;
+      const partners=a.visibleMates.concat(a.visibleOpps);
+      for(const b of partners){
+        if(!b.alive())continue;
+        const same=a.team===b.team;
+        const dist=b.pos.sub(a.pos).len();
+        if(dist>40)continue;
+        let type=null;
+        if(same){
+          // cooperative relation types
+          if(owner===a && this.laneClearanceVisible(a,b.pos,a.visibleOpps)>0.4) type='PASS_OPTION';
+          else if(this.isGoalSide(a,b)) type='COVER';
+          else type='SUPPORT';
+        }else{
+          // adversarial relation types
+          if(owner===b) type='PRESS';
+          else if(this.isGoalSide(a,b)) type='BLOCK';
+          else type='MARK';
+        }
+        if(!type)continue;
+        rels.push(makeRelation(a,b,type,snap,this));
+      }
+    }
+    return rels;
+  }
+  isGoalSide(a,b){ // b is goal-side of a relative to a's DEFENDED goal
+    return (a.team.attackDir>0)?(b.pos.x<a.pos.x):(b.pos.x>a.pos.x);
+  }
+
+  /* ---------- 4. project outer message (target-relative effect, NOT a copy) ----------
+     Different geometries produce different corrections. Each component is bounded
+     by CONFIG.messageGain. The message names the dimensions it nudges so the
+     inspector can show an operational summary. */
+  projectOuterMessage(src,tgt,rel){
+    const g=CONFIG.messageGain;
+    const eff={};                 // dimension -> signed delta to TARGET
+    const notes=[];
+    const closerToBall=rel.ballToSource<rel.ballToTarget;
+    const srcReachesFirst=rel.interceptDiff<0;       // source arrives at ball sooner
+    const tgtGoalSide=rel.goalSide;                   // target sits goal-side of source
+
+    if(rel.type==='COVER'){
+      // source presses/challenges; target should cover behind -> raise cover, drop challenge
+      if(srcReachesFirst){
+        eff.cover_duty=+g; notes.push(['COVER',+g]);
+        eff.mark_pressure=-0.6*g; notes.push(['MARK',-0.6*g]);
+      }
+      if(tgtGoalSide){eff.cover_duty=(eff.cover_duty||0)+0.5*g;}
+    }else if(rel.type==='SUPPORT'){
+      // source carries; if target has a wide open lane, raise its support/run readiness
+      const wide=Math.abs(tgt.pos.y-src.pos.y)>10;
+      if(rel.laneWidth>0.4){eff.left_support= (tgt.pos.y<src.pos.y)?+g:0;
+        eff.right_support=(tgt.pos.y>src.pos.y)?+g:0;
+        notes.push([wide?'WIDE SUPPORT':'SUPPORT',+g]);}
+      eff.pass_window=(eff.pass_window||0)+0.4*g*rel.laneWidth;
+    }else if(rel.type==='PASS_OPTION'){
+      // a clean pass option raises target's pass-receipt readiness, lowers turnover fear
+      eff.pass_window=+g*rel.confidence; notes.push(['PASS WINDOW',+g*rel.confidence]);
+      eff.turnover_risk=-0.4*g; notes.push(['TURNOVER',-0.4*g]);
+      if(tgt.formationRole==='ST'||tgt.formationRole==='RW'||tgt.formationRole==='LW')
+        eff.shot_window=(eff.shot_window||0)+0.3*g;
+    }else if(rel.type==='PRESS'){
+      // opponent pressing the target ball-carrier: raise turnover risk + dribble caution
+      eff.turnover_risk=+g; notes.push(['TURNOVER',+g]);
+      eff.dribble_window=-0.7*g; notes.push(['DRIBBLE',-0.7*g]);
+      if(closerToBall)eff.pressure_time=(eff.pressure_time||0)+0.5*g;
+    }else if(rel.type==='MARK'){
+      // opponent marking target's space: lower its open-lane optimism, raise offside caution
+      eff.forward_lane=-0.5*g; notes.push(['FWD LANE',-0.5*g]);
+      eff.offside_risk=(eff.offside_risk||0)+0.3*g;
+    }else if(rel.type==='BLOCK'){
+      // opponent goal-side, between target and goal: shrink shot window
+      eff.shot_window=-0.6*g; notes.push(['SHOT',-0.6*g]);
+      eff.forward_lane=(eff.forward_lane||0)-0.3*g;
+    }
+    if(Object.keys(eff).length===0)return null;
+    // clamp every component to gain bound
+    for(const k in eff)eff[k]=clamp(eff[k],-g,g);
+    return {
+      from:src,to:tgt,type:rel.type,same:rel.same,
+      eff,notes,expireTick:rel.expireTick,confidence:rel.confidence,
+      summary:`${src.id} → ${tgt.id}`
+    };
+  }
+
+  /* ---------- 5. integrate outer messages (bounded, expiry-checked) ---------- */
+  integrateOuterMessages(p){
+    const agg=Object.fromEntries(LATENT.map(n=>[n,0]));
+    for(const m of p.incoming){
+      if(m.expireTick<this.tickCount)continue;            // never integrate expired
+      for(const k in m.eff)agg[k]+=m.eff[k]*m.confidence;
+    }
+    // bound the total correction per dimension, then apply to integrated state
+    for(const n of LATENT){
+      agg[n]=clamp(agg[n],-2*CONFIG.messageGain,2*CONFIG.messageGain);
+      p.integrated[n]=clamp(p.integrated[n]+agg[n],0,1);
+    }
+    // remember a decayed version to feed next tick's inner recursion (slow loop)
+    p.relCorrection=Object.fromEntries(LATENT.map(n=>[n,agg[n]*0.5]));
+  }
+
+  /* ---------- 6. operational role scoring + joint allocation ---------- */
+  scoreOperationalRoles(team,snap){
+    const owner=this.ball.owner;const weHave=this.possessionTeam===team;
+    const scores=new Map();
+    for(const p of team.active()){
+      const s=p.integrated;const obj=team.objective;
+      const ttb=this.timeToBall(p);
+      const goalSideOfBall=(team.attackDir>0)?(p.pos.x<this.ball.pos.x):(p.pos.x>this.ball.pos.x);
+      const isGK=p.formationRole==='GK';
+      const rs={};
+      // challenger wants to be first to the ball & under low fatigue (defensive phase)
+      rs.PRIMARY_CHALLENGER = isGK?-2 : (1.0-ttb*0.18) + s.mark_pressure*0.6 - s.fatigue_cost*0.3 + (weHave?-0.6:0.4);
+      // goal cover wants goal-side position, cover duty, defensive readiness
+      rs.GOAL_COVER = (goalSideOfBall?0.7:0) + s.cover_duty*0.8 + obj.cover*0.4 - (isGK?0:0.1) + (isGK?0.3:0);
+      // support: lateral support availability while we attack
+      rs.SECONDARY_SUPPORT = (weHave?0.5:0) + (s.left_support+s.right_support)*0.4 + s.pass_window*0.3;
+      // progressor: carry/advance lanes when we have it
+      rs.PROGRESSOR = (weHave?0.5:0) + s.forward_lane*0.7 + obj.progress*0.5 - s.turnover_risk*0.4;
+      // runner: makes forward runs (attackers, low offside risk)
+      rs.RUNNER = (weHave?0.4:0) + (['ST','RW','LW'].includes(p.formationRole)?0.5:0) + s.forward_lane*0.4 - s.offside_risk*0.6 + obj.risk*0.3;
+      // marker: track opponents when out of possession
+      rs.MARKER = (weHave?0:0.6) + s.mark_pressure*0.7 + (['RB','RCB','LCB','LB','DM'].includes(p.formationRole)?0.3:0);
+      // recovery: fallback / retreat
+      rs.RECOVERY = 0.25 + s.fatigue_cost*0.3 + (weHave?0:0.2) + (1-Math.min(1,ttb))* -0.05;
+      // GK constrained to GK-compatible roles
+      if(isGK){rs.PRIMARY_CHALLENGER=-5;rs.RUNNER=-5;rs.PROGRESSOR=-3;rs.SECONDARY_SUPPORT=-2;rs.GOAL_COVER+=1.2;}
+      scores.set(p,rs);
+      p.roleScores=rs;
+      p.roleScoreList=Object.entries(rs).sort((a,b)=>b[1]-a[1]);
+    }
+    return scores;
+  }
+  allocateOperationalRoles(team,scores){
+    const players=team.active();
+    if(!players.length)return;
+    const assigned=new Map();
+    const danger=this.criticalDanger(team);
+
+    const bestFor=(role,pool)=>pool.reduce((best,p)=>{
+      const v=scores.get(p)[role];return (best===null||v>scores.get(best)[role])?p:best;},null);
+
+    // 1) exactly one PRIMARY_CHALLENGER (non-GK)
+    let pool=players.filter(p=>p.formationRole!=='GK');
+    const challenger=bestFor('PRIMARY_CHALLENGER',pool.length?pool:players);
+    if(challenger)assigned.set(challenger,'PRIMARY_CHALLENGER');
+
+    // 2) exactly one GOAL_COVER among the rest (GK strongly favoured by score)
+    pool=players.filter(p=>!assigned.has(p));
+    const cover=bestFor('GOAL_COVER',pool);
+    if(cover)assigned.set(cover,'GOAL_COVER');
+
+    // 3) remaining players take their own best of the supporting roles
+    const supporting=['SECONDARY_SUPPORT','PROGRESSOR','RUNNER','MARKER','RECOVERY'];
+    for(const p of players){
+      if(assigned.has(p))continue;
+      const rs=scores.get(p);
+      let bestRole='RECOVERY',bestVal=-1e9;
+      for(const r of supporting){if(rs[r]>bestVal){bestVal=rs[r];bestRole=r;}}
+      assigned.set(p,bestRole);
+    }
+
+    // 4) apply with hysteresis.
+    // Singleton roles (PRIMARY_CHALLENGER, GOAL_COVER) are authoritative: the elected
+    // holder always takes the role, and anyone else currently holding it is always
+    // demoted to its proposed role. This guarantees exactly-one even under a role lock.
+    const SINGLETON={PRIMARY_CHALLENGER:challenger,GOAL_COVER:cover};
+    const apply=(p,role)=>{
+      const cur=p.operationalRole;if(cur===role)return;
+      p.previousOperationalRole=cur;p.operationalRole=role;
+      p.roleLockUntil=this.tickCount+CONFIG.roleLockTicks;
+      if(this.shouldLogRole(p))
+        this.log(`${p.id}: ${OP_SHORT[cur]} → ${OP_SHORT[role]} (${p.formationRole}).`,'role');
+    };
+    for(const p of players){
+      const proposed=assigned.get(p);
+      const cur=p.operationalRole;
+
+      // A) if this player currently holds a singleton role but is NOT the elected
+      //    holder, force it off that role immediately (invariant beats the lock).
+      for(const sr of ['PRIMARY_CHALLENGER','GOAL_COVER']){
+        if(cur===sr && SINGLETON[sr]!==p){apply(p,proposed);break;}
+      }
+      if(p.operationalRole!==cur)continue;   // already moved by the demotion above
+
+      // B) elected singleton holders always take their role.
+      if(SINGLETON.PRIMARY_CHALLENGER===p){apply(p,'PRIMARY_CHALLENGER');continue;}
+      if(SINGLETON.GOAL_COVER===p){apply(p,'GOAL_COVER');continue;}
+
+      // C) otherwise use hysteresis for ordinary role changes.
+      if(proposed===cur)continue;
+      const curScore=(scores.get(p)[cur]??-1e9);
+      const newScore=scores.get(p)[proposed];
+      const lockActive=this.tickCount<p.roleLockUntil;
+      const clears=newScore>curScore+CONFIG.switchMargin;
+      if(danger || (!lockActive && clears))apply(p,proposed);
+    }
+  }
+  criticalDanger(team){
+    // ball in team's defensive third with opponent in control = override role locks
+    const x=team.attackDir>0?this.ball.pos.x:FIELD.w-this.ball.pos.x;
+    return this.possessionTeam!==team && x<26;
+  }
+  shouldLogRole(p){
+    // Only surface role changes for the inspected player. Challenger/goal-cover
+    // holders legitimately rotate every time the ball moves; logging all of them
+    // would bury episode, message and route-adaptation events in the stream.
+    return p.selected;
+  }
+
+  /* ---------- 7. action candidate scoring ----------
+     Candidates scored from integrated affordance, operational role, formation,
+     geometry, stamina, score context, route memory, conflict + switch penalty. */
+  scoreActionCandidates(p){
+    const s=p.integrated;const obj=p.team.objective;const role=p.operationalRole;
+    const owns=this.ball.owner===p;const teamHas=this.possessionTeam===p.team;
+    const obs=p.obs;const cands=[];
+    const route=this.routeOf(p);const prior=p.team.routePriors[route]||0;
+    const add=(type,target,targetPlayer,base,extra)=>cands.push(
+      {type,target,targetPlayer,base,extra:extra||{},score:0});
+
+    if(p.formationRole==='GK'){
+      if(owns){
+        const pass=this.bestPass(p,true);
+        if(pass)add('PASS',pass.p.pos.clone(),pass.p,0.7+0.3*s.pass_window,{lane:pass.score});
+        add('CLEAR',new V(p.team.attackDir>0?FIELD.w*0.6:FIELD.w*0.4,FIELD.h/2),null,0.4+0.3*s.turnover_risk,{});
+        add('HOLD',p.pos.clone(),null,0.3,{});
+      }else if(!teamHas){
+        const gx=p.team.attackDir>0?4:FIELD.w-4;
+        const gy=clamp(this.ball.pos.y,FIELD.h/2-7,FIELD.h/2+7);
+        add('GOALKEEP',new V(gx,gy),null,1.0+0.4*s.cover_duty,{});
+      }else{add('GOALKEEP',p.home.clone(),null,0.6,{});}
+      this.finishCandidates(p,cands);return;
+    }
+
+    if(owns){
+      // SHOOT
+      const shotDist=obs.goal.sub(p.pos).len();
+      if(shotDist<p.shootRange){
+        add('SHOOT',obs.goal.add(new V(0,this.rng.range(-FIELD.goalW*.36,FIELD.goalW*.36))),null,
+          0.42+1.25*s.shot_window+0.30*obj.risk+0.45*p.finishing-0.2*(role==='GOAL_COVER'?1:0),{xg:s.shot_window});
+      }
+      // PASS (route prior nudges the score toward historically-good routes)
+      const pass=this.bestPass(p);
+      if(pass){
+        const pRoute=this.routeOf(pass.p);const pPrior=p.team.routePriors[pRoute]||0;
+        add('PASS',pass.p.pos.add(pass.p.vel.mul(.35)),pass.p,
+          0.4+0.6*s.pass_window+0.45*obj.retain+0.5*pPrior-0.3*s.turnover_risk,{lane:pass.score,route:pRoute,prior:pPrior});
+      }
+      // DRIBBLE
+      const dir=obs.forward.add(new V(this.rng.range(-.2,.2),this.rng.range(-.2,.2))).norm();
+      add('DRIBBLE',p.pos.add(dir.mul(6)),null,
+        0.3+0.6*s.dribble_window+0.3*obj.progress-0.5*s.turnover_risk,{route});
+      // HOLD as a safe fallback when leading late
+      add('HOLD',p.pos.clone(),null,0.2+0.4*obj.retain-0.3*obj.progress,{});
+    }else if(!teamHas){
+      const carrier=this.ball.owner;
+      if(carrier&&carrier.team!==p.team){
+        const d=carrier.pos.sub(p.pos).len();
+        const challengerBonus=(role==='PRIMARY_CHALLENGER')?0.9:0;
+        add('PRESS',carrier.pos.clone(),carrier,
+          0.2+challengerBonus+0.6*s.pressure_time+0.3*obj.cover-0.2*s.fatigue_cost,{});
+      }
+      const mark=this.pickMark(p);
+      if(mark)add('MARK',this.markPoint(p,mark),mark,
+        0.3+(role==='MARKER'?0.7:0)+0.6*s.mark_pressure,{});
+      add('COVER',this.coverPoint(p),null,
+        0.3+(role==='GOAL_COVER'?0.8:0)+0.6*s.cover_duty,{});
+      add('RECOVER',p.home.clone(),null,0.25+(role==='RECOVERY'?0.6:0)+0.3*s.fatigue_cost,{});
+    }else{
+      // team in possession, this player off the ball
+      const sup=this.supportPoint(p,route,prior);
+      add('SUPPORT',sup.target,sup.targetPlayer||null,
+        0.3+(role==='SECONDARY_SUPPORT'?0.6:0)+0.5*(s.left_support+s.right_support)*0.5+0.4*prior,{route});
+      const runT=this.runPoint(p,route,prior);
+      add('RUN',runT,null,
+        0.3+(role==='RUNNER'?0.7:0)+0.6*s.forward_lane-0.5*s.offside_risk+0.3*obj.progress+0.4*prior,{route,prior});
+      add('PROGRESS',this.progressPoint(p),null,
+        0.3+(role==='PROGRESSOR'?0.7:0)+0.5*s.forward_lane+0.4*obj.progress-0.3*s.turnover_risk,{route});
+      add('HOLD',p.home.clone(),null,0.2+0.3*obj.retain,{});
+    }
+    this.finishCandidates(p,cands);
+  }
+  finishCandidates(p,cands){
+    // switch penalty: discourage flipping intent vs last tick (unless clearly better)
+    const lastType=p.intent?p.intent.type:null;
+    for(const c of cands){
+      let sc=c.base;
+      if(lastType&&c.type!==lastType)sc-=0.06;            // switch penalty
+      sc+=this.rng.range(-0.02,0.02);                      // tie-break only
+      c.score=sc;
+    }
+    cands.sort((a,b)=>b.score-a.score);
+    p.candidates=cands;
+    const best=cands[0]||{type:'HOLD',target:p.pos.clone(),targetPlayer:null};
+    p.intent={type:best.type,target:(best.target||p.pos.clone()).clone(),
+      targetPlayer:best.targetPlayer||null,meta:best.extra};
+  }
+
+  bestPass(p,safe=false){
+    const mates=p.team.players.filter(q=>q!==p&&q.alive());
+    let best=null,bestScore=-9;
+    for(const q of mates){
+      const d=q.pos.sub(p.pos).len();if(d>p.passRange||d<3)continue;
+      const lane=this.laneClearanceVisible(p,q.pos,p.visibleOpps);
+      const progress=p.team.attackDir*(q.pos.x-p.pos.x)/FIELD.w;
+      const roleBonus=['ST','RW','LW'].includes(q.formationRole)?.08:0;
+      const safePenalty=safe?Math.max(0,progress)*-.2:0;
+      const pRoute=this.routeOf(q);const prior=p.team.routePriors[pRoute]||0;
+      const score=lane+.46*progress+roleBonus+safePenalty+0.4*prior
+        -(this.isTargetOffside(p.team,q.pos)?.8:0)+this.rng.range(-.03,.03);
+      if(score>bestScore){bestScore=score;best={p:q,score};}
+    }
+    return bestScore>.2?best:null;
+  }
+  supportPoint(p,route,prior){
+    const ball=this.ball.pos;const dir=p.team.attackDir;const r=p.formationRole;let t=p.home.clone();
+    if(r==='RW'||r==='LW')t=new V(clamp(ball.x+dir*12,4,FIELD.w-4),r==='RW'?(dir>0?58:10):(dir>0?10:58));
+    else if(r==='RM'||r==='LM')t=new V(clamp(ball.x-dir*2,8,FIELD.w-8),r==='RM'?45:23);
+    else if(r==='DM')t=new V(clamp(ball.x-dir*13,12,FIELD.w-12),FIELD.h/2);
+    else t=new V(lerp(p.home.x,ball.x-dir*16,.3),lerp(p.home.y,ball.y,.25));
+    // route prior shifts width: positive LEFT/RIGHT prior pulls support toward that flank
+    const widthBias=(p.team.routePriors.RIGHT-p.team.routePriors.LEFT)*8*dir;
+    t.y=clamp(t.y+widthBias,4,FIELD.h-4);
+    return {target:t};
+  }
+  runPoint(p,route,prior){
+    const ball=this.ball.pos;const dir=p.team.attackDir;
+    const depth=12+prior*10+ (p.team.objective.progress-0.5)*16;
+    let y=FIELD.h/2+this.rng.range(-8,8);
+    // DIRECT prior straightens runs; LEFT/RIGHT prior angles them
+    if(p.team.routePriors.DIRECT>0.1)y=lerp(y,FIELD.h/2,0.5);
+    return new V(clamp(ball.x+dir*depth,6,FIELD.w-6),clamp(y,5,FIELD.h-5));
+  }
+  progressPoint(p){
+    const ball=this.ball.pos;const dir=p.team.attackDir;
+    return new V(clamp(ball.x+dir*6,8,FIELD.w-8),lerp(p.pos.y,FIELD.h/2,0.2));
+  }
+  coverPoint(p){
+    const dir=p.team.attackDir;const ball=this.ball.pos;
+    return new V(lerp(p.home.x,ball.x-dir*18,.35),lerp(p.home.y,ball.y,.3));
+  }
+  pickMark(p){
+    let best=null,score=999;
+    for(const o of this.otherTeam(p.team).active()){
+      const roleMatch=(p.formationRole.includes('B')&&['RW','LW','ST'].includes(o.formationRole))?-4:0;
+      const d=o.pos.sub(p.pos).len()+roleMatch;if(d<score){score=d;best=o;}
+    }
+    p.markTarget=best;return best;
+  }
+  markPoint(p,o){const goal=new V(p.team.attackDir>0?0:FIELD.w,FIELD.h/2);
+    return o.pos.add(goal.sub(o.pos).norm().mul(1.7));}
+
+  /* ---------- 8. reconcile targets (no two teammates within conflictRadius) ----------
+     Priority by operational role; lower-priority player is bumped to its next
+     non-conflicting candidate (or a cover/recovery fallback). */
+  reconcileTeamTargets(team){
+    const prio={PRIMARY_CHALLENGER:6,GOAL_COVER:5,RUNNER:4,PROGRESSOR:3,SECONDARY_SUPPORT:2,MARKER:2,RECOVERY:1};
+    const players=team.active().filter(p=>p.intent&&p.intent.target);
+    players.sort((a,b)=>(prio[b.operationalRole]||0)-(prio[a.operationalRole]||0));
+    const claimed=[];
+    for(const p of players){
+      let t=p.intent.target;
+      const conflict=()=>claimed.some(c=>c.sub(t).len()<CONFIG.conflictRadius);
+      if(conflict()){
+        // try next candidates with a different target
+        let resolved=false;
+        for(const c of p.candidates){
+          const ct=(c.target||p.pos);
+          if(claimed.every(q=>q.sub(ct).len()>=CONFIG.conflictRadius)){
+            p.intent={type:c.type,target:ct.clone(),targetPlayer:c.targetPlayer||null,meta:c.extra};
+            t=p.intent.target;resolved=true;break;
+          }
+        }
+        if(!resolved){
+          // fallback: spread to a cover/recovery offset of home
+          const off=new V(this.rng.range(-3,3),this.rng.range(-3,3));
+          t=p.home.add(off);
+          p.intent={type:p.operationalRole==='GOAL_COVER'?'COVER':'RECOVER',target:t,targetPlayer:null,meta:{}};
+        }
+      }
+      claimed.push(t.clone());
+    }
+  }
+
+  /* ---------- 9. decode intent -> movement command ---------- */
+  decodeMovementCommand(p){
+    const it=p.intent;const s=p.integrated;
+    const staminaFactor=.55+.45*p.stamina;
+    let desiredSpeed=p.maxSpeed*staminaFactor;
+    // fatigue_cost dimension routes here (slows movement) — keeps it operationally used
+    desiredSpeed*= (1-0.25*s.fatigue_cost);
+    let accel=p.accel;
+    if(it.type==='PRESS'){desiredSpeed*=1.05;accel*=1.1;}
+    else if(it.type==='COVER'||it.type==='RECOVER'||it.type==='GOALKEEP'){desiredSpeed*=.8;}
+    else if(['PASS','SHOOT','HOLD','CLEAR'].includes(it.type)&&this.ball.owner===p){desiredSpeed*=.05;}
+    const tp=it.target||p.home;
+    const desiredOrientation=tp.sub(p.pos).len()>0.5?tp.sub(p.pos).angle():p.orientation;
+    p.command={target:tp.clone(),desiredSpeed,desiredOrientation,accel};
+  }
+
+  /* ---------- 10. physics integration (only layer that moves players) ---------- */
+  integratePlayerPhysics(p,dt){
+    const c=p.command;if(!c){return;}
+    if(['PASS','SHOOT','HOLD','CLEAR'].includes(p.intent.type)&&this.ball.owner===p){
+      p.vel=p.vel.mul(.7);
+    }else{
+      const desired=c.target.sub(p.pos);const dist=desired.len();
+      const max=c.desiredSpeed;let speed=Math.min(max,dist*1.6);
+      const dv=desired.norm().mul(speed).sub(p.vel);const maxDv=c.accel*dt;
+      const change=dv.len()>maxDv?dv.norm().mul(maxDv):dv;
+      p.vel=p.vel.add(change);if(p.vel.len()>max)p.vel=p.vel.norm().mul(max);
+    }
+    if(p.vel.len()>.2){
+      let da=((p.command.desiredOrientation-p.orientation+Math.PI*3)%TAU)-Math.PI;
+      da=clamp(da,-p.turnRate*dt,p.turnRate*dt);p.orientation+=da;
+    }
+    p.pos.x=clamp(p.pos.x+p.vel.x*dt,.2,FIELD.w-.2);
+    p.pos.y=clamp(p.pos.y+p.vel.y*dt,.2,FIELD.h-.2);
+  }
+
+  /* ---------- ball, passing, shooting, tackles ---------- */
+  resolveBall(dt){
+    const owner=this.ball.owner;
+    if(owner){
+      this.ball.pos=owner.pos.add(V.from(owner.orientation,.55));this.ball.vel=owner.vel.clone();
+      const it=owner.intent;
+      if(it&&it.type==='PASS')this.executePass(owner,it);
+      else if(it&&it.type==='SHOOT')this.executeShot(owner,it);
+      else if(it&&it.type==='CLEAR')this.executeClear(owner,it);
+    }else{
+      this.ball.pos=this.ball.pos.add(this.ball.vel.mul(dt));
+      this.ball.vel=this.ball.vel.mul(Math.pow(.965,dt*10));
+      if(this.ball.pos.y<0||this.ball.pos.y>FIELD.h){this.outOfPlay('throw');return;}
+      if(this.ball.pos.x<0||this.ball.pos.x>FIELD.w){
+        const inGoal=Math.abs(this.ball.pos.y-FIELD.h/2)<FIELD.goalW/2;
+        if(inGoal){
+          // keeper of the conceding side gets a save chance scaled by their defending rating
+          const conceding=this.ball.lastTeam?this.otherTeam(this.ball.lastTeam):null;
+          const gk=conceding?conceding.players.find(q=>q.formationRole==='GK'&&q.alive()):null;
+          const saveP=gk?clamp(0.30+0.34*gk.defending,0.18,0.72):0.35;
+          if(this.ball.fromShot && this.rng.next()<saveP){
+            this.ball.fromShot=false;this.log(`${gk?gk.displayName:'The keeper'} saves!`,'info');
+            this.restartAt(conceding,new V(conceding.attackDir>0?5:FIELD.w-5,FIELD.h/2),'goalKick');return;
+          }
+          this.goal(this.ball.lastTeam);
+        } else this.outOfPlay('goalKick');return;
+      }
+      const cand=this.players.filter(p=>p.alive())
+        .map(p=>({p,d:p.pos.sub(this.ball.pos).len()})).filter(x=>x.d<1.6).sort((a,b)=>a.d-b.d);
+      if(cand.length){const p=cand[0].p;
+        if(this.ball.targetPlayer&&p===this.ball.targetPlayer)this.acquire(p,'reception');
+        else this.acquire(p,'recovery');}
+      else {
+        // ANTI-DEADLOCK: nobody is on the ball. Drive the two nearest players (one per team
+        // if possible) straight at it so a loose ball is always contested, never abandoned.
+        const slow=this.ball.vel.len()<6;
+        if(slow){
+          for(const team of this.teams){
+            const near=team.active().sort((a,b)=>a.pos.sub(this.ball.pos).len()-b.pos.sub(this.ball.pos).len())[0];
+            if(near){near.intent={type:'CHASE',target:this.ball.pos.clone(),targetPlayer:null,meta:{}};
+              near.command={target:this.ball.pos.clone(),desiredSpeed:near.maxSpeed,
+                desiredOrientation:this.ball.pos.sub(near.pos).len()>0.3?this.ball.pos.sub(near.pos).angle():near.orientation,
+                accel:near.accel*1.2};}
+          }
+        }
+      }
+    }
+  }
+  executePass(p,d){
+    if(this.time-p.lastTouch<.22)return;
+    const target=(d.target).clone();const err=p.passError*(1+.8*(1-p.stamina));
+    target.x+=this.rng.range(-1,1)*err*18;target.y+=this.rng.range(-1,1)*err*18;
+    const delta=target.sub(this.ball.pos);const speed=clamp(delta.len()*1.7,9,24);
+    this.ball.owner=null;this.ball.targetPlayer=d.targetPlayer;this.ball.lastTeam=p.team;
+    this.ball.vel=delta.norm().mul(speed);this.ball.fromShot=false;p.lastTouch=this.time;p.touches++;p.team.passes++;
+    this.tracker.note('pass',p,d.meta&&d.meta.route);
+  }
+  executeShot(p,d){
+    if(this.time-p.lastTouch<.3)return;
+    const dist=d.target.sub(this.ball.pos).len();
+    const xg=clamp(.40-dist/70,.03,.42)*this.shootingLane(p)*(0.7+0.6*p.finishing);
+    p.team.shots++;p.team.xg+=xg;this.tracker.note('shot',p);
+    this.log(`${p.id} shoots · xG ${xg.toFixed(2)}.`,'info');
+    const speed=26+this.rng.range(0,9);let target=d.target.clone();
+    // placement error shrinks with finishing skill
+    const spray=(1-0.6*p.finishing)*(1.6+1.4*(1-p.stamina));
+    target.y+=this.rng.range(-1,1)*spray;
+    this.ball.owner=null;this.ball.targetPlayer=null;this.ball.lastTeam=p.team;
+    this.ball.vel=target.sub(this.ball.pos).norm().mul(speed);this.ball.fromShot=true;
+    p.lastTouch=this.time;p.touches++;
+  }
+  executeClear(p,d){
+    if(this.time-p.lastTouch<.25)return;
+    const target=d.target.clone();const delta=target.sub(this.ball.pos);
+    this.ball.owner=null;this.ball.targetPlayer=null;this.ball.lastTeam=p.team;
+    this.ball.vel=delta.norm().mul(22+this.rng.range(0,6));this.ball.fromShot=false;p.lastTouch=this.time;p.touches++;
+    this.tracker.note('carry',p);
+  }
+  acquire(p,kind){
+    const old=this.possessionTeam;
+    this.ball.owner=p;this.ball.targetPlayer=null;this.ball.vel=new V();this.ball.fromShot=false;
+    this.possessionTeam=p.team;p.touches++;p.lastTouch=this.time;
+    if(kind==='recovery'||kind==='tackle')p.team.recoveries++;
+    this.tracker.onPossessionChange(old,p.team,kind,p);
+  }
+  resolveTackles(dt){
+    if(!this.ball.owner)return;const carrier=this.ball.owner;
+    for(const p of this.players){
+      if(!p.alive()||p.team===carrier.team||!p.intent||p.intent.type!=='PRESS')continue;
+      const d=p.pos.sub(carrier.pos).len();
+      if(d<p.tackleRadius){
+        const chance=clamp(.32+.18*p.stamina-.16*(p.card>0)-.12*carrier.integrated.turnover_risk,.08,.65);
+        if(this.rng.next()<chance*dt*7){
+          if(this.rng.next()<.09){
+            p.card=Math.min(1,p.card+1);
+            this.log(`${p.id} commits a foul${p.card?' and is booked':''}.`,'info');
+            this.restartAt(carrier.team,carrier.pos.clone(),'freeKick');return;
+          }
+          this.tracker.note('recovery',p);this.acquire(p,'tackle');return;
+        }
+      }
+    }
+  }
+  goal(team){
+    if(!team)return;team.score++;
+    // if the ball that crossed the line wasn't already a credited shot (deflection,
+    // misdirected clearance), credit one now so shots >= goals always holds.
+    if(!this.ball.fromShot){team.shots++;team.xg+=0.2;}
+    this.ball.fromShot=false;
+    this.log(`GOAL ${team.code==='N'?'NETHERLANDS':'SWEDEN'} · ${team.score}–${this.otherTeam(team).score}.`,'episode');
+    this.tracker.note('shot',this.ball.owner||this.closestActiveToBall(team));
+    this.tracker.onGoal(team);
+    this.resetKickoff(this.otherTeam(team));
+  }
+  outOfPlay(kind){
+    const last=this.ball.lastTeam||this.ned;const next=this.otherTeam(last);
+    const spot=new V(clamp(this.ball.pos.x,3,FIELD.w-3),clamp(this.ball.pos.y,3,FIELD.h-3));
+    this.tracker.forceClose('out');this.restartAt(next,spot,kind);
+  }
+  restartAt(team,spot,kind){
+    this.deadTimer=.8;this.pendingRestart=kind;this.phase='DEAD_BALL';
+    const taker=team.active().reduce((a,b)=>a.pos.sub(spot).len()<b.pos.sub(spot).len()?a:b);
+    taker.pos=spot.clone();this.ball.owner=taker;this.ball.pos=spot.clone();this.ball.vel=new V();
+    this.ball.targetPlayer=null;this.ball.lastTeam=team;this.possessionTeam=team;
+    this.tracker.forceClose(kind);
+    this.log(`${kind} for ${team.code==='N'?'Netherlands':'Sweden'}.`,'info');
+  }
+  updateStamina(dt){
+    for(const p of this.players){
+      if(!p.alive())continue;
+      const load=clamp(p.vel.len()/p.maxSpeed,0,1);
+      p.stamina=clamp(p.stamina-dt*(.00004+.00009*load),.28,1);
+      if(this.time>60*60&&p.stamina<.48&&p.subCount===0){
+        p.subCount++;p.stamina=.92;p.maxSpeed*=1.02;
+        this.log(`${p.id} substituted; fresh legs keep the same formation slot.`,'info');
+      }
+    }
+  }
+
+  /* ---------- runtime architecture assertions (dev mode) ---------- */
+  runAssertions(){
+    if(!CONFIG.dev){this.assertOK=true;this.assertMsg='ok';return;}
+    const fails=[];
+    // finite + bounded latent
+    for(const p of this.players){if(!p.alive())continue;
+      for(const n of LATENT){const v=p.integrated[n];
+        if(!Number.isFinite(v)||v<-1e-6||v>1+1e-6){fails.push(`latent ${p.id}.${n}`);break;}}}
+    // one operational role each; one intent each
+    for(const p of this.players){if(!p.alive())continue;
+      if(!OP_ROLES.includes(p.operationalRole))fails.push(`role ${p.id}`);
+      if(!p.intent||!p.intent.type)fails.push(`intent ${p.id}`);}
+    // exactly one challenger + one goal cover per team
+    for(const team of this.teams){
+      const act=team.active();
+      const ch=act.filter(p=>p.operationalRole==='PRIMARY_CHALLENGER').length;
+      const gc=act.filter(p=>p.operationalRole==='GOAL_COVER').length;
+      if(ch!==1)fails.push(`${team.code} challengers=${ch}`);
+      if(gc!==1)fails.push(`${team.code} goalcover=${gc}`);
+    }
+    // no expired message lingering on a player
+    for(const p of this.players)for(const m of p.incoming)
+      if(m.expireTick<this.tickCount){fails.push(`expired msg ${p.id}`);break;}
+    // every latent dimension has a declared consumer
+    for(const n of LATENT)if(!USE_MAP[n])fails.push(`unused ${n}`);
+
+    this.assertOK=fails.length===0;
+    this.assertMsg=this.assertOK?'ok':fails.slice(0,2).join(' · ');
+    if(!this.assertOK)this.log(`ASSERT FAIL: ${this.assertMsg}`,'role');
+  }
+}
+
+/* ============================================================================
+   POSSESSION EPISODE TRACKER  (episode recursion -> route priors)
+   ========================================================================== */
+class PossessionEpisode{
+  constructor(team,match){
+    this.id=match.tracker.nextId++;
+    this.team=team;this.startTime=match.time;this.startBall=match.ball.pos.clone();
+    this.endTime=null;this.endBall=null;
+    this.participants=new Set();this.passes=0;this.carries=0;this.presses=0;
+    this.recoveries=0;this.shots=0;this.maxProgress=0;this.routeTally={LEFT:0,CENTER:0,RIGHT:0};
+    this.termination=null;this.outcomeValue=0;this.routeClass='RECYCLE';
+  }
+}
+class PossessionTracker{
+  constructor(match){this.match=match;this.current=null;this.nextId=1;this.lastClosed=null;}
+  open(team){
+    if(this.current&&this.current.team===team&&!this.current.endTime)return;
+    if(this.current&&!this.current.endTime)this.close('superseded');
+    this.current=new PossessionEpisode(team,this.match);
+    this.match.log(`Episode ${this.current.id} opens · ${team.code==='N'?'NED':'SWE'} in control.`,'episode');
+  }
+  note(kind,player,route){
+    const e=this.current;if(!e||e.endTime)return;
+    if(player)e.participants.add(player.id);
+    if(kind==='pass')e.passes++;
+    else if(kind==='carry')e.carries++;
+    else if(kind==='press')e.presses++;
+    else if(kind==='recovery')e.recoveries++;
+    else if(kind==='shot')e.shots++;
+    // progress + route tally toward attacking direction
+    const dir=e.team.attackDir;
+    const prog=dir>0?this.match.ball.pos.x:FIELD.w-this.match.ball.pos.x;
+    e.maxProgress=Math.max(e.maxProgress,prog);
+    const r=this.match.routeOf({pos:this.match.ball.pos,team:e.team});
+    if(e.routeTally[r]!==undefined)e.routeTally[r]++;
+  }
+  onPossessionChange(oldTeam,newTeam,kind,player){
+    if(this.current&&this.current.team!==newTeam){this.close('turnover');}
+    // open new episode for whoever now has stable control
+    this.open(newTeam);
+    if(this.current)this.note('recovery',player);
+  }
+  onGoal(team){
+    if(this.current){this.current.shots++;this.close('goal');}
+  }
+  forceClose(reason){if(this.current&&!this.current.endTime)this.close(reason);this.current=null;}
+  update(dt){
+    const e=this.current;if(!e||e.endTime)return;
+    // extended uncontrolled ball closes the episode
+    if(!this.match.ball.owner&&this.match.ball.vel.len()<2){e._idle=(e._idle||0)+dt;
+      if(e._idle>2.5)this.close('looseball');}
+    else e._idle=0;
+  }
+  classifyRoute(e){
+    const t=e.routeTally;const total=t.LEFT+t.CENTER+t.RIGHT||1;
+    const directness=e.maxProgress/FIELD.w;
+    if(e.passes<=1&&directness>0.45)return 'DIRECT';
+    if(e.recoveries>0&&e.passes>=3&&directness<0.4)return 'RECYCLE';
+    const max=Math.max(t.LEFT,t.CENTER,t.RIGHT);
+    if(max===t.CENTER)return 'CENTER';
+    return t.LEFT>=t.RIGHT?'LEFT':'RIGHT';
+  }
+  close(reason){
+    const e=this.current;if(!e||e.endTime)return;
+    e.endTime=this.match.time;e.endBall=this.match.ball.pos.clone();e.termination=reason;
+    e.routeClass=this.classifyRoute(e);
+    // outcome value in [-1,1]
+    let v=0;
+    if(reason==='goal')v=1;
+    else if(e.shots>0)v=0.5;
+    else if(reason==='turnover'){
+      const x=e.team.attackDir>0?e.endBall.x:FIELD.w-e.endBall.x;
+      v=x<FIELD.w*0.33?-0.7:-0.3;                  // turnover in own third = strong negative
+    }else if(e.maxProgress>FIELD.w*0.66)v=0.25;
+    else v=-0.05;
+    e.outcomeValue=clamp(v,-1,1);
+    this.updateRoutePriors(e);
+    this.lastClosed=e;
+    this.match.log(`Episode ${e.id} closes · ${reason} · route ${e.routeClass} · value ${e.outcomeValue.toFixed(2)}.`,'episode');
+  }
+  updateRoutePriors(e){
+    const team=e.team;const r=e.routeClass;
+    // small bounded update, requires repeated evidence for a large shift
+    let step=CONFIG.priorStep*e.outcomeValue;
+    // shot-created bonus, turnover penalty already folded into outcomeValue
+    team.routePriors[r]=clamp(team.routePriors[r]+step,-CONFIG.priorClamp,CONFIG.priorClamp);
+    if(Math.abs(step)>0.001)
+      this.match.log(`${team.code==='N'?'NED':'SWE'} route memory ${r} ${step>=0?'+':''}${step.toFixed(3)} → ${team.routePriors[r].toFixed(2)}.`,'info');
+  }
+}
+
+/* ============================================================================
+   FAST FORECAST MODEL — built from the SAME roster ratings as the live engine.
+   Simulates a match possession-by-possession; thousands run in well under a sec.
+   ============================================================================ */
+const FP={gerStr:1.0, civStr:1.0, K:2.2, home:1.12};   // tune-able multipliers
+
+function teamProfile(code){
+  const r=FIXTURE[code].ratings;
+  const out=r.filter(p=>['ST','RW','LW','RM','LM'].includes(p.pos));
+  const def=r.filter(p=>['RCB','LCB','RB','LB','DM'].includes(p.pos));
+  const gk=r.find(p=>p.pos==='GK');
+  const attackQ=out.reduce((s,p)=>s+p.finishing+0.4*p.pace,0)/Math.max(1,out.length);
+  const createQ=r.reduce((s,p)=>s+p.passing,0)/r.length;
+  const defQ=(def.reduce((s,p)=>s+p.defending,0)/Math.max(1,def.length)+gk.defending)/2;
+  return {attackQ,createQ,defQ,teamA:r[0].teamAttack,teamD:r[0].teamDefence,out};
+}
+function clampF(v,a,b){return Math.max(a,Math.min(b,v));}
+class FRNG{constructor(s){this.s=(s>>>0)||1}next(){this.s=(1664525*this.s+1013904223)>>>0;return this.s/4294967296}}
+
+function fastSide(rng,att,def,strMul,edge){
+  // shrink team attack toward 1 by K (sample trust)
+  const Ash=(1*att.teamA + FP.K*1)/(1+FP.K);
+  const attacks=Math.max(4,Math.round((8 + att.createQ*10*edge + (Ash-1)*6)*strMul));
+  let goals=0;
+  for(let i=0;i<attacks;i++){
+    const shotP=clampF(0.30+0.35*att.attackQ-0.18*def.defQ,0.08,0.7);
+    if(rng.next()<shotP){
+      const sh=att.out[Math.floor(rng.next()*att.out.length)];
+      const conv=clampF(0.07+0.20*(sh?sh.finishing:0.5)-0.12*def.defQ,0.02,0.45);
+      if(rng.next()<conv)goals++;
+    }
+  }
+  return goals;
+}
+function runForecast(N,seed){
+  const GER=teamProfile('GER'),CIV=teamProfile('CIV');
+  const rng=new FRNG(seed>>>0);
+  let gw=0,d=0,cw=0,gh=0,ga=0,over=0,btts=0,clean=0;const sc={};const margin={};
+  for(let i=0;i<N;i++){
+    const h=fastSide(rng,GER,CIV,FP.gerStr,FP.home);
+    const a=fastSide(rng,CIV,GER,FP.civStr,1/Math.sqrt(FP.home));
+    if(h>a)gw++;else if(h===a)d++;else cw++;
+    gh+=h;ga+=a;if(h+a>=3)over++;if(h>0&&a>0)btts++;if(a===0)clean++;
+    const k=h+'-'+a;sc[k]=(sc[k]||0)+1;
+    const m=(h-a);margin[m]=(margin[m]||0)+1;
+  }
+  const top=Object.entries(sc).sort((x,y)=>y[1]-x[1]).slice(0,9)
+    .map(([s,c])=>({s,p:c/N}));
+  const mtop=Object.entries(margin).sort((x,y)=>y[1]-x[1])[0];
+  return {N,pH:gw/N,pD:d/N,pA:cw/N,exH:gh/N,exA:ga/N,
+    over:over/N,btts:btts/N,clean:clean/N,top,
+    margin:mtop?parseInt(mtop[0]):0};
+}
+
+/* ---------------- verdict + predict render ---------------- */
+const $=id=>document.getElementById(id);
+let FC=null;
+function pct(x){return (x*100).toFixed(0)+'%';}
+function pct1(x){return (x*100).toFixed(1)+'%';}
+function renderVerdict(){
+  if(!FC)return;
+  $('vGER').textContent=pct(FC.pH);$('vDRAW').textContent=pct(FC.pD);$('vCIV').textContent=pct(FC.pA);
+  $('xgGER').textContent='xG '+FC.exH.toFixed(2);$('xgCIV').textContent='xG '+FC.exA.toFixed(2);
+  $('barH').style.width=(FC.pH*100)+'%';$('barD').style.width=(FC.pD*100)+'%';$('barA').style.width=(FC.pA*100)+'%';
+  $('verdN').textContent=FC.N.toLocaleString()+' sims';
+}
+function renderPredict(){
+  if(!FC)return;
+  $('distList').innerHTML=FC.top.map(s=>{
+    const [i,j]=s.s.split('-');const w=clampF(s.p/FC.top[0].p*100,3,100);
+    return `<div class="distrow"><span class="scl">${i}–${j}</span>`+
+      `<span class="track"><i style="width:${w}%"></i></span><span class="pp">${pct1(s.p)}</span></div>`;
+  }).join('');
+  $('mOver').textContent=pct(FC.over);$('mBtts').textContent=pct(FC.btts);$('mClean').textContent=pct(FC.clean);
+  $('mAvg').textContent=FC.exH.toFixed(1)+'–'+FC.exA.toFixed(1);
+  $('oGER').textContent=FC.pH>0?(1/FC.pH).toFixed(2):'—';
+  $('oDRAW').textContent=FC.pD>0?(1/FC.pD).toFixed(2):'—';
+  $('oCIV').textContent=FC.pA>0?(1/FC.pA).toFixed(2):'—';
+  const m=FC.margin;$('mMargin').textContent=m>0?('GER by '+m):m<0?('CIV by '+(-m)):'draw';
+}
+let sampleN=5000;
+function recomputeForecast(){
+  const t0=performance.now();
+  FC=runForecast(sampleN,20260620);
+  const ms=Math.round(performance.now()-t0);
+  renderVerdict();renderPredict();
+  $('batchMeta').textContent=`${sampleN.toLocaleString()} matches simulated in ${ms} ms. Forecast above = share of outcomes. Re-run for a fresh sample.`;
+}
+$('runBatch').addEventListener('click',()=>{FC=null;recomputeForecastFresh();});
+function recomputeForecastFresh(){
+  const t0=performance.now();
+  FC=runForecast(sampleN,(Date.now()&0xffffffff)>>>0);
+  const ms=Math.round(performance.now()-t0);
+  renderVerdict();renderPredict();
+  $('batchMeta').textContent=`${sampleN.toLocaleString()} matches simulated in ${ms} ms. Forecast above = share of outcomes.`;
+}
+document.querySelectorAll('#sampleSeg button').forEach(b=>b.addEventListener('click',()=>{
+  sampleN=parseInt(b.dataset.n);
+  document.querySelectorAll('#sampleSeg button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  recomputeForecastFresh();
+}));
+
+/* ---------------- TUNE params ---------------- */
+const PARAM_DEFS=[
+  {key:'gerStr',label:'Germany strength',min:0.5,max:1.8,step:0.01},
+  {key:'civStr',label:'Côte d’Ivoire strength',min:0.5,max:1.8,step:0.01},
+  {key:'K',label:'Sample trust (K)',min:0.0,max:8.0,step:0.1},
+  {key:'home',label:'Home edge',min:1.0,max:1.4,step:0.01},
+];
+function buildParams(){
+  const body=$('paramBody');
+  body.insertAdjacentHTML('afterbegin',PARAM_DEFS.map(d=>
+    `<div class="param"><div class="lab"><span>${d.label}</span><b id="pv-${d.key}">${FP[d.key].toFixed(2)}</b></div>`+
+    `<input type="range" id="pi-${d.key}" min="${d.min}" max="${d.max}" step="${d.step}" value="${FP[d.key]}" aria-label="${d.label}"></div>`
+  ).join(''));
+  PARAM_DEFS.forEach(d=>{const inp=$('pi-'+d.key);inp.addEventListener('input',()=>{
+    FP[d.key]=parseFloat(inp.value);$('pv-'+d.key).textContent=FP[d.key].toFixed(2);recomputeForecast();});});
+}
+$('resetParams').addEventListener('click',()=>{
+  FP.gerStr=1;FP.civStr=1;FP.K=2.2;FP.home=1.12;
+  PARAM_DEFS.forEach(d=>{$('pi-'+d.key).value=FP[d.key];$('pv-'+d.key).textContent=FP[d.key].toFixed(2);});
+  recomputeForecast();
+});
+
+/* ---------------- TEAMS render ---------------- */
+function renderTeams(){
+  const body=$('teamsBody');
+  body.innerHTML=['GER','CIV'].map(code=>{
+    const fx=FIXTURE[code];
+    const rows=fx.ratings.map((r,i)=>{
+      const key=r.threat?' key':'';
+      return `<div class="prow${key}"><span class="no">${i+1}</span>`+
+        `<span class="nm"><b>${r.name}${r.cap?' (C)':''}</b><small>${r.club} · ${r.pos} · ${r.min}′ · ${r.g}G ${r.a}A</small></span>`+
+        `<span class="rt">fin ${r.finishing.toFixed(2)} · pac ${r.pace.toFixed(2)}<br>pas ${r.passing.toFixed(2)} · def ${r.defending.toFixed(2)}</span></div>`;
+    }).join('');
+    return `<div class="xi"><h3>${fx.label} <span>${fx.formation==='4231'?'4-2-3-1':'4-3-3'} · team att ${fx.ratings[0].teamAttack.toFixed(2)} / def ${fx.ratings[0].teamDefence.toFixed(2)}</span></h3>${rows}</div>`;
+  }).join('')+
+  `<div class="paramnote">Ratings are derived from the stat sheet: finishing from goals + position, pace from role, passing from assists + role, defending from position + the team's goals-conceded record. Players marked “key” are those the preview singled out as threats.</div>`;
+  $('srcBox').innerHTML='Sources: '+[
+    ['Reuters — Germany unchanged, Amad starts','https://www.reuters.com/sports/soccer/germany-unchanged-ivory-coast-world-cup-match-amad-starts-2026-06-20/'],
+    ['Reuters — Germany 7–1 Curaçao','https://www.reuters.com/sports/soccer/germany-crush-debutants-curacao-7-1-world-cup-group-e-opener-2026-06-14/'],
+    ['World Soccer Talk — Ivory Coast 1–0 Ecuador','https://worldsoccertalk.com/world-cup/ivory-coast-vs-ecuador-live-updates-minute-by-minute-coverage-of-the-2026-world-cup-group-e-game/'],
+  ].map(s=>`<a href="${s[1]}" target="_blank" rel="noopener">${s[0]}</a>`).join(' · ');
+}
+
+/* ============================================================================
+   WATCH — drive the full recursive engine + canvas render + inspector
+   ============================================================================ */
+let match=null;
+const LATENT_LABELS=(typeof LATENT!=='undefined')?LATENT:[];
+const canvas=$('pitch'),ctx=canvas.getContext('2d');
+let scale=1,ox=0,oy=0,DPR=1;
+function resizePitch(){
+  const r=canvas.getBoundingClientRect();if(r.width<2)return;
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  canvas.width=Math.round(r.width*DPR);canvas.height=Math.round(r.height*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const pad=8;scale=Math.min((r.width-pad*2)/FIELD.w,(r.height-pad*2)/FIELD.h);
+  ox=(r.width-FIELD.w*scale)/2;oy=(r.height-FIELD.h*scale)/2;
+}
+const S=(x,y)=>[ox+x*scale,oy+y*scale];
+function newMatch(){
+  CONFIG.dev=true;CONFIG.tacticalEvery=5;CONFIG.seed=(Date.now()&0xffffffff)>>>0;
+  match=new Match();match.running=false;match.speed=6;
+  match.selected=match.ned.players[9];match.selected.selected=true;   // Germany ST by default
+  $('kickoffBtn').textContent='Kick off';
+  syncFeed();drawPitch();updateInspector();
+}
+function drawPitch(){
+  const w=canvas.clientWidth,h=canvas.clientHeight;
+  ctx.clearRect(0,0,w,h);ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='#fff';ctx.lineWidth=1.1;
+  let p=S(0,0);ctx.strokeRect(p[0],p[1],FIELD.w*scale,FIELD.h*scale);
+  const mid=S(FIELD.w/2,0);ctx.beginPath();ctx.moveTo(mid[0],mid[1]);ctx.lineTo(mid[0],mid[1]+FIELD.h*scale);ctx.stroke();
+  ctx.beginPath();ctx.arc(mid[0],oy+FIELD.h*scale/2,9.15*scale,0,Math.PI*2);ctx.stroke();
+  for(const side of[0,1]){const bx=side?FIELD.w-16.5:0,by=(FIELD.h-40.3)/2;const sp=S(bx,by);
+    ctx.strokeRect(sp[0],sp[1],16.5*scale,40.3*scale);
+    const gx=side?FIELD.w:0,gy=FIELD.h/2-3.66;const g=S(gx,gy);
+    ctx.strokeRect(side?g[0]:g[0]-2*scale,g[1],2*scale,7.32*scale);}
+  if(!match)return;
+  // relation lines for the selected player (keeps it legible vs all-pairs)
+  const sel=match.selected;
+  if(sel&&match.relations){
+    for(const rel of match.relations){
+      if(rel.source!==sel&&rel.target!==sel)continue;
+      const a=S(rel.source.pos.x,rel.source.pos.y),b=S(rel.target.pos.x,rel.target.pos.y);
+      ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);
+      ctx.strokeStyle='rgba(255,255,255,.4)';ctx.lineWidth=1;
+      ctx.setLineDash(rel.same?[]:[3,3]);ctx.stroke();ctx.setLineDash([]);
+    }
+    // outgoing messages from selected: thick solid
+    for(const m of sel.outgoing){const a=S(m.from.pos.x,m.from.pos.y),b=S(m.to.pos.x,m.to.pos.y);
+      ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);
+      ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=2.4;ctx.stroke();
+      ctx.beginPath();ctx.arc(b[0],b[1],2.4,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();}
+  }
+  // players
+  for(const pl of match.players){if(!pl.alive())continue;
+    const c=S(pl.pos.x,pl.pos.y),rr=5.6;
+    ctx.lineWidth=pl.selected?3:1.6;ctx.strokeStyle='#fff';ctx.fillStyle='#000';
+    if(pl.team.code==='G'){ctx.beginPath();ctx.arc(c[0],c[1],rr,0,Math.PI*2);ctx.fill();ctx.stroke();}
+    else{ctx.beginPath();ctx.rect(c[0]-rr,c[1]-rr,rr*2,rr*2);ctx.fill();ctx.stroke();}
+    ctx.beginPath();ctx.moveTo(c[0],c[1]);
+    ctx.lineTo(c[0]+Math.cos(pl.orientation)*8,c[1]+Math.sin(pl.orientation)*8);
+    ctx.strokeStyle='#fff';ctx.lineWidth=1.3;ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font='bold 8px "IBM Plex Mono",monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(String(pl.number),c[0],c[1]+.4);
+    if(pl.card){ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.strokeRect(c[0]+4,c[1]-9,3,5);}
+  }
+  // ball
+  const b=S(match.ball.pos.x,match.ball.pos.y);
+  ctx.beginPath();ctx.arc(b[0],b[1],3.3,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.stroke();
+}
+
+/* inspector */
+function updateInspector(){
+  if(!match)return;
+  $('scH').textContent=match.ned.score;$('scA').textContent=match.swe.score;
+  const mn=Math.min(90,Math.floor(match.time/60)),sc=Math.floor(match.time%60);
+  $('clk').textContent=String(mn).padStart(2,'0')+':'+String(sc).padStart(2,'0');
+  $('phaseChip').textContent=(match.fulltime?'FULL TIME':match.phase).replace('_',' ');
+  $('possChip').textContent=(match.possessionTeam?match.possessionTeam.code==='G'?'GER':'CIV':'—')+' ball';
+  $('shotChip').textContent=`shots ${match.ned.shots}–${match.swe.shots}`;
+  $('assertChip').textContent='assert '+(match.assertOK?'ok':match.assertMsg);
+
+  const p=match.selected;if(!p){return;}
+  $('iterNote').textContent=`inner ×${p.innerIters} · ${p.club||''}`;
+  $('agName').textContent=p.displayName+' · '+p.id;
+  $('agMeta').textContent=`${(typeof FORM_LABEL!=='undefined'&&FORM_LABEL[p.formationRole])||p.formationRole} · `+
+    `stam ${(p.stamina*100|0)}% · fin ${p.finishing.toFixed(2)} pac ${p.pace.toFixed(2)} pas ${p.passing.toFixed(2)} def ${p.defending.toFixed(2)}`;
+  $('agIntent').textContent=p.intent?p.intent.type:'—';
+  const opShort=(typeof OP_SHORT!=='undefined')?OP_SHORT:{};
+  $('agRoles').innerHTML=`<span class="rtag">FORM ${p.formationRole}</span>`+
+    `<span class="rtag op">${opShort[p.operationalRole]||p.operationalRole}</span>`;
+  $('agBars').innerHTML=LATENT_LABELS.map(n=>{const v=p.integrated[n];
+    return `<div class="brow"><span>${n}</span><div class="btrack"><i style="width:${(v*100).toFixed(0)}%"></i></div><b>${v.toFixed(2)}</b></div>`;
+  }).join('');
+  const top=(p.candidates||[]).slice(0,3);const maxC=Math.max(0.01,...top.map(c=>c.score));
+  $('agCands').innerHTML=top.map((c,i)=>
+    `<div class="cand ${i===0?'sel':''}"><b>${c.type}</b><div class="ct"><i style="width:${clampF(c.score/maxC*100,3,100)}%"></i></div><span>${c.score.toFixed(2)}</span></div>`
+  ).join('')||'<span class="msg e">—</span>';
+  $('agMsgs').innerHTML=(p.incoming&&p.incoming.length)?p.incoming.slice(0,4).map(m=>{
+    const ef=(m.notes||[]).map(([k,v])=>`${k} ${v>=0?'+':''}${v.toFixed(2)}`).join(' · ');
+    return `<div class="msg"><div class="h"><span>${m.summary}</span><span>${m.type}</span></div><div class="e">${ef||'—'}</div></div>`;
+  }).join(''):'<span class="msg e">no incoming messages this tick</span>';
+  $('agKV').innerHTML=`<div>operational role</div><div>${opShort[p.operationalRole]||p.operationalRole}</div>`+
+    `<div>nearest pressure</div><div>${p.nearestPressure.toFixed(2)}s</div>`+
+    `<div>visible mates/opps</div><div>${p.visibleMates.length}/${p.visibleOpps.length}</div>`;
+}
+
+/* feed mirror for radio */
+function syncFeed(){
+  if(!match)return;
+  const items=match.events.slice(0,40);
+  $('feed').innerHTML=items.map((e,i)=>{
+    const goal=/GOAL|Full time/i.test(e.text);
+    return `<div class="fitem ${goal?'goal':''} ${i===0?'now':''}"><span class="ft">${String(Math.floor(e.t/60)).padStart(2,'0')}'</span><span>${e.text}</span></div>`;
+  }).join('');
+}
+let lastEventCount=0;
+function checkNewEvents(){
+  if(!match)return;
+  if(match.events.length!==lastEventCount){
+    // speak only the newest event if it's notable
+    const newest=match.events[0];
+    if(newest && lastEventCount>0){
+      const notable=/GOAL|Full time|saves|booked|substituted|Episode/i.test(newest.text);
+      if(notable)speak(humanize(newest.text), /GOAL|Full time/i.test(newest.text));
+    }
+    lastEventCount=match.events.length;
+    syncFeed();
+  }
+}
+function humanize(t){return t.replace(/Côte d'Ivoire|Cote d'Ivoire/g,'Ivory Coast').replace(/–/g,' ');}
+
+/* ---------------- RADIO (Web Speech) ---------------- */
+let radioOn=false,voicePace=1.05,chosenVoice=null;
+const synth=window.speechSynthesis;
+function pickVoice(){if(!synth)return;const vs=synth.getVoices();if(!vs.length)return;
+  chosenVoice=vs.find(v=>/en[-_]GB/i.test(v.lang))||vs.find(v=>/^en/i.test(v.lang))||vs[0];}
+if(synth){pickVoice();synth.onvoiceschanged=pickVoice;}
+function speak(text,important){
+  if(!radioOn||!synth)return;
+  if(!important&&synth.speaking)return;
+  if(important&&synth.speaking)synth.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  if(chosenVoice)u.voice=chosenVoice;u.rate=voicePace;u.pitch=important?1.08:1.0;
+  synth.speak(u);
+}
+function setRadio(on){
+  radioOn=on;
+  $('radioBig').textContent=on?'Live — tap to mute':'Go live';
+  $('radioBig').classList.toggle('live',on);
+  $('radioToggleTop').classList.toggle('on',on);
+  $('eq').classList.toggle('live',on);
+  if(!on&&synth)synth.cancel();
+  if(on){
+    if(!synth)$('voiceNote').textContent='This browser has no speech synthesis; the text feed still runs.';
+    else{$('voiceNote').textContent=chosenVoice?('Voice: '+chosenVoice.name+'. Commentary tracks the live match.'):'System default voice.';
+      speak('Welcome to Recursive Pitch radio. Germany against Ivory Coast, live from Toronto.',true);}
+  }
+}
+$('radioBig').addEventListener('click',()=>setRadio(!radioOn));
+$('radioToggleTop').addEventListener('click',()=>{setRadio(!radioOn);if(radioOn)switchTab('radio');});
+document.querySelectorAll('#paceSeg button').forEach(b=>b.addEventListener('click',()=>{
+  voicePace=parseFloat(b.dataset.pace);
+  document.querySelectorAll('#paceSeg button').forEach(x=>x.setAttribute('aria-pressed',x===b));}));
+
+/* ---------------- controls ---------------- */
+$('kickoffBtn').addEventListener('click',()=>{
+  if(!match||match.fulltime)newMatch();
+  match.running=true;$('kickoffBtn').textContent='Playing…';
+  if(radioOn)speak('And we are under way at Toronto Stadium.',true);
+});
+$('resetBtn').addEventListener('click',()=>{newMatch();});
+document.querySelectorAll('#speedSeg button').forEach(b=>b.addEventListener('click',()=>{
+  match.speed=parseFloat(b.dataset.sp);
+  document.querySelectorAll('#speedSeg button').forEach(x=>x.setAttribute('aria-pressed',x===b));}));
+canvas.addEventListener('pointerdown',e=>{
+  if(!match)return;const r=canvas.getBoundingClientRect();
+  const px=(e.clientX-r.left-ox)/scale,py=(e.clientY-r.top-oy)/scale;
+  let best=null,d=99;for(const p of match.players){if(!p.alive())continue;
+    const q=Math.hypot(p.pos.x-px,p.pos.y-py);if(q<d){d=q;best=p;}}
+  if(best&&d<3.6){if(match.selected)match.selected.selected=false;match.selected=best;best.selected=true;updateInspector();}
+});
+
+/* ---------------- TABS ---------------- */
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+name));
+  if(name==='watch')requestAnimationFrame(resizePitch);
+}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.tab)));
+
+/* ---------------- PROMPT generator ---------------- */
+function buildPrompt(){
+  const sheetBlock=(code)=>{
+    const fx=FIXTURE[code];const s=fx.sheet;
+    const rows=s.xi.map(p=>`    ['${p[0]}','${p[1]}','${p[2]}',${p[3]},${p[4]},${p[5]},${p[6]}],`).join('\n');
+    return `  ${code}:{name:'${s.name}',formation:'${s.formation}',teamGF:${s.teamGF},teamGA:${s.teamGA},matches:${s.matches},xi:[\n${rows}\n  ]},`;
+  };
+  return `Build a single-file HTML "RECURSIVE PITCH" football tool for a new fixture.
+
+It must contain BOTH of these, sharing one set of player ratings:
+1) A WATCHABLE 22-agent recursive match engine (immutable per-tick snapshot; each
+   agent takes a bounded local observation, runs THREE inner recursive refinement
+   iterations, exchanges relation-conditioned messages with nearby players, teams
+   JOINTLY allocate operational roles with exactly one primary-challenger and one
+   goal-cover each, every agent scores action candidates, and only a physics layer
+   moves anyone). Player pace/finishing/passing/defending must be derived from the
+   roster ratings so better players visibly play better. Tapping a player shows its
+   operational role, affordance state, action candidates and incoming messages.
+2) A MONTE-CARLO forecast: a FAST match model built from the SAME ratings, run
+   thousands of times in-browser, whose outcome shares become the win/draw/win and
+   xG verdict. The forecast is a prediction BY SIMULATION, not a formula.
+
+Also include: a real-audio radio broadcast via the Web Speech API (toggle + pace),
+a TUNE tab with sliders (each team's strength, sample-trust K that regresses ratings
+toward average, home edge) that re-run the forecast, and a TEAMS tab listing the XI
+with derived ratings. Mobile-first: single vertical scroll, sticky header + swipeable
+tabs, tap targets >=42px, no text under 10px, widen to two columns on desktop.
+
+Hard constraints: single file, no build step, no external dependencies or network
+calls, strict black/white neo-brutalist palette, no border-radius, IBM Plex Mono,
+icons as drawn SVG/CSS vector marks (NO emoji glyphs), deterministic-seeded results.
+
+Derive each player's ratings (0-1) from the stat sheet: finishing from goals +
+position, pace from role, passing from assists + role, defending from position and
+the team's goals-conceded record; shrink team attack/defence toward the tournament
+average by K. Cap per-90 threat so small-minute cameos don't read as elite.
+
+Use these confirmed lineups and 2026 tournament figures
+([name, club, formationRole, goals, assists, minutes, captain?]):
+
+const SHEET={
+${sheetBlock('GER')}
+${sheetBlock('CIV')}
+};
+
+REPLACE the two roster objects above with the new fixture's confirmed XI and stats,
+keep everything else, and return one complete runnable HTML file. Before the code,
+give a short change ledger; after it, list five manual tests and known limitations.`;
+}
+$('promptText').value=buildPrompt();
+$('copyPrompt').addEventListener('click',async()=>{
+  try{await navigator.clipboard.writeText($('promptText').value);}
+  catch(e){const t=$('promptText');t.removeAttribute('readonly');t.select();
+    try{document.execCommand('copy');}catch(_){}t.setAttribute('readonly','');}
+  const b=$('copyPrompt');b.textContent='Copied to clipboard';
+  b.classList.add('done');setTimeout(()=>{b.textContent='Copy prompt to clipboard';b.classList.remove('done');},1800);
+});
+
+/* ---------------- BOOT + loop ---------------- */
+recomputeForecast();
+buildParams();renderTeams();
+newMatch();
+resizePitch();window.addEventListener('resize',resizePitch);
+new ResizeObserver(resizePitch).observe($('stageWrap'));
+
+let lastT=performance.now(),acc=0;
+function loop(now){
+  const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
+  if(match&&match.running&&!match.fulltime){
+    acc+=dt*match.speed;let guard=0;
+    while(acc>=1/CONFIG.hzPhysics&&guard++<400){match.step(1/CONFIG.hzPhysics);acc-=1/CONFIG.hzPhysics;}
+    if(match.fulltime){match.running=false;$('kickoffBtn').textContent='Play again';
+      if(radioOn)speak('Full time at Toronto Stadium.',true);}
+    checkNewEvents();
+    updateInspector();
+  }
+  drawPitch();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
