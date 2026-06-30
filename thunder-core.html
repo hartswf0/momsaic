@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>THUNDER RIGS — INDEX</title>
+<style>
+  :root{
+    --black:#000; --white:#fff; --teal:#0aa6a6; --blue:#2255ff; --amber:#ffb000; --red:#ff2424;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{
+    background:var(--black); color:var(--white);
+    font-family:'IBM Plex Mono', ui-monospace, monospace;
+    -webkit-font-smoothing:none;
+  }
+  body{ min-height:100vh; padding:0 0 60px 0; }
+  .strip{
+    height:6px; width:100%;
+    background:repeating-linear-gradient(90deg, var(--amber) 0 24px, var(--black) 24px 28px, var(--red) 28px 52px, var(--black) 52px 56px);
+  }
+  header{
+    border-bottom:2px solid var(--white);
+    padding:24px 16px 16px 16px;
+    position:sticky; top:0; background:var(--black); z-index:10;
+  }
+  h1{
+    font-size:1.4rem; letter-spacing:0.06em; font-weight:700;
+    text-transform:uppercase;
+  }
+  h1 span{ color:var(--teal); }
+  .sub{
+    margin-top:6px; font-size:0.72rem; color:#aaa; letter-spacing:0.04em;
+    text-transform:uppercase;
+  }
+  .search-wrap{ padding:14px 16px 0 16px; }
+  #search{
+    width:100%; background:var(--black); border:2px solid var(--white);
+    color:var(--white); font-family:inherit; font-size:0.95rem;
+    padding:12px 14px; outline:none;
+  }
+  #search:focus{ border-color:var(--teal); }
+  .count{
+    padding:10px 16px 0 16px; font-size:0.68rem; color:#888; text-transform:uppercase; letter-spacing:0.05em;
+  }
+  ul.list{ list-style:none; padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+  li.item{ display:block; }
+  a.link{
+    display:flex; align-items:center; gap:12px;
+    border:2px solid var(--white);
+    padding:14px 14px;
+    color:var(--white);
+    text-decoration:none;
+    font-size:0.92rem;
+    line-height:1.3;
+    word-break:break-word;
+    transition:none;
+  }
+  a.link:active{ background:var(--white); color:var(--black); }
+  a.link .mark{
+    flex:0 0 auto; width:14px; height:14px;
+    border:2px solid currentColor;
+    position:relative;
+  }
+  a.link .mark::after{
+    content:""; position:absolute; left:3px; top:1px; width:4px; height:8px;
+    border-right:2px solid currentColor; border-bottom:2px solid currentColor;
+    transform:rotate(45deg);
+  }
+  a.link .name{ flex:1 1 auto; }
+  a.link .arrow{
+    flex:0 0 auto; font-size:1rem; color:var(--amber);
+  }
+  .empty{
+    padding:40px 16px; text-align:center; color:#666; font-size:0.85rem; text-transform:uppercase;
+  }
+  footer{
+    border-top:2px solid var(--white); padding:16px; margin-top:20px;
+    font-size:0.65rem; color:#777; text-align:center; letter-spacing:0.04em; text-transform:uppercase;
+  }
+  footer a{ color:var(--blue); text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="strip"></div>
+
+<header>
+  <h1>THUNDER <span>RIGS</span></h1>
+  <div class="sub">momsaic // vehicular instrument index</div>
+</header>
+
+<div class="search-wrap">
+  <input id="search" type="text" placeholder="FILTER FILES…" autocomplete="off" autocapitalize="off" spellcheck="false">
+</div>
+<div class="count" id="count"></div>
+
+<ul class="list" id="list"></ul>
+<div class="empty" id="empty" style="display:none;">NO MATCHES</div>
+
+<footer>
+  ROOT: <a href="https://github.com/hartswf0/momsaic" target="_blank" rel="noopener">github.com/hartswf0/momsaic</a>
+</footer>
+
+<script>
+  const ROOT = "https://hartswf0.github.io/momsaic/";
+
+  const files = [
+    "THUNDER_RIGS.html",
+    "THUNDER_RIGS_chameleons_ai_rigs.html",
+    "THUNDER_RIGS_flagrun.html",
+    "THUNDER_RIGS_flagrun_creative_rigs.html",
+    "THUNDER_RIGS_flagrun_fixed.html",
+    "THUNDER_RIGS_flagrun_garage_simpler.html",
+    "THUNDER_RIGS_flagrun_qr_multiplayer.html",
+    "THUNDER_RIGS_rampforts.html",
+    "THUNDER_RIGS_shapeshifter (1).html",
+    "THUNDER_RIGS_shapeshifter.html",
+    "THUNDER_RIGS_vehicle_chameleons_shared_world.html",
+    "aether-pitch.html"
+  ];
+
+  const listEl = document.getElementById('list');
+  const emptyEl = document.getElementById('empty');
+  const countEl = document.getElementById('count');
+  const searchEl = document.getElementById('search');
+
+  function labelFor(f){
+    return f.replace(/\.html$/i,'').replace(/_/g,' ');
+  }
+
+  function render(filter){
+    listEl.innerHTML = '';
+    const q = (filter||'').trim().toLowerCase();
+    const filtered = files.filter(f => f.toLowerCase().includes(q));
+    countEl.textContent = filtered.length + ' / ' + files.length + ' FILES';
+    emptyEl.style.display = filtered.length ? 'none' : 'block';
+    filtered.forEach(f => {
+      const li = document.createElement('li');
+      li.className = 'item';
+      const a = document.createElement('a');
+      a.className = 'link';
+      a.href = ROOT + encodeURIComponent(f).replace(/%20/g,'%20');
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.innerHTML = '<span class="mark"></span><span class="name">' + labelFor(f) + '</span><span class="arrow">›</span>';
+      li.appendChild(a);
+      listEl.appendChild(li);
+    });
+  }
+
+  searchEl.addEventListener('input', e => render(e.target.value));
+  render('');
+</script>
+
+</body>
+</html>
