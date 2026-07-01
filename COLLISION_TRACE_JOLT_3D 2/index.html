@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05070a">
+<title>Collision Trace — Jolt 3D</title>
+<style>
+:root{--bg:#05070a;--ink:#f5f7fa;--cyan:#20f3d2;--red:#ff315f;--amber:#ffd34e;--muted:#8b95a5;--glass:rgba(5,7,10,.76)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;touch-action:none;overscroll-behavior:none}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#load,#fatal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:28px;background:#05070a;text-align:center}
+#load b{font-size:13px;letter-spacing:.25em;color:var(--cyan)}
+#load span,#fatal p{max-width:540px;color:var(--muted);font-size:11px;line-height:1.6}
+#fatal{display:none;background:#08090c}
+#fatal b{color:var(--red);font-size:15px}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+#objective{position:absolute;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(680px,calc(100vw - 28px));padding:12px 14px;border:1px solid rgba(255,255,255,.15);border-radius:12px;background:var(--glass);backdrop-filter:blur(12px);font-size:clamp(11px,2.8vw,14px);font-weight:800;letter-spacing:.06em;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.45)}
+#objective em{font-style:normal;color:var(--cyan)}
+#readout{position:absolute;left:max(12px,env(safe-area-inset-left));top:max(12px,env(safe-area-inset-top));padding:9px 10px;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:var(--glass);font-size:9px;line-height:1.55;letter-spacing:.08em;color:var(--muted);min-width:132px}
+#readout strong{color:var(--ink);font-size:11px}
+#menuBtn{position:absolute;right:max(12px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top));width:46px;height:46px;border:1px solid rgba(255,255,255,.22);border-radius:12px;background:var(--glass);color:#fff;font:800 20px/1 monospace;pointer-events:auto;cursor:pointer;backdrop-filter:blur(12px)}
+#menu{position:absolute;right:max(12px,env(safe-area-inset-right));top:max(66px,calc(env(safe-area-inset-top) + 58px));width:min(250px,calc(100vw - 24px));padding:10px;display:none;gap:8px;flex-direction:column;border:1px solid rgba(255,255,255,.16);border-radius:13px;background:rgba(5,7,10,.94);backdrop-filter:blur(16px);pointer-events:auto;box-shadow:0 18px 50px rgba(0,0,0,.55)}
+#menu.show{display:flex}
+#menu button{min-height:44px;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:#0c1117;color:#fff;font:800 10px/1.2 monospace;letter-spacing:.12em;cursor:pointer}
+#menu button:active{background:#fff;color:#000}
+#impact{position:absolute;left:50%;top:18%;transform:translate(-50%,-10px);padding:10px 16px;border:1px solid var(--red);border-radius:10px;background:rgba(12,4,8,.9);color:#fff;font-size:12px;font-weight:900;letter-spacing:.12em;opacity:0;transition:.18s;white-space:nowrap}
+#impact.show{opacity:1;transform:translate(-50%,0)}
+#timeline{position:absolute;left:50%;bottom:max(76px,calc(env(safe-area-inset-bottom) + 72px));transform:translateX(-50%);width:min(680px,calc(100vw - 36px));height:28px;pointer-events:auto;display:none}
+#timeline.show{display:block}
+#timelineTrack{position:absolute;left:0;right:0;top:12px;height:3px;background:rgba(255,255,255,.18);border-radius:4px}
+#timelineFill{height:100%;width:0;background:var(--cyan);border-radius:4px}
+#timelineKnob{position:absolute;top:5px;left:0;width:17px;height:17px;border-radius:50%;background:#fff;border:3px solid var(--cyan);transform:translateX(-50%);box-shadow:0 0 14px rgba(32,243,210,.65)}
+#legend{position:absolute;left:50%;top:max(12px,env(safe-area-inset-top));transform:translateX(-50%);font-size:8px;letter-spacing:.12em;color:rgba(255,255,255,.42);white-space:nowrap}
+@media(max-width:620px){#legend{display:none}#readout{font-size:8px}.desktopOnly{display:none}}
+</style>
+</head>
+<body>
+<div id="load"><b>LOADING JOLT PHYSICS</b><span>Rigid bodies, collision world, and rewind buffers are starting.</span></div>
+<div id="fatal"><b>LOAD FAILED</b><p id="fatalText"></p></div>
+<div id="hud">
+  <div id="legend">DRAG BRAKE RING · TAP CAR TO RUN · GRAB MOVING CAR · DRAG TIMELINE TO REWIND</div>
+  <div id="readout"><strong>READY</strong><br>TIME 0.00 s<br>BRANCH 0</div>
+  <button id="menuBtn" aria-label="Menu">≡</button>
+  <div id="menu">
+    <button id="resetBtn">RESET CASE</button>
+    <button id="observedBtn">RUN OBSERVED</button>
+    <button id="forecastBtn">REBUILD FORECAST</button>
+    <button id="cameraBtn">RESET CAMERA</button>
+    <button id="soundBtn">SOUND ON</button>
+  </div>
+  <div id="impact">IMPACT</div>
+  <div id="timeline"><div id="timelineTrack"><div id="timelineFill"></div></div><div id="timelineKnob"></div></div>
+  <div id="objective"><em>DRAG</em> THE RED BRAKE RING ALONG THE ROAD</div>
+</div>
+<canvas id="gl"></canvas>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
