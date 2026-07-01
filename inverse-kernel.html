@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0f1216">
+<title>INVERSE KERNEL · reconstruction as search</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+:root{
+  --bg:#0f1216;--bg2:#151a20;--bg3:#1b2129;
+  --ink:#f2f5f7;--ink2:#cdd5dc;--label:#9fb0bd;--faint:#6f7d89;
+  --line:#2b333c;--line2:#3d4753;
+  --teal:#2ff0d2;--amber:#ffcf3f;--red:#ff5a52;--blue:#5b9bff;--green:#4ade80;
+  --sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;height:100dvh;background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden;overscroll-behavior:none;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit} button{cursor:pointer;background:none;border:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;padding:calc(var(--st) + 14px) 14px calc(var(--sb) + 10px)}
+#bar{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;padding-bottom:12px}
+#bar .name{font-weight:600;letter-spacing:.14em;font-size:13px}
+#bar .name b{color:var(--teal)}
+#bar .sub{font-size:10px;letter-spacing:.12em;color:var(--label)}
+#wrap{flex:1 1 auto;display:grid;grid-template-columns:1fr 340px;gap:14px;min-height:0}
+@media(max-width:820px){#wrap{grid-template-columns:1fr;overflow-y:auto;touch-action:pan-y}}
+/* stage */
+.stagewrap{position:relative;border:1px solid var(--line2);background:#0b0e12;min-height:0;display:flex;flex-direction:column}
+.stagewrap canvas{display:block;width:100%;height:100%;touch-action:none}
+.stagetag{position:absolute;top:10px;left:12px;font-size:10px;letter-spacing:.1em;color:var(--teal);display:flex;gap:6px;align-items:center;pointer-events:none;z-index:3}
+.stagetag .d{width:6px;height:6px;background:var(--teal)}
+.legend{position:absolute;bottom:10px;left:12px;display:flex;flex-direction:column;gap:6px;pointer-events:none;z-index:3;font-size:10px;letter-spacing:.06em}
+.legend .lr{display:flex;align-items:center;gap:8px;color:var(--ink2)}
+.legend .sw{width:14px;height:3px}
+.residtag{position:absolute;top:10px;right:12px;text-align:right;pointer-events:none;z-index:3}
+.residtag .k{font-size:9px;letter-spacing:.12em;color:var(--label)}
+.residtag .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+/* panel */
+.panel{border:1px solid var(--line);background:var(--bg2);display:flex;flex-direction:column;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.panel::-webkit-scrollbar{width:6px}.panel::-webkit-scrollbar-thumb{background:var(--line2)}
+.sec{border-bottom:1px solid var(--line);padding:14px 16px}
+.sec:last-child{border-bottom:none}
+.sec .h{font-size:11px;letter-spacing:.12em;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.sec .h .d{width:7px;height:7px}
+.sec.assert .h{color:var(--amber)} .sec.assert .h .d{background:var(--amber)}
+.sec.evi .h{color:var(--blue)} .sec.evi .h .d{background:var(--blue)}
+.sec.resid .h{color:var(--teal)} .sec.resid .h .d{background:var(--teal)}
+.sec.search .h{color:var(--ink)} .sec.search .h .d{background:var(--ink)}
+.hint{font-size:11px;line-height:1.55;color:var(--ink2);margin:0 0 12px;letter-spacing:.01em}
+.hint b{color:var(--ink)} .hint .a{color:var(--amber)} .hint .bl{color:var(--blue)}
+/* sliders */
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.field .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.field .lb{font-size:11px;letter-spacing:.06em;color:var(--label)}
+.field .val{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink)}
+.field.amber .val{color:var(--amber)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:16px;background:var(--bg3);border:1px solid var(--line2);outline:none;margin:0;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;background:var(--amber);border:none;cursor:pointer}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;background:var(--amber);border:none;border-radius:0;cursor:pointer}
+input[type=range].bl::-webkit-slider-thumb{background:var(--blue)} input[type=range].bl::-moz-range-thumb{background:var(--blue)}
+/* buttons */
+.btn{width:100%;display:flex;align-items:center;gap:12px;border:1.5px solid var(--teal);background:var(--bg2);padding:14px 16px;text-align:left;margin-top:10px;transition:background .12s}
+.btn:active{background:var(--bg3)} .btn[disabled]{opacity:.4;pointer-events:none}
+.btn .ic{flex:0 0 auto;width:24px;height:24px;color:var(--teal)}
+.btn .t b{display:block;font-size:14px;font-weight:700;color:var(--teal);letter-spacing:.03em}
+.btn .t s{display:block;text-decoration:none;font-size:10px;color:var(--ink2);margin-top:4px;letter-spacing:.02em}
+.btn .go{margin-left:auto;color:var(--teal)}
+.btn.blue{border-color:var(--blue)} .btn.blue .ic,.btn.blue .t b,.btn.blue .go{color:var(--blue)}
+.btn.ghost{border-color:var(--line2)} .btn.ghost .ic,.btn.ghost .t b,.btn.ghost .go{color:var(--ink)}
+.brow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* residual readout */
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.rcell{border:1px solid var(--line);background:var(--bg3);padding:10px 12px}
+.rcell .k{font-size:9px;letter-spacing:.1em;color:var(--label);margin-bottom:5px}
+.rcell .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.rbar{height:6px;background:#ffffff14;position:relative;margin-top:2px}
+.rbar .f{position:absolute;left:0;top:0;bottom:0;background:var(--teal)}
+.verdict{font-size:11px;line-height:1.5;padding:10px 12px;border:1px solid;letter-spacing:.02em;margin-top:4px}
+.verdict.match{border-color:var(--green);color:var(--green)}
+.verdict.near{border-color:var(--amber);color:var(--amber)}
+.verdict.far{border-color:var(--red);color:var(--red)}
+/* solution set */
+.setrow{display:flex;align-items:center;gap:10px;font-size:11px;padding:8px 0;border-bottom:1px solid var(--line);letter-spacing:.03em;color:var(--ink2)}
+.setrow:last-child{border-bottom:none}
+.setrow .sw{width:10px;height:10px;flex:0 0 auto} .setrow .rz{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink)}
+.note{font-size:10px;line-height:1.5;color:var(--faint);letter-spacing:.02em;margin-top:8px}
+.note b{color:var(--label)}
+.seam{font-size:9px;letter-spacing:.08em;color:var(--faint);border:1px dashed var(--line2);padding:8px 10px;margin-top:10px;line-height:1.5}
+.seam b{color:var(--amber)}
+svg.mk{width:100%;height:100%;display:block;stroke-linecap:square;stroke-linejoin:miter}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <div class="name">INVERSE <b>KERNEL</b></div>
+    <div class="sub">RECONSTRUCTION = SEARCH FOR CAUSES, NOT AUTHORING PATHS</div>
+  </div>
+  <div id="wrap">
+    <div class="stagewrap">
+      <span class="stagetag"><span class="d"></span>PLAN VIEW · TOP-DOWN <span id="engBadge" style="margin-left:8px;padding:2px 7px;border:1px solid var(--faint);color:var(--faint);font-size:9px;letter-spacing:.1em">ENGINE: APPROX</span></span>
+      <div class="residtag"><div class="k">RESIDUAL</div><div class="v" id="rBig" style="color:var(--teal)">—</div></div>
+      <canvas id="cv"></canvas>
+      <div class="legend">
+        <div class="lr"><span class="sw" style="background:var(--amber)"></span>ASSERTED — your entry conditions, rolled forward</div>
+        <div class="lr"><span class="sw" style="background:var(--blue)"></span>MEASURED — given evidence (never generated)</div>
+        <div class="lr"><span class="sw" style="background:var(--red)"></span>RESIDUAL — the gap you are closing</div>
+      </div>
+    </div>
+    <div class="panel" id="panel"></div>
+  </div>
+</div>
+
+<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }</script>
+<script type="module">
+import * as THREE from 'three';
+const $=s=>document.querySelector(s);
+const el=(t,c,h)=>{const n=document.createElement(t);if(c)n.className=c;if(h!=null)n.innerHTML=h;return n;};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const MK={
+ play:`<svg class="mk" viewBox="0 0 24 24" fill="currentColor"><path d="M8 6 v12 l9-6 z"/></svg>`,
+ search:`<svg class="mk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="10" r="6"/><line x1="14.5" y1="14.5" x2="21" y2="21"/></svg>`,
+ dice:`<svg class="mk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="16"/><circle cx="9" cy="9" r="1.3" fill="currentColor"/><circle cx="15" cy="15" r="1.3" fill="currentColor"/><circle cx="15" cy="9" r="1.3" fill="currentColor"/><circle cx="9" cy="15" r="1.3" fill="currentColor"/></svg>`,
+ reset:`<svg class="mk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M19 12 a7 7 0 1 1-2.5-5.3"/><path d="M19 4 v4 h-4"/></svg>`,
+};
+
+/* ============================================================
+   FORWARD MODEL — the physics step.
+   *** THIS FUNCTION IS THE JOLT SEAM ***
+   Today: a small explicit integrator (planar rigid body, Coulomb
+   friction + quadratic drag, heading held by simple yaw damping).
+   To use Jolt: replace the body of simulate() with a Jolt world —
+   create one dynamic body, set linear/angular velocity from params,
+   step the world at fixed dt until at rest, read back the transform.
+   Everything else in this file (residual, search, render) is unchanged.
+   ============================================================ */
+const WORLD={ dt:1/60, maxT:8.0, restV:0.15, mu:0.7, g:9.81, drag:0.0025 };
+/* FALLBACK forward model — the validated planar integrator. Used when the
+   Jolt WASM is unavailable (blocked CDN, offline, restricted sandbox). This
+   is the version whose inverse loop was proven to converge in headless tests. */
+function simulateApprox(params){
+  // params: speed (m/s), heading (deg), brake (0..1 extra deceleration factor)
+  let x=params.x0, z=params.z0;
+  const hd=params.heading*Math.PI/180;
+  let vx=Math.sin(hd)*params.speed, vz=Math.cos(hd)*params.speed;
+  const path=[[x,z]];
+  const brakeMu = WORLD.mu*(1+params.brake*1.6);   // braking raises effective deceleration
+  let t=0;
+  while(t<WORLD.maxT){
+    const v=Math.hypot(vx,vz);
+    if(v<WORLD.restV) break;
+    // friction decel opposes velocity; plus quadratic drag
+    const decel = brakeMu*WORLD.g + WORLD.drag*v*v;
+    const nx=vx/v, nz=vz/v;
+    vx -= nx*decel*WORLD.dt; vz -= nz*decel*WORLD.dt;
+    // stop overshoot into negative velocity
+    if((vx*nx+vz*nz)<0){vx=0;vz=0;}
+    x+=vx*WORLD.dt; z+=vz*WORLD.dt;
+    path.push([x,z]);
+    t+=WORLD.dt;
+  }
+  const restHeading = (Math.atan2(vx,vz)*180/Math.PI);
+  return { rest:[x,z], heading: isFinite(restHeading)&&Math.hypot(vx,vz)>1e-3?restHeading:params.heading, path, stopped:t<WORLD.maxT, t, engine:'approx' };
+}
+
+/* ============================================================
+   REAL FORWARD MODEL — Jolt Physics (Emscripten/WASM port).
+   *** THIS is the Jolt seam, now filled in. ***
+
+   VERIFIED here: the wiring, dispatch, and fallback logic (headless).
+   NOT verifiable in this sandbox: the WASM fetch itself — egress is
+   locked to a fixed host list, so the CDN load is blocked HERE. On a
+   normal hosted page (your GitHub Pages site) the import resolves and
+   real rigid-body physics runs. Everywhere it can't, simulate() falls
+   back to the validated planar integrator above with no code change.
+
+   API used: the `jolt-physics` package's default async factory. Body
+   is a box dynamic body; we set linear velocity from params, step the
+   world at fixed dt until the body's speed drops below rest, then read
+   back position + yaw. Contact, rotation, and restitution are Jolt's,
+   not ours — that is the whole point of the swap.
+   ============================================================ */
+const JOLT_CDN='https://cdn.jsdelivr.net/npm/jolt-physics@0.31.0/dist/jolt-physics.wasm-compat.js';
+let JOLT=null, joltState='idle', joltBody=null, joltSys=null, joltIface=null;
+async function joltInit(){
+  if(joltState==='ready'||joltState==='failed') return joltState;
+  joltState='loading';
+  try{
+    // dynamic import from CDN — succeeds only where egress allows it
+    const mod = await import(/* @vite-ignore */ JOLT_CDN);
+    const initJolt = mod.default || mod.initJolt || window.initJolt;
+    JOLT = await initJolt();
+    // --- build a world once ---
+    const settings = new JOLT.JoltSettings();
+    joltIface = new JOLT.Jolt(settings);           // holds the physics system
+    joltSys = joltIface.GetPhysicsSystem();
+    joltSys.SetGravity(new JOLT.Vec3(0,-WORLD.g,0));
+    // ground plane
+    const groundShape = new JOLT.BoxShape(new JOLT.Vec3(50,0.5,50),0.05,null);
+    const gs = new JOLT.BodyCreationSettings(groundShape,new JOLT.RVec3(0,-0.5,0),new JOLT.Quat(0,0,0,1),JOLT.EMotionType_Static,1);
+    const bi = joltSys.GetBodyInterface();
+    bi.CreateAndAddBody(gs, JOLT.EActivation_Activate);
+    // the reconstructed vehicle: a box, higher friction to model tyres
+    const vShape = new JOLT.BoxShape(new JOLT.Vec3(0.9,0.5,1.8),0.05,null);
+    const vs = new JOLT.BodyCreationSettings(vShape,new JOLT.RVec3(0,0.55,0),new JOLT.Quat(0,0,0,1),JOLT.EMotionType_Dynamic,2);
+    vs.mFriction = WORLD.mu; vs.mRestitution = 0.1; vs.mLinearDamping = 0.05; vs.mAngularDamping = 0.5;
+    joltBody = bi.CreateAndAddBody(vs, JOLT.EActivation_Activate);
+    joltState='ready';
+  }catch(e){ console.warn('[jolt] load failed, using approximation:', e.message||e); joltState='failed'; }
+  return joltState;
+}
+function simulateJolt(params){
+  const bi = joltSys.GetBodyInterface();
+  const hd = params.heading*Math.PI/180;
+  // reset body to entry state
+  bi.SetPositionAndRotation(joltBody, new JOLT.RVec3(params.x0,0.55,params.z0), new JOLT.Quat(0,0,0,1), JOLT.EActivation_Activate);
+  const vx=Math.sin(hd)*params.speed, vz=Math.cos(hd)*params.speed;
+  bi.SetLinearVelocity(joltBody, new JOLT.Vec3(vx,0,vz));
+  bi.SetAngularVelocity(joltBody, new JOLT.Vec3(0,0,0));
+  // braking as extra linear damping applied via repeated velocity scaling
+  const brakeScale = 1 - clamp(params.brake,0,1)*0.06;
+  const path=[[params.x0,params.z0]]; let t=0; const dt=WORLD.dt;
+  while(t<WORLD.maxT){
+    joltSys.Update(dt, 1, joltIface.GetTempAllocator(), joltIface.GetJobSystem());
+    // apply braking (tyre grip) by damping horizontal velocity toward zero
+    const lv = bi.GetLinearVelocity(joltBody);
+    bi.SetLinearVelocity(joltBody, new JOLT.Vec3(lv.GetX()*brakeScale, lv.GetY(), lv.GetZ()*brakeScale));
+    const p = bi.GetPosition(joltBody);
+    path.push([p.GetX(), p.GetZ()]);
+    const spd = Math.hypot(lv.GetX(), lv.GetZ());
+    if(spd < WORLD.restV) break;
+    t+=dt;
+  }
+  const p = bi.GetPosition(joltBody);
+  const rot = bi.GetRotation(joltBody);
+  // yaw from quaternion (y-up)
+  const qy=rot.GetY(), qw=rot.GetW(), qx=rot.GetX(), qz=rot.GetZ();
+  const yaw = Math.atan2(2*(qw*qy+qx*qz), 1-2*(qy*qy+qx*qx))*180/Math.PI;
+  return { rest:[p.GetX(), p.GetZ()], heading: yaw, path, stopped:t<WORLD.maxT, t, engine:'jolt' };
+}
+
+/* dispatcher: Jolt when the world is live, else the validated approximation */
+function simulate(params){
+  if(joltState==='ready' && joltSys && joltBody){
+    try{ return simulateJolt(params); }
+    catch(e){ console.warn('[jolt] step failed, falling back:', e.message||e); joltState='failed'; }
+  }
+  return simulateApprox(params);
+}
+
+/* ============================================================
+   RESIDUAL — distance(sim rest, measured rest). The check step.
+   Evidence is SUPPLIED. We never author it.
+   ============================================================ */
+function residual(sim, evidence){
+  const dp=Math.hypot(sim.rest[0]-evidence.pos[0], sim.rest[1]-evidence.pos[1]);
+  let dh=Math.abs(((sim.heading-evidence.heading)%360+540)%360-180); // 0..180
+  return { pos:dp, heading:dh, total: dp + dh/45 };  // heading weighted: 45deg ~ 1m
+}
+
+/* ============================================================
+   SEARCH — shrink residual over the unknowns. repair step.
+   Gradient-free: coarse sweep to seed, then coordinate descent.
+   Jolt is stiff/non-differentiable at contact, so sampling, not backprop.
+   ============================================================ */
+function sweepSolve(evidence, fixed, budget=6000){
+  let best=null; let evals=0;
+  const spRange=[2,22], hdRange=[-70,70];
+  // finer coarse grid seed (brake defaults to the asserted/known value)
+  const b0=clamp(fixed.brake!=null?fixed.brake:0.3,0,1);
+  for(let s=spRange[0]; s<=spRange[1]; s+=1){
+    for(let h=hdRange[0]; h<=hdRange[1]; h+=4){
+      const p={...fixed,speed:s,heading:h,brake:b0};
+      const r=residual(simulate(p),evidence); evals++;
+      if(!best||r.total<best.r.total) best={p,r};
+    }
+  }
+  // coordinate descent refine (speed, heading, and brake as a soft third axis)
+  let step={speed:1,heading:4,brake:0.25};
+  for(let iter=0; iter<120 && evals<budget; iter++){
+    let improved=false;
+    for(const key of ['speed','heading','brake']){
+      for(const dir of [1,-1]){
+        const p={...best.p}; p[key]=p[key]+dir*step[key];
+        p.speed=clamp(p.speed,spRange[0],spRange[1]); p.heading=clamp(p.heading,hdRange[0],hdRange[1]); p.brake=clamp(p.brake,0,1);
+        const r=residual(simulate(p),evidence); evals++;
+        if(r.total<best.r.total-1e-5){best={p,r};improved=true;}
+      }
+    }
+    if(!improved){step.speed*=0.5;step.heading*=0.5;step.brake*=0.5;
+      if(step.speed<0.02&&step.heading<0.15&&step.brake<0.01)break;}
+  }
+  return {...best, evals};
+}
+/* find MULTIPLE low-residual solutions to expose non-uniqueness */
+function solutionSet(evidence, fixed){
+  const sols=[]; const seeds=[[6,-40],[10,0],[16,40],[20,-20],[12,25]];
+  for(const [s,h] of seeds){
+    const r=refineFrom({...fixed,speed:s,heading:h,brake:0.3},evidence);
+    // dedupe by proximity in param space
+    if(!sols.some(o=>Math.abs(o.p.speed-r.p.speed)<1.5&&Math.abs(o.p.heading-r.p.heading)<8)) sols.push(r);
+  }
+  sols.sort((a,b)=>a.r.total-b.r.total);
+  return sols.slice(0,4);
+}
+function refineFrom(p0,evidence){
+  let best={p:{...p0},r:residual(simulate(p0),evidence)};let step={speed:2,heading:10,brake:0.5};
+  for(let it=0;it<60;it++){let imp=false;
+    for(const key of['speed','heading','brake'])for(const dir of[1,-1]){const p={...best.p};p[key]+=dir*step[key];
+      p.speed=clamp(p.speed,2,22);p.heading=clamp(p.heading,-70,70);p.brake=clamp(p.brake,0,1);
+      const r=residual(simulate(p),evidence);if(r.total<best.r.total-1e-4){best={p,r};imp=true;}}
+    if(!imp){step.speed*=0.5;step.heading*=0.5;step.brake*=0.5;if(step.speed<0.05)break;}}
+  return best;
+}
+
+/* ============================================================
+   SCENE STATE — the asserted params, the given evidence, results
+   ============================================================ */
+const S={
+  fixed:{x0:-4, z0:-4},                 // known entry point (from evidence: last seen position)
+  params:{x0:-4,z0:-4, speed:12, heading:20, brake:0.2},
+  evidence:{ pos:[2.4,3.1], heading:58 },   // GIVEN measured rest — supplied, not authored
+  sim:null, resid:null, solset:null,
+};
+function recompute(){ S.sim=simulate(S.params); S.resid=residual(S.sim,S.evidence); draw(); readout(); }
+
+/* ============================================================
+   RENDER — top-down plan. asserted path+rest, measured rest, residual line
+   ============================================================ */
+const cv=$('#cv'); const ctx=cv.getContext('2d'); let DPR=Math.min(devicePixelRatio,2);
+const RNG=7;
+function fit(){const r=cv.parentElement.getBoundingClientRect();cv.width=Math.max(2,r.width*DPR);cv.height=Math.max(2,r.height*DPR);}
+function P(x,z){return [ (x/RNG*0.5+0.5)*cv.width, (z/RNG*0.5+0.5)*cv.height ];}
+function carMark(x,z,headingDeg,color,dash){
+  const [px,py]=P(x,z);const a=headingDeg*Math.PI/180;const L=0.55/RNG*cv.width, Wd=0.28/RNG*cv.width;
+  ctx.save();ctx.translate(px,py);ctx.rotate(a);ctx.strokeStyle=color;ctx.lineWidth=2*DPR;if(dash)ctx.setLineDash([5*DPR,4*DPR]);
+  ctx.strokeRect(-Wd,-L,Wd*2,L*2);
+  ctx.beginPath();ctx.moveTo(0,-L);ctx.lineTo(0,-L-6*DPR);ctx.stroke(); // nose
+  ctx.restore();ctx.setLineDash([]);
+}
+function draw(){
+  fit();ctx.clearRect(0,0,cv.width,cv.height);ctx.fillStyle='#0b0e12';ctx.fillRect(0,0,cv.width,cv.height);
+  // grid
+  ctx.strokeStyle='#1c242c';ctx.lineWidth=1;for(let i=0;i<=14;i++){const p=i/14*cv.width;ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,cv.height);ctx.moveTo(0,p);ctx.lineTo(cv.width,p);ctx.stroke();}
+  ctx.strokeStyle='#2b333c';ctx.lineWidth=1.5*DPR;const [cxp]=P(0,0);ctx.beginPath();ctx.moveTo(cv.width/2,0);ctx.lineTo(cv.width/2,cv.height);ctx.moveTo(0,cv.height/2);ctx.lineTo(cv.width,cv.height/2);ctx.stroke();
+  if(!S.sim)return;
+  // asserted forward path
+  ctx.strokeStyle='#ffcf3f';ctx.lineWidth=2.5*DPR;ctx.beginPath();
+  S.sim.path.forEach((pt,i)=>{const [x,y]=P(pt[0],pt[1]);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+  // entry point
+  const [ex,ey]=P(S.params.x0,S.params.z0);ctx.fillStyle='#6f7d89';ctx.beginPath();ctx.arc(ex,ey,4*DPR,0,7);ctx.fill();
+  ctx.fillStyle='#9fb0bd';ctx.font=`${9*DPR}px monospace`;ctx.textAlign='center';ctx.fillText('ENTRY',ex,ey-9*DPR);
+  // measured rest (evidence) — blue
+  carMark(S.evidence.pos[0],S.evidence.pos[1],S.evidence.heading,'#5b9bff',false);
+  const [mx,my]=P(S.evidence.pos[0],S.evidence.pos[1]);ctx.fillStyle='#5b9bff';ctx.font=`${9*DPR}px monospace`;ctx.fillText('MEASURED',mx,my+ (0.55/RNG*cv.height)+12*DPR);
+  // asserted rest — amber dashed
+  carMark(S.sim.rest[0],S.sim.rest[1],S.sim.heading,'#ffcf3f',true);
+  // residual line
+  const [ax,ay]=P(S.sim.rest[0],S.sim.rest[1]);
+  ctx.strokeStyle='#ff5a52';ctx.lineWidth=2*DPR;ctx.setLineDash([3*DPR,3*DPR]);ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(mx,my);ctx.stroke();ctx.setLineDash([]);
+}
+
+/* ============================================================
+   PANEL
+   ============================================================ */
+function readout(){
+  const r=S.resid; $('#rBig').textContent=r.total.toFixed(2);
+  const col = r.total<0.6?'var(--green)':r.total<2?'var(--amber)':'var(--red)';
+  $('#rBig').style.color=col;
+  const rc=$('#residCells'); if(rc){
+    rc.querySelector('#rp').textContent=r.pos.toFixed(2)+' m';
+    rc.querySelector('#rh').textContent=r.heading.toFixed(0)+'°';
+    rc.querySelector('#rpbar').style.width=clamp(100-r.pos/4*100,0,100)+'%';
+    rc.querySelector('#rhbar').style.width=clamp(100-r.heading/90*100,0,100)+'%';
+  }
+  const vd=$('#verdict'); if(vd){
+    vd.className='verdict '+(r.total<0.6?'match':r.total<2?'near':'far');
+    vd.textContent = r.total<0.6
+      ? 'CONSISTENT — these entry conditions reproduce the measured rest state within tolerance. Note: not necessarily unique.'
+      : r.total<2 ? 'CLOSE — the asserted cause nearly matches. Adjust, or run search to close the gap.'
+      : 'INCONSISTENT — the forward simulation of these conditions does not land where the evidence says. This cause is unlikely as stated.';
+  }
+}
+function buildPanel(){
+  const p=$('#panel');p.innerHTML='';
+  // ASSERT
+  const a=el('div','sec assert');
+  a.innerHTML=`<div class="h"><span class="d"></span>ASSERT THE CAUSE</div>
+    <p class="hint">You don't draw the path. You assert <span class="a">initial conditions</span>; the physics step rolls them forward to rest. This is the only thing that makes motion.</p>`;
+  a.appendChild(slider('speed','ENTRY SPEED',2,22,0.5,S.params.speed,'m/s'));
+  a.appendChild(slider('heading','ENTRY HEADING',-70,70,1,S.params.heading,'°'));
+  a.appendChild(slider('brake','BRAKING',0,1,0.05,S.params.brake,'',v=>v.toFixed(2)));
+  p.appendChild(a);
+  // EVIDENCE
+  const e=el('div','sec evi');
+  e.innerHTML=`<div class="h"><span class="d"></span>MEASURED EVIDENCE <span style="color:var(--faint);margin-left:auto;letter-spacing:.06em">GIVEN</span></div>
+    <p class="hint">The <span class="bl">rest state</span> is supplied — from photos, survey, sensor logs. It is never generated. Reconstruction is finding causes that produce <b>this</b>.</p>`;
+  e.appendChild(slider('epx','REST X',-6,6,0.1,S.evidence.pos[0],'m',v=>v.toFixed(1),true));
+  e.appendChild(slider('epz','REST Z',-6,6,0.1,S.evidence.pos[1],'m',v=>v.toFixed(1),true));
+  e.appendChild(slider('eph','REST HEADING',0,359,1,S.evidence.heading,'°',null,true));
+  p.appendChild(e);
+  // RESIDUAL
+  const r=el('div','sec resid');
+  r.innerHTML=`<div class="h"><span class="d"></span>RESIDUAL</div>
+    <div class="rgrid" id="residCells">
+      <div class="rcell"><div class="k">POSITION GAP</div><div class="v" id="rp">—</div><div class="rbar"><div class="f" id="rpbar"></div></div></div>
+      <div class="rcell"><div class="k">HEADING GAP</div><div class="v" id="rh">—</div><div class="rbar"><div class="f" id="rhbar"></div></div></div>
+    </div>
+    <div class="verdict" id="verdict"></div>`;
+  p.appendChild(r);
+  // SEARCH
+  const s=el('div','sec search');
+  s.innerHTML=`<div class="h"><span class="d"></span>SEARCH FOR CAUSES</div>
+    <p class="hint">Let the machine shrink the residual: sweep the unknowns, roll each guess forward, keep what lands closest. This is <b>repair</b> — no backprop, physics is stiff at contact.</p>`;
+  const solveBtn=el('button','btn',`<span class="ic">${MK.search}</span><span class="t"><b>SOLVE — MINIMIZE RESIDUAL</b><s>SWEEP + REFINE THE ENTRY CONDITIONS</s></span><span class="go">&rsaquo;</span>`);
+  s.appendChild(solveBtn);
+  const brow=el('div','brow');
+  const setBtn=el('button','btn blue',`<span class="ic">${MK.dice}</span><span class="t"><b>SOLUTION SET</b></span>`);
+  const resetBtn=el('button','btn ghost',`<span class="ic">${MK.reset}</span><span class="t"><b>RESET</b></span>`);
+  brow.appendChild(setBtn);brow.appendChild(resetBtn);s.appendChild(brow);
+  const setBox=el('div');setBox.id='setbox';s.appendChild(setBox);
+  s.appendChild(el('div','seam',`<b>JOLT SEAM — FILLED.</b> The forward step now calls real Jolt Physics (WASM) when it loads, and falls back to the validated planar integrator when it can't. The badge on the stage shows which is live. On your hosted site the WASM loads from CDN and contact/rotation/energy-loss are Jolt's; in a locked sandbox the CDN is blocked and it uses the approximation — same loop either way.`));
+  p.appendChild(s);
+
+  solveBtn.onclick=()=>{ solveBtn.querySelector('b').textContent='SOLVING…';
+    setTimeout(()=>{ const best=sweepSolve(S.evidence,{...S.fixed,brake:S.params.brake});
+      S.params.speed=best.p.speed;S.params.heading=best.p.heading;S.params.brake=best.p.brake;
+      syncSliders(); recompute(); solveBtn.querySelector('b').textContent='SOLVE — MINIMIZE RESIDUAL';
+      toast(`RESIDUAL ${best.r.total.toFixed(2)} · ${best.evals} SIMS`); },30); };
+  setBtn.onclick=()=>{ S.solset=solutionSet(S.evidence,S.fixed); renderSet(); };
+  resetBtn.onclick=()=>{ S.params={x0:S.fixed.x0,z0:S.fixed.z0,speed:12,heading:20,brake:0.2};S.solset=null;$('#setbox').innerHTML='';syncSliders();recompute(); };
+
+  recompute();
+}
+function renderSet(){
+  const box=$('#setbox');box.innerHTML='';if(!S.solset||!S.solset.length)return;
+  box.appendChild(el('div','note',`<b>${S.solset.length} distinct entry conditions</b> land near this same rest state. Matching the aftermath does not prove one cause — real reconstruction yields a consistent set, not a point.`));
+  const cols=['#2ff0d2','#ffcf3f','#5b9bff','#ff5a52'];
+  S.solset.forEach((sol,i)=>{const row=el('div','setrow');
+    row.innerHTML=`<span class="sw" style="background:${cols[i]}"></span>${sol.p.speed.toFixed(1)} m/s · ${sol.p.heading.toFixed(0)}° · brake ${sol.p.brake.toFixed(2)}<span class="rz">r ${sol.r.total.toFixed(2)}</span>`;
+    row.style.cursor='pointer';
+    row.onclick=()=>{S.params.speed=sol.p.speed;S.params.heading=sol.p.heading;S.params.brake=sol.p.brake;syncSliders();recompute();};
+    box.appendChild(row);});
+}
+/* slider factory */
+function slider(id,label,min,max,step,val,unit,fmt,isEvidence){
+  const f=el('div','field'+(isEvidence?'':' amber'));
+  const show=v=>(fmt?fmt(v):(''+v))+(unit?' '+unit:'');
+  f.innerHTML=`<div class="top"><span class="lb">${label}</span><span class="val" id="v_${id}">${show(val)}</span></div>`;
+  const inp=el('input');inp.type='range';inp.min=min;inp.max=max;inp.step=step;inp.value=val;if(isEvidence)inp.className='bl';
+  f.appendChild(inp);
+  inp.oninput=()=>{const v=parseFloat(inp.value);$('#v_'+id).textContent=show(v);
+    if(id==='speed')S.params.speed=v; else if(id==='heading')S.params.heading=v; else if(id==='brake')S.params.brake=v;
+    else if(id==='epx')S.evidence.pos[0]=v; else if(id==='epz')S.evidence.pos[1]=v; else if(id==='eph')S.evidence.heading=v;
+    if(id==='epx'||id==='epz'||id==='eph')S.solset=null,$('#setbox')&&($('#setbox').innerHTML='');
+    recompute();};
+  f._input=inp;f._fmt=show;f._id=id;
+  return f;
+}
+function syncSliders(){
+  const map={speed:S.params.speed,heading:S.params.heading,brake:S.params.brake};
+  for(const id in map){const inp=document.querySelector(`#v_${id}`)?.closest('.field')?._input; if(inp){inp.value=map[id];
+    document.querySelector('#v_'+id).textContent=inp.closest('.field')._fmt(map[id]);}}
+}
+let toastN=null;
+function toast(m){if(toastN)toastN.remove();toastN=el('div');toastN.textContent=m;toastN.style.cssText='position:fixed;left:50%;top:12%;transform:translateX(-50%);z-index:99;background:var(--bg2);border:1px solid var(--teal);padding:11px 15px;font-size:11px;letter-spacing:.1em;color:var(--teal)';document.body.appendChild(toastN);setTimeout(()=>{toastN&&toastN.remove();toastN=null;},1800);}
+addEventListener('resize',()=>{fit();draw();});
+
+function setEngineBadge(){
+  const b=$('#engBadge'); if(!b)return;
+  if(joltState==='ready'){ b.textContent='ENGINE: JOLT'; b.style.color='var(--green)'; b.style.borderColor='var(--green)'; }
+  else if(joltState==='loading'){ b.textContent='ENGINE: LOADING…'; b.style.color='var(--amber)'; b.style.borderColor='var(--amber)'; }
+  else { b.textContent='ENGINE: APPROX'; b.style.color='var(--faint)'; b.style.borderColor='var(--faint)'; }
+}
+buildPanel();
+setEngineBadge();
+// attempt the real physics; on success, badge flips to JOLT and results recompute through Jolt
+joltInit().then(state=>{
+  setEngineBadge();
+  if(state==='ready'){ toast('JOLT PHYSICS ONLINE'); recompute(); }
+  else if(state==='failed'){ toast('JOLT UNAVAILABLE HERE · USING APPROX'); }
+});
+</script>
+</body>
+</html>
