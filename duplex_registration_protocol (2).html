@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duplex Registration Protocol - Kinetic Edition</title>
+<style>
+  /* =======================================================================
+     CORE SYSTEM RULES & TYPOGRAPHY
+     ======================================================================= */
+  * { box-sizing: border-box; }
+  body, html {
+    margin: 0; padding: 0; height: 100vh;
+    background-color: #e5e5e5;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: #111; line-height: 1.5; overflow: hidden;
+  }
+
+  /* =======================================================================
+     STRUCTURAL LAYOUT
+     ======================================================================= */
+  #app-container {
+    display: flex; height: 100vh; width: 100vw;
+  }
+
+  /* LEFT PANEL - CONTROL SURFACE */
+  #control-surface {
+    width: 420px; background: #fff;
+    border-right: 2px solid #000;
+    display: flex; flex-direction: column;
+    z-index: 100; box-shadow: 5px 0 15px rgba(0,0,0,0.05);
+    overflow-y: auto;
+  }
+
+  /* RIGHT PANEL - DIRECT MANIPULATION VIEWPORT */
+  #viewport {
+    flex-grow: 1; position: relative;
+    background-image: radial-gradient(#a3a3a3 1px, transparent 1px);
+    background-size: 20px 20px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+
+  /* =======================================================================
+     UI COMPONENTS
+     ======================================================================= */
+  .header {
+    background: #000; color: #fff; padding: 20px;
+    font-weight: bold; text-transform: uppercase;
+    letter-spacing: 1px; font-size: 16px;
+  }
+
+  .operation-step {
+    padding: 20px; border-bottom: 1px solid #e5e7eb;
+    transition: background-color 0.2s, opacity 0.2s;
+    opacity: 0.5; pointer-events: none;
+  }
+  .operation-step.active {
+    background-color: #fafafa; border-left: 4px solid #000;
+    opacity: 1; pointer-events: auto;
+  }
+  .operation-step.completed {
+    opacity: 0.8; pointer-events: auto; border-left: 4px solid #059669;
+  }
+
+  .step-title {
+    font-size: 14px; font-weight: bold; text-transform: uppercase;
+    margin-bottom: 15px; display: flex; align-items: center; gap: 10px;
+  }
+
+  .step-number {
+    background: #000; color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%; font-size: 12px;
+  }
+
+  .btn {
+    width: 100%; background: #000; color: #fff; border: 2px solid #000;
+    padding: 15px; font-family: inherit; font-weight: bold; font-size: 14px;
+    text-transform: uppercase; cursor: pointer; transition: all 0.1s;
+    margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 10px;
+  }
+  .btn:hover { background: #333; }
+  .btn:active { transform: translateY(2px); }
+
+  .btn-export { background: #2563eb; border-color: #1d4ed8; }
+  .btn-export:hover { background: #1e40af; }
+  .btn-download { background: #059669; border-color: #047857; }
+  .btn-download:hover { background: #065f46; }
+
+  /* Idiot-Proof Instruction Box */
+  .idiot-proof-box {
+    background: #fef2f2; border: 2px solid #ef4444; padding: 15px; margin-bottom: 20px;
+    border-radius: 6px; font-size: 13px; color: #991b1b;
+  }
+  .idiot-proof-box strong { font-size: 15px; text-transform: uppercase; display:block; margin-bottom: 8px;}
+  .idiot-proof-box ol { margin: 0; padding-left: 20px; }
+  .idiot-proof-box li { margin-bottom: 5px; }
+
+  /* Kinetic Range Sliders & Inputs */
+  .control-row { margin-bottom: 15px; }
+  .control-label {
+    display: flex; justify-content: space-between;
+    font-size: 11px; text-transform: uppercase; font-weight: bold; color: #666;
+    margin-bottom: 5px;
+  }
+  input[type="range"] { width: 100%; cursor: pointer; accent-color: #000; }
+  
+  .design-selector-box {
+    background: #f8fafc; padding: 15px; border: 1px solid #cbd5e1; border-radius: 6px;
+  }
+  .design-selector-box select {
+    width: 100%; padding: 10px; margin-top: 5px; font-family: inherit; font-size: 13px; 
+    border: 1px solid #000; cursor: pointer; font-weight: bold;
+  }
+
+  /* Hardware Readout Array */
+  .telemetry-board {
+    background: #111; color: #10b981; padding: 15px;
+    font-family: monospace; font-size: 12px; margin-top: 15px;
+    border-radius: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .telemetry-cell { display: flex; flex-direction: column; }
+  .telemetry-label { color: #6b7280; font-size: 10px; }
+  .telemetry-val { font-size: 16px; font-weight: bold; color: #fff;}
+
+  /* =======================================================================
+     VIEWPORT: CALIBRATION SIMULATOR (Direct Manipulation)
+     ======================================================================= */
+  #calibration-stage { display: none; flex-direction: column; align-items: center; gap: 20px; }
+  
+  .stage-instructions {
+    background: #fff; padding: 15px 25px; border: 2px solid #000;
+    font-weight: bold; box-shadow: 5px 5px 0 #000; max-width: 500px;
+    text-align: center; z-index: 10;
+  }
+
+  .paper-simulator {
+    width: 300px; height: 300px; background: #fff;
+    border: 1px solid #ccc; border-radius: 50%;
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.1), 0 10px 30px rgba(0,0,0,0.1);
+    position: relative; overflow: hidden;
+  }
+  
+  .paper-watermark {
+    position: absolute; top: 40px; width: 100%; text-align: center;
+    font-size: 40px; font-weight: 900; color: #f1f5f9; pointer-events: none;
+    letter-spacing: 5px; font-family: sans-serif;
+  }
+
+  /* Front Target (Static, Precision SVG Ruler) */
+  .target-front {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Back Target (Draggable Red SVG Simulator) */
+  .target-back {
+    position: absolute; top: 50%; left: 50%;
+    cursor: grab;
+    transition: transform 0.05s linear;
+    display: flex; align-items: center; justify-content: center;
+    filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.4));
+    touch-action: none; /* Prevents mobile scrolling during drag */
+  }
+  .target-back:active { cursor: grabbing; filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.6)); }
+
+  /* =======================================================================
+     MOBILE RESPONSIVENESS
+     ======================================================================= */
+  @media (max-width: 768px) {
+    #app-container { flex-direction: column-reverse; }
+    #control-surface { width: 100%; height: 50vh; border-right: none; border-top: 2px solid #000; }
+    #viewport { height: 50vh; }
+    .paper-simulator { transform: scale(0.85); }
+    .telemetry-board { grid-template-columns: 1fr; gap: 5px; }
+  }
+
+  /* =======================================================================
+     VIEWPORT: ASSET PROVING GROUND
+     ======================================================================= */
+  #proving-ground { display: none; flex-direction: column; align-items: center; gap: 20px; width: 100%; }
+  
+  .lightbox {
+    width: 80%; max-width: 800px; aspect-ratio: 8.5 / 11; /* US Letter ratio */
+    background: #fff; border: 2px dashed #000;
+    position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+    overflow: hidden;
+  }
+
+  .asset-layer {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: contain; pointer-events: none;
+  }
+  
+  #layer-back { opacity: 1; }
+  #layer-front { opacity: 0.5; mix-blend-mode: multiply; transition: opacity 0.1s; }
+
+  /* =======================================================================
+     STRICT PRINT OVERRIDES
+     ======================================================================= */
+  #print-buffer-calib, #print-buffer-final { display: none; }
+  
+  @media print {
+    @page { margin: 0; size: letter portrait; }
+    body { background: #fff; }
+    #app-container { display: none !important; }
+    
+    /* Toggle between Calibration Print and Final Asset Print */
+    body.print-calib #print-buffer-calib { display: block !important; position: absolute; top: 0; left: 0; width: 8.5in; }
+    body.print-final #print-buffer-final { display: block !important; position: absolute; top: 0; left: 0; width: 8.5in; }
+    
+    .print-sheet {
+      width: 8.5in; height: 11in; page-break-after: always;
+      position: relative; overflow: hidden; background: #fff;
+    }
+    
+    .print-giant-text { position: absolute; width: 100%; text-align: center; font-family: sans-serif; }
+    .print-title { font-size: 100px; font-weight: 900; top: 10%; letter-spacing: 2px;}
+    .print-subtitle { font-size: 30px; font-weight: bold; top: 22%; }
+    
+    /* Hardware print targets */
+    .hw-target {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Final Output Assets */
+    .final-print-img {
+      width: 100%; height: 100%; object-fit: contain;
+    }
+  }
+</style>
+</head>
+<body class="print-calib">
+
+  <!-- UI APPLICATION -->
+  <div id="app-container">
+    
+    <!-- LEFT CONTROL SURFACE -->
+    <div id="control-surface" class="no-print">
+      <div class="header">Duplex Kinetic Engine</div>
+
+      <!-- STEP 1: INITIAL PRINT -->
+      <div class="operation-step active" id="step-1">
+        <div class="step-title"><span class="step-number">1</span> Generate Hardware Target</div>
+        <p style="font-size: 12px; color: #555; margin-bottom: 15px;">
+          Print the calibration matrix to physical media. Ensure scale is 100% and Duplex is set to "Flip on Long Edge".
+        </p>
+        <button class="btn" onclick="executeCalibrationPrint()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+          Print Calibration Sheet
+        </button>
+      </div>
+
+      <!-- STEP 2: DIRECT MANIPULATION -->
+      <div class="operation-step" id="step-2">
+        <div class="step-title"><span class="step-number">2</span> Replicate Hardware Drift</div>
+        
+        <div class="idiot-proof-box">
+          <strong>STOP. Read carefully.</strong>
+          <ol>
+            <li>Hold the printed paper up to a bright window or lamp.</li>
+            <li>Make sure the side that says <strong>"FRONT"</strong> is facing your eyes.</li>
+            <li>Look <em>through</em> the paper to see the Back circle.</li>
+            <li>Use the <strong>tick marks</strong> on the Front ruler to see exactly how far off center the Back circle is.</li>
+            <li>Drag the red circle on this screen to match that exact position on the digital tick marks.</li>
+          </ol>
+        </div>
+        
+        <div class="telemetry-board">
+          <div class="telemetry-cell">
+            <span class="telemetry-label">DETECTED DRIFT X</span>
+            <span class="telemetry-val" id="readout-x">0.0 mm</span>
+          </div>
+          <div class="telemetry-cell">
+            <span class="telemetry-label">DETECTED DRIFT Y</span>
+            <span class="telemetry-val" id="readout-y">0.0 mm</span>
+          </div>
+          <div class="telemetry-cell" style="grid-column: span 2; border-top: 1px solid #333; padding-top: 10px; margin-top: 5px;">
+            <span class="telemetry-label">COMPENSATING OFFSET APPLIED</span>
+            <span class="telemetry-val" style="color:#60a5fa;" id="readout-offset">X: 0.0 | Y: 0.0</span>
+          </div>
+        </div>
+
+        <button class="btn" onclick="lockCalibration()" style="background: #059669; border-color: #059669; margin-top: 20px;">
+          Lock Calibration
+        </button>
+      </div>
+
+      <!-- STEP 3: ASSET PROVING GROUND & EXPORT -->
+      <div class="operation-step" id="step-3">
+        <div class="step-title"><span class="step-number">3</span> Output Generation</div>
+        <p style="font-size: 12px; color: #555; margin-bottom: 15px;">
+          Select your desired back design below. The front layer is automatically locked in. Verify mechanical alignment and output.
+        </p>
+        
+        <!-- DEAD SIMPLE ASSET SELECTION -->
+        <div class="design-selector-box control-row">
+          <div class="control-label"><span>Select Back Design</span></div>
+          <select id="back-design-select" onchange="setBackDesign(this.value)">
+            <option value="BACK_00.jpg">Design 1: The Twilight Zone</option>
+            <option value="BACK_01.jpg">Design 2: The Good, The Bad, The Ugly</option>
+            <option value="BACK_02.jpg">Design 3: Creature from Holston Hills</option>
+          </select>
+          <div style="font-size: 11px; color: #64748b; margin-top: 8px;">Front layout is securely locked to <strong style="color:#000;">FRONT_00.jpg</strong></div>
+        </div>
+
+        <div class="control-row" style="margin-top: 25px;">
+          <div class="control-label">
+            <span>Simulate Backlight (Opacity)</span>
+            <span id="opacity-val">50%</span>
+          </div>
+          <input type="range" id="opacity-slider" min="0" max="100" value="50">
+        </div>
+
+        <!-- EXPORT LEVERS -->
+        <div style="margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+          <button class="btn btn-export" onclick="executeFinalPrint()">
+            🖨️ Print Compensated Assets
+          </button>
+          <button class="btn btn-download" onclick="generateOffsetPNG()">
+            💾 Download Corrected Back (PNG)
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT VIEWPORT -->
+    <div id="viewport">
+      
+      <!-- MODE: CALIBRATION SIMULATOR -->
+      <div id="calibration-stage">
+        <div class="stage-instructions">
+          Make this screen match the paper in your hands exactly. Drag the Red Circle.
+        </div>
+        <div class="paper-simulator">
+          <div class="paper-watermark">FRONT</div>
+          <div class="target-front"></div>
+          <div class="target-back" id="drag-target"></div>
+        </div>
+      </div>
+
+      <!-- MODE: PROVING GROUND -->
+      <div id="proving-ground">
+        <div class="stage-instructions" style="margin-bottom: 20px; max-width: 600px;">
+          Visual Verification. The Back Layer has been shifted mathematically to guarantee perfect physical registration.
+        </div>
+        <div class="lightbox">
+          <div id="lightbox-empty-state" style="position: absolute; width: 100%; height: 100%; display: flex; align-items:center; justify-content:center; color: #ccc; font-weight:bold; font-size: 24px; z-index: 0;">LOADING ASSETS...</div>
+          
+          <img id="layer-back" class="asset-layer" src="" alt="" style="display:none;">
+          <img id="layer-front" class="asset-layer" src="" alt="" style="display:none;">
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PRINT BUFFER: CALIBRATION MATRIX -->
+  <div id="print-buffer-calib">
+    <div class="print-sheet">
+      <div class="print-giant-text print-title">FRONT</div>
+      <div class="print-giant-text print-subtitle">Hold this side FACING YOUR EYES</div>
+      <div class="hw-target hw-front"></div>
+    </div>
+    <div class="print-sheet">
+      <div class="print-giant-text print-title">BACK</div>
+      <div class="print-giant-text print-subtitle">Face this side TOWARDS THE LIGHT</div>
+      <div class="hw-target hw-back"></div>
+    </div>
+  </div>
+
+  <!-- PRINT BUFFER: FINAL ASSETS -->
+  <div id="print-buffer-final">
+    <div class="print-sheet">
+      <img id="final-print-front" class="final-print-img" src="" alt="">
+    </div>
+    <div class="print-sheet">
+      <img id="final-print-back" class="final-print-img" src="" alt="">
+    </div>
+  </div>
+
+  <!-- SYSTEM LOGIC -->
+  <script>
+    // System State
+    let state = {
+      driftX_mm: 0,
+      driftY_mm: 0,
+      pixelsPerMM: 5, // Screen scale
+      hasFrontAsset: false,
+      hasBackAsset: false
+    };
+
+    // --- DEAD SIMPLE ASSET INITIALIZATION ---
+    function initPreloadedAssets() {
+      // 1. Lock in the Front Asset permanently
+      const frontImgSrc = 'FRONT_00.jpg';
+      document.getElementById('layer-front').src = frontImgSrc;
+      document.getElementById('final-print-front').src = frontImgSrc;
+      state.hasFrontAsset = true;
+
+      // 2. Set the initial Back Asset based on the dropdown
+      const initialBackSrc = document.getElementById('back-design-select').value;
+      setBackDesign(initialBackSrc);
+
+      // 3. Clear the empty state and reveal assets in proving ground
+      document.getElementById('layer-front').style.display = 'block';
+      document.getElementById('lightbox-empty-state').style.display = 'none';
+    }
+
+    function setBackDesign(src) {
+      document.getElementById('layer-back').src = src;
+      document.getElementById('layer-back').style.display = 'block';
+      document.getElementById('final-print-back').src = src;
+      state.hasBackAsset = true;
+    }
+
+    // Run initialization as soon as the DOM is ready
+    window.addEventListener('DOMContentLoaded', initPreloadedAssets);
+
+
+    // --- SENSORY ENGINE (Haptics & ASMR Audio) ---
+    const sensoryEngine = {
+      audioCtx: null,
+      init() {
+        if (!this.audioCtx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.audioCtx = new AudioContext();
+        }
+        if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+      },
+      tick() {
+        if (navigator.vibrate) navigator.vibrate(5);
+        if (this.audioCtx) {
+          const osc = this.audioCtx.createOscillator();
+          const gain = this.audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(this.audioCtx.destination);
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(1200, this.audioCtx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(100, this.audioCtx.currentTime + 0.015);
+          
+          gain.gain.setValueAtTime(0.15, this.audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.015);
+          
+          osc.start();
+          osc.stop(this.audioCtx.currentTime + 0.015);
+        }
+      }
+    };
+
+    // DOM References
+    const steps = [
+      document.getElementById('step-1'),
+      document.getElementById('step-2'),
+      document.getElementById('step-3')
+    ];
+    const stages = {
+      calibration: document.getElementById('calibration-stage'),
+      proving: document.getElementById('proving-ground')
+    };
+
+    // --- TARGET GENERATION ENGINE (SVG Rulers) ---
+    function generateRulerSVG(size_mm, isPrint, color) {
+      const pxSize = isPrint ? `${size_mm}mm` : `${size_mm * state.pixelsPerMM}px`;
+      let svgMarkup = `<svg viewBox="-${size_mm/2} -${size_mm/2} ${size_mm} ${size_mm}" width="${pxSize}" height="${pxSize}" style="overflow:visible;" xmlns="http://www.w3.org/2000/svg">`;
+      const strokeW = isPrint ? '0.2' : '0.3'; 
+      const majorStrokeW = isPrint ? '0.4' : '0.6';
+      
+      svgMarkup += `<g stroke="${color}">`;
+      svgMarkup += `<line x1="-${size_mm/2}" y1="0" x2="${size_mm/2}" y2="0" stroke-width="${majorStrokeW}" />`;
+      svgMarkup += `<line x1="0" y1="-${size_mm/2}" x2="0" y2="${size_mm/2}" stroke-width="${majorStrokeW}" />`;
+
+      for (let i = -size_mm/2; i <= size_mm/2; i++) {
+        if (i === 0) continue;
+        let isMajor = i % 10 === 0;
+        let isMid = i % 5 === 0;
+        let tickLen = isMajor ? 6 : (isMid ? 4 : 2);
+        let sw = isMid ? majorStrokeW : strokeW;
+
+        svgMarkup += `<line x1="${i}" y1="-${tickLen/2}" x2="${i}" y2="${tickLen/2}" stroke-width="${sw}" />`;
+        svgMarkup += `<line x1="-${tickLen/2}" y1="${i}" x2="${tickLen/2}" y2="${i}" stroke-width="${sw}" />`;
+        
+        if (isMajor && isPrint) {
+           svgMarkup += `<text x="${i}" y="5" font-size="2" text-anchor="middle" font-family="sans-serif" fill="${color}" stroke="none">${Math.abs(i)}</text>`;
+           svgMarkup += `<text x="-6" y="${i+0.7}" font-size="2" text-anchor="end" font-family="sans-serif" fill="${color}" stroke="none">${Math.abs(i)}</text>`;
+        }
+      }
+      svgMarkup += `</g></svg>`;
+      return svgMarkup;
+    }
+
+    function generateBackCircleSVG(size_mm, isPrint, color, fillOpacity) {
+      const pxSize = isPrint ? `${size_mm}mm` : `${size_mm * state.pixelsPerMM}px`;
+      const strokeW = isPrint ? '0.5' : '0.8';
+      const crossW = isPrint ? '0.2' : '0.4';
+      const fillColor = color === '#000' ? `rgba(0,0,0,${fillOpacity})` : `rgba(239, 68, 68, ${fillOpacity})`;
+
+      return `
+        <svg viewBox="-${size_mm/2} -${size_mm/2} ${size_mm} ${size_mm}" width="${pxSize}" height="${pxSize}" style="overflow:visible;" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="0" cy="0" r="${size_mm/2}" fill="${fillColor}" stroke="${color}" stroke-width="${strokeW}" />
+          <line x1="-${size_mm/2}" y1="0" x2="${size_mm/2}" y2="0" stroke="${color}" stroke-width="${crossW}" />
+          <line x1="0" y1="-${size_mm/2}" x2="0" y2="${size_mm/2}" stroke="${color}" stroke-width="${crossW}" />
+        </svg>
+      `;
+    }
+
+    function buildTargets() {
+      const FRONT_RULER_SIZE = 60;
+      const BACK_CIRCLE_SIZE = 24;
+      
+      document.querySelector('.hw-front').innerHTML = generateRulerSVG(FRONT_RULER_SIZE, true, '#94a3b8');
+      document.querySelector('.hw-back').innerHTML = generateBackCircleSVG(BACK_CIRCLE_SIZE, true, '#000', 0);
+      
+      document.querySelector('.target-front').innerHTML = generateRulerSVG(FRONT_RULER_SIZE, false, '#94a3b8');
+      const draggerEl = document.querySelector('.target-back');
+      draggerEl.innerHTML = generateBackCircleSVG(BACK_CIRCLE_SIZE, false, '#ef4444', 0.2);
+      
+      const draggerPxSize = BACK_CIRCLE_SIZE * state.pixelsPerMM;
+      draggerEl.style.width = `${draggerPxSize}px`;
+      draggerEl.style.height = `${draggerPxSize}px`;
+      draggerEl.style.marginLeft = `-${draggerPxSize/2}px`;
+      draggerEl.style.marginTop = `-${draggerPxSize/2}px`;
+    }
+    buildTargets();
+
+    // --- STEP 1: CALIBRATION PRINT ---
+    function executeCalibrationPrint() {
+      document.body.className = 'print-calib';
+      window.print();
+      
+      steps[0].classList.remove('active');
+      steps[0].classList.add('completed');
+      steps[1].classList.add('active');
+      stages.calibration.style.display = 'flex';
+    }
+
+    // --- STEP 2: DIRECT MANIPULATION (KINETIC DRAG & SNAP) ---
+    const dragger = document.getElementById('drag-target');
+    const readX = document.getElementById('readout-x');
+    const readY = document.getElementById('readout-y');
+    const readOffset = document.getElementById('readout-offset');
+
+    let isDragging = false;
+    let startPointerX, startPointerY;
+    let initialLeft_px, initialTop_px;
+
+    dragger.addEventListener('pointerdown', (e) => {
+      sensoryEngine.init();
+      isDragging = true;
+      dragger.setPointerCapture(e.pointerId);
+      startPointerX = e.clientX;
+      startPointerY = e.clientY;
+      
+      const style = window.getComputedStyle(dragger);
+      const matrix = new DOMMatrixReadOnly(style.transform);
+      initialLeft_px = matrix.m41;
+      initialTop_px = matrix.m42;
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      
+      const dx_px = e.clientX - startPointerX;
+      const dy_px = e.clientY - startPointerY;
+      const rawX_mm = (initialLeft_px + dx_px) / state.pixelsPerMM;
+      const rawY_mm = (initialTop_px + dy_px) / state.pixelsPerMM;
+      
+      const snapTarget_mm = 0.5;
+      const snappedX_mm = Math.round(rawX_mm / snapTarget_mm) * snapTarget_mm;
+      const snappedY_mm = Math.round(rawY_mm / snapTarget_mm) * snapTarget_mm;
+      
+      if (snappedX_mm !== state.driftX_mm || snappedY_mm !== state.driftY_mm) {
+        state.driftX_mm = snappedX_mm;
+        state.driftY_mm = snappedY_mm;
+        sensoryEngine.tick();
+        
+        readX.textContent = `${state.driftX_mm > 0 ? '+' : ''}${state.driftX_mm.toFixed(1)} mm`;
+        readY.textContent = `${state.driftY_mm > 0 ? '+' : ''}${state.driftY_mm.toFixed(1)} mm`;
+        
+        const offX = (state.driftX_mm * -1).toFixed(1);
+        const offY = (state.driftY_mm * -1).toFixed(1);
+        readOffset.textContent = `X: ${offX > 0 ? '+' : ''}${offX} | Y: ${offY > 0 ? '+' : ''}${offY}`;
+        
+        dragger.style.transform = `translate(${state.driftX_mm * state.pixelsPerMM}px, ${state.driftY_mm * state.pixelsPerMM}px)`;
+      }
+    });
+
+    window.addEventListener('pointerup', () => { isDragging = false; });
+
+    function lockCalibration() {
+      steps[1].classList.remove('active');
+      steps[1].classList.add('completed');
+      steps[2].classList.add('active');
+      
+      stages.calibration.style.display = 'none';
+      stages.proving.style.display = 'flex';
+      applyOffsetToProvingGround();
+    }
+
+    // --- STEP 3: ASSET PROVING GROUND & EXPORT ---
+    function applyOffsetToProvingGround() {
+      const backLayer = document.getElementById('layer-back');
+      // Apply the inverse offset to visually correct the alignment on screen
+      backLayer.style.transform = `translate(${state.driftX_mm * -1}mm, ${state.driftY_mm * -1}mm)`;
+    }
+
+    const opacitySlider = document.getElementById('opacity-slider');
+    const opacityVal = document.getElementById('opacity-val');
+    opacitySlider.addEventListener('input', (e) => {
+      opacityVal.textContent = `${e.target.value}%`;
+      document.getElementById('layer-front').style.opacity = e.target.value / 100;
+    });
+
+    // OUTPUT LEVER A: Direct Print Engine
+    function executeFinalPrint() {
+      if (!state.hasFrontAsset || !state.hasBackAsset) {
+        alert("Action Denied: Assets are not fully loaded yet.");
+        return;
+      }
+      
+      // Apply offset to Print Buffer (Using margins for safety in print css)
+      const finalBack = document.getElementById('final-print-back');
+      finalBack.style.marginLeft = `${state.driftX_mm * -1}mm`;
+      finalBack.style.marginTop = `${state.driftY_mm * -1}mm`;
+
+      // Switch CSS logic to final buffer and execute
+      document.body.className = 'print-final';
+      window.print();
+    }
+
+    // OUTPUT LEVER B: Canvas Burn-in & Download
+    function generateOffsetPNG() {
+      if (!state.hasBackAsset) {
+        alert("Action Denied: Assets are not fully loaded yet.");
+        return;
+      }
+
+      const backImg = document.getElementById('layer-back');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Operate at original native resolution
+      const natW = backImg.naturalWidth;
+      const natH = backImg.naturalHeight;
+      
+      if(natW === 0 || natH === 0) {
+        alert("Wait a moment! Images are still loading into memory.");
+        return;
+      }
+
+      canvas.width = natW;
+      canvas.height = natH;
+
+      // Mathematical constraint: Map mm drift to physical pixel density 
+      // Assumption: The image covers a standard US Letter page (215.9mm x 279.4mm)
+      const mmToPxX = natW / 215.9;
+      const mmToPxY = natH / 279.4;
+
+      const offsetX_px = (state.driftX_mm * -1) * mmToPxX;
+      const offsetY_px = (state.driftY_mm * -1) * mmToPxY;
+
+      // Draw operation
+      ctx.fillStyle = "#ffffff"; // Force solid background behind offset
+      ctx.fillRect(0, 0, natW, natH);
+      ctx.drawImage(backImg, offsetX_px, offsetY_px, natW, natH);
+
+      // Extract & Download
+      const offX_mm = (state.driftX_mm * -1).toFixed(1);
+      const offY_mm = (state.driftY_mm * -1).toFixed(1);
+      
+      const link = document.createElement('a');
+      link.download = `COMPENSATED_BACK_X${offX_mm}mm_Y${offY_mm}mm.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+  </script>
+</body>
+</html>
