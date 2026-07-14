@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Off-Grid River Map — Leadline Helm</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+  :root{ --teal:#19e6c8; --amber:#ffd23f; --red:#ff2e2e; --blue:#3b82f6; }
+  html,body{margin:0;padding:0;height:100%;width:100%;overflow:hidden;background:#000;
+    font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--teal);
+    touch-action:none;user-select:none;-webkit-user-select:none;}
+  #map{position:absolute;inset:0;z-index:1;background:#000;}
+  #minimap{width:100%;height:100%;background:#04101a;}
+  #overlay{position:absolute;inset:0;z-index:200;pointer-events:none;}
+
+  .mode-drone .leaflet-tile-pane{filter:grayscale(.35) contrast(1.2) brightness(.74) sepia(.12) hue-rotate(185deg);}
+  .mode-schematic .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(1.15) contrast(1.35) sepia(.5) hue-rotate(150deg);}
+
+  .leaflet-control-zoom,.leaflet-control-attribution{display:none!important;}
+  .leaflet-container:focus{outline:none;}
+  .custom-div-icon{background:transparent;border:none;}
+
+  .ib{width:44px;height:44px;border-radius:12px;background:rgba(6,10,18,.55);border:1px solid rgba(25,230,200,.45);
+    color:var(--teal);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    backdrop-filter:blur(6px);transition:all .12s;opacity:.72;}
+  .ib:active,.ib.on{opacity:1;background:rgba(25,230,200,.3);box-shadow:0 0 12px rgba(25,230,200,.5);color:#fff;border-color:rgba(25,230,200,.9);}
+  .ib .lb{font-size:6.5px;font-weight:700;letter-spacing:.5px;line-height:1;}
+  .ib svg{width:16px;height:16px;}
+  /* word controls: minimal, gauge-style (mirror of the leadline labels) */
+  .ibw{position:absolute;transform:translate(-100%,-50%);background:transparent;border:none;cursor:pointer;pointer-events:auto;
+    color:rgba(25,230,200,.72);font-family:inherit;font-size:10px;font-weight:700;letter-spacing:2px;
+    padding:9px 12px 9px 14px;text-shadow:0 0 8px rgba(0,0,0,.95);
+    transition:color .15s,text-shadow .15s,opacity .34s ease,transform .34s ease;}
+  .ibw:active{color:#fff;}
+  .ibw.on{color:#fff;text-shadow:0 0 12px rgba(25,230,200,.95),0 0 3px rgba(25,230,200,.9);}
+  #bDeliver.on{color:#ffd23f;text-shadow:0 0 12px rgba(255,210,63,.95),0 0 3px rgba(255,210,63,.9);}
+  #bBeast.on{color:#ff5555;text-shadow:0 0 12px rgba(255,46,46,.95),0 0 3px rgba(255,46,46,.9);}
+  .ibw .lb{pointer-events:none;}
+  /* collapsed = bare arc, echoing the halo. Words slide into the spine and fade. */
+  #ctrlArc{transition:opacity .3s ease;}
+  #ctrlArc.collapsed .ibw{opacity:0;pointer-events:none;transform:translate(-100%,-50%) translateX(34px);}
+  #ctrlArc .spine{transition:opacity .34s ease;}
+  #ctrlArc.collapsed .spine{opacity:.45;}
+  #depthArc #daStatic,#depthArc #daFill,#depthArc #daMark{transition:opacity .34s ease;}
+  #depthArc.collapsed #daStatic{opacity:.22;}
+  #depthArc.collapsed #daFill,#depthArc.collapsed #daMark{opacity:0;}
+  #caHint,#daHint{opacity:0;transition:opacity .34s ease;}
+  #ctrlArc.collapsed #caHint,#depthArc.collapsed #daHint{opacity:1;animation:hintP 1.9s infinite ease-in-out;}
+  @keyframes hintP{0%,100%{opacity:.3}50%{opacity:1}}
+  @keyframes winPop{0%{transform:translateX(-50%) scale(.6);opacity:0}45%{transform:translateX(-50%) scale(1.12);opacity:1}100%{transform:translateX(-50%) scale(1);opacity:1}}
+  .guidePulse{width:18px;height:18px;border-radius:50%;position:relative}
+  .guidePulse::before{content:'';position:absolute;inset:6px;border-radius:50%;background:var(--gc);box-shadow:0 0 6px var(--gc)}
+  .guidePulse::after{content:'';position:absolute;inset:0;border-radius:50%;border:2px solid var(--gc);animation:guideP 1.4s ease-out infinite;opacity:0}
+  @keyframes guideP{0%{transform:scale(.4);opacity:.9}100%{transform:scale(1);opacity:0}}
+  .edgeZone{position:absolute;top:50%;transform:translateY(-50%);height:530px;width:30px;z-index:1001;pointer-events:auto;background:transparent;touch-action:none;}
+  #zoneL{left:0;}#zoneR{right:0;}
+
+  .wake{background:linear-gradient(to bottom,rgba(255,255,255,.4),transparent);animation:ripple 2s infinite linear;}
+  @keyframes ripple{0%{transform:scaleY(.8) scaleX(.8);opacity:.8}100%{transform:scaleY(2) scaleX(1.5);opacity:0}}
+  @keyframes destPulse{0%{transform:scale(.6);opacity:1}100%{transform:scale(2.4);opacity:0}}
+  .destRing{animation:destPulse 1.6s infinite ease-out;}
+  .flashRed{animation:fr 1s infinite;}
+  @keyframes fr{0%,100%{color:var(--red);text-shadow:0 0 8px var(--red)}50%{color:#7f1d1d;text-shadow:none}}
+  .flashAmber{animation:fa 1s infinite;}
+  @keyframes fa{0%,100%{color:var(--amber);text-shadow:0 0 8px var(--amber)}50%{color:#7a5a00;text-shadow:none}}
+
+  #haloWrap{position:absolute;top:0;left:50%;transform:translateX(-50%);width:210%;max-width:1500px;height:170px;z-index:900;pointer-events:none;}
+  #haloSvg{width:100%;height:100%;overflow:visible;}
+  .tick{stroke:rgba(120,220,205,.5);stroke-width:1.2;}
+  .tickMaj{stroke:rgba(25,230,200,.95);stroke-width:1.9;}
+  .tele{position:absolute;top:8px;z-index:901;pointer-events:none;letter-spacing:1.5px;}
+  .tv{color:var(--teal);font-weight:700;font-size:13px;text-shadow:0 0 8px rgba(25,230,200,.5);line-height:1;}
+  .tl{color:rgba(25,230,200,.5);font-size:8px;font-weight:700;letter-spacing:2px;}
+  .u{font-size:9px;color:rgba(25,230,200,.45);margin-left:2px;}
+
+  #mmWrap{position:absolute;bottom:26px;left:16px;z-index:1000;width:140px;height:140px;pointer-events:none;}
+  #mmClip{position:absolute;inset:8px;border-radius:50%;overflow:hidden;border:2px solid rgba(25,230,200,.5);
+    box-shadow:0 0 20px rgba(25,230,200,.22),inset 0 0 30px rgba(0,0,0,.6);pointer-events:auto;cursor:crosshair;}
+  #mmRingOuter{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(25,230,200,.25);border-style:dashed;}
+  .mmc{position:absolute;font-size:8px;font-weight:700;color:rgba(25,230,200,.6);letter-spacing:1px;}
+
+  #depthArc{position:absolute;left:0px;top:50%;transform:translateY(-50%);z-index:1000;width:88px;height:460px;pointer-events:none;}
+  #depthArc svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 6px rgba(0,0,0,.7));}
+  .daTick{stroke:rgba(120,220,205,.5);stroke-width:1.2;}
+  .daTickMaj{stroke:rgba(25,230,200,.9);stroke-width:1.8;}
+  /* curved control rail — mirrors the depth arc on the right, buttons ride the curve */
+  #ctrlArc{position:absolute;right:0px;top:50%;transform:translateY(-50%);z-index:1000;width:96px;height:500px;pointer-events:none;}
+  #ctrlArc .spine{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;filter:drop-shadow(0 0 6px rgba(0,0,0,.7));}
+  #ctrlArc .ib{position:absolute;pointer-events:auto;transform:translate(-50%,-50%);}
+
+  #survey{position:absolute;inset:0;z-index:2000;background:rgba(2,6,14,.92);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;}
+  .panel{border:1px solid rgba(25,230,200,.5);background:rgba(6,10,18,.9);padding:20px 22px;border-radius:0;min-width:300px;max-width:88vw;}
+  .achip{border:1px solid rgba(25,230,200,.4);background:rgba(25,230,200,.06);color:var(--teal);font-size:9px;font-weight:700;letter-spacing:1px;padding:6px 8px;border-radius:0;cursor:pointer;}
+  .achip:active{background:rgba(25,230,200,.25);}
+  .afield{background:#04101a;border:1px solid rgba(25,230,200,.45);color:#cffaf2;font-family:inherit;font-size:12px;padding:8px;width:100%;border-radius:0;outline:none;}
+  .abtn{border:1px solid rgba(25,230,200,.6);background:rgba(25,230,200,.15);color:#fff;font-size:10px;font-weight:700;letter-spacing:1px;padding:8px 10px;border-radius:0;cursor:pointer;}
+  .abtn:active{background:rgba(25,230,200,.35);}
+</style>
+</head>
+<body class="mode-drone">
+
+<div id="map"></div>
+<canvas id="overlay"></canvas>
+
+<div class="pointer-events-none absolute inset-0 z-[500]" style="background:linear-gradient(rgba(25,230,200,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(25,230,200,.028) 1px,transparent 1px);background-size:48px 48px;"></div>
+<div class="pointer-events-none absolute inset-0 z-[501]" style="background:radial-gradient(circle at center,transparent 54%,rgba(0,0,0,.7) 100%);"></div>
+
+<div id="haloWrap">
+  <svg id="haloSvg" viewBox="0 0 1500 170" preserveAspectRatio="xMidYMin meet">
+    <path id="haloArc" d="M 50 155 Q 750 16 1450 155" fill="none" stroke="rgba(25,230,200,.32)" stroke-width="1.5"/>
+    <g id="haloTicks"></g><g id="haloWps"></g>
+  </svg>
+</div>
+<div class="tele text-left" style="left:5%;"><div class="tl">SPD</div><div id="tSpd" class="tv">0.0<span class="u">KTS</span></div></div>
+<div class="tele text-left" style="left:16%;top:30px;"><div class="tl">CUR</div><div id="tCur" class="tv">0.0<span class="u">KTS</span></div></div>
+<div class="tele text-right" style="right:16%;top:30px;"><div class="tl">SOG</div><div id="tSog" class="tv">0.0<span class="u">KTS</span></div></div>
+<div class="tele text-right" style="right:5%;"><div class="tl">HDG</div><div id="tHdg" class="tv">000°</div></div>
+<div class="tele" style="left:50%;transform:translateX(-50%);top:0;text-align:center;">
+  <div id="tHdgBig" class="tv" style="font-size:20px;">000</div>
+  <div class="tl" style="text-align:center;">HEADING</div>
+  <div id="tSts" class="tv" style="font-size:11px;margin-top:3px;">SURVEY</div>
+</div>
+
+<!-- ONBOARDING: one-time objective card so the player knows what to do -->
+<div id="objCard" class="absolute z-[2100]" style="display:none;inset:0;background:rgba(4,10,18,.9);flex-direction:column;align-items:center;justify-content:center;pointer-events:auto;text-align:center;padding:0 32px;">
+  <div style="font-size:10px;letter-spacing:6px;color:#7dffd2;">YOUR WATCH</div>
+  <div style="font-size:24px;font-weight:800;letter-spacing:2px;color:#fff;margin-top:8px;text-shadow:0 0 20px rgba(125,255,210,.8);">SAVE 3 SOULS</div>
+  <div style="font-size:12px;line-height:1.7;color:rgba(220,245,240,.85);margin-top:18px;max-width:300px;">
+    People are drowning in the river.<br>
+    <span style="color:#ffd23f;">Follow the amber arrow</span> to find them —<br>
+    reach a <span style="color:#ff4d6d;">soul</span> to pull them aboard.<br><br>
+    Each rescue refuels you and scores points.<br>
+    Save your quota to complete the watch.
+  </div>
+  <button id="objStart" style="margin-top:26px;padding:11px 34px;background:rgba(125,255,210,.16);border:1px solid #7dffd2;border-radius:24px;color:#7dffd2;font-family:inherit;font-size:12px;font-weight:800;letter-spacing:3px;">START ▸</button>
+</div>
+
+<!-- goal tracker (compact): souls + score -->
+<div id="goalTrack" class="absolute z-[1300] pointer-events-none" style="top:86px;left:50%;transform:translateX(-50%);text-align:center;line-height:1.1;">
+  <div><span style="font-size:8px;letter-spacing:2px;color:rgba(125,255,210,.55);">SOULS </span><span id="goalCount" style="font-size:14px;font-weight:800;letter-spacing:1px;color:#7dffd2;text-shadow:0 0 6px rgba(125,255,210,.5);">0/3</span></div>
+  <div style="margin-top:1px;"><span style="font-size:8px;letter-spacing:2px;color:rgba(255,210,63,.55);">SCORE </span><span id="scoreCount" style="font-size:12px;font-weight:800;letter-spacing:1px;color:#ffd23f;text-shadow:0 0 6px rgba(255,210,63,.5);">0</span></div>
+</div>
+<div id="winBanner" class="absolute z-[2000]" style="display:none;inset:0;background:rgba(4,10,18,.82);flex-direction:column;align-items:center;justify-content:center;pointer-events:auto;text-align:center;">
+  <div style="font-size:12px;letter-spacing:8px;color:#7dffd2;margin-bottom:6px;">✦ ✦ ✦</div>
+  <div id="winTitle" style="font-size:30px;font-weight:800;letter-spacing:3px;color:#fff;text-shadow:0 0 24px rgba(125,255,210,.9);">WATCH COMPLETE</div>
+  <div id="winScore" style="font-size:15px;letter-spacing:2px;color:#ffd23f;margin-top:10px;">SCORE 0</div>
+  <div id="winSub" style="font-size:11px;letter-spacing:2px;color:#7dffd2;margin-top:6px;"></div>
+  <button id="winContinue" style="margin-top:22px;padding:10px 28px;background:rgba(125,255,210,.14);border:1px solid #7dffd2;border-radius:24px;color:#7dffd2;font-family:inherit;font-size:12px;font-weight:800;letter-spacing:3px;">CONTINUE ▸</button>
+</div>
+
+<div class="absolute z-[1000] pointer-events-none" style="top:128px;left:50%;transform:translateX(-50%);text-align:center;">
+  <div class="tl" style="text-align:center;">LEADSMAN</div>
+  <div id="tCall" class="tv" style="font-size:15px;letter-spacing:2px;">— — —</div>
+  <div id="tDepth" class="tv" style="font-size:11px;color:rgba(25,230,200,.7);">-- FT</div>
+</div>
+
+<div id="depthArc"><svg viewBox="0 0 92 440"><g id="daStatic"></g><path id="daFill" fill="none" stroke="#3b82f6" stroke-width="6" opacity=".4" stroke-linecap="round"/><g id="daMark"></g><path id="daHint" d="M33 213 L44 220 L33 227" fill="none" stroke="#19e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+<div id="mmWrap">
+  <div id="mmRingOuter"></div>
+  <div class="mmc" style="top:-4px;left:50%;transform:translateX(-50%)">N</div>
+  <div class="mmc" style="bottom:-4px;left:50%;transform:translateX(-50%)">S</div>
+  <div class="mmc" style="left:-4px;top:50%;transform:translateY(-50%)">W</div>
+  <div class="mmc" style="right:-4px;top:50%;transform:translateY(-50%)">E</div>
+  <div id="mmClip"><div id="minimap"></div>
+    <div class="absolute inset-0 m-auto pointer-events-none" style="width:1px;height:100%;background:rgba(25,230,200,.12)"></div>
+    <div class="absolute inset-0 m-auto pointer-events-none" style="height:1px;width:100%;background:rgba(25,230,200,.12)"></div>
+  </div>
+</div>
+<div class="absolute z-[1000] pointer-events-none" style="bottom:8px;left:16px;width:140px;text-align:center;">
+  <div class="tl" style="text-align:center;letter-spacing:3px;">◹ OVERVIEW MAP · <span id="pinCount" style="color:var(--amber)">0</span> PINS</div>
+  <div class="tl" style="text-align:center;margin-top:2px;"><span id="mmLat" style="color:rgba(190,245,235,.8)">--</span> · <span id="mmLng" style="color:rgba(190,245,235,.8)">--</span></div>
+</div>
+
+<div id="ctrlArc">
+  <svg class="spine" viewBox="0 0 96 500"><g id="caStatic"></g><path id="caHint" d="M57 243 L46 250 L57 257" fill="none" stroke="#19e6c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <button id="bWarp"    class="ibw" style="left:26px;top:35px;"><span class="lb">RESET</span></button>
+  <button id="bZoomIn"  class="ibw" style="left:34px;top:74px;"><span class="lb">IN</span></button>
+  <button id="bZoomOut" class="ibw" style="left:40px;top:113px;"><span class="lb">OUT</span></button>
+  <button id="bVis"     class="ibw" style="left:45px;top:152px;"><span class="lb">DRONE</span></button>
+  <button id="bDepth"   class="ibw on" style="left:48px;top:191px;"><span class="lb">BATHY</span></button>
+  <button id="bPilot"   class="ibw" style="left:50px;top:230px;"><span class="lb">PILOT</span></button>
+  <button id="bDeliver" class="ibw" style="left:50px;top:270px;"><span class="lb">DELIVER</span></button>
+  <button id="bBeast"   class="ibw" style="left:48px;top:309px;"><span class="lb">BEAST</span></button>
+  <button id="bAudio"   class="ibw" style="left:45px;top:348px;"><span class="lb">SONAR</span></button>
+  <button id="bPin"     class="ibw" style="left:40px;top:387px;"><span class="lb">PIN</span></button>
+  <button id="bHop"     class="ibw" style="left:34px;top:426px;"><span class="lb">HOP</span></button>
+  <button id="bArea"    class="ibw" style="left:26px;top:465px;"><span class="lb">AREA</span></button>
+</div>
+<div id="zoneL" class="edgeZone"></div>
+<div id="zoneR" class="edgeZone"></div>
+
+<div class="absolute bottom-6 right-6 z-[1000] pointer-events-auto opacity-85 hover:opacity-100">
+  <div id="joyBase" class="w-32 h-32 rounded-full relative flex items-center justify-center" style="border:2px solid rgba(25,230,200,.4);background:rgba(6,10,18,.5);backdrop-filter:blur(6px);box-shadow:0 0 20px rgba(25,230,200,.2)">
+    <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 128 128" style="overflow:visible">
+      <circle cx="64" cy="64" r="60" fill="none" stroke="rgba(255,210,63,.12)" stroke-width="3"/>
+      <circle id="fuelArc" cx="64" cy="64" r="60" fill="none" stroke="#ffd23f" stroke-width="3" stroke-linecap="round"
+        stroke-dasharray="376.99" stroke-dashoffset="113" transform="rotate(-90 64 64)" style="filter:drop-shadow(0 0 3px rgba(255,210,63,.7))"/>
+    </svg>
+    <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 128 128">
+      <circle cx="64" cy="64" r="46" fill="none" stroke="rgba(25,230,200,.18)" stroke-width="1" stroke-dasharray="3 5"/>
+      <line x1="64" y1="18" x2="64" y2="110" stroke="rgba(25,230,200,.15)"/><line x1="18" y1="64" x2="110" y2="64" stroke="rgba(25,230,200,.15)"/>
+      <path d="M64 22 l-4 7 h8 z" fill="rgba(25,230,200,.6)"/>
+      <text x="64" y="16" fill="rgba(25,230,200,.7)" font-size="8" font-weight="700" text-anchor="middle">N</text>
+    </svg>
+    <div id="joyHdg" class="absolute top-1 text-[8px] font-bold pointer-events-none" style="color:rgba(25,230,200,.6);letter-spacing:2px;">000°</div>
+    <div id="joyStick" class="w-12 h-12 rounded-full absolute flex items-center justify-center pointer-events-none" style="background:var(--teal);border:2px solid #bff7ee;box-shadow:0 0 15px rgba(25,230,200,.8)">
+      <svg viewBox="0 0 24 24" class="w-5 h-5" style="color:#04120f"><path fill="currentColor" d="M12 2 L18 20 L12 16 L6 20 Z"/></svg>
+    </div>
+  </div>
+  <div class="text-center text-[8px] mt-1 font-bold uppercase" style="color:rgba(25,230,200,.5);letter-spacing:3px;">↻ DRAG TO STEER</div>
+</div>
+
+<!-- BROWSE BAR -->
+<div id="browseBar" class="absolute z-[1500] pointer-events-auto" style="display:none;bottom:20px;left:50%;transform:translateX(-50%);">
+  <div class="flex gap-2 items-center panel" style="padding:10px 12px;">
+    <span class="tl" style="color:rgba(25,230,200,.8)">DRAG TO A RIVER · THEN</span>
+    <button id="bSurveyHere" class="abtn">SURVEY HERE</button>
+    <button id="bBrowseCancel" class="achip">CANCEL</button>
+  </div>
+</div>
+
+<!-- AREA PANEL -->
+<div id="areaPanel" class="absolute z-[1800]" style="display:none;top:110px;left:50%;transform:translateX(-50%);width:min(94vw,360px);">
+  <div class="panel" style="width:100%;max-height:74vh;overflow:auto;">
+    <div class="flex justify-between items-center mb-3">
+      <div class="text-[11px] font-bold uppercase" style="color:#a5f3fc;letter-spacing:3px;">Relocate Survey</div>
+      <button id="bAreaClose" class="achip" style="padding:3px 7px">✕</button>
+    </div>
+    <div class="tl" style="margin-bottom:4px">PLACE OR "LAT, LNG"</div>
+    <div class="flex gap-2 mb-2">
+      <input id="areaInput" class="afield" placeholder="e.g. Seine, Paris  ·  35.968,-87.94"/>
+      <button id="bAreaGo" class="abtn">GO</button>
+    </div>
+    <div class="flex gap-2 mb-3">
+      <button id="bLocate" class="achip" style="flex:1">◎ MY LOCATION</button>
+      <button id="bBrowse" class="achip" style="flex:1">✥ DRAG & SURVEY</button>
+    </div>
+    <div class="tl" style="margin-bottom:5px">WATERWAYS</div>
+    <div id="presetWrap" class="flex flex-wrap gap-2"></div>
+    <div id="areaMsg" class="tl" style="margin-top:10px;color:var(--amber);min-height:12px"></div>
+  </div>
+</div>
+
+<!-- PILOT CONSOLE -->
+<!-- FIVE-LINE DELIVERY REQUEST -->
+<!-- HALO-DOCKED HUD: pilot/deliver flows live under the compass, over dead sky, never on water -->
+<div id="threatHud" class="absolute z-[1360]" style="display:none;top:auto;bottom:180px;left:50%;transform:translateX(-50%);text-align:center;width:230px;pointer-events:none;">
+  <div id="thState" class="tv" style="font-size:12px;letter-spacing:3px;color:#ff2e2e"></div>
+  <div class="flex gap-3 justify-center" style="margin-top:2px">
+    <div><div class="tl" style="color:rgba(25,230,200,.5)">HULL</div><div id="thHull" class="tv" style="font-size:11px">100</div></div>
+    <div><div class="tl" style="color:rgba(25,230,200,.5)">NOISE</div><div id="thNoise" class="tv" style="font-size:11px">—</div></div>
+    <div><div class="tl" style="color:rgba(25,230,200,.5)">BEAST</div><div id="thBhp" class="tv" style="font-size:11px">100%</div></div>
+  </div>
+  <div class="flex gap-2 justify-center" style="margin-top:6px;pointer-events:auto">
+    <button id="bBait" class="achip" style="padding:6px 12px">BAIT</button>
+    <button id="bHarpoon" class="abtn" style="padding:6px 14px">HARPOON</button>
+  </div>
+</div>
+
+<div id="dlReadout" class="absolute z-[1350] pointer-events-none" style="display:none;top:150px;left:50%;transform:translateX(-50%);text-align:center;">
+  <div class="tl" style="color:rgba(255,210,63,.75);letter-spacing:3px;">DELIVERY</div>
+  <div id="dlRoPay" class="tv" style="font-size:14px;letter-spacing:2px;color:#ffd23f;text-shadow:0 0 10px rgba(255,210,63,.5)">MEDICAL</div>
+  <div id="dlRoDZ" class="tv" style="font-size:10px;letter-spacing:1px;">TAP MAP FOR DROP ZONE</div>
+  <div id="dlRoHint" class="tl" style="color:rgba(25,230,200,.45);margin-top:1px"></div>
+</div>
+
+<div id="hud" class="absolute z-[1400]" style="display:none;top:118px;left:50%;transform:translateX(-50%);width:min(92vw,430px);pointer-events:auto;">
+  <div style="border:1px solid rgba(25,230,200,.4);background:rgba(4,10,18,.72);backdrop-filter:blur(7px);border-radius:12px;padding:8px 10px;">
+    <div class="flex items-center gap-2">
+      <div id="hudTag" class="tl" style="color:#a5f3fc;white-space:nowrap"></div>
+      <input id="hudInput" class="afield" style="flex:1;padding:6px 8px;font-size:11px" placeholder=""/>
+      <button id="hudGo" class="abtn" style="padding:6px 10px;white-space:nowrap">GO</button>
+      <button id="hudX" class="achip" style="padding:5px 7px">✕</button>
+    </div>
+    <div id="hudRow2" class="flex items-center gap-2" style="margin-top:7px;flex-wrap:wrap;"></div>
+    <div id="hudMsg" class="tl" style="margin-top:5px;min-height:11px;color:rgba(25,230,200,.6)"></div>
+  </div>
+</div>
+
+<div id="survey">
+  <div class="panel">
+    <div class="flex items-center gap-2 mb-3">
+      <div class="w-2 h-2 rounded-full animate-pulse" style="background:var(--teal)"></div>
+      <div class="text-[11px] font-bold uppercase" style="color:#a5f3fc;letter-spacing:3px;">Hydrographic Survey</div>
+    </div>
+    <div id="surveyStatus" class="text-[10px] mb-3" style="color:rgba(25,230,200,.75);letter-spacing:1px;">Contacting survey network…</div>
+    <div class="w-full h-2" style="background:rgba(25,230,200,.12)"><div id="surveyBar" class="h-2" style="width:5%;background:var(--teal);transition:width .2s"></div></div>
+    <div id="surveyNote" class="text-[8px] mt-3" style="color:rgba(25,230,200,.4);letter-spacing:1px;">Long-press map = pin · tap = course · HOP = jump barriers · AREA = go elsewhere</div>
+  </div>
+</div>
+
+<script>
+function loadJS(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.crossOrigin='';s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+async function ensureLeaflet(){if(window.L)return;const cdns=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.js','https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'];for(const c of cdns){try{await loadJS(c);if(window.L)return;}catch(e){}}throw new Error('leaflet-load-failed');}
+window.addEventListener('load',async()=>{try{await ensureLeaflet();BOOT();}catch(e){document.getElementById('surveyStatus').innerHTML='<span style="color:#ff2e2e">Map engine failed to load.</span>';document.getElementById('surveyNote').textContent='Network to unpkg/jsdelivr is blocked in this preview. Open the file directly in a browser.';}});
+</script>
+
+<script>
+let MAP;
+function BOOT(){
+
+/* CONFIG (mutable so we can relocate) */
+let BB={s:35.9500,w:-87.9800,n:35.9980,e:-87.9250};
+let LAT0=(BB.s+BB.n)/2;
+const MPD_LAT=111320; let MPD_LNG=111320*Math.cos(LAT0*Math.PI/180);
+const MAXD=45, DRAFT=2.6, SHOAL=8, DEPTH_K=0.32, SPAN=0.048;
+const DEFAULT={lat:36.1616,lng:-86.7697}; // Cumberland River, Nashville — real navigable water (verified working)
+let SPAWN={lat:DEFAULT.lat,lng:DEFAULT.lng};
+
+/* MAPS */
+MAP=L.map('map',{zoomControl:false,keyboard:false,scrollWheelZoom:true,preferCanvas:true,zoomAnimation:false,minZoom:12,maxZoom:18,inertia:false}).setView([SPAWN.lat,SPAWN.lng],16);
+MAP.dragging.disable(); // enabled only in browse mode
+const droneLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,updateWhenZooming:false,keepBuffer:5});
+const schemLayer=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,updateWhenZooming:false,keepBuffer:5});
+droneLayer.addTo(MAP); let mode='drone';
+const MINI=L.map('minimap',{zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false,keyboard:false,attributionControl:false,zoomAnimation:false,inertia:false}).setView([SPAWN.lat,SPAWN.lng],14);
+const miniDrone=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19}).addTo(MINI);
+const miniSchem=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19});
+
+/* GEOMETRY */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const deltaAngle=(a,b)=>{let d=b-a;while(d<-180)d+=360;while(d>180)d-=360;return d;};
+function pip(lat,lng,ring){let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const yi=ring[i][0],xi=ring[i][1],yj=ring[j][0],xj=ring[j][1];const hit=((yi>lat)!==(yj>lat))&&(lng<(xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi);if(hit)inside=!inside;}return inside;}
+function distToRingM(lat,lng,ring){let best=Infinity;const px=lng*MPD_LNG,py=lat*MPD_LAT;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const ax=ring[j][1]*MPD_LNG,ay=ring[j][0]*MPD_LAT,bx=ring[i][1]*MPD_LNG,by=ring[i][0]*MPD_LAT;const vx=bx-ax,vy=by-ay,wx=px-ax,wy=py-ay;const L2=vx*vx+vy*vy||1e-9;let t=(wx*vx+wy*vy)/L2;t=t<0?0:t>1?1:t;const dx=px-(ax+t*vx),dy=py-(ay+t*vy);const d=Math.hypot(dx,dy);if(d<best)best=d;}return best;}
+function ringBBox(ring){let s=90,w=180,n=-90,e=-180;for(const p of ring){if(p[0]<s)s=p[0];if(p[0]>n)n=p[0];if(p[1]<w)w=p[1];if(p[1]>e)e=p[1];}return{s,w,n,e};}
+function bearingTo(la1,ln1,la2,ln2){const dL=(ln2-ln1)*Math.PI/180;const y=Math.sin(dL)*Math.cos(la2*Math.PI/180);const x=Math.cos(la1*Math.PI/180)*Math.sin(la2*Math.PI/180)-Math.sin(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.cos(dL);return(Math.atan2(y,x)*180/Math.PI+360)%360;}
+
+/* WATER SOURCE (streamed as slippy tiles, cached; POLYS = tiles covering current view) */
+let POLYS=[]; let useNodes=false;
+const NODES=[{lat:35.9680,lng:-87.9400,r:0.0016},{lat:35.9698,lng:-87.9428,r:0.0018},{lat:35.9722,lng:-87.9462,r:0.0021},{lat:35.9748,lng:-87.9492,r:0.0030},{lat:35.9774,lng:-87.9528,r:0.0035},{lat:35.9814,lng:-87.9578,r:0.0040},{lat:35.9862,lng:-87.9622,r:0.0042}];
+/* --- tile pyramid: fetch+cache OSM water per map-tile region so coverage streams with the viewport --- */
+const waterTiles=new Map(); const fetching=new Set(); const failedUntil=new Map(); let inflight=0; const MAX_INFLIGHT=6;
+/* persistent tile cache: parsed water polygons survive reloads, so revisited areas load instantly */
+let IDB=null;try{const _rq=indexedDB.open('riverpilot',1);_rq.onupgradeneeded=e=>{e.target.result.createObjectStore('tiles');};_rq.onsuccess=e=>{IDB=e.target.result;};}catch(e){}
+function idbGet(k){return new Promise(res=>{if(!IDB)return res(null);try{const t=IDB.transaction('tiles').objectStore('tiles').get(k);t.onsuccess=()=>res(t.result||null);t.onerror=()=>res(null);}catch(e){res(null);}});}
+function idbPut(k,v){try{if(IDB)IDB.transaction('tiles','readwrite').objectStore('tiles').put(v,k);}catch(e){}}
+function lon2tile(lon,z){return Math.floor((lon+180)/360*Math.pow(2,z));}
+function lat2tile(lat,z){const r=lat*Math.PI/180;return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*Math.pow(2,z));}
+function tile2lon(x,z){return x/Math.pow(2,z)*360-180;}
+function tile2lat(y,z){const n=Math.PI-2*Math.PI*y/Math.pow(2,z);return 180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n)));}
+function tileBBox(x,y,z){return{w:tile2lon(x,z),e:tile2lon(x+1,z),n:tile2lat(y,z),s:tile2lat(y+1,z)};}
+function tilesForBounds(b,z){const x0=lon2tile(b.w,z),x1=lon2tile(b.e,z),y0=lat2tile(b.n,z),y1=lat2tile(b.s,z);const out=[];for(let x=Math.min(x0,x1);x<=Math.max(x0,x1);x++)for(let y=Math.min(y0,y1);y<=Math.max(y0,y1);y++)out.push({x,y});return out;}
+function pickSurveyZoom(b){for(let z=14;z>=10;z--){if(tilesForBounds(b,z).length<=12)return z;}return 10;}
+function finalizeOne(P){const outer=P.outer,holes=P.holes||[];return{outer,holes,bbox:ringBBox(outer),
+  hitOuter:outer,hitHoles:holes, /* FULL-res rings for physics/water test — never decimated */
+  calcOuter:decimate(outer,900),calcHoles:holes.map(h=>decimate(h,300))}; /* decimated only for drawing */}
+/* ---- VECTOR TILES: the shore, precomputed planet-wide (OpenFreeMap / OpenMapTiles) ----
+   Pre-cut, pre-simplified water polygons from a keyless CDN in ~100ms/tile,
+   replacing 2-30s Overpass queries. Overpass remains as automatic fallback. */
+const MVT={ready:false,failed:false,urlTpl:null,VectorTile:null,Pbf:null,initing:null};
+function initMVT(){
+  if(MVT.ready)return Promise.resolve(true);
+  if(MVT.failed)return Promise.resolve(false);
+  if(MVT.initing)return MVT.initing;
+  MVT.initing=(async()=>{try{
+    const[pbfM,vtM]=await Promise.all([
+      import('https://cdn.jsdelivr.net/npm/pbf@4.0.1/+esm'),
+      import('https://cdn.jsdelivr.net/npm/@mapbox/vector-tile@2.0.3/+esm')]);
+    MVT.Pbf=pbfM.default||pbfM.Pbf;MVT.VectorTile=vtM.VectorTile||vtM.default&&vtM.default.VectorTile;
+    const tj=await(await fetch('https://tiles.openfreemap.org/planet',{mode:'cors'})).json();
+    MVT.urlTpl=(tj&&tj.tiles&&tj.tiles[0])||null;
+    MVT.ready=!!(MVT.urlTpl&&MVT.VectorTile&&MVT.Pbf);
+    if(!MVT.ready)MVT.failed=true;
+  }catch(e){MVT.failed=true;}return MVT.ready;})();
+  return MVT.initing;
+}
+function mvtFeatureToPolys(f,x,y,z){
+  const ext=f.extent||4096;const geo=f.loadGeometry();
+  const toLL=p=>[tile2lat(y+p.y/ext,z),tile2lon(x+p.x/ext,z)];
+  const sa=r=>{let a=0;for(let i=0,j=r.length-1;i<r.length;j=i++){a+=r[j].x*r[i].y-r[i].x*r[j].y;}return a/2;};
+  const areas=geo.map(sa);
+  // MVT v2: exterior rings wind CW (y-down) => positive shoelace here. Robustness: if no ring
+  // is positive, the encoder used the opposite convention — flip.
+  const flip=!areas.some(a=>a>=0);
+  const polys=[];let cur=null;
+  for(let i=0;i<geo.length;i++){
+    const ring=geo[i].map(toLL);
+    if(ring.length&&(ring[0][0]!==ring[ring.length-1][0]||ring[0][1]!==ring[ring.length-1][1]))ring.push([ring[0][0],ring[0][1]]);
+    const outerRing=flip?areas[i]<0:areas[i]>=0;
+    if(outerRing){cur={outer:ring,holes:[]};polys.push(cur);}
+    else if(cur){cur.holes.push(ring);}
+  }
+  return polys;
+}
+async function fetchTileMVT(x,y,z){
+  const url=MVT.urlTpl.replace('{z}',z).replace('{x}',x).replace('{y}',y);
+  const r=await fetch(url,{mode:'cors'});if(!r.ok)throw new Error('mvt '+r.status);
+  const vt=new MVT.VectorTile(new MVT.Pbf(await r.arrayBuffer()));
+  const layer=vt.layers&&vt.layers.water;const out=[];
+  if(layer){for(let i=0;i<layer.length;i++){const f=layer.feature(i);if(f.type!==3)continue;
+    for(const p of mvtFeatureToPolys(f,x,y,z)){if(validRing(p.outer))out.push({outer:p.outer,holes:p.holes.filter(validRing)});}}}
+  return out;
+}
+async function fetchTile(x,y,z){const key=z+'/'+x+'/'+y;if(waterTiles.has(key)||fetching.has(key))return;
+  const fu=failedUntil.get(key);if(fu&&fu>Date.now())return; // recently failed: retry later
+  fetching.add(key);inflight++;
+  let raw=await idbGet(key); // instant if ever surveyed before
+  let failed=false;
+  if(!raw){
+    if(await initMVT()){try{raw=await fetchTileMVT(x,y,z);idbPut(key,raw);}catch(e){raw=null;}}
+    if(!raw){let osm=null;try{osm=await fetchOverpass(tileBBox(x,y,z));}catch(e){}
+      if(osm){try{raw=parseOverpass(osm);}catch(e){raw=[];}idbPut(key,raw);}
+      else{failed=true;}}
+  }
+  fetching.delete(key);inflight--;
+  if(failed){failedUntil.set(key,Date.now()+7000);scheduleResurvey();return;} // do NOT poison as empty — retry in 7s
+  failedUntil.delete(key);
+  waterTiles.set(key,raw.map(finalizeOne));dataDirty=true;scheduleResurvey();}
+function ensureWater(b,z){const need=tilesForBounds(b,z);let combined=[];const toFetch=[];const cLat=(b.s+b.n)/2,cLng=(b.w+b.e)/2;for(const t of need){const key=z+'/'+t.x+'/'+t.y;if(waterTiles.has(key))combined=combined.concat(waterTiles.get(key));else if(!fetching.has(key))toFetch.push(t);}toFetch.sort((a,c)=>{const bb1=tileBBox(a.x,a.y,z),bb2=tileBBox(c.x,c.y,z);const d1=((bb1.s+bb1.n)/2-cLat)**2+((bb1.w+bb1.e)/2-cLng)**2;const d2=((bb2.s+bb2.n)/2-cLat)**2+((bb2.w+bb2.e)/2-cLng)**2;return d1-d2;});for(const t of toFetch){if(inflight>=MAX_INFLIGHT)break;fetchTile(t.x,t.y,z);}return combined;}
+function waterDepthAt(lat,lng){
+  if(useNodes){let best=0;for(const n of NODES){const d=Math.hypot(lat-n.lat,lng-n.lng);if(d<n.r){const ft=(1-d/n.r)*MAXD;if(ft>best)best=ft;}}return best;}
+  let inside=false,cand=null;
+  for(const P of POLYS){const b=P.bbox;if(lat<b.s-1e-4||lat>b.n+1e-4||lng<b.w-1e-4||lng>b.e+1e-4)continue;if(pip(lat,lng,P.hitOuter)){let inHole=false;for(const h of P.hitHoles){if(pip(lat,lng,h)){inHole=true;break;}}if(!inHole){inside=true;cand=P;break;}}}
+  if(!inside||!cand)return 0;
+  let edge=distToRingM(lat,lng,cand.hitOuter);for(const h of cand.hitHoles){const d=distToRingM(lat,lng,h);if(d<edge)edge=d;}
+  return clamp(1.0+edge*DEPTH_K,0,MAXD);
+}
+
+/* OVERPASS */
+function overpassQuery(bb){const bx=`(${bb.s},${bb.w},${bb.n},${bb.e})`;return `[out:json][timeout:25];(way["natural"="water"]${bx};relation["natural"="water"]${bx};way["water"]${bx};relation["water"]${bx};way["waterway"="riverbank"]${bx};relation["waterway"="riverbank"]${bx};);out body;>;out skel qt;`;}
+async function fetchOverpass(bb){const eps=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter'];const q=overpassQuery(bb);for(const ep of eps){try{const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),22000);const r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q),signal:ctrl.signal});clearTimeout(to);if(r.ok){const j=await r.json();if(j&&j.elements)return j;}}catch(e){}}return null;}
+function idsToCoords(ids,nodes){const out=[];for(const id of ids){const n=nodes[id];if(n)out.push(n);}return out;}
+function assembleRings(waysIds){const rings=[];const segs=waysIds.map(a=>a.slice());while(segs.length){let ring=segs.shift();let guard=0;while(ring[0]!==ring[ring.length-1]&&guard++<segs.length+2){let matched=false;for(let i=0;i<segs.length;i++){const s=segs[i];const rE=ring[ring.length-1],rS=ring[0];if(s[0]===rE){ring=ring.concat(s.slice(1));segs.splice(i,1);matched=true;break;}if(s[s.length-1]===rE){ring=ring.concat(s.slice().reverse().slice(1));segs.splice(i,1);matched=true;break;}if(s[s.length-1]===rS){ring=s.slice(0,-1).concat(ring);segs.splice(i,1);matched=true;break;}if(s[0]===rS){ring=s.slice().reverse().slice(0,-1).concat(ring);segs.splice(i,1);matched=true;break;}}if(!matched)break;}rings.push(ring);}return rings;}
+function ringAreaM2(r){let a=0;for(let i=0,j=r.length-1;i<r.length;j=i++){a+=(r[j][1]*MPD_LNG)*(r[i][0]*MPD_LAT)-(r[i][1]*MPD_LNG)*(r[j][0]*MPD_LAT);}return Math.abs(a/2);}
+function validRing(r){if(!r||r.length<4)return false;const a=r[0],b=r[r.length-1];const closed=Math.abs(a[0]-b[0])<1e-7&&Math.abs(a[1]-b[1])<1e-7;if(!closed)return false;return ringAreaM2(r)>400;} // must close and enclose >400 m^2 (drops mis-stitched slivers)
+function parseOverpass(j){const nodes={},waysById={},bodyWays=[],rels=[];for(const el of j.elements){if(el.type==='node')nodes[el.id]=[el.lat,el.lon];}for(const el of j.elements){if(el.type==='way'){waysById[el.id]=el.nodes;if(el.tags)bodyWays.push(el);}else if(el.type==='relation'&&el.tags)rels.push(el);}const polys=[];const usedWayIds=new Set();for(const rel of rels){const outerIds=[],innerIds=[];for(const m of rel.members){if(m.type!=='way'||!waysById[m.ref])continue;(m.role==='inner'?innerIds:outerIds).push(waysById[m.ref]);usedWayIds.add(m.ref);}if(!outerIds.length)continue;const outerRings=assembleRings(outerIds).map(ids=>idsToCoords(ids,nodes)).filter(validRing);const innerRings=assembleRings(innerIds).map(ids=>idsToCoords(ids,nodes)).filter(validRing);for(const o of outerRings){const holes=innerRings.filter(h=>{const c=h[0];return pip(c[0],c[1],o);});polys.push({outer:o,holes});}}for(const w of bodyWays){if(usedWayIds.has(w.id))continue;const ids=w.nodes;if(ids.length>3&&ids[0]===ids[ids.length-1]){const ring=idsToCoords(ids,nodes);if(validRing(ring))polys.push({outer:ring,holes:[]});}}return polys;}
+function decimate(ring,maxN){if(ring.length<=maxN)return ring;const step=Math.ceil(ring.length/maxN);const out=[];for(let i=0;i<ring.length-1;i+=step)out.push(ring[i]);out.push(ring[0]);return out;}
+
+/* DEPTH RASTER */
+const GW=320,GH=320;
+let depthGrid=new Float32Array(GW*GH);
+let gridBB={s:BB.s,w:BB.w,n:BB.n,e:BB.e}; // extent the CURRENT depthGrid represents (decoupled from target BB)
+const depthCanvas=document.createElement('canvas');depthCanvas.width=GW;depthCanvas.height=GH;
+const dcx=depthCanvas.getContext('2d');
+const bankCanvas=document.createElement('canvas');bankCanvas.width=GW;bankCanvas.height=GH;
+const bkx=bankCanvas.getContext('2d'); // shoreline derived from the SAME mask as depth+physics
+function gridLatLng(gx,gy){const lng=gridBB.w+(gx/(GW-1))*(gridBB.e-gridBB.w);const lat=gridBB.n-(gy/(GH-1))*(gridBB.n-gridBB.s);return[lat,lng];}
+function depthRamp(ft){if(ft<=0)return[0,0,0,0];const stops=[[0,[255,46,46]],[0.06,[255,140,60]],[0.14,[255,210,63]],[0.30,[25,230,200]],[1,[59,130,246]]];const t=clamp(ft/MAXD,0,1);let a=stops[0],b=stops[stops.length-1];for(let i=0;i<stops.length-1;i++){if(t>=stops[i][0]&&t<=stops[i+1][0]){a=stops[i];b=stops[i+1];break;}}const f=(t-a[0])/((b[0]-a[0])||1);const c=k=>Math.round(a[1][k]+(b[1][k]-a[1][k])*f);
+  // ALPHA fades toward shore: shallow margin is translucent (bottom shows through) -> hazy edge,
+  // deep water is opaque. This dissolves the shoreline into a variable-depth transition.
+  const shoalFrac=clamp(ft/9,0,1); // 0 at land, 1 by ~9ft
+  const alpha=Math.round(20+shoalFrac*shoalFrac*165); // ease-in: very soft at the very edge
+  return[c(0),c(1),c(2),alpha];}
+/* ============ PRECOMPUTED SHORE FIELD (mask fill + exact distance transform) ============
+   Old: 50k cells x every polygon edge = 20-200M ops per rebuild (GPU/worker/main variants).
+   New: (1) the BROWSER natively fills the water polygons into a 224x224 mask (~1ms),
+        (2) a Felzenszwalb exact Euclidean Distance Transform gives distance-to-shore for
+            ALL cells in O(n) (~12ms, proven exact to 5e-14 m vs brute force),
+        (3) colorize. Total ~15ms, synchronous, zero async races, no worker, no GPU. */
+const maskCanvas=document.createElement('canvas');maskCanvas.width=GW;maskCanvas.height=GH;
+const mcx=maskCanvas.getContext('2d',{willReadFrequently:true});
+const EDT_INF=1e12;
+const edtV=new Int32Array(Math.max(GW,GH)), edtZ=new Float64Array(Math.max(GW,GH)+1);
+const edtF=new Float64Array(Math.max(GW,GH)), edtD=new Float64Array(Math.max(GW,GH));
+function edt1d(f,d,n,step){
+  let k=0; edtV[0]=0; edtZ[0]=-1e20; edtZ[1]=1e20;
+  for(let q=1;q<n;q++){
+    let s;
+    while(true){const p=edtV[k];s=((f[q]-f[p])/((q-p)*step)+(p+q)*step)/2;if(s>edtZ[k])break;k--;}
+    k++; edtV[k]=q; edtZ[k]=s; edtZ[k+1]=1e20;
+  }
+  k=0;
+  for(let q=0;q<n;q++){const x=q*step;while(edtZ[k+1]<x)k++;const dx=x-edtV[k]*step;d[q]=dx*dx+f[edtV[k]];}
+}
+const edtG=new Float64Array(GW*GH);
+function buildRasterFor(targetBB,token,showProg,onDone){
+  if(token!==rasterToken)return;
+  // 1) native polygon fill -> water mask. Each polygon fills SEPARATELY (union semantics):
+  // overlapping tile buffers paint white-on-white instead of cancelling under a shared
+  // evenodd pass (that cancellation was the dark land band along every tile boundary).
+  // Holes still punch correctly via evenodd WITHIN each polygon.
+  mcx.clearRect(0,0,GW,GH);
+  const X=lng=>(lng-targetBB.w)/(targetBB.e-targetBB.w)*(GW-1);
+  const Y=lat=>(targetBB.n-lat)/(targetBB.n-targetBB.s)*(GH-1);
+  mcx.fillStyle='#fff';
+  for(const P of POLYS){
+    const path=new Path2D();
+    for(const ring of [P.hitOuter,...P.hitHoles]){if(ring.length<3)continue;path.moveTo(X(ring[0][1]),Y(ring[0][0]));for(let i=1;i<ring.length;i++)path.lineTo(X(ring[i][1]),Y(ring[i][0]));path.closePath();}
+    mcx.fill(path,'evenodd');
+  }
+  const mdata=mcx.getImageData(0,0,GW,GH).data;
+  const wmask=new Uint8Array(GW*GH);
+  for(let i=0;i<GW*GH;i++)wmask[i]=(mdata[i*4+3]>127)?1:0;
+  // 1b) SEAM BRIDGE: vector tiles are clipped per tile; a hairline mask gap along a tile
+  // boundary reads as LAND and the EDT ramps a false shoal +-140m around it. Along each
+  // survey-tile edge (+-1 cell), if water exists within 2 cells on BOTH sides, fill the seam.
+  // Proven: seals gaps, never bulges a real shoreline.
+  {
+    const SZb=pickSurveyZoom(targetBB);
+    const gx0=lon2tile(targetBB.w,SZb),gx1=lon2tile(targetBB.e,SZb);
+    for(let tx=Math.min(gx0,gx1)+1;tx<=Math.max(gx0,gx1);tx++){
+      const c=Math.round((tile2lon(tx,SZb)-targetBB.w)/(targetBB.e-targetBB.w)*(GW-1));
+      if(c<2||c>GW-3)continue;
+      for(let y=0;y<GH;y++){const o=y*GW;
+        const L=wmask[o+c-2]||wmask[o+c-1], R=wmask[o+c+1]||wmask[o+c+2];
+        if(L&&R){wmask[o+c-1]=1;wmask[o+c]=1;wmask[o+c+1]=1;}}
+    }
+    const gy0=lat2tile(targetBB.n,SZb),gy1=lat2tile(targetBB.s,SZb);
+    for(let ty=Math.min(gy0,gy1)+1;ty<=Math.max(gy0,gy1);ty++){
+      const r=Math.round((targetBB.n-tile2lat(ty,SZb))/(targetBB.n-targetBB.s)*(GH-1));
+      if(r<2||r>GH-3)continue;
+      for(let x=0;x<GW;x++){
+        const U=wmask[(r-2)*GW+x]||wmask[(r-1)*GW+x], D=wmask[(r+1)*GW+x]||wmask[(r+2)*GW+x];
+        if(U&&D){wmask[(r-1)*GW+x]=1;wmask[r*GW+x]=1;wmask[(r+1)*GW+x]=1;}}
+    }
+  }
+  // 2) exact anisotropic EDT: distance from each water cell to nearest land cell (meters)
+  const cLat=(targetBB.s+targetBB.n)/2;
+  const dxM=((targetBB.e-targetBB.w)*111320*Math.cos(cLat*Math.PI/180))/(GW-1);
+  const dyM=((targetBB.n-targetBB.s)*111320)/(GH-1);
+  for(let i=0;i<GW*GH;i++)edtG[i]=wmask[i]?EDT_INF:0;
+  for(let y=0;y<GH;y++){const off=y*GW;for(let x=0;x<GW;x++)edtF[x]=edtG[off+x];edt1d(edtF,edtD,GW,dxM);for(let x=0;x<GW;x++)edtG[off+x]=edtD[x];}
+  for(let x=0;x<GW;x++){for(let y=0;y<GH;y++)edtF[y]=edtG[y*GW+x];edt1d(edtF,edtD,GH,dyM);for(let y=0;y<GH;y++)edtG[y*GW+x]=edtD[y];}
+  // 3) depth + colorize + commit
+  // 3) depth -> color (alpha-faded shallows) + commit. No bank line: the edge is the depth ramp.
+  const img=dcx.createImageData(GW,GH);const data=img.data;
+  for(let i=0;i<GW*GH;i++){const ft=wmask[i]?clamp(1.0+Math.sqrt(edtG[i])*DEPTH_K,0,MAXD):0;depthGrid[i]=ft;const col=depthRamp(ft);const o=i*4;data[o]=col[0];data[o+1]=col[1];data[o+2]=col[2];data[o+3]=col[3];}
+  dcx.putImageData(img,0,0);
+  gridBB={s:targetBB.s,w:targetBB.w,n:targetBB.n,e:targetBB.e};
+  buildDrownedGrid();
+  markWorldDirty();
+  if(showProg)surveyBar.style.width='96%';
+  onDone&&onDone();
+}
+function sampleDepth(lat,lng){const fx=clamp((lng-gridBB.w)/(gridBB.e-gridBB.w),0,1)*(GW-1);const fy=clamp((gridBB.n-lat)/(gridBB.n-gridBB.s),0,1)*(GH-1);const x0=Math.floor(fx),y0=Math.floor(fy),x1=Math.min(x0+1,GW-1),y1=Math.min(y0+1,GH-1);const tx=fx-x0,ty=fy-y0;const d00=depthGrid[y0*GW+x0],d10=depthGrid[y0*GW+x1],d01=depthGrid[y1*GW+x0],d11=depthGrid[y1*GW+x1];return (d00*(1-tx)+d10*tx)*(1-ty)+(d01*(1-tx)+d11*tx)*ty;}
+let DS_END={lat:35.9862,lng:-87.9622};
+let dsE=0,dsN=1;
+function computeDownstream(cLat,cLng){DS_END={lat:cLat+SPAN*0.4,lng:cLng+(SPAN/Math.cos(cLat*Math.PI/180))*0.4};dsE=(DS_END.lng-cLng)*MPD_LNG;dsN=(DS_END.lat-cLat)*MPD_LAT;const m=Math.hypot(dsE,dsN)||1;dsE/=m;dsN/=m;}
+const EPS_DEG=0.00010, EPS_M=EPS_DEG*MPD_LAT;
+function depthGradient(lat,lng){const dE=(sampleDepth(lat,lng+EPS_DEG)-sampleDepth(lat,lng-EPS_DEG))/(2*EPS_DEG*MPD_LNG);const dN=(sampleDepth(lat+EPS_DEG,lng)-sampleDepth(lat-EPS_DEG,lng))/(2*EPS_M);return{gE:dE,gN:dN};}
+function flowAt(lat,lng,depthFt){const g=depthGradient(lat,lng);let fe,fn;const gm=Math.hypot(g.gE,g.gN);if(gm<1e-4){fe=dsE;fn=dsN;}else{fe=-g.gN;fn=g.gE;const m=Math.hypot(fe,fn);fe/=m;fn/=m;if(fe*dsE+fn*dsN<0){fe=-fe;fn=-fn;}}
+  // gentle drift only: ramp in above draft, and HARD-CAP at ~8% of boat top speed
+  const gate=clamp((depthFt-(DRAFT+1.5))/8,0,1);
+  const mag=Math.min(CFG.maxSpeed*0.08, 0.0000045*clamp(depthFt/MAXD,0,1))*gate;
+  let dLng=fe/MPD_LNG, dLat=fn/MPD_LAT;const dm=Math.hypot(dLng,dLat)||1;return{dLat:dLat/dm*mag,dLng:dLng/dm*mag,speedKts:mag*100000};}
+function findNearestWater(lat,lng){let best=null,bd=1e9;for(let gy=0;gy<GH;gy+=2)for(let gx=0;gx<GW;gx+=2){if(depthGrid[gy*GW+gx]>DRAFT+2){const ll=gridLatLng(gx,gy);const d=(ll[0]-lat)**2+(ll[1]-lng)**2;if(d<bd){bd=d;best={lat:ll[0],lng:ll[1],ft:depthGrid[gy*GW+gx]};}}}return best;}
+let rasterToken=0;
+
+/* MINIMAP OVERLAYS (main map drawn on canvas instead) */
+let miniShore=L.layerGroup(),miniDepthOverlay=null,depthOn=true;
+function rebuildMiniOverlays(){
+  miniShore.clearLayers();if(miniDepthOverlay){MINI.removeLayer(miniDepthOverlay);miniDepthOverlay=null;}
+  if(!useNodes){for(const P of POLYS){L.polygon([P.outer].concat(P.holes),{color:'#19e6c8',weight:1,opacity:.6,fill:false,interactive:false}).addTo(miniShore);}}
+  else{for(const n of NODES)L.circle([n.lat,n.lng],{radius:n.r*111000,color:'#19e6c8',weight:1,dashArray:'4 8',fill:false,interactive:false}).addTo(miniShore);}
+  miniShore.addTo(MINI);
+  const url=depthCanvas.toDataURL();
+  miniDepthOverlay=L.imageOverlay(url,[[gridBB.s,gridBB.w],[gridBB.n,gridBB.e]],{opacity:.55,interactive:false});
+  if(depthOn)miniDepthOverlay.addTo(MINI);
+}
+
+/* BOAT */
+const boatIcon=L.divIcon({className:'custom-div-icon',html:`<div id="boatC" style="transform:rotate(0deg);transition:transform .08s linear" class="w-16 h-16 flex items-center justify-center relative"><div id="boatW" class="absolute -bottom-6 w-6 h-10 wake blur-[2px] rounded-t-full opacity-0 transition-opacity duration-300"></div><svg viewBox="0 0 24 40" class="w-5 h-8" style="color:#19e6c8;filter:drop-shadow(0 0 8px rgba(25,230,200,1))"><path fill="currentColor" d="M4 10 L12 2 L20 10 L20 36 L4 36 Z"/><rect x="7" y="14" width="10" height="14" fill="#04120f" opacity=".9"/></svg></div>`,iconSize:[64,64],iconAnchor:[32,32]});
+const boat=L.marker([SPAWN.lat,SPAWN.lng],{icon:boatIcon,zIndexOffset:1000}).addTo(MAP);
+const miniBoat=L.marker([SPAWN.lat,SPAWN.lng],{icon:L.divIcon({className:'custom-div-icon',html:`<div id="miniBoatC" style="transform:rotate(0deg)" class="w-3 h-3"><svg viewBox="0 0 24 24" style="color:#19e6c8;filter:drop-shadow(0 0 3px #19e6c8)"><path fill="currentColor" d="M12 2L4 20l8-4 8 4z"/></svg></div>`,iconSize:[12,12],iconAnchor:[6,6]}),zIndexOffset:1000}).addTo(MINI);
+
+let S={lat:SPAWN.lat,lng:SPAWN.lng,heading:0,speed:0,stuck:false};
+const CFG={maxSpeed:0.00006,accel:0.0000009,turn:3.6,dragLin:0.008,dragQuad:1100};
+let flowSmooth={dLat:0,dLng:0,speedKts:0}; // exponentially-smoothed current (no snapping on raster rebuild)
+/* ===== THE HELLBENDER — emergent apex predator, spawns in the deepest water, hunts by SOUND =====
+   Validated loop: noise (prop + active sonar + hull scrape) near deep water raises its awareness;
+   go quiet and still (dead-stick) and it loses you; panic, flee, or scrape near it and you're eaten. */
+var BEAST={on:false,alive:false,lat:0,lng:0,aware:0,dist:999,surf:0,eyeT:0,lungeT:0,downT:0,
+  hp:100,phase:'stalk',vulnT:0,baitLat:0,baitLng:0,baitActive:false,baitT:0,strikeReady:true,strikeCd:0,wounded:false};
+let noiseNow=0, encounters=0, survived=0, hull=100, lifeOn=true;
+/* ===== THE RUN: fuel is the master clock. You always burn it; saving people is the only
+   way to refuel. Speed burns faster AND wakes the beast. Every trip is a real decision. */
+var RUN={fuel:70, active:true, over:false, reserveUsed:false, goal:3, watch:1, watchSaved:0, score:0, lastScore:0, paused:false};
+function addScore(pts,mult){const g=Math.round(pts*(mult||1));RUN.score+=g;RUN.lastScore=performance.now();return g;}
+const FUEL_MAX=100, IDLE_BURN=0.010, MOVE_BURN=0.055, RESCUE_REFUEL=34;
+function beastToggle(v){BEAST.on=v;if(!v){BEAST.alive=false;}}
+function findDeepSpot(nearLat,nearLng,minFt){let best=null,bd=-1;for(let gy=0;gy<GH;gy+=3)for(let gx=0;gx<GW;gx+=3){const d=depthGrid[gy*GW+gx];if(d>minFt){const ll=gridLatLng(gx,gy);const dist=Math.hypot((ll[0]-nearLat)*MPD_LAT,(ll[1]-nearLng)*MPD_LNG);if(dist>150&&dist<420&&d>bd){bd=d;best={lat:ll[0],lng:ll[1]};}}}return best;}
+
+/* PINS */
+let pins=[];
+const pinIcon=L.divIcon({className:'custom-div-icon',html:`<div style="transform:translateY(-2px)"><svg viewBox="0 0 24 24" width="22" height="22" style="color:#ffd23f;filter:drop-shadow(0 0 5px rgba(255,210,63,.9))"><path fill="currentColor" d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7z"/><circle cx="12" cy="9" r="2.4" fill="#04120f"/></svg></div>`,iconSize:[22,22],iconAnchor:[11,22]});
+const miniPinIcon=L.divIcon({className:'custom-div-icon',html:`<div class="w-1.5 h-1.5" style="background:#ffd23f;box-shadow:0 0 5px #ffd23f"></div>`,iconSize:[6,6],iconAnchor:[3,3]});
+function addPin(ll){const ft=sampleDepth(ll.lat,ll.lng);const id=pins.length+1;const m=L.marker([ll.lat,ll.lng],{icon:pinIcon}).addTo(MAP);const mm=L.marker([ll.lat,ll.lng],{icon:miniPinIcon,interactive:false}).addTo(MINI);m.on('click',(e)=>{L.DomEvent.stop(e);setWaypoint({lat:ll.lat,lng:ll.lng});});pins.push({lat:ll.lat,lng:ll.lng,ft,id,m,mm});document.getElementById('pinCount').textContent=pins.length;if(navigator.vibrate)navigator.vibrate(30);}
+function clearPins(){pins.forEach(p=>{MAP.removeLayer(p.m);MINI.removeLayer(p.mm);});pins=[];document.getElementById('pinCount').textContent='0';}
+
+/* WAYPOINT */
+let navTarget=null,autopilot=false;
+const destIcon=L.divIcon({className:'custom-div-icon',html:`<div class="relative w-8 h-8 flex items-center justify-center"><div class="destRing absolute w-8 h-8 rounded-full" style="border:2px solid var(--amber)"></div><div class="w-2 h-2 rounded-full" style="background:var(--amber);box-shadow:0 0 10px var(--amber)"></div></div>`,iconSize:[32,32],iconAnchor:[16,16]});
+const miniDestIcon=L.divIcon({className:'custom-div-icon',html:`<div class="w-2 h-2 rounded-full" style="background:var(--amber);box-shadow:0 0 6px var(--amber)"></div>`,iconSize:[8,8],iconAnchor:[4,4]});
+let destMarker=null,miniDestMarker=null;
+let navLine=L.polyline([],{color:'#ffd23f',dashArray:'4 8',weight:1.5,opacity:.6,interactive:false});
+let miniNavLine=L.polyline([],{color:'#ffd23f',dashArray:'3 6',weight:1.5,opacity:.7,interactive:false});
+function setWaypoint(ll){let t={lat:ll.lat,lng:ll.lng};if(sampleDepth(t.lat,t.lng)<DRAFT){const nw=findNearestWater(t.lat,t.lng);if(nw)t={lat:nw.lat,lng:nw.lng};}navTarget=t;autopilot=true;if(destMarker)destMarker.setLatLng([t.lat,t.lng]);else destMarker=L.marker([t.lat,t.lng],{icon:destIcon,interactive:false}).addTo(MAP);if(miniDestMarker)miniDestMarker.setLatLng([t.lat,t.lng]);else miniDestMarker=L.marker([t.lat,t.lng],{icon:miniDestIcon,interactive:false}).addTo(MINI);navLine.addTo(MAP);miniNavLine.addTo(MINI);pilotReset();syncPilotBtn();if(navigator.vibrate)navigator.vibrate(15);}
+function clearWaypoint(){navTarget=null;autopilot=false;if(PILOT){PILOT.rays.length=0;PILOT.chosen=null;}if(destMarker){MAP.removeLayer(destMarker);destMarker=null;}if(miniDestMarker){MINI.removeLayer(miniDestMarker);miniDestMarker=null;}navLine.remove();miniNavLine.remove();syncPilotBtn();}
+
+/* HOP: jump the boat over bridges/roads/barriers to water on the far side */
+function hopTo(ll){let t={lat:ll.lat,lng:ll.lng};if(sampleDepth(t.lat,t.lng)<DRAFT){const nw=findNearestWater(t.lat,t.lng);if(nw)t=nw;}S.lat=t.lat;S.lng=t.lng;S.speed=0;boat.setLatLng([S.lat,S.lng]);miniBoat.setLatLng([S.lat,S.lng]);MAP.setView([S.lat,S.lng],MAP.getZoom(),{animate:false});tSts.textContent='PORTAGE';tSts.className='tv';if(navigator.vibrate)navigator.vibrate([20,30,20]);}
+
+/* ===== AUTONOMOUS PILOT: navigates by soundings, portages sealed barriers =====
+   Feeler rays march the depth field around the bearing-to-target; the pilot steers down
+   the best-scoring sounding (clearance x alignment + deep-water preference). A progress
+   watchdog (or a fully blocked fan) triggers a PORTAGE: march the target line, land in
+   the first good water beyond the barrier. Validated in simulation: sealed dam -> exactly
+   1 hop; gapped wall -> steered around, 0 hops; open water -> straight. */
+var PILOT={rays:[],chosen:null,trail:[],msg:'',msgUntil:0,lastProgT:0,lastProgD:1e9,coolT:0,hopFx:null};
+function pilotSay(m,ms){PILOT.msg=m;PILOT.msgUntil=performance.now()+(ms||1500);}
+function pAdv(lat,lng,brg,dM){const r=(90-brg)*Math.PI/180;return{lat:lat+Math.sin(r)*dM/MPD_LAT,lng:lng+Math.cos(r)*dM/MPD_LNG};}
+function cellMeters(){return (gridBB.n-gridBB.s)*MPD_LAT/GH;}
+function pilotReset(){PILOT.rays.length=0;PILOT.chosen=null;PILOT.lastProgT=performance.now();PILOT.lastProgD=1e9;}
+function pilotThink(distM){
+  const brg=bearingTo(S.lat,S.lng,navTarget.lat,navTarget.lng);
+  const cm=cellMeters();
+  const look=clamp(distM,40,Math.max(140,cm*40));
+  const step=Math.max(6,cm*0.9);
+  const K=15,SPAN=160;
+  PILOT.rays.length=0;let best=null;
+  for(let k=0;k<K;k++){
+    const off=-SPAN/2+SPAN*(k/(K-1));
+    const hdg=(brg+off+360)%360;
+    let clear=0,depSum=0,n=0,p={lat:S.lat,lng:S.lng};
+    for(let d=step;d<=look;d+=step){p=pAdv(S.lat,S.lng,hdg,d);const dep=sampleDepth(p.lat,p.lng);if(dep<=DRAFT+0.5)break;clear=d;depSum+=Math.min(dep,20);n++;}
+    const align=0.5+0.5*Math.cos(off*Math.PI/180);
+    const score=clear*align+(n?depSum/n:0)*2.0;
+    const ray={hdg,off,clear,frac:clear/look,end:p,score};
+    PILOT.rays.push(ray);
+    if(!best||score>best.score)best=ray;
+  }
+  if(best&&best.clear>cm*2.0){PILOT.chosen={hdg:best.hdg,thrust:clamp(best.clear/look,0.3,1)*clamp(distM/60,0.4,1)};}
+  else{PILOT.chosen=null;pilotPortage();}
+}
+function pilotPortage(){
+  if(!navTarget)return false;const now=performance.now();if(now<PILOT.coolT)return false;
+  const cm=cellMeters();const step=Math.max(6,cm);
+  const distM=Math.hypot((navTarget.lat-S.lat)*MPD_LAT,(navTarget.lng-S.lng)*MPD_LNG);
+  const maxHop=Math.min(distM+30,Math.max(320,cm*70));
+  const b0=bearingTo(S.lat,S.lng,navTarget.lat,navTarget.lng);
+  for(const brg of [b0,(b0+22)%360,(b0+338)%360]){
+    let seenLand=false;
+    for(let d=step;d<=maxHop;d+=step){
+      const p=pAdv(S.lat,S.lng,brg,d);const dep=sampleDepth(p.lat,p.lng);
+      if(dep<=DRAFT)seenLand=true;
+      else if(seenLand&&dep>DRAFT+1.2){doPilotHop(p);return true;}
+    }
+  }
+  PILOT.coolT=now+3800;pilotSay('NO PASSAGE',2200);return false;
+}
+function doPilotHop(p){
+  PILOT.hopFx={a:{lat:S.lat,lng:S.lng},b:{lat:p.lat,lng:p.lng},t0:performance.now()};
+  S.lat=p.lat;S.lng=p.lng;S.speed*=0.25;
+  boat.setLatLng([S.lat,S.lng]);miniBoat.setLatLng([S.lat,S.lng]);
+  PILOT.coolT=performance.now()+3000;pilotReset();pilotSay('PORTAGE',1600);speakCall('PORTAGE');
+  if(navigator.vibrate)navigator.vibrate([25,40,25]);
+}
+
+/* ===== THE DROWNED GRID — the intersection layer =====
+   Submerged TVA structures rest at the deepest cells: drowned churches, switchyards, mill
+   towns. Each co-locates REWARD (salvage + the deepest water), DANGER (the beast dens here),
+   and OBSCURED VISION (their acoustic clutter hides the beast's tell). One place forces all
+   three of the game's patterns at once — so mastering any single one never trivializes a run. */
+/* ===== SUB-SURFACE CONTACTS — the renewed operational surface =====
+   Everything below the water is a CONTACT with a DEPTH. Sonar reveals contacts (clarity drops
+   with range and depth — the deep is murky). Reveals FADE, so you ping deliberately. The depth
+   of a contact tells you what it is and which verb to use: shallow = dredge/reach it; deep =
+   the beast's water. This makes the third dimension visible and gives every tool a referent. */
+var CONTACTS=[]; // {kind,lat,lng,depth,reveal,ref} ref points to source object (site/mission/beast)
+var GRID={sites:[], built:false, lastKey:''}; // drowned-grid state (declared here so contact fns can read it)
+let lastPingT=0, pingSweep=0;
+function classifyDepth(ft){return ft<3?'surface':ft<22?'shallow':'deep';}
+function sonarPing(){
+  const now=performance.now();lastPingT=now;pingSweep=0;
+  const range=sonarOn?300:200;
+  // reveal drowned-grid treasures with their sounded depth
+  if(GRID.built)for(const s of GRID.sites){if(!s.salvage)continue;const d=Math.hypot((s.lat-S.lat)*MPD_LAT,(s.lng-S.lng)*MPD_LNG);if(d<=range){revealContact('treasure',s.lat,s.lng,s.depth,clamp(1-d/range,0.2,1),s);}}
+  // reveal missions
+  for(const m of LIFE.missions){if(m.done)continue;const d=Math.hypot((m.lat-S.lat)*MPD_LAT,(m.lng-S.lng)*MPD_LNG);if(d<=range)revealContact(m.kind==='rescue'?'swimmer':'supply',m.lat,m.lng,0,clamp(1-d/range,0.2,1),m);}
+  // reveal the beast — but DEEP + murky (low clarity), the tense unknown
+  if(BEAST.on&&BEAST.alive){const d=Math.hypot((BEAST.lat-S.lat)*MPD_LAT,(BEAST.lng-S.lng)*MPD_LNG);if(d<=range){const clar=clamp(1-d/range,0.2,1)*0.5;revealContact('beast',BEAST.lat,BEAST.lng,38,clar,BEAST);}}
+  // ping wakes the beast (loud) — the cost of seeing
+  if(BEAST.on&&BEAST.alive)BEAST.aware=clamp(BEAST.aware+0.12,0,1.3);
+  if(navigator.vibrate)navigator.vibrate(8);
+}
+function revealContact(kind,lat,lng,depth,clarity,ref){
+  let c=CONTACTS.find(k=>k.ref===ref);
+  if(c){c.lat=lat;c.lng=lng;c.depth=depth;c.reveal=1;c.clarity=clarity;}
+  else CONTACTS.push({kind,lat,lng,depth,reveal:1,clarity,ref});
+}
+function updateContacts(){
+  for(const c of CONTACTS){c.reveal=clamp(c.reveal-0.006,0,1); // fade to murk over ~2.8s
+    if(c.ref&&c.ref.lat!=null){c.lat=c.ref.lat;c.lng=c.ref.lng;}} // track moving refs (beast)
+  CONTACTS=CONTACTS.filter(c=>c.reveal>0.02&&!(c.ref&&c.ref.done)&&!(c.ref&&c.ref.salvage===false&&c.kind==='treasure'));
+}
+function verbFor(c){
+  if(c.kind==='swimmer')return{v:'RESCUE',act:()=>{if(c.ref)setWaypoint({lat:c.lat,lng:c.lng});}};
+  if(c.kind==='supply')return{v:'DELIVER',act:()=>{if(c.ref)setWaypoint({lat:c.lat,lng:c.lng});}};
+  if(c.kind==='beast')return c.depth<28?{v:'HARPOON',act:beastHarpoon}:{v:'BAIT',act:dropBait};
+  if(c.depth<22)return{v:'DREDGE',act:()=>setWaypoint({lat:c.lat,lng:c.lng})}; // reach shallow treasure
+  return{v:'DIVE',act:()=>setWaypoint({lat:c.lat,lng:c.lng})}; // commit to deep treasure
+}
+function contactAtPoint(px,py){let best=null,bd=26;for(const c of CONTACTS){if(c.reveal<0.2)continue;const p=MAP.latLngToContainerPoint([c.lat,c.lng]);const d=Math.hypot(p.x-px,p.y-py);if(d<bd){bd=d;best=c;}}return best;}
+function drawContacts(){
+  const now=performance.now();
+  // sonar sweep pulse from the boat when pinging
+  if(now-lastPingT<900){const t=(now-lastPingT)/900;const bp=MAP.latLngToContainerPoint([S.lat,S.lng]);const R=(sonarOn?300:200);const rp=t*R*0.6;
+    octx.save();octx.globalAlpha=(1-t)*0.4;octx.strokeStyle='#19e6c8';octx.lineWidth=1.5;octx.beginPath();octx.arc(bp.x,bp.y,rp,0,7);octx.stroke();octx.restore();}
+  for(const c of CONTACTS){const p=MAP.latLngToContainerPoint([c.lat,c.lng]);const a=c.reveal*clamp(c.clarity+0.2,0,1);
+    const cls=classifyDepth(c.depth);
+    const col=c.kind==='beast'?'#ff2e2e':c.kind==='swimmer'?'#ff4d6d':c.kind==='supply'?'#ffd23f':cls==='deep'?'#7db8ff':'#7dffd2';
+    octx.save();octx.globalAlpha=a;
+    const dr=6+c.depth*0.28;octx.strokeStyle=col;octx.lineWidth=1.3;octx.setLineDash(cls==='deep'?[3,3]:[]);octx.beginPath();octx.arc(p.x,p.y,dr,0,7);octx.stroke();octx.setLineDash([]);
+    octx.fillStyle=col;octx.shadowColor=col;octx.shadowBlur=6;octx.beginPath();octx.arc(p.x,p.y,2.4,0,7);octx.fill();octx.shadowBlur=0;
+    if(c.reveal>0.5&&c.depth>2){octx.globalAlpha=a*0.9;octx.fillStyle=col;octx.font='700 8px IBM Plex Mono';octx.textAlign='center';octx.fillText('-'+Math.round(c.depth)+'ft',p.x,p.y-dr-3);}
+    octx.restore();}
+  drawSonarColumn();
+}
+/* SIDE-VIEW SONAR COLUMN — a fish-finder strip that SURFACES THE INVISIBLE vertical dimension.
+   The water column below the boat, drawn edge-on: surface at top, seabed at bottom, every nearby
+   contact plotted at its true depth. This is the depth you could never see, made a picture. */
+function drawSonarColumn(){
+  if(!sonarOn&&CONTACTS.length===0)return;
+  const now=performance.now();
+  const H=Math.min(210,octx.canvas.height*0.42), W=30, X=8, Y=(octx.canvas.height-H)/2 - 30;
+  octx.save();
+  // column frame — a slice of water
+  const g=octx.createLinearGradient(0,Y,0,Y+H);g.addColorStop(0,'rgba(30,120,150,.16)');g.addColorStop(1,'rgba(6,20,40,.28)');
+  octx.fillStyle=g;octx.fillRect(X,Y,W,H);
+  octx.strokeStyle='rgba(25,230,200,.35)';octx.lineWidth=1;octx.strokeRect(X,Y,W,H);
+  // depth ticks (0 / 15 / 30 / 45 ft)
+  octx.fillStyle='rgba(25,230,200,.5)';octx.font='6px IBM Plex Mono';octx.textAlign='right';
+  for(const ft of [0,15,30,45]){const yy=Y+clamp(ft/MAXD,0,1)*H;octx.strokeStyle='rgba(25,230,200,.14)';octx.beginPath();octx.moveTo(X,yy);octx.lineTo(X+W,yy);octx.stroke();octx.fillText(ft?ft:'0',X-2,yy+2);}
+  // surface line + boat marker at top
+  octx.fillStyle='#19e6c8';octx.fillRect(X-1,Y-1,W+2,1.5);
+  octx.beginPath();octx.moveTo(X+W/2-3,Y);octx.lineTo(X+W/2+3,Y);octx.lineTo(X+W/2,Y+4);octx.closePath();octx.fill();
+  // seabed depth right under the boat (from the field) — a floor line
+  const bedFt=clamp(sampleDepth(S.lat,S.lng)||0,0,MAXD);const bedY=Y+clamp(bedFt/MAXD,0,1)*H;
+  octx.strokeStyle='rgba(120,90,60,.6)';octx.lineWidth=2;octx.setLineDash([2,2]);octx.beginPath();octx.moveTo(X,bedY);octx.lineTo(X+W,bedY);octx.stroke();octx.setLineDash([]);
+  // contacts plotted by depth, x by bearing-ish spread so multiple don't overlap
+  let i=0;for(const c of CONTACTS){const a=c.reveal*clamp(c.clarity+0.2,0,1);if(a<0.05)continue;
+    const cls=classifyDepth(c.depth);const col=c.kind==='beast'?'#ff2e2e':c.kind==='swimmer'?'#ff4d6d':c.kind==='supply'?'#ffd23f':cls==='deep'?'#7db8ff':'#7dffd2';
+    const cy=Y+clamp(c.depth/MAXD,0,1)*H;const cx=X+W*0.3+ (i%3)*(W*0.2);i++;
+    octx.globalAlpha=a;octx.fillStyle=col;octx.shadowColor=col;octx.shadowBlur=5;
+    // ping-echo blip
+    octx.beginPath();octx.arc(cx,cy,c.kind==='beast'?3.2:2.4,0,7);octx.fill();octx.shadowBlur=0;
+    // faint drop-line to seabed so you read the depth
+    octx.globalAlpha=a*0.3;octx.strokeStyle=col;octx.lineWidth=0.7;octx.beginPath();octx.moveTo(cx,Y);octx.lineTo(cx,cy);octx.stroke();
+  }
+  octx.restore();
+}
+const SITE_KINDS=[{n:'DROWNED CHURCH'},{n:'SWITCHYARD'},{n:'MILL TOWN'},{n:'RAIL TRESTLE'},{n:'LOGGING CAMP'}];
+function buildDrownedGrid(){
+  const key=gridBB.s.toFixed(3)+','+gridBB.w.toFixed(3);if(GRID.lastKey===key)return;GRID.lastKey=key;
+  const cand=[];for(let gy=2;gy<GH-2;gy+=2)for(let gx=2;gx<GW-2;gx+=2){const d=depthGrid[gy*GW+gx];if(d>30)cand.push({gx,gy,d});}
+  cand.sort((a,b)=>b.d-a.d);
+  const sites=[],minCell=GW/9;
+  for(const c of cand){if(sites.every(s=>Math.hypot(s.gx-c.gx,s.gy-c.gy)>=minCell)){const ll=gridLatLng(c.gx,c.gy);const k=SITE_KINDS[(Math.random()*SITE_KINDS.length)|0];sites.push({gx:c.gx,gy:c.gy,lat:ll[0],lng:ll[1],depth:c.d,kind:k,salvage:true,revealed:false});if(sites.length>=3)break;}}
+  GRID.sites=sites;GRID.built=true;
+}
+function nearestSite(lat,lng){let best=null,bd=1e9;for(const s of GRID.sites){const d=Math.hypot((s.lat-lat)*MPD_LAT,(s.lng-lng)*MPD_LNG);if(d<bd){bd=d;best={s,d};}}return best;}
+function tellClarity(lat,lng){const n=nearestSite(lat,lng);if(!n)return 1;return clamp(n.d/90,0.25,1);}
+function drawGrid(){
+  if(!GRID.built)return;const now=performance.now();
+  const near=nearestSite(S.lat,S.lng);
+  for(const s of GRID.sites){const p=MAP.latLngToContainerPoint([s.lat,s.lng]);
+    octx.save();octx.globalAlpha=s.salvage?0.32:0.12;octx.strokeStyle='rgba(130,180,200,.6)';octx.lineWidth=1;
+    octx.setLineDash([2,4]);octx.strokeRect(p.x-8,p.y-8,16,16);octx.setLineDash([]);
+    // only the NEAREST unsalvaged site pulses — a single focal hint, not a field of blinkers
+    if(s.salvage&&near&&near.s===s){const pr=(now%2200)/2200;octx.globalAlpha=(1-pr)*0.45;octx.strokeStyle='rgba(130,200,220,.8)';octx.beginPath();octx.arc(p.x,p.y,4+pr*11,0,7);octx.stroke();}
+    octx.restore();}
+}
+
+/* ===== LIVING WORLD: people to save, supplies to run, wildlife to watch =====
+   Missions and fauna spawn on real water near the boat. This is the game's heartbeat —
+   the river is inhabited. No scores on screen; the rewards are the acts themselves. */
+var LIFE={missions:[], fauna:[], caches:[], lastSpawn:0, saved:0, delivered:0, streak:0, lastActT:0};
+function scoreAct(){const now=performance.now();LIFE.streak=(now-LIFE.lastActT<9000)?LIFE.streak+1:1;LIFE.lastActT=now;return 1+clamp(LIFE.streak*0.25,0,1.5);}
+function checkWatchWin(){
+  if(RUN.watchSaved>=RUN.goal){
+    const w=RUN.watch;RUN.watch++;RUN.watchSaved=0;RUN.goal=Math.round(RUN.goal*1.5);RUN.fuel=FUEL_MAX;
+    showWin(w);speakCall('watch complete, well done');if(navigator.vibrate)navigator.vibrate([40,60,40,60,120]);
+  }
+}
+function showWin(w){const el=document.getElementById('winBanner');if(!el)return;
+  el.querySelector('#winTitle').textContent='WATCH '+w+' COMPLETE';
+  el.querySelector('#winScore').textContent='SCORE '+RUN.score.toLocaleString();
+  el.querySelector('#winSub').textContent='Next landing: save '+RUN.goal+' souls · tanks refilled';
+  el.style.display='flex';el.style.animation='none';void el.offsetWidth;el.style.animation='winPop .5s ease';
+  RUN.paused=true;
+}
+function spawnFuelCache(){const p=waterPointNear(60,320);if(!p)return;LIFE.caches.push({lat:p.lat,lng:p.lng,ph:Math.random()*6.28});}
+function waterPointNear(radMin,radMax){for(let tries=0;tries<40;tries++){const a=Math.random()*6.283,r=radMin+Math.random()*(radMax-radMin);const lat=S.lat+Math.sin(a)*r/MPD_LAT,lng=S.lng+Math.cos(a)*r/MPD_LNG;if(dzWater(lat,lng)&&sampleDepth(lat,lng)>DRAFT+1)return{lat,lng};}return null;}
+const FAUNA=[{k:'heron',c:'#e8f6ff',sz:5,spd:0.0000015},{k:'turtle',c:'#8fe6b0',sz:4,spd:0.0000006},{k:'fish',c:'#7fd0ff',sz:3,spd:0.0000030},{k:'otter',c:'#c9a36a',sz:4,spd:0.0000022}];
+function spawnFauna(){if(LIFE.fauna.length>7)return;
+  // ~1 in 3 spawns is a DUCK FAMILY — a mother + ducklings paddling in a line
+  if(Math.random()<0.34){const p=waterPointNear(70,300);if(!p)return;const n=2+((Math.random()*4)|0);const hdg=Math.random()*360;
+    for(let i=0;i<n;i++){LIFE.fauna.push({k:'duck',c:'#ffe9a8',sz:i===0?4:2.6,spd:0.0000016,lat:p.lat,lng:p.lng,hdg,turn:0,flee:0,ph:Math.random()*6.28,lead:i===0?null:LIFE.fauna.length-1,idx:i});}return;}
+  const p=waterPointNear(60,340);if(!p)return;const t=FAUNA[(Math.random()*FAUNA.length)|0];LIFE.fauna.push({...t,lat:p.lat,lng:p.lng,hdg:Math.random()*360,turn:0,flee:0,ph:Math.random()*6.28});}
+function spawnMission(kind){const p=waterPointNear(120,420);if(!p)return;const payloads=['MEDICAL','WATER','PARTS','RATIONS'];
+  LIFE.missions.push({kind,lat:p.lat,lng:p.lng,t0:performance.now(),payload:payloads[(Math.random()*payloads.length)|0],done:false,ph:0});
+  if(kind==='rescue'){pilotSay('◇ MAYDAY — SWIMMER IN WATER',3000);speakCall('mayday, person in the water');}
+  else{pilotSay('◇ SUPPLY REQUEST INBOUND',2600);speakCall('supply request received');}
+  if(navigator.vibrate)navigator.vibrate([15,40,15]);}
+function updateLife(){
+  const now=performance.now();
+  if(!firstReady)return;
+  // PACING — one thing at a time. During an active hunt, the water goes quiet: no new missions,
+  // fewer distractions, so the eye stays on the beast. Calm water brings life back.
+  const hunting=BEAST.on&&BEAST.alive&&BEAST.aware>0.55;
+  if(!hunting&&now-LIFE.lastSpawn>12000){LIFE.lastSpawn=now;
+    if(LIFE.missions.filter(m=>!m.done).length<2&&Math.random()<0.5)spawnMission(Math.random()<0.55?'rescue':'supply');
+    if(LIFE.fauna.length<6)spawnFauna();}
+  // fauna wander + flee noise/beast; ducklings trail their leader in a line
+  for(let fi=0;fi<LIFE.fauna.length;fi++){const f=LIFE.fauna[fi];
+    const dNoise=noiseNow>0.5?clamp(1-Math.hypot((f.lat-S.lat)*MPD_LAT,(f.lng-S.lng)*MPD_LNG)/120,0,1):0;
+    f.flee=Math.max(f.flee*0.96,dNoise);
+    if(f.k==='duck'&&f.lead!=null&&LIFE.fauna[f.lead]){ // follow the duck ahead
+      const L=LIFE.fauna[f.lead];f.hdg=bearingTo(f.lat,f.lng,L.lat,L.lng);
+      const gap=Math.hypot((L.lat-f.lat)*MPD_LAT,(L.lng-f.lng)*MPD_LNG);const sp=f.spd*(1+f.flee*3)*(gap>8?1.4:0.3);
+      const hr=(90-f.hdg)*Math.PI/180;const nlat=f.lat+Math.sin(hr)*sp,nlng=f.lng+Math.cos(hr)*sp;if(dzWater(nlat,nlng)){f.lat=nlat;f.lng=nlng;}
+      f.ph+=0.06;continue;}
+    if(f.flee>0.3){f.hdg=(bearingTo(S.lat,S.lng,f.lat,f.lng));}else if(Math.random()<0.02){f.turn=(Math.random()-0.5)*40;}
+    f.hdg=(f.hdg+f.turn*0.05+360)%360;
+    const sp=f.spd*(1+f.flee*3);const hr=(90-f.hdg)*Math.PI/180;const nlat=f.lat+Math.sin(hr)*sp,nlng=f.lng+Math.cos(hr)*sp;
+    if(dzWater(nlat,nlng)){f.lat=nlat;f.lng=nlng;}else{f.hdg=(f.hdg+150)%360;}
+    f.ph+=0.05;
+  }
+  // mission completion: reach it. Rescues have a DROWNING clock — urgency is the tension.
+  for(const m of LIFE.missions){if(m.done)continue;
+    const d=Math.hypot((m.lat-S.lat)*MPD_LAT,(m.lng-S.lng)*MPD_LNG);
+    if(m.kind==='rescue'){m.life=(m.life==null?1:m.life)-1/3600*2.4; if(m.life<=0){m.done=true;m.doneT=now;m.drowned=true;pilotSay('✕ LOST TO THE WATER',2600);continue;}}
+    if(d<22){m.done=true;m.doneT=now;
+      if(m.kind==='rescue'){const mx=scoreAct();addScore(100,mx);LIFE.saved++;RUN.watchSaved++;RUN.fuel=clamp(RUN.fuel+RESCUE_REFUEL*mx,0,FUEL_MAX);pilotSay(LIFE.streak>2?('✚ SURVIVOR ABOARD · WAKE x'+LIFE.streak):'✚ SURVIVOR ABOARD · +FUEL',2600);speakCall('survivor aboard');checkWatchWin();}
+      else{const mx=scoreAct();addScore(60,mx);LIFE.delivered++;RUN.fuel=clamp(RUN.fuel+RESCUE_REFUEL*0.6*mx,0,FUEL_MAX);pilotSay(LIFE.streak>2?('✚ DELIVERED · WAKE x'+LIFE.streak):'✚ SUPPLIES DROPPED · +FUEL',2400);speakCall('supplies delivered');}
+      if(navigator.vibrate)navigator.vibrate(40);}}
+  // DROWNED GRID salvage: reach a submerged structure to dredge it — refuels, and you FEEL
+  // the drowned town underfoot (spoken, no modal). The reward sits in the beast's deepest water.
+  if(GRID.built)for(const s of GRID.sites){if(!s.salvage)continue;const d=Math.hypot((s.lat-S.lat)*MPD_LAT,(s.lng-S.lng)*MPD_LNG);
+    if(d<20){const mx=scoreAct();addScore(60,mx);s.salvage=false;s.revealed=true;RUN.fuel=clamp(RUN.fuel+20*mx,0,FUEL_MAX);LIFE.delivered++;pilotSay('◇ DREDGED '+s.kind.n+(LIFE.streak>2?' · WAKE x'+LIFE.streak:' · +FUEL'),2800);speakCall('you pass over a '+s.kind.n.toLowerCase());if(navigator.vibrate)navigator.vibrate([15,25,15]);}}
+  // FUEL CACHES: always keep a couple on the water (a recovery path + exploration reward).
+  // More appear when you're hurting for fuel, so adrift is never a dead end.
+  const wantCaches=RUN.fuel<30?3:1;
+  if(LIFE.caches.length<wantCaches&&now-LIFE.lastSpawn>3000){spawnFuelCache();}
+  for(let ci=LIFE.caches.length-1;ci>=0;ci--){const q=LIFE.caches[ci];const d=Math.hypot((q.lat-S.lat)*MPD_LAT,(q.lng-S.lng)*MPD_LNG);
+    if(d<20){RUN.fuel=clamp(RUN.fuel+38,0,FUEL_MAX);LIFE.caches.splice(ci,1);pilotSay('⛽ FUEL ABOARD +38%',2200);speakCall('fuel aboard');if(navigator.vibrate)navigator.vibrate([20,30,20]);}}
+  // when adrift, the nearest swimmer paddles toward the stranded boat — help finds you
+  if(RUN.fuel<8){const nr=LIFE.missions.find(m=>m.kind==='rescue'&&!m.done);if(nr){const b=bearingTo(nr.lat,nr.lng,S.lat,S.lng);const hr=(90-b)*Math.PI/180;nr.lat+=Math.sin(hr)*0.000012;nr.lng+=Math.cos(hr)*0.000012;}}
+  // retire finished/expired missions
+  LIFE.missions=LIFE.missions.filter(m=>!(m.done&&now-m.doneT>1600)&&(now-m.t0<120000));
+}
+/* MISSION GUIDANCE — always know where the next soul is. Finds the nearest active rescue/supply,
+   marks it on the minimap, and points an arrow toward it on the main compass with distance. */
+let miniGuide=null;
+function nearestMission(){let best=null,bd=1e18;for(const m of LIFE.missions){if(m.done)continue;const d=Math.hypot((m.lat-S.lat)*MPD_LAT,(m.lng-S.lng)*MPD_LNG);if(d<bd){bd=d;best={m,d};}}return best;}
+function updateMissionGuide(){
+  const n=nearestMission();
+  if(!n){if(miniGuide){MINI.removeLayer(miniGuide);miniGuide=null;}return null;}
+  const col=n.m.kind==='rescue'?'#ff4d6d':'#ffd23f';
+  const html='<div class="guidePulse" style="--gc:'+col+'"></div>';
+  if(!miniGuide){miniGuide=L.marker([n.m.lat,n.m.lng],{icon:L.divIcon({className:'',html:html,iconSize:[18,18],iconAnchor:[9,9]}),interactive:false}).addTo(MINI);}
+  else{miniGuide.setLatLng([n.m.lat,n.m.lng]);miniGuide.setIcon(L.divIcon({className:'',html:html,iconSize:[18,18],iconAnchor:[9,9]}));}
+  return n;
+}
+function drawGuide(){
+  const n=updateMissionGuide();if(!n)return;
+  const now=performance.now();const col=n.m.kind==='rescue'?'#ff4d6d':'#ffd23f';
+  const p=MAP.latLngToContainerPoint([n.m.lat,n.m.lng]);const W=overlay.width,H=overlay.height;
+  const onScreen=p.x>20&&p.x<W-20&&p.y>90&&p.y<H-120;
+  const distM=Math.round(n.d);const distTxt=distM>950?(distM/1000).toFixed(1)+'km':distM+'m';
+  octx.save();
+  if(onScreen){
+    // highlight the mission so it's easy to spot in the clutter
+    const pr=(now%1400)/1400;octx.strokeStyle=col;octx.lineWidth=2;octx.globalAlpha=(1-pr)*0.9;
+    octx.beginPath();octx.arc(p.x,p.y,10+pr*16,0,7);octx.stroke();
+    octx.globalAlpha=0.9;octx.fillStyle=col;octx.font='700 9px IBM Plex Mono';octx.textAlign='center';octx.fillText(distTxt,p.x,p.y-18);
+  } else {
+    // clamp an arrow to the screen edge pointing toward the mission
+    const cx=W/2,cy=H/2;const ang=Math.atan2(p.y-cy,p.x-cx);
+    const mx=W/2-46,my=H/2-150;const ex=cx+Math.cos(ang)*mx,ey=cy+Math.sin(ang)*my;
+    octx.translate(ex,ey);octx.rotate(ang);
+    octx.fillStyle=col;octx.shadowColor=col;octx.shadowBlur=8;octx.globalAlpha=0.95;
+    octx.beginPath();octx.moveTo(12,0);octx.lineTo(-6,-7);octx.lineTo(-2,0);octx.lineTo(-6,7);octx.closePath();octx.fill();
+    octx.rotate(-ang);octx.shadowBlur=0;
+    octx.fillStyle=col;octx.font='700 9px IBM Plex Mono';octx.textAlign='center';octx.fillText(distTxt,0,-12);
+    octx.fillStyle='rgba(255,255,255,.85)';octx.font='700 7px IBM Plex Mono';octx.fillText(n.m.kind==='rescue'?'SOUL':'SUPPLY',0,20);
+  }
+  octx.restore();
+}
+function drawLife(){
+  const now=performance.now();
+  // wildlife — soft glowing motes with a little wake; never chart-junk, just life
+  // FUEL CACHES — floating jerry cans; pulse brighter when you're running low
+  for(const q of LIFE.caches){const p=MAP.latLngToContainerPoint([q.lat,q.lng]);q.ph+=0.04;const bob=Math.sin(q.ph)*1.5;const urgent=RUN.fuel<30;
+    octx.save();const pr=(now%1400)/1400;octx.globalAlpha=(1-pr)*(urgent?0.7:0.35);octx.strokeStyle='#7CFC00';octx.lineWidth=1.6;octx.beginPath();octx.arc(p.x,p.y+bob,5+pr*13,0,7);octx.stroke();
+    octx.globalAlpha=0.95;octx.fillStyle='#9acd32';octx.shadowColor='#7CFC00';octx.shadowBlur=8;octx.fillRect(p.x-3.5,p.y-4+bob,7,8);
+    octx.fillStyle='#04120f';octx.font='700 6px IBM Plex Mono';octx.textAlign='center';octx.fillText('F',p.x,p.y+2+bob);octx.restore();}
+  for(const f of LIFE.fauna){const p=MAP.latLngToContainerPoint([f.lat,f.lng]);const bob=Math.sin(f.ph)*1.2;const hr=(90-f.hdg)*Math.PI/180;
+    octx.save();octx.globalAlpha=0.9;octx.fillStyle=f.c;octx.shadowColor=f.c;octx.shadowBlur=5;
+    if(f.k==='duck'){ // little body + head + paddle wake
+      octx.beginPath();octx.ellipse(p.x,p.y+bob,f.sz,f.sz*0.72,hr,0,7);octx.fill();
+      const hx=p.x+Math.cos(hr)*f.sz*0.9,hy=p.y+bob+Math.sin(hr)*f.sz*0.9;octx.beginPath();octx.arc(hx,hy,f.sz*0.5,0,7);octx.fill();
+      octx.globalAlpha=0.2;octx.strokeStyle=f.c;octx.lineWidth=1;octx.beginPath();octx.moveTo(p.x,p.y+bob);octx.lineTo(p.x-Math.cos(hr)*9-Math.sin(hr)*4,p.y+bob-Math.sin(hr)*9+Math.cos(hr)*4);octx.moveTo(p.x,p.y+bob);octx.lineTo(p.x-Math.cos(hr)*9+Math.sin(hr)*4,p.y+bob-Math.sin(hr)*9-Math.cos(hr)*4);octx.stroke();
+    } else if(f.k==='fish'){ // occasional leaping arc
+      const jump=Math.max(0,Math.sin(f.ph*0.6));octx.globalAlpha=0.4+jump*0.5;octx.beginPath();octx.ellipse(p.x,p.y-jump*5,f.sz,f.sz*0.5,hr,0,7);octx.fill();
+      if(jump>0.7){octx.globalAlpha=0.3;octx.strokeStyle=f.c;octx.beginPath();octx.arc(p.x,p.y,3+jump*3,0,Math.PI);octx.stroke();}
+    } else { octx.beginPath();octx.arc(p.x,p.y+bob,f.sz*0.5,0,7);octx.fill();
+      octx.globalAlpha=0.25;octx.strokeStyle=f.c;octx.lineWidth=1;octx.beginPath();octx.moveTo(p.x,p.y);octx.lineTo(p.x-Math.cos(hr)*7-Math.sin(hr)*4,p.y-Math.sin(hr)*7+Math.cos(hr)*4);octx.moveTo(p.x,p.y);octx.lineTo(p.x-Math.cos(hr)*7+Math.sin(hr)*4,p.y-Math.sin(hr)*7-Math.cos(hr)*4);octx.stroke();}
+    octx.restore();}
+  // missions — a beacon on the water + bearing hint; pulls you toward helping
+  for(const m of LIFE.missions){const p=MAP.latLngToContainerPoint([m.lat,m.lng]);m.ph+=0.04;
+    const rescue=m.kind==='rescue';const col=rescue?'#ff4d6d':'#ffd23f';
+    octx.save();
+    if(m.done){const t=(now-m.doneT)/1600;octx.globalAlpha=1-t;octx.strokeStyle='#7dffd2';octx.lineWidth=2;octx.beginPath();octx.arc(p.x,p.y,6+t*30,0,7);octx.stroke();octx.restore();continue;}
+    const pr=(now%1500)/1500;octx.globalAlpha=(1-pr)*0.8;octx.strokeStyle=col;octx.lineWidth=1.6;octx.beginPath();octx.arc(p.x,p.y,6+pr*16,0,7);octx.stroke();
+    octx.globalAlpha=1;octx.fillStyle=col;octx.shadowColor=col;octx.shadowBlur=8;
+    if(rescue){ // swimmer: bobbing head + waving glyph + DROWNING ring (shrinks as they tire)
+      const bob=Math.sin(m.ph*2)*1.5;octx.beginPath();octx.arc(p.x,p.y+bob,3,0,7);octx.fill();
+      octx.strokeStyle=col;octx.lineWidth=1.5;octx.beginPath();octx.moveTo(p.x-4,p.y-3+bob);octx.lineTo(p.x,p.y+bob);octx.lineTo(p.x+4,p.y-4+bob);octx.stroke();
+      const life=(m.life==null?1:clamp(m.life,0,1));octx.globalAlpha=0.9;octx.strokeStyle=life<0.3?'#ff2e2e':col;octx.lineWidth=2;
+      octx.beginPath();octx.arc(p.x,p.y,13,-Math.PI/2,-Math.PI/2+life*6.283);octx.stroke();
+    } else { // supply request: crate outline with down-arrow
+      octx.strokeStyle=col;octx.lineWidth=1.5;octx.strokeRect(p.x-4,p.y-4,8,8);octx.beginPath();octx.moveTo(p.x,p.y-9);octx.lineTo(p.x,p.y-5);octx.lineTo(p.x-2,p.y-7);octx.moveTo(p.x,p.y-5);octx.lineTo(p.x+2,p.y-7);octx.stroke();
+    }
+    octx.restore();}
+}
+
+/* ===== HELLBENDER update + render ===== */
+function updateBeast(depthNow,scraping,speedFrac){
+  if(!BEAST.on)return;
+  noiseNow=clamp(0.06+speedFrac*0.6+(sonarOn?0.4:0)+(scraping?1.4:0),0,2.2);
+  if(BEAST.strikeCd>0)BEAST.strikeCd--;
+  if(!BEAST.alive){
+    // den at a drowned structure if one exists (deepest, most cluttered water); else any deep spot
+    let s=null;if(GRID.built&&GRID.sites.length){s=GRID.sites[0];const dd=Math.hypot((s.lat-S.lat)*MPD_LAT,(s.lng-S.lng)*MPD_LNG);if(dd<150||dd>460)s=findDeepSpot(S.lat,S.lng,26);}else if(depthNow>28)s=findDeepSpot(S.lat,S.lng,26);
+    if(s&&(depthNow>28||GRID.sites.length)){BEAST.lat=s.lat;BEAST.lng=s.lng;BEAST.alive=true;BEAST.aware=0.35;BEAST.surf=0;BEAST.hp=100;BEAST.phase='stalk';BEAST.vulnT=0;BEAST.wounded=false;encounters++;pilotSay('SOMETHING STIRS BELOW',2600);speakCall('something stirs below');}
+    return;
+  }
+  BEAST.dist=Math.hypot((BEAST.lat-S.lat)*MPD_LAT,(BEAST.lng-S.lng)*MPD_LNG);
+  const prox=clamp(1-BEAST.dist/450,0,1);
+  // wounded creature is warier AND hunts harder (escalation)
+  let gain=noiseNow*prox*0.10; if(scraping)gain+=1.0*prox; if(BEAST.wounded)gain+=0.006;
+  const decay=(noiseNow<0.18&&!BEAST.wounded)?0.05:0.02;
+  BEAST.aware=clamp(BEAST.aware+gain-decay,0,1.3);
+  // MOVEMENT TARGET: bait pulls it (toward the humming payload); else it tracks the boat when aware
+  let tLat,tLng,pullMul;
+  if(BEAST.baitActive){tLat=BEAST.baitLat;tLng=BEAST.baitLng;pullMul=1.5;}
+  else if(BEAST.aware>0.5){tLat=S.lat;tLng=S.lng;pullMul=BEAST.aware*(BEAST.wounded?1.4:1);}
+  else {tLat=BEAST.lat;tLng=BEAST.lng-0.00001;pullMul=-0.25;} // drift off
+  const baseSpd=0.000024*pullMul;
+  const hr=(90-bearingTo(BEAST.lat,BEAST.lng,tLat,tLng))*Math.PI/180;
+  BEAST.lat+=Math.sin(hr)*baseSpd; BEAST.lng+=Math.cos(hr)*baseSpd;
+  BEAST.surf+=(((BEAST.aware>0.55||BEAST.vulnT>0)?1:0)-BEAST.surf)*0.06;
+  if(BEAST.aware>0.7)BEAST.eyeT=performance.now();
+  // bait: did the creature reach it? -> lured into the KILL BOX -> long vulnerability
+  if(BEAST.baitActive){
+    const bd=Math.hypot((BEAST.lat-BEAST.baitLat)*MPD_LAT,(BEAST.lng-BEAST.baitLng)*MPD_LNG);
+    if(bd<18&&BEAST.vulnT<=0){BEAST.vulnT=170;BEAST.phase='baited';BEAST.baitActive=false;pilotSay('IT TOOK THE BAIT — STRIKE NOW',2400);speakCall('it took the bait, strike now');if(navigator.vibrate)navigator.vibrate([20,40,60]);}
+    if(performance.now()-BEAST.baitT>13000)BEAST.baitActive=false; // bait expires
+  }
+  // lunge at YOU: costs hull, but leaves it briefly exposed
+  if(BEAST.vulnT<=0&&BEAST.aware>=1.0&&BEAST.dist<45){BEAST.lungeT=performance.now();beastAttack();BEAST.vulnT=90;BEAST.phase='exposed';}
+  if(BEAST.vulnT>0){BEAST.vulnT--;if(BEAST.vulnT===0)BEAST.phase='stalk';}
+  if(BEAST.dist>560&&BEAST.aware<0.25&&!BEAST.wounded){BEAST.alive=false;survived++;pilotSay('IT SANK AWAY',2200);}
+}
+/* HARPOON: the strike. Only lands during a vulnerability window (after a lunge, or when baited
+   into shallows). Miss outside the window and you've wasted it (cooldown). Kill = the hunt won. */
+function beastHarpoon(){
+  if(!BEAST.on||!BEAST.alive)return;
+  if(BEAST.strikeCd>0)return;
+  BEAST.strikeCd=45;
+  if(BEAST.vulnT>6){
+    BEAST.hp=clamp(BEAST.hp-24,0,100);BEAST.wounded=true;BEAST.vulnT=Math.min(BEAST.vulnT,24);BEAST.lungeT=performance.now();
+    if(navigator.vibrate)navigator.vibrate([30,20,80]);
+    if(BEAST.hp<=0){addScore(500,1);BEAST.alive=false;BEAST.on=true;pilotSay('THE BEAST IS TAKEN · +500',4000);speakCall('the beast is taken');survived++;document.getElementById('bBeast').classList.remove('on');document.getElementById('threatHud').style.display='none';BEAST.on=false;}
+    else{pilotSay('HARPOON STRUCK — '+Math.round(BEAST.hp)+'%',1800);speakCall('struck');}
+  } else {
+    pilotSay('HARPOON MISSED — NO OPENING',1500);if(navigator.vibrate)navigator.vibrate(15);
+  }
+}
+function dropBait(){
+  if(!BEAST.on||!BEAST.alive)return;
+  // bait drops just ahead of the boat, toward shallower water = the kill box
+  const hr=(90-S.heading)*Math.PI/180;let bl=S.lat+Math.sin(hr)*40/MPD_LAT,bg=S.lng+Math.cos(hr)*40/MPD_LNG;
+  BEAST.baitLat=bl;BEAST.baitLng=bg;BEAST.baitActive=true;BEAST.baitT=performance.now();
+  pilotSay('BAIT IN THE WATER',1600);speakCall('bait deployed');if(navigator.vibrate)navigator.vibrate(20);
+}
+function beastAttack(){
+  S.speed*=0.1; BEAST.aware=0.6;
+  hull=clamp(hull-22,0,100);BEAST.downT=performance.now();
+  pilotSay('STRUCK — IT SURFACES',2200);speakCall('hull breached');
+  if(navigator.vibrate)navigator.vibrate([90,60,90,60,140]);
+  if(hull<=0)beastSink();
+}
+function beastSink(){pilotSay('VESSEL LOST',4000);speakCall('vessel lost');S.speed=0;setTimeout(()=>{hull=100;S.lat=SPAWN.lat;S.lng=SPAWN.lng;BEAST.alive=false;boat.setLatLng([S.lat,S.lng]);MAP.setView([S.lat,S.lng],16,{animate:false});pilotSay('TOWED TO HARBOR',3000);},2600);}
+function drawBeast(){
+  const now=performance.now();
+  // BAIT marker: a humming payload in the water pulling the creature
+  if(BEAST.on&&BEAST.baitActive){const q=MAP.latLngToContainerPoint([BEAST.baitLat,BEAST.baitLng]);
+    octx.save();const pr=(now%800)/800;octx.strokeStyle='rgba(255,210,63,'+(1-pr)+')';octx.lineWidth=1.6;octx.beginPath();octx.arc(q.x,q.y,4+pr*14,0,7);octx.stroke();
+    octx.fillStyle='#ffd23f';octx.shadowColor='#ffd23f';octx.shadowBlur=8;octx.fillRect(q.x-3,q.y-3,6,6);octx.restore();}
+  if(!BEAST.on||!BEAST.alive)return;
+  const p=MAP.latLngToContainerPoint([BEAST.lat,BEAST.lng]);const bp=MAP.latLngToContainerPoint([S.lat,S.lng]);
+  const period=clamp(1400-BEAST.aware*900,300,1400);const ph=(now%period)/period;
+  octx.save();
+  // VULNERABILITY TELL: when exposed, a bright teal target halo says "strike here, now" —
+  // but near a drowned structure the acoustic clutter DIMS it, so reading the window is harder.
+  if(BEAST.vulnT>6){const clar=tellClarity(BEAST.lat,BEAST.lng);const wp=(now%500)/500;octx.globalAlpha=clar;octx.strokeStyle='#7dffd2';octx.lineWidth=2.2;octx.shadowColor='#7dffd2';octx.shadowBlur=12*clar;
+    octx.beginPath();octx.arc(p.x,p.y,14+Math.sin(now/90)*3,0,7);octx.stroke();
+    octx.globalAlpha=(1-wp)*clar;octx.beginPath();octx.arc(p.x,p.y,8+wp*22,0,7);octx.stroke();octx.globalAlpha=1;octx.shadowBlur=0;
+    for(const a of [0,1.57,3.14,4.71]){octx.beginPath();octx.moveTo(p.x+Math.cos(a)*17,p.y+Math.sin(a)*17);octx.lineTo(p.x+Math.cos(a)*22,p.y+Math.sin(a)*22);octx.stroke();}}
+  octx.strokeStyle=`rgba(255,46,46,${0.25+BEAST.aware*0.5})`;octx.lineWidth=1.4;
+  octx.beginPath();octx.arc(p.x,p.y,8+ph*20,0,7);octx.stroke();
+  const vis=clamp(Math.max(BEAST.surf,BEAST.vulnT>0?0.9:0),0,1);
+  if(vis>0.05){octx.globalAlpha=vis;const ang=Math.atan2(bp.y-p.y,bp.x-p.x);const sw=Math.sin(now/240)*2; // swim sway
+    octx.translate(p.x,p.y);octx.rotate(ang);
+    const body='rgba(14,34,26,'+(0.55+vis*0.4)+')', edge='rgba(70,235,180,'+(0.5*vis)+')';
+    octx.fillStyle=body;octx.strokeStyle=edge;octx.lineWidth=1.1;
+    // THE GILL-MAN (facing +x, toward the boat)
+    // tail — sweeping behind
+    octx.beginPath();octx.moveTo(-20+sw,-3);octx.quadraticCurveTo(-30-sw,0,-20+sw,3);octx.quadraticCurveTo(-14,0,-20+sw,-3);octx.fill();
+    // torso
+    octx.beginPath();octx.ellipse(-2,0,13,7,0,0,7);octx.fill();octx.stroke();
+    // dorsal ridge spines along the back
+    octx.beginPath();for(let i=-14;i<10;i+=4){const h=8-Math.abs(i+2)/3;octx.moveTo(i,-4);octx.lineTo(i+1.5,-4-h);octx.lineTo(i+3,-4);}octx.stroke();
+    // arms with webbed claws, reaching forward, paddling
+    const reach=BEAST.aware>0.7?4:0;const pad=Math.sin(now/180)*3;
+    for(const side of [-1,1]){octx.save();octx.beginPath();octx.moveTo(4,side*5);octx.quadraticCurveTo(11,side*(9+pad*side),15+reach,side*(7+pad*side));octx.lineWidth=2;octx.stroke();
+      // webbed claw (3 splayed digits)
+      const cx=15+reach,cy=side*(7+pad*side);octx.lineWidth=1;for(const dg of [-2,0,2]){octx.beginPath();octx.moveTo(cx,cy);octx.lineTo(cx+3.5,cy+dg);octx.stroke();}octx.restore();}
+    // head — domed, set forward
+    octx.beginPath();octx.ellipse(11,0,5.5,5,0,0,7);octx.fillStyle=body;octx.fill();octx.stroke();
+    // gill slits on the cheek
+    octx.lineWidth=0.8;for(const g of [-1.5,0,1.5]){octx.beginPath();octx.moveTo(8,g);octx.lineTo(10,g);octx.stroke();}
+    octx.rotate(-ang);octx.translate(-p.x,-p.y);
+    // eyeshine — two green lamps when hunting
+    if(BEAST.aware>0.65){const g=(now-BEAST.eyeT<3200);if(g){octx.globalAlpha=vis;octx.fillStyle='#8dffcf';octx.shadowColor='#8dffcf';octx.shadowBlur=6;for(const o of [-2.2,2.2]){const ex=p.x+Math.cos(ang)*12+Math.cos(ang+1.57)*o,ey=p.y+Math.sin(ang)*12+Math.sin(ang+1.57)*o;octx.beginPath();octx.arc(ex,ey,1.5,0,7);octx.fill();}octx.shadowBlur=0;}}}
+  if(now-BEAST.lungeT<400){const t=(now-BEAST.lungeT)/400;octx.globalAlpha=1-t;octx.strokeStyle='#ff2e2e';octx.lineWidth=3;octx.beginPath();octx.arc(bp.x,bp.y,10+t*40,0,7);octx.stroke();}
+  octx.restore();
+}
+
+/* ===== FIVE-LINE DRONE DELIVERY ===== a logistics protocol on top of the pilot.
+   Deconflict a Drop Zone (reachable water clear of bank), then dispatch a delivery drone. */
+var DELIV={active:false,phase:'',drone:null,from:null,dz:null,payload:'',t0:0,legT:0,req:'',crates:[]};
+function dzWater(lat,lng){if(useNodes)return sampleDepth(lat,lng)>DRAFT+0.5;
+  for(const P of POLYS){const b=P.bbox;if(lat<b.s-1e-4||lat>b.n+1e-4||lng<b.w-1e-4||lng>b.e+1e-4)continue;if(pip(lat,lng,P.hitOuter)){let h=false;for(const hh of P.hitHoles){if(pip(lat,lng,hh)){h=true;break;}}if(!h)return true;}}return false;}
+function snapDZ(lat,lng){ // snap toward the boat so the pilot can always reach it
+  if(dzWater(lat,lng))return{lat,lng,snapped:false};
+  for(let t=0.06;t<=1.0001;t+=0.06){const nlat=lat+(S.lat-lat)*t,nlng=lng+(S.lng-lng)*t;if(dzWater(nlat,nlng)){const dM=Math.hypot((nlat-lat)*MPD_LAT,(nlng-lng)*MPD_LNG);return{lat:nlat,lng:nlng,snapped:true,dist:dM};}}
+  return null;}
+function dispatchDelivery(req){
+  DELIV.active=true;DELIV.phase='inbound';DELIV.req=req.id;DELIV.from=req.from;DELIV.dz=req.dz;DELIV.payload=req.payload;
+  DELIV.drone={lat:req.from.lat,lng:req.from.lng};DELIV.t0=performance.now();
+  const dM=Math.hypot((req.dz.lat-req.from.lat)*MPD_LAT,(req.dz.lng-req.from.lng)*MPD_LNG);
+  DELIV.legT=clamp(dM/60,2200,9000); // flight time scales with distance
+  pilotSay('DRONE INBOUND',2000);speakCall('delivery inbound');
+  if(navigator.vibrate)navigator.vibrate(20);
+}
+function updateDelivery(){
+  if(!DELIV.active)return;const now=performance.now();
+  if(DELIV.phase==='inbound'){
+    const u=clamp((now-DELIV.t0)/DELIV.legT,0,1);const e=u<0.5?2*u*u:1-Math.pow(-2*u+2,2)/2; // ease
+    DELIV.drone={lat:DELIV.from.lat+(DELIV.dz.lat-DELIV.from.lat)*e,lng:DELIV.from.lng+(DELIV.dz.lng-DELIV.from.lng)*e};
+    if(u>=1){DELIV.phase='drop';DELIV.t0=now;pilotSay('PAYLOAD DROP',1600);if(navigator.vibrate)navigator.vibrate([15,30,15]);}
+  } else if(DELIV.phase==='drop'){
+    if(now-DELIV.t0>900){DELIV.crates.push({lat:DELIV.dz.lat,lng:DELIV.dz.lng,t0:now,label:DELIV.payload});DELIV.phase='rtb';DELIV.t0=now;pilotSay('DELIVERED',2200);speakCall('payload delivered');}
+  } else if(DELIV.phase==='rtb'){
+    const u=clamp((now-DELIV.t0)/DELIV.legT,0,1);const e=u<0.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
+    DELIV.drone={lat:DELIV.dz.lat+(DELIV.from.lat-DELIV.dz.lat)*e,lng:DELIV.dz.lng+(DELIV.from.lng-DELIV.dz.lng)*e};
+    if(u>=1){DELIV.active=false;DELIV.drone=null;}
+  }
+}
+function drawDelivery(){
+  updateDelivery();const now=performance.now();
+  // delivered crates: a marker + fading label that persists at the DZ
+  for(const c of DELIV.crates){const p=MAP.latLngToContainerPoint([c.lat,c.lng]);const age=now-c.t0;
+    octx.save();octx.strokeStyle='#ffd23f';octx.fillStyle='rgba(255,210,63,.18)';octx.lineWidth=1.6;
+    octx.beginPath();octx.rect(p.x-5,p.y-5,10,10);octx.fill();octx.stroke();
+    octx.beginPath();octx.moveTo(p.x-5,p.y);octx.lineTo(p.x+5,p.y);octx.moveTo(p.x,p.y-5);octx.lineTo(p.x,p.y+5);octx.stroke();
+    if(age<4000){octx.globalAlpha=clamp(1-age/4000,0,1);octx.fillStyle='#ffd23f';octx.font='700 9px IBM Plex Mono';octx.textAlign='center';octx.fillText((c.label||'PAYLOAD').toUpperCase(),p.x,p.y-9);}
+    octx.restore();}
+  if(!DELIV.active||!DELIV.drone)return;
+  const dp=MAP.latLngToContainerPoint([DELIV.drone.lat,DELIV.drone.lng]);
+  // route line to DZ
+  const dzp=MAP.latLngToContainerPoint([DELIV.dz.lat,DELIV.dz.lng]);
+  octx.save();octx.setLineDash([5,7]);octx.lineDashOffset=-now/60%12;octx.strokeStyle='rgba(255,210,63,.5)';octx.lineWidth=1.4;
+  octx.beginPath();octx.moveTo(dp.x,dp.y);octx.lineTo(dzp.x,dzp.y);octx.stroke();octx.setLineDash([]);
+  // DZ reticle
+  octx.strokeStyle='rgba(255,210,63,.85)';octx.lineWidth=1.4;octx.beginPath();octx.arc(dzp.x,dzp.y,11,0,7);octx.stroke();
+  const pr=(now/700%1);octx.globalAlpha=1-pr;octx.beginPath();octx.arc(dzp.x,dzp.y,4+pr*12,0,7);octx.stroke();octx.globalAlpha=1;
+  // the drone: a small quad glyph
+  octx.translate(dp.x,dp.y);const spin=now/120;
+  octx.strokeStyle='#ffe27a';octx.fillStyle='rgba(255,210,63,.9)';octx.lineWidth=1.6;
+  octx.beginPath();octx.moveTo(-7,-7);octx.lineTo(7,7);octx.moveTo(7,-7);octx.lineTo(-7,7);octx.stroke();
+  for(const[ox,oy] of [[-7,-7],[7,-7],[7,7],[-7,7]]){octx.beginPath();octx.ellipse(ox,oy,4,1.6,spin,0,7);octx.stroke();}
+  octx.beginPath();octx.arc(0,0,2.4,0,7);octx.fill();
+  if(DELIV.phase==='drop'){const t=(now-DELIV.t0)/900;octx.globalAlpha=1-t;octx.strokeStyle='#ffd23f';octx.beginPath();octx.arc(0,0,6+t*22,0,7);octx.stroke();
+    octx.fillStyle='#ffd23f';octx.fillRect(-2,t*14,4,4);}
+  octx.restore();
+}
+
+function drawPilot(){
+  const now=performance.now();
+  if(PILOT.trail.length>1){octx.save();octx.setLineDash([2,7]);octx.lineWidth=1.4;octx.beginPath();
+    for(let i=0;i<PILOT.trail.length;i++){const p=MAP.latLngToContainerPoint([PILOT.trail[i].lat,PILOT.trail[i].lng]);if(i===0)octx.moveTo(p.x,p.y);else octx.lineTo(p.x,p.y);}
+    octx.strokeStyle='rgba(25,230,200,.32)';octx.stroke();octx.restore();}
+  if(autopilot&&PILOT.rays.length){const bp=MAP.latLngToContainerPoint([S.lat,S.lng]);
+    for(const r of PILOT.rays){const e=MAP.latLngToContainerPoint([r.end.lat,r.end.lng]);
+      octx.strokeStyle=`rgba(25,230,200,${0.06+r.frac*0.22})`;octx.lineWidth=1;
+      octx.beginPath();octx.moveTo(bp.x,bp.y);octx.lineTo(e.x,e.y);octx.stroke();
+      if(r.frac<0.98){octx.fillStyle='rgba(255,46,46,.6)';octx.beginPath();octx.arc(e.x,e.y,1.8,0,7);octx.fill();}}
+    if(PILOT.chosen){let ch=null;for(const r of PILOT.rays)if(r.hdg===PILOT.chosen.hdg)ch=r;
+      if(ch){const e=MAP.latLngToContainerPoint([ch.end.lat,ch.end.lng]);
+        octx.strokeStyle='#ffd23f';octx.lineWidth=2;octx.beginPath();octx.moveTo(bp.x,bp.y);octx.lineTo(e.x,e.y);octx.stroke();
+        const ang=Math.atan2(e.y-bp.y,e.x-bp.x);octx.fillStyle='#ffd23f';
+        octx.beginPath();octx.moveTo(e.x,e.y);octx.lineTo(e.x-8*Math.cos(ang-0.42),e.y-8*Math.sin(ang-0.42));octx.lineTo(e.x-8*Math.cos(ang+0.42),e.y-8*Math.sin(ang+0.42));octx.closePath();octx.fill();}}}
+  if(PILOT.hopFx){const f=PILOT.hopFx;const t=(now-f.t0)/900;
+    if(t>=1){PILOT.hopFx=null;}
+    else{const A=MAP.latLngToContainerPoint([f.a.lat,f.a.lng]),B=MAP.latLngToContainerPoint([f.b.lat,f.b.lng]);
+      const mx=(A.x+B.x)/2,my=(A.y+B.y)/2;const dx=B.x-A.x,dy=B.y-A.y;const L=Math.hypot(dx,dy)||1;
+      const cx=mx-dy*0.22,cy=my+dx*0.22;
+      octx.save();octx.setLineDash([6,6]);octx.lineDashOffset=-now/5%12;
+      octx.strokeStyle=`rgba(255,210,63,${1-t})`;octx.lineWidth=2;
+      octx.beginPath();octx.moveTo(A.x,A.y);octx.quadraticCurveTo(cx,cy,B.x,B.y);octx.stroke();
+      octx.setLineDash([]);octx.strokeStyle=`rgba(255,210,63,${(1-t)*0.9})`;
+      octx.beginPath();octx.arc(B.x,B.y,6+t*26,0,7);octx.stroke();octx.restore();}}
+}
+
+/* MAP INPUT: tap=course/pin/hop, long-press=pin */
+let pinMode=false,hopMode=false;
+function updModeBtns(){document.getElementById('bPin').classList.toggle('on',pinMode);document.getElementById('bHop').classList.toggle('on',hopMode);}
+let pressTimer=null,pressLL=null,pressMoved=false,suppressClick=false,downXY=null;
+function evLL(e){const c=MAP.getContainer().getBoundingClientRect();let cx,cy;if(e.touches&&e.touches[0]){cx=e.touches[0].clientX;cy=e.touches[0].clientY;}else if(e.changedTouches&&e.changedTouches[0]){cx=e.changedTouches[0].clientX;cy=e.changedTouches[0].clientY;}else{cx=e.clientX;cy=e.clientY;}return {ll:MAP.containerPointToLatLng([cx-c.left,cy-c.top]),x:cx,y:cy};}
+function onDown(e){if(browsing)return;const p=evLL(e);pressLL=p.ll;downXY={x:p.x,y:p.y};pressMoved=false;clearTimeout(pressTimer);pressTimer=setTimeout(()=>{if(!pressMoved&&!hopMode){addPin(pressLL);suppressClick=true;}},470);}
+function onMove(e){if(!downXY)return;const p=evLL(e);if(Math.hypot(p.x-downXY.x,p.y-downXY.y)>8){pressMoved=true;clearTimeout(pressTimer);}}
+function onUp(){clearTimeout(pressTimer);downXY=null;}
+const mcont=MAP.getContainer();
+mcont.addEventListener('touchstart',onDown,{passive:true});mcont.addEventListener('touchmove',onMove,{passive:true});mcont.addEventListener('touchend',onUp);
+mcont.addEventListener('mousedown',onDown);mcont.addEventListener('mousemove',onMove);mcont.addEventListener('mouseup',onUp);
+/* delivery state — declared before mapClick (which reads dlPickDZ/dlDZ) to avoid a TDZ throw on every map tap */
+let delivArmed=false, dlDZ=null, dlPayIdx=0, dlPickDZ=false;
+function mapClick(ll){if(browsing)return;
+  if(dlPickDZ){const ok=snapDZ(ll.lat,ll.lng);
+    if(ok){dlDZ={lat:ll.lat,lng:ll.lng};dlPickDZ=false;updateDeliverReadout();pilotSay(ok.snapped?'DZ SET (SNAP)':'DZ SET',1400);if(navigator.vibrate)navigator.vibrate(12);}
+    else{pilotSay('NO WATER THERE',1400);}
+    return;}
+  if(hopMode){hopTo(ll);hopMode=false;updModeBtns();return;}if(pinMode){addPin(ll);pinMode=false;updModeBtns();return;}setWaypoint(ll);}
+MAP.on('click',e=>{if(suppressClick){suppressClick=false;return;}
+  // DIRECT MANIPULATION: tapped a revealed contact? act on it with its depth-appropriate verb.
+  const pt=MAP.latLngToContainerPoint(e.latlng);const c=contactAtPoint(pt.x,pt.y);
+  if(c&&!dlPickDZ){const vf=verbFor(c);pilotSay(vf.v+' · '+(c.depth>2?'-'+Math.round(c.depth)+'ft':'SURFACE'),1800);vf.act();return;}
+  mapClick(e.latlng);});
+MINI.on('click',e=>{if(hopMode){hopTo(e.latlng);hopMode=false;updModeBtns();return;}if(pinMode){addPin(e.latlng);pinMode=false;updModeBtns();return;}setWaypoint(e.latlng);});
+
+/* SPRING JOYSTICK */
+const joyBase=document.getElementById('joyBase'),joyStick=document.getElementById('joyStick'),joyHdg=document.getElementById('joyHdg'),R_J=40;
+let joyActive=false,stickX=0,stickY=0,velX=0,velY=0,joyInput={x:0,y:0},ringHitT=0;
+function joyMove(e){e.preventDefault();if(!joyActive&&navigator.vibrate)navigator.vibrate(10);joyActive=true;let cx=e.type.includes('mouse')?e.clientX:e.touches[0].clientX;let cy=e.type.includes('mouse')?e.clientY:e.touches[0].clientY;const r=joyBase.getBoundingClientRect();let dx=cx-(r.left+r.width/2),dy=cy-(r.top+r.height/2);const d=Math.hypot(dx,dy);if(d>R_J){dx*=R_J/d;dy*=R_J/d;if(Date.now()-ringHitT>300){if(navigator.vibrate)navigator.vibrate([4,8,4]);ringHitT=Date.now();}}stickX=dx;stickY=dy;clearWaypoint();}
+function joyEnd(e){if(e)e.preventDefault();joyActive=false;}
+joyBase.addEventListener('touchstart',joyMove,{passive:false});joyBase.addEventListener('touchmove',joyMove,{passive:false});joyBase.addEventListener('touchend',joyEnd);
+joyBase.addEventListener('mousedown',joyMove);window.addEventListener('mousemove',e=>{if(joyActive)joyMove(e);});window.addEventListener('mouseup',joyEnd);
+
+/* AUDIO + SONAR + LEADSMAN */
+let actx,engGain,watGain,engOsc,watSrc,audioOn=false;
+function initAudio(){if(actx||!audioOn)return;actx=new(window.AudioContext||window.webkitAudioContext)();engOsc=actx.createOscillator();engOsc.type='sawtooth';engOsc.frequency.value=30;engGain=actx.createGain();engGain.gain.value=0;engOsc.connect(engGain).connect(actx.destination);engOsc.start();const bs=actx.sampleRate*2;const nb=actx.createBuffer(1,bs,actx.sampleRate);for(let i=0;i<bs;i++)nb.getChannelData(0)[i]=Math.random()*2-1;watSrc=actx.createBufferSource();watSrc.buffer=nb;watSrc.loop=true;const lp=actx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=400;watGain=actx.createGain();watGain.gain.value=0;watSrc.connect(lp).connect(watGain).connect(actx.destination);watSrc.start();}
+function thud(){if(!actx||!audioOn)return;const o=actx.createOscillator(),g=actx.createGain();o.type='sine';o.frequency.setValueAtTime(100,actx.currentTime);o.frequency.exponentialRampToValueAtTime(20,actx.currentTime+.5);g.gain.setValueAtTime(.5,actx.currentTime);g.gain.exponentialRampToValueAtTime(.01,actx.currentTime+.5);o.connect(g).connect(actx.destination);o.start();o.stop(actx.currentTime+.5);}
+function ping(){if(!actx||!audioOn)return;const o=actx.createOscillator(),g=actx.createGain();o.type='sine';o.frequency.setValueAtTime(1300,actx.currentTime);o.frequency.exponentialRampToValueAtTime(700,actx.currentTime+.18);g.gain.setValueAtTime(.11,actx.currentTime);g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+.25);o.connect(g).connect(actx.destination);o.start();o.stop(actx.currentTime+.26);}
+const MARK_WORDS={1:'ONE',2:'TWAIN',3:'THREE',4:'FOUR',5:'FIVE',6:'SIX',7:'SEVEN',8:'EIGHT',9:'NINE',10:'TEN'};
+const MARKED=new Set([2,3,5,7,10,13,15,17,20]);
+function word(n){return MARK_WORDS[n]||String(n);}function pref(n){return MARKED.has(n)?'MARK':'DEEP';}
+function leadCall(ft){if(ft<=DRAFT)return 'AGROUND';const f=ft/6;const q=Math.round(f*4)/4;const whole=Math.floor(q);const frac=+(q-whole).toFixed(2);if(q<1)return 'SHOAL WATER';if(frac===0)return pref(whole)+' '+word(whole);if(frac===0.25)return 'AND A QUARTER '+word(whole);if(frac===0.5)return (whole===1?'A HALF LESS TWAIN':'AND A HALF '+word(whole));if(frac===0.75)return 'QUARTER LESS '+word(whole+1);return pref(whole)+' '+word(whole);}
+let lastCall='',lastCallT=0;
+function speakCall(txt){if(!audioOn||!('speechSynthesis'in window))return;const now=performance.now();if(txt===lastCall||now-lastCallT<2600)return;lastCall=txt;lastCallT=now;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt.toLowerCase());u.rate=.8;u.pitch=.65;u.volume=.9;speechSynthesis.speak(u);}catch(e){}}
+
+const overlay=document.getElementById('overlay');const octx=overlay.getContext('2d');
+let sonarOn=false;
+const RAYS=72, SONAR_RANGE_M=260, RAY_STEP_M=4;
+let rayHit=new Array(RAYS).fill(null),rayLit=new Float32Array(RAYS),sweepAngle=0;
+function resizeOverlay(){overlay.width=window.innerWidth;overlay.height=window.innerHeight;}
+window.addEventListener('resize',()=>{resizeOverlay();MAP.invalidateSize();MINI.invalidateSize();});
+resizeOverlay();
+function castSonar(){for(let i=0;i<RAYS;i++){const a=(i/RAYS)*360;const ar=a*Math.PI/180;const nN=Math.cos(ar),nE=Math.sin(ar);const dLat=(nN*RAY_STEP_M)/MPD_LAT,dLng=(nE*RAY_STEP_M)/MPD_LNG;let la=S.lat,ln=S.lng,hit=null;for(let d=RAY_STEP_M;d<=SONAR_RANGE_M;d+=RAY_STEP_M){la+=dLat;ln+=dLng;if(sampleDepth(la,ln)<DRAFT){hit={lat:la,lng:ln,distM:d};break;}}rayHit[i]=hit;}}
+function drawSonar(){
+  if(!sonarOn)return;
+  const bp=MAP.latLngToContainerPoint([S.lat,S.lng]);
+  sweepAngle=(sweepAngle+2.4)%360;const spread=26;
+  for(let i=0;i<RAYS;i++){const a=(i/RAYS)*360;let ad=Math.abs(((a-sweepAngle+540)%360)-180);if(ad<spread)rayLit[i]=Math.max(rayLit[i],1-ad/spread);rayLit[i]*=0.93;}
+  for(let i=0;i<RAYS;i++){const h=rayHit[i];if(!h)continue;const p=MAP.latLngToContainerPoint([h.lat,h.lng]);const lit=rayLit[i];const prox=1-clamp(h.distM/SONAR_RANGE_M,0,1);octx.strokeStyle=`rgba(25,230,200,${0.05+lit*0.10})`;octx.lineWidth=1;octx.beginPath();octx.moveTo(bp.x,bp.y);octx.lineTo(p.x,p.y);octx.stroke();const r=2+lit*3+prox*1.5;octx.fillStyle=`rgba(120,245,235,${0.28+lit*0.72})`;octx.beginPath();octx.arc(p.x,p.y,r,0,7);octx.fill();if(lit>0.5){octx.strokeStyle=`rgba(190,255,245,${lit})`;octx.lineWidth=1;octx.beginPath();octx.arc(p.x,p.y,r+2,0,7);octx.stroke();}}
+  const sr=sweepAngle*Math.PI/180;const far=MAP.latLngToContainerPoint([S.lat+(Math.cos(sr)*SONAR_RANGE_M)/MPD_LAT,S.lng+(Math.sin(sr)*SONAR_RANGE_M)/MPD_LNG]);
+  const grad=octx.createLinearGradient(bp.x,bp.y,far.x,far.y);grad.addColorStop(0,'rgba(25,230,200,.5)');grad.addColorStop(1,'rgba(25,230,200,0)');
+  octx.strokeStyle=grad;octx.lineWidth=2;octx.beginPath();octx.moveTo(bp.x,bp.y);octx.lineTo(far.x,far.y);octx.stroke();
+  const now=performance.now();const ph=((now-lastPingT)%2200)/2200;const pr=ph*Math.hypot(far.x-bp.x,far.y-bp.y);
+  octx.strokeStyle=`rgba(25,230,200,${(1-ph)*0.35})`;octx.lineWidth=1.5;octx.beginPath();octx.arc(bp.x,bp.y,pr,0,7);octx.stroke();
+  if(now-lastPingT>=2200){lastPingT=now;ping();}
+}
+
+/* WORLD RENDER — cached to an offscreen canvas, rebuilt only when the map moves (not per frame).
+   Per frame we just blit that cache at the current pan offset. This is the main perf fix. */
+const worldCache=document.createElement('canvas');const wcx=worldCache.getContext('2d');
+let worldDirty=true, wcOriginPt=null, wcZoom=null, wcGridBB=null; // cache validity: anchor + zoom + raster extent it was drawn for
+function markWorldDirty(){worldDirty=true;}
+MAP.on('zoomend viewreset',markWorldDirty);
+MAP.on('moveend',()=>{scheduleResurvey();}); // ANY view change (pan, zoom, browse) re-fits the depth field to what's visible
+let wcBB=null,wcBuiltAt=0;
+function rebuildWorldCache(){
+  // cache = visible view (+35%) CLIPPED to gridBB, hard-capped in pixels.
+  // (Previously it covered ALL of gridBB at current zoom -> zooming in demanded up to
+  //  333-MPix canvases, reallocated per frame during the pinch. That was the freeze.)
+  const vb=MAP.getBounds().pad(0.35);
+  let cb={s:Math.max(gridBB.s,vb.getSouth()),n:Math.min(gridBB.n,vb.getNorth()),w:Math.max(gridBB.w,vb.getWest()),e:Math.min(gridBB.e,vb.getEast())};
+  if(!(cb.n>cb.s&&cb.e>cb.w))cb={s:vb.getSouth(),n:vb.getNorth(),w:vb.getWest(),e:vb.getEast()};
+  const nw=MAP.latLngToContainerPoint([cb.n,cb.w]);
+  const se=MAP.latLngToContainerPoint([cb.s,cb.e]);
+  const wpx=clamp(Math.ceil(se.x-nw.x),8,2400), hpx=clamp(Math.ceil(se.y-nw.y),8,2400);
+  if(worldCache.width!==wpx||worldCache.height!==hpx){worldCache.width=wpx;worldCache.height=hpx;}
+  wcx.clearRect(0,0,wpx,hpx);
+  {
+    // NO shoreline stroke. The edge IS the depth: alpha-faded shallows dissolve into land,
+    // with a feathering blur so cell edges melt — a hazy variable-depth margin, not a border.
+    const sx=(cb.w-gridBB.w)/(gridBB.e-gridBB.w)*GW, sy=(gridBB.n-cb.n)/(gridBB.n-gridBB.s)*GH;
+    const sw=Math.max(1,(cb.e-cb.w)/(gridBB.e-gridBB.w)*GW), sh=Math.max(1,(cb.n-cb.s)/(gridBB.n-gridBB.s)*GH);
+    if(depthOn){wcx.save();wcx.imageSmoothingEnabled=true;wcx.imageSmoothingQuality='high';
+      const blurPx=clamp(wpx/220,0.6,2.2); // scale feather with magnification
+      try{wcx.filter='blur('+blurPx.toFixed(2)+'px)';}catch(e){}
+      wcx.globalAlpha=0.92;
+      try{wcx.drawImage(depthCanvas,sx,sy,sw,sh,0,0,wpx,hpx);}catch(e){}
+      try{wcx.filter='none';}catch(e){}
+      wcx.restore();}
+  }
+  wcOriginPt=nw;wcZoom=MAP.getZoom();wcGridBB=gridBB;wcBB=cb;wcBuiltAt=performance.now();
+  worldDirty=false;
+}
+function drawWorld(){
+  octx.clearRect(0,0,overlay.width,overlay.height);
+  const vb=MAP.getBounds();
+  const inside=wcBB&&vb.getWest()>=wcBB.w&&vb.getEast()<=wcBB.e&&vb.getSouth()>=wcBB.s&&vb.getNorth()<=wcBB.n;
+  const fresh=wcOriginPt&&!worldDirty&&wcZoom===MAP.getZoom()&&wcGridBB===gridBB&&inside;
+  if(!fresh&&(!wcOriginPt||performance.now()-wcBuiltAt>120))rebuildWorldCache(); // max ~8 rebuilds/s, pinch can't stampede it
+  if(wcBB){
+    // subpixel GEO-SCALED blit: unrounded position+size so the layer can't wobble against the map
+    const p1=MAP.latLngToContainerPoint([wcBB.n,wcBB.w]);
+    const p2=MAP.latLngToContainerPoint([wcBB.s,wcBB.e]);
+    octx.imageSmoothingEnabled=true;octx.imageSmoothingQuality='high';
+    octx.drawImage(worldCache,p1.x,p1.y,Math.max(1,p2.x-p1.x),Math.max(1,p2.y-p1.y));
+  }
+  drawSonar();drawGrid();drawContacts();drawLife();drawPilot();drawDelivery();drawBeast();drawGuide();
+}
+
+/* BUTTONS */
+function setLabel(btn,txt){const l=btn.querySelector('.lb');if(l)l.textContent=txt;}
+document.getElementById('bVis').addEventListener('click',function(){if(mode==='drone'){MAP.removeLayer(droneLayer);MAP.addLayer(schemLayer);MINI.removeLayer(miniDrone);MINI.addLayer(miniSchem);document.body.classList.replace('mode-drone','mode-schematic');setLabel(this,'SCHEM');this.classList.add('on');mode='schematic';}else{MAP.removeLayer(schemLayer);MAP.addLayer(droneLayer);MINI.removeLayer(miniSchem);MINI.addLayer(miniDrone);document.body.classList.replace('mode-schematic','mode-drone');setLabel(this,'DRONE');this.classList.remove('on');mode='drone';}markWorldDirty();});
+document.getElementById('bDepth').addEventListener('click',function(){depthOn=!depthOn;this.classList.toggle('on',depthOn);if(miniDepthOverlay){if(depthOn)miniDepthOverlay.addTo(MINI);else MINI.removeLayer(miniDepthOverlay);}markWorldDirty();});
+document.getElementById('bAudio').addEventListener('click',function(){audioOn=!audioOn;sonarOn=audioOn;if(audioOn){this.classList.add('on');initAudio();if(actx&&actx.state==='suspended')actx.resume();sonarPing();pilotSay('PING — CONTACTS REVEALED',1600);}else{this.classList.remove('on');if(engGain)engGain.gain.value=0;if(watGain)watGain.gain.value=0;}});
+document.getElementById('bPin').addEventListener('click',function(){pinMode=!pinMode;hopMode=false;updModeBtns();});
+document.getElementById('bHop').addEventListener('click',function(){hopMode=!hopMode;pinMode=false;updModeBtns();});
+document.getElementById('bWarp').addEventListener('click',()=>{S.lat=SPAWN.lat;S.lng=SPAWN.lng;S.speed=0;S.heading=0;S.stuck=false;clearWaypoint();RUN.fuel=70;RUN.over=false;RUN.reserveUsed=false;RUN.goal=3;RUN.watch=1;RUN.watchSaved=0;RUN.score=0;RUN.paused=false;hull=100;LIFE.missions.length=0;LIFE.caches.length=0;LIFE.saved=0;LIFE.delivered=0;MAP.setView([S.lat,S.lng],16,{animate:false});MINI.setView([S.lat,S.lng],14,{animate:false});boat.setLatLng([S.lat,S.lng]);miniBoat.setLatLng([S.lat,S.lng]);pilotSay('RUN RESET · TANKS FULL',2000);if(navigator.vibrate)navigator.vibrate(50);});
+document.getElementById('bZoomIn').addEventListener('click',()=>MAP.zoomIn());
+document.getElementById('bZoomOut').addEventListener('click',()=>MAP.zoomOut());
+document.getElementById('bBeast').addEventListener('click',function(){beastToggle(!BEAST.on);this.classList.toggle('on',BEAST.on);if(!BEAST.on)document.getElementById('threatHud').style.display='none';if(BEAST.on){hull=100;pilotSay('HUNT ARMED · GO DEEP',2600);}else{pilotSay('WATERS CALM',1600);}});
+document.getElementById('bBait').addEventListener('click',dropBait);
+document.getElementById('winContinue').addEventListener('click',()=>{document.getElementById('winBanner').style.display='none';RUN.paused=false;});
+document.getElementById('objStart').addEventListener('click',()=>{document.getElementById('objCard').style.display='none';RUN.paused=false;pilotSay('FOLLOW THE ARROW TO A SOUL',3200);});
+document.getElementById('bHarpoon').addEventListener('click',beastHarpoon);
+
+/* ===== HALO-DOCKED HUD: pilot + five-line deliver, no full-screen panels ===== */
+const hud=document.getElementById('hud'),hudTag=document.getElementById('hudTag'),hudInput=document.getElementById('hudInput'),hudGo=document.getElementById('hudGo'),hudRow2=document.getElementById('hudRow2'),hudMsg=document.getElementById('hudMsg');
+let hudMode=null;
+function syncPilotBtn(){const b=document.getElementById('bPilot');if(b)b.classList.toggle('on',autopilot);}
+function hudClose(){hud.style.display='none';hudMode=null;document.getElementById('bDeliver').classList.remove('on');}
+document.getElementById('hudX').addEventListener('click',hudClose);
+
+function chipRow(items,sel,onPick){hudRow2.textContent='';items.forEach(it=>{const b=document.createElement('button');b.className='achip'+(it===sel?' on':'');b.textContent=it;b.onclick=()=>{onPick(it);hudRow2.querySelectorAll('.achip').forEach(c=>c.classList.toggle('on',c===b));};hudRow2.appendChild(b);});}
+
+/* PILOT: type a place / pick a pin, or just tap the map */
+document.getElementById('bPilot').addEventListener('click',()=>{
+  if(autopilot){clearWaypoint();pilotSay('HELM YOURS',1500);hudClose();return;}
+  hudMode='pilot';hud.style.display='block';hudTag.textContent='PILOT ▸';hudInput.placeholder='place / lat,lng — or tap map';hudInput.value='';hudMsg.textContent='Tap the map to set a course, or type a destination.';hudGo.textContent='ENGAGE';
+  if(pins.length)chipRow(pins.map(p=>'P'+p.id),null,lbl=>{const p=pins[+lbl.slice(1)-1];if(p){setWaypoint({lat:p.lat,lng:p.lng});hudClose();}});else hudRow2.textContent='';
+  hudInput.focus();
+});
+
+/* DELIVER: no panel. Tap DELIVER -> arm drop-zone pick. Tap the map to set the DZ.
+   The payload readout appears docked under the compass; tap DELIVER again to cycle payload
+   or, once a DZ is set, LAUNCH. A long-press on DELIVER cancels. */
+const PAYLOADS=['MEDICAL','WATER','FUEL','PARTS','RATIONS','COMMS','RAFT'];
+const dlReadout=document.getElementById('dlReadout'),dlRoDZ=document.getElementById('dlRoDZ'),dlRoPay=document.getElementById('dlRoPay'),dlRoHint=document.getElementById('dlRoHint');
+function dlBtn(){return document.getElementById('bDeliver');}
+function updateDeliverReadout(){
+  if(!delivArmed){dlReadout.style.display='none';dlBtn().classList.remove('on');return;}
+  dlReadout.style.display='block';dlBtn().classList.add('on');
+  dlRoPay.textContent=PAYLOADS[dlPayIdx];
+  if(dlDZ){dlRoDZ.textContent='DZ '+dlDZ.lat.toFixed(4)+', '+dlDZ.lng.toFixed(4);dlRoDZ.style.color='#19e6c8';dlRoHint.textContent='tap DELIVER ▸ LAUNCH · tap word to cycle payload';}
+  else{dlRoDZ.textContent='TAP MAP FOR DROP ZONE';dlRoDZ.style.color='rgba(255,210,63,.9)';dlRoHint.textContent='tap DELIVER to cycle payload';}
+}
+function armDeliver(){delivArmed=true;dlDZ=null;dlPickDZ=true;updateDeliverReadout();pilotSay('SET DROP ZONE',1800);}
+function cancelDeliver(){delivArmed=false;dlDZ=null;dlPickDZ=false;updateDeliverReadout();}
+function deliverTap(){
+  if(!delivArmed){armDeliver();return;}
+  if(dlDZ){ // DZ set -> launch
+    const snap=snapDZ(dlDZ.lat,dlDZ.lng);
+    if(!snap){pilotSay('DZ UNREACHABLE',2000);dlDZ=null;dlPickDZ=true;updateDeliverReadout();return;}
+    const payload=PAYLOADS[dlPayIdx];const dz={lat:snap.lat,lng:snap.lng};
+    delivArmed=false;dlPickDZ=false;updateDeliverReadout();
+    if(snap.snapped)pilotSay('DZ ADJUSTED',1400);
+    dispatchDelivery({id:'PILOT-1',from:{lat:S.lat,lng:S.lng},dz,payload});
+    setWaypoint(dz);
+  } else { // no DZ yet -> cycle payload
+    dlPayIdx=(dlPayIdx+1)%PAYLOADS.length;updateDeliverReadout();if(navigator.vibrate)navigator.vibrate(6);
+  }
+}
+(function(){const b=dlBtn();let t=null;
+  b.addEventListener('click',deliverTap);
+  b.addEventListener('pointerdown',()=>{t=setTimeout(()=>{cancelDeliver();pilotSay('DELIVERY CLEAR',1200);t=null;},550);});
+  b.addEventListener('pointerup',()=>{if(t){clearTimeout(t);t=null;}});
+})();
+
+hudGo.addEventListener('click',async()=>{
+  if(hudMode==='pilot'){
+    const v=hudInput.value.trim();if(!v){hudMsg.textContent='Tap the map or type a place.';return;}
+    hudMsg.textContent='Locating…';const loc=await geocode(v);if(!loc){hudMsg.textContent='Could not find that.';return;}
+    const dM=Math.hypot((loc.lat-S.lat)*MPD_LAT,(loc.lng-S.lng)*MPD_LNG);hudClose();
+    if(dM<9000)setWaypoint({lat:loc.lat,lng:loc.lng});else{pilotSay('LONG TRANSIT',2200);relocate(loc.lat,loc.lng,v);}
+  }
+});
+hudInput.addEventListener('keydown',e=>{if(e.key==='Enter')hudGo.click();});
+
+
+/* AREA PANEL + BROWSE + RELOCATE */
+const areaPanel=document.getElementById('areaPanel'),areaInput=document.getElementById('areaInput'),areaMsg=document.getElementById('areaMsg'),browseBar=document.getElementById('browseBar');
+let browsing=false;
+const PRESETS=[['Cumberland · Nashville',36.1616,-86.7697],['Thames · London',51.5079,-0.0877],['Seine · Paris',48.8566,2.3522],['Venice',45.4371,12.3326],['Amsterdam',52.3676,4.9041],['New Orleans',29.960,-90.090],['Kerala',9.4981,76.3388],['Stockholm',59.3293,18.0686]];
+(function(){const w=document.getElementById('presetWrap');PRESETS.forEach(p=>{const b=document.createElement('button');b.className='achip';b.textContent=p[0];b.onclick=()=>{closeArea();relocate(p[1],p[2],p[0]);};w.appendChild(b);});})();
+function openArea(){areaPanel.style.display='block';areaMsg.textContent='';}
+function closeArea(){areaPanel.style.display='none';}
+document.getElementById('bArea').addEventListener('click',openArea);
+document.getElementById('bAreaClose').addEventListener('click',closeArea);
+document.getElementById('bAreaGo').addEventListener('click',async()=>{const q=areaInput.value.trim();if(!q)return;areaMsg.textContent='Locating…';const loc=await geocode(q);if(!loc){areaMsg.textContent='Could not find that place.';return;}closeArea();relocate(loc.lat,loc.lng,q);});
+areaInput.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('bAreaGo').click();});
+document.getElementById('bLocate').addEventListener('click',()=>{if(!navigator.geolocation){areaMsg.textContent='Geolocation unavailable.';return;}areaMsg.textContent='Getting your location…';navigator.geolocation.getCurrentPosition(pos=>{closeArea();relocate(pos.coords.latitude,pos.coords.longitude,'my location');},()=>{areaMsg.textContent='Location permission denied.';},{enableHighAccuracy:true,timeout:8000});});
+document.getElementById('bBrowse').addEventListener('click',()=>{closeArea();enterBrowse();});
+document.getElementById('bBrowseCancel').addEventListener('click',exitBrowse);
+document.getElementById('bSurveyHere').addEventListener('click',()=>{const c=MAP.getCenter();exitBrowse(true);relocate(c.lat,c.lng,'this area');});
+function enterBrowse(){browsing=true;MAP.dragging.enable();browseBar.style.display='block';tSts.textContent='BROWSE';tSts.className='tv';tSts.style.color='#ffd23f';}
+function exitBrowse(keepCenter){browsing=false;MAP.dragging.disable();browseBar.style.display='none';if(!keepCenter){MAP.setView([S.lat,S.lng],MAP.getZoom(),{animate:false});}}
+async function geocode(q){const m=q.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);if(m)return{lat:+m[1],lng:+m[3]};try{const url='https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q);const r=await fetch(url,{headers:{'Accept':'application/json'}});const j=await r.json();if(j&&j[0])return{lat:+j[0].lat,lng:+j[0].lon};}catch(e){}return null;}
+
+/* survey overlay helpers */
+const surveyEl=document.getElementById('survey'),surveyStatus=document.getElementById('surveyStatus'),surveyBar=document.getElementById('surveyBar'),surveyNote=document.getElementById('surveyNote');
+function showSurvey(label){surveyEl.style.display='flex';surveyStatus.textContent=label;surveyBar.style.width='14%';}
+function hideSurvey(){surveyBar.style.width='100%';setTimeout(()=>surveyEl.style.display='none',300);}
+
+let started=false,firstReady=false,pendingHide=false,onboarded=false;
+let lastSurveyZoom=null,surveyCenter=null,resurveyTimer=null;
+let dataDirty=true; // set when new water tiles arrive
+let snapped=false;  // boat snapped to real water once data exists
+
+function resurvey(){
+  // SKIP entirely if the current view is still inside the covered extent, zoom is unchanged,
+  // and no new water data arrived — panning within the pad is handled by the cached blit.
+  const vb=MAP.getBounds(); const z=MAP.getZoom();
+  const covered = vb.getWest()>=gridBB.w && vb.getEast()<=gridBB.e && vb.getSouth()>=gridBB.s && vb.getNorth()<=gridBB.n;
+  if(!dataDirty && z===lastSurveyZoom && covered && firstReady) return;
+  dataDirty=false;
+  const b=vb.pad(0.3); // generous pad = long blit runway before the next rebuild
+  const targetBB={s:b.getSouth(),n:b.getNorth(),w:b.getWest(),e:b.getEast()};
+  const cLat=(targetBB.s+targetBB.n)/2, cLng=(targetBB.w+targetBB.e)/2;
+  BB=targetBB; LAT0=cLat; MPD_LNG=111320*Math.cos(cLat*Math.PI/180);
+  lastSurveyZoom=z; surveyCenter={lat:cLat,lng:cLng};
+  computeDownstream(cLat,cLng);
+  const SZ=pickSurveyZoom(targetBB);
+  POLYS=ensureWater(targetBB,SZ);
+  // prefetch one tile ahead along the boat's heading so water is loaded before you arrive
+  const hr=(90-S.heading)*Math.PI/180;
+  const aLat=S.lat+Math.sin(hr)*(targetBB.n-targetBB.s)*0.55, aLng=S.lng+Math.cos(hr)*(targetBB.e-targetBB.w)*0.55;
+  ensureWater({s:aLat-1e-4,n:aLat+1e-4,w:aLng-1e-4,e:aLng+1e-4},SZ);
+  // home area works offline via procedural nodes only if OSM gave nothing near home
+  useNodes=false; // never invent procedural circles — they were the glitch
+  if(POLYS.length){surveyNote.textContent='OpenStreetMap · '+POLYS.length+' water bodies · '+waterTiles.size+' tiles';}
+  else{surveyNote.textContent=fetching.size?'Fetching water… (Overpass)':'No mapped water in view — pan to a river or use AREA';}
+  const my=++rasterToken;
+  buildRasterFor(targetBB,my,!firstReady||pendingHide,()=>{
+    // once real water exists, snap the boat out of any dry-spawn exactly once
+    if(!snapped&&POLYS.length){snapped=true;if(sampleDepth(S.lat,S.lng)<DRAFT+2){const nw=findNearestWater(S.lat,S.lng);if(nw){S.lat=nw.lat;S.lng=nw.lng;S.speed=0;SPAWN={lat:nw.lat,lng:nw.lng};boat.setLatLng([S.lat,S.lng]);miniBoat.setLatLng([S.lat,S.lng]);}}}
+    rebuildMiniOverlays();buildDepthArc();markWorldDirty();
+    if(!firstReady){firstReady=true;hideSurvey();if(!started){started=true;requestAnimationFrame(loop);}
+      // onboarding: show the objective card once, and seed a first rescue so the guide arrow has a target
+      if(!onboarded){onboarded=true;RUN.paused=true;const oc=document.getElementById('objCard');if(oc)oc.style.display='flex';
+        setTimeout(()=>{if(!LIFE.missions.some(m=>m.kind==='rescue'&&!m.done))spawnMission('rescue');},400);}
+    }
+    else if(pendingHide){pendingHide=false;hideSurvey();}
+  });
+}
+let resurveyFirstReq=0;
+function scheduleResurvey(){const now=performance.now();if(!resurveyFirstReq)resurveyFirstReq=now;
+  if(resurveyTimer)clearTimeout(resurveyTimer);
+  const wait=(now-resurveyFirstReq>700)?0:260; // MAX-WAIT: even while continuously moving, rebuild at least every ~1s
+  resurveyTimer=setTimeout(()=>{resurveyTimer=null;resurveyFirstReq=0;resurvey();},wait);}
+function maybeResurvey(){const z=MAP.getZoom();let need=false;if(z!==lastSurveyZoom)need=true;else if(surveyCenter){const dLat=Math.abs(S.lat-surveyCenter.lat),dLng=Math.abs(S.lng-surveyCenter.lng);if(dLat>(BB.n-BB.s)*0.26||dLng>(BB.e-BB.w)*0.26)need=true;}else need=true;if(need)scheduleResurvey();}
+MAP.on('zoomend',scheduleResurvey);
+
+/* jump the whole survey to a new place (initial load, presets, geocode, locate, survey-here) */
+function goTo(lat,lng,label,zoom){
+  showSurvey('Surveying '+label+'…');
+  pendingHide=firstReady;               // if already running, hide overlay after next raster
+  clearPins();clearWaypoint();
+  SPAWN={lat,lng};S.lat=lat;S.lng=lng;S.speed=0;S.heading=0;S.stuck=false;
+  boat.setLatLng([lat,lng]);miniBoat.setLatLng([lat,lng]);
+  MAP.setView([lat,lng],zoom||16,{animate:false});MINI.setView([lat,lng],14,{animate:false});
+  setTimeout(()=>{MAP.invalidateSize();MINI.invalidateSize();},60);
+  // build now with whatever tiles are cached; snap boat to nearest water once raster ready
+  const b=MAP.getBounds().pad(0.3);const targetBB={s:b.getSouth(),n:b.getNorth(),w:b.getWest(),e:b.getEast()};
+  const cLat=(targetBB.s+targetBB.n)/2,cLng=(targetBB.w+targetBB.e)/2;
+  BB=targetBB;LAT0=cLat;MPD_LNG=111320*Math.cos(cLat*Math.PI/180);lastSurveyZoom=MAP.getZoom();surveyCenter={lat:cLat,lng:cLng};computeDownstream(cLat,cLng);
+  const SZ=pickSurveyZoom(targetBB);POLYS=ensureWater(targetBB,SZ);
+  useNodes=false; // never invent procedural circles — they were the glitch
+  const my=++rasterToken;
+  buildRasterFor(targetBB,my,true,()=>{
+    if(sampleDepth(S.lat,S.lng)<DRAFT+2){const nw=findNearestWater(S.lat,S.lng);if(nw){SPAWN={lat:nw.lat,lng:nw.lng};S.lat=nw.lat;S.lng=nw.lng;boat.setLatLng([S.lat,S.lng]);miniBoat.setLatLng([S.lat,S.lng]);MAP.setView([S.lat,S.lng],zoom||16,{animate:false});}}
+    rebuildMiniOverlays();buildDepthArc();renderHalo();markWorldDirty();
+    if(!firstReady){firstReady=true;hideSurvey();if(!started){started=true;requestAnimationFrame(loop);}}else{hideSurvey();}
+  });
+}
+async function relocate(lat,lng,label){goTo(lat,lng,label);}
+
+/* HALO */
+const haloTicks=document.getElementById('haloTicks'),haloWps=document.getElementById('haloWps'),NS='http://www.w3.org/2000/svg';
+function bez(t){const p0={x:50,y:155},p1={x:750,y:16},p2={x:1450,y:155};const m=1-t;return{x:m*m*p0.x+2*m*t*p1.x+t*t*p2.x,y:m*m*p0.y+2*m*t*p1.y+t*t*p2.y};}
+const FOV=140;const t4off=o=>(o+FOV/2)/FOV;
+const CARD={0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'};
+function renderHalo(){haloTicks.textContent='';haloWps.textContent='';const h=S.heading;for(let d=-FOV/2;d<=FOV/2;d+=5){const comp=((h+d)%360+360)%360;const t=t4off(d);if(t<0||t>1)continue;const p=bez(t),p2=bez(Math.min(t+0.002,1));const ang=Math.atan2(p2.y-p.y,p2.x-p.x)+Math.PI/2;const rc=Math.round(comp);const maj=rc%45===0,mid=rc%15===0;const len=maj?15:mid?10:6;const x2=p.x+Math.cos(ang)*len,y2=p.y+Math.sin(ang)*len;const ln=document.createElementNS(NS,'line');ln.setAttribute('x1',p.x);ln.setAttribute('y1',p.y);ln.setAttribute('x2',x2);ln.setAttribute('y2',y2);ln.setAttribute('class',maj?'tickMaj':'tick');haloTicks.appendChild(ln);if(maj){const lx=p.x+Math.cos(ang)*(len+12),ly=p.y+Math.sin(ang)*(len+12);let bn='',bd=999;for(const k in CARD){let df=Math.abs(((rc-k+540)%360)-180);if(df<bd){bd=df;bn=CARD[k];}}const tx=document.createElementNS(NS,'text');tx.setAttribute('x',lx);tx.setAttribute('y',ly+4);tx.setAttribute('fill','#fff');tx.setAttribute('font-size','13');tx.setAttribute('font-weight','700');tx.setAttribute('text-anchor','middle');tx.textContent=bn;haloTicks.appendChild(tx);}else if(mid){const lx=p.x+Math.cos(ang)*(len+10),ly=p.y+Math.sin(ang)*(len+10);const tx=document.createElementNS(NS,'text');tx.setAttribute('x',lx);tx.setAttribute('y',ly+3);tx.setAttribute('fill','rgba(180,245,235,.8)');tx.setAttribute('font-size','10');tx.setAttribute('text-anchor','middle');tx.textContent=rc;haloTicks.appendChild(tx);}}
+  const marks=[];if(navTarget)marks.push({b:bearingTo(S.lat,S.lng,navTarget.lat,navTarget.lng),c:'#ffd23f',t:'DEST'});
+  for(const pn of pins){marks.push({b:bearingTo(S.lat,S.lng,pn.lat,pn.lng),c:'#ffd23f',t:'P'+pn.id});}
+  for(const mk of marks){let off=((mk.b-h+540)%360)-180;if(off<-FOV/2||off>FOV/2)continue;const p=bez(t4off(off));const dm=document.createElementNS(NS,'path');dm.setAttribute('d',`M ${p.x} ${p.y-8} l 5 5 l -5 5 l -5 -5 z`);dm.setAttribute('fill',mk.c);dm.setAttribute('opacity',mk.t==='DEST'?'1':'.75');haloWps.appendChild(dm);const lb=document.createElementNS(NS,'text');lb.setAttribute('x',p.x);lb.setAttribute('y',p.y-12);lb.setAttribute('fill',mk.c);lb.setAttribute('font-size','8');lb.setAttribute('font-weight','700');lb.setAttribute('text-anchor','middle');lb.textContent=mk.t;haloWps.appendChild(lb);}
+}
+
+/* SIDE DEPTH ARC */
+const daStatic=document.getElementById('daStatic'),daFill=document.getElementById('daFill'),daMark=document.getElementById('daMark');
+function daBez(t){const p0={x:66,y:14},p1={x:14,y:220},p2={x:66,y:426};const m=1-t;return{x:m*m*p0.x+2*m*t*p1.x+t*t*p2.x,y:m*m*p0.y+2*m*t*p1.y+t*t*p2.y};}
+function depthT(ft){return clamp(ft/MAXD,0,1);}
+function daNormal(t){const p=daBez(t),p2=daBez(Math.min(t+0.004,1));let ax=p2.x-p.x,ay=p2.y-p.y;let nx=ay,ny=-ax;const m=Math.hypot(nx,ny)||1;nx/=m;ny/=m;if(nx<0){nx=-nx;ny=-ny;}return{x:nx,y:ny};}
+function buildDepthArc(){let html='';let dpath='M '+daBez(0).x+' '+daBez(0).y;for(let t=0.02;t<=1.001;t+=0.02){const p=daBez(t);dpath+=' L '+p.x.toFixed(1)+' '+p.y.toFixed(1);}html+=`<path d="${dpath}" fill="none" stroke="rgba(25,230,200,.3)" stroke-width="1.5"/>`;const labels={6:'1f',12:'TWAIN',18:'THREE',24:'DEEP4',30:'FIVE',36:'DEEP6',42:'SEVEN'};for(let ft=0;ft<=MAXD;ft+=3){const t=depthT(ft);const p=daBez(t);const n=daNormal(t);const maj=(ft%6===0);const len=maj?13:7;const x2=p.x+n.x*len,y2=p.y+n.y*len;html+=`<line x1="${p.x.toFixed(1)}" y1="${p.y.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="${maj?'daTickMaj':'daTick'}"/>`;if(labels[ft]){const lx=p.x+n.x*(len+3),ly=p.y+n.y*(len+3);html+=`<text x="${lx.toFixed(1)}" y="${(ly+3).toFixed(1)}" fill="rgba(180,245,235,.85)" font-size="8" font-weight="700">${labels[ft]}</text>`;}}{const t=depthT(DRAFT);const p=daBez(t);const n=daNormal(t);html+=`<line x1="${(p.x-n.x*4).toFixed(1)}" y1="${(p.y-n.y*4).toFixed(1)}" x2="${(p.x+n.x*16).toFixed(1)}" y2="${(p.y+n.y*16).toFixed(1)}" stroke="#ff2e2e" stroke-width="1.6"/><text x="${(p.x+n.x*19).toFixed(1)}" y="${(p.y+n.y*19+3).toFixed(1)}" fill="#ff2e2e" font-size="7" font-weight="700">DRAFT</text>`;}html+=`<text x="66" y="8" fill="rgba(25,230,200,.7)" font-size="7" font-weight="700" text-anchor="middle">SURF</text>`;html+=`<text x="66" y="438" fill="rgba(25,230,200,.7)" font-size="7" font-weight="700" text-anchor="middle">DEEP</text>`;daStatic.innerHTML=html;}
+/* control-arc spine: a right-bulging curve mirroring the depth gauge, with ticks between buttons */
+function caBez(t){const p0={x:22,y:16},p1={x:78,y:250},p2={x:22,y:484};const m=1-t;return{x:m*m*p0.x+2*m*t*p1.x+t*t*p2.x,y:m*m*p0.y+2*m*t*p1.y+t*t*p2.y};}
+function caNormal(t){const p=caBez(t),p2=caBez(Math.min(t+0.004,1));let ax=p2.x-p.x,ay=p2.y-p.y;let nx=ay,ny=-ax;const m=Math.hypot(nx,ny)||1;nx/=m;ny/=m;if(nx>0){nx=-nx;ny=-ny;}return{x:nx,y:ny};}
+function buildCtrlArc(){const el=document.getElementById('caStatic');if(!el)return;let html='';let d='M '+caBez(0).x+' '+caBez(0).y;for(let t=0.02;t<=1.001;t+=0.02){const p=caBez(t);d+=' L '+p.x.toFixed(1)+' '+p.y.toFixed(1);}html+=`<path d="${d}" fill="none" stroke="rgba(25,230,200,.3)" stroke-width="1.5"/>`;for(let i=0;i<=48;i++){const t=i/48;const p=caBez(t);const n=caNormal(t);const maj=(i%6===0);const len=maj?10:6;html+=`<line x1="${p.x.toFixed(1)}" y1="${p.y.toFixed(1)}" x2="${(p.x+n.x*len).toFixed(1)}" y2="${(p.y+n.y*len).toFixed(1)}" class="${maj?'daTickMaj':'daTick'}"/>`;}el.innerHTML=html;}
+buildCtrlArc();
+function updateDepthArc(ft){const tc=depthT(ft);let d='M '+daBez(0).x+' '+daBez(0).y;for(let t=0.02;t<=tc+0.0001;t+=0.02){const p=daBez(Math.min(t,tc));d+=' L '+p.x.toFixed(1)+' '+p.y.toFixed(1);}const pe=daBez(tc);d+=' L '+pe.x.toFixed(1)+' '+pe.y.toFixed(1);daFill.setAttribute('d',d);daFill.setAttribute('stroke',ft<=DRAFT?'#ff2e2e':ft<SHOAL?'#ffd23f':'#3b82f6');const p=daBez(tc);const n=daNormal(tc);const col=ft<=DRAFT?'#ff2e2e':ft<SHOAL?'#ffd23f':'#19e6c8';daMark.innerHTML=`<line x1="${(p.x-n.x*5).toFixed(1)}" y1="${(p.y-n.y*5).toFixed(1)}" x2="${(p.x+n.x*20).toFixed(1)}" y2="${(p.y+n.y*20).toFixed(1)}" stroke="${col}" stroke-width="2"/><circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="${col}" style="filter:drop-shadow(0 0 5px ${col})"/><text x="${(p.x+n.x*24).toFixed(1)}" y="${(p.y+n.y*24+3).toFixed(1)}" fill="${col}" font-size="10" font-weight="700">${ft.toFixed(0)}</text>`;}
+
+/* GAME LOOP */
+const tSpd=document.getElementById('tSpd'),tCur=document.getElementById('tCur'),tSog=document.getElementById('tSog'),tHdg=document.getElementById('tHdg'),tHdgBig=document.getElementById('tHdgBig'),tSts=document.getElementById('tSts'),tCall=document.getElementById('tCall'),tDepth=document.getElementById('tDepth'),mmLat=document.getElementById('mmLat'),mmLng=document.getElementById('mmLng');
+let frame=0,stuckFrames=0,lastHaloSig='',lastArcFt=-99;
+function unit(u){return `<span class="u">${u}</span>`;}
+function chaseCamera(){const p=MAP.latLngToContainerPoint([S.lat,S.lng]);const s=MAP.getSize();let dx=p.x-s.x/2,dy=p.y-s.y/2;if(Math.hypot(dx,dy)<6)return;MAP.panBy([Math.round(dx),Math.round(dy)],{animate:false});}
+function loop(){
+  frame++;
+  if(browsing){drawWorld();requestAnimationFrame(loop);return;}
+  if(RUN.paused){drawWorld();requestAnimationFrame(loop);return;} // win overlay open — freeze the world
+  const depthNow=sampleDepth(S.lat,S.lng);
+  if(!joyActive){const k=0.25,damp=0.65;velX+=-k*stickX;velY+=-k*stickY;velX*=damp;velY*=damp;stickX+=velX;stickY+=velY;if(Math.abs(stickX)<0.5&&Math.abs(velX)<0.5)stickX=0;if(Math.abs(stickY)<0.5&&Math.abs(velY)<0.5)stickY=0;}
+  joyStick.style.transform=`translate(${stickX}px,${stickY}px)`;joyInput.x=stickX/R_J;joyInput.y=-(stickY/R_J);
+  let targetHeading=null,thrust=0;const mag=Math.hypot(joyInput.x,joyInput.y);
+  if(mag>0.12){targetHeading=Math.atan2(joyInput.x,joyInput.y)*180/Math.PI;if(targetHeading<0)targetHeading+=360;thrust=Math.min(mag,1);}
+  else if(navTarget){navLine.setLatLngs([[S.lat,S.lng],[navTarget.lat,navTarget.lng]]);miniNavLine.setLatLngs([[S.lat,S.lng],[navTarget.lat,navTarget.lng]]);
+    const distM=Math.hypot((navTarget.lat-S.lat)*MPD_LAT,(navTarget.lng-S.lng)*MPD_LNG);
+    if(distM<16){clearWaypoint();pilotSay('MADE FAST',1800);}
+    else{
+      if(frame%6===0||!PILOT.chosen)pilotThink(distM);
+      if(PILOT.chosen){targetHeading=PILOT.chosen.hdg;thrust=PILOT.chosen.thrust;}
+      const pn=performance.now();
+      if(pn-PILOT.lastProgT>3600){if(PILOT.lastProgD-distM<5)pilotPortage();PILOT.lastProgT=pn;PILOT.lastProgD=distM;}
+    }
+  }
+  if(targetHeading!==null){const diff=deltaAngle(S.heading,targetHeading);const shallowFac=clamp(depthNow/SHOAL,0.5,1);S.heading+=Math.sign(diff)*Math.min(Math.abs(diff),CFG.turn*shallowFac);S.heading=(S.heading%360+360)%360;if(Math.abs(diff)<55){if(RUN.fuel>0){if(audioOn)initAudio();S.speed+=CFG.accel*thrust;}else{S.speed+=CFG.accel*thrust*0.22;}}} // adrift: weak paddle-steer, never fully dead
+  const shallow=depthNow<SHOAL&&depthNow>DRAFT;const topSpeed=CFG.maxSpeed*(shallow?0.6:1);const dq=CFG.dragQuad*(shallow?2:1);
+  S.speed-=(CFG.dragLin*S.speed)+(dq*S.speed*Math.abs(S.speed));if(S.speed>topSpeed)S.speed=topSpeed;if(S.speed<0)S.speed=0;
+  const flowRaw=flowAt(S.lat,S.lng,depthNow);
+  // exponential smoothing: current eases in/out and can't snap direction when the raster rebuilds
+  const aS=0.06;flowSmooth.dLat+=(flowRaw.dLat-flowSmooth.dLat)*aS;flowSmooth.dLng+=(flowRaw.dLng-flowSmooth.dLng)*aS;flowSmooth.speedKts+=(flowRaw.speedKts-flowSmooth.speedKts)*aS;
+  const flow=flowSmooth;const hRad=(90-S.heading)*Math.PI/180;
+  let DLat=Math.sin(hRad)*S.speed+flow.dLat, DLng=Math.cos(hRad)*S.speed+flow.dLng;
+  let nLat=S.lat+DLat, nLng=S.lng+DLng;let scraping=false;
+  if(sampleDepth(nLat,nLng)>DRAFT){S.lat=nLat;S.lng=nLng;}
+  else{const g=depthGradient(S.lat,S.lng);let nE=g.gE,nN=g.gN;const gm=Math.hypot(nE,nN);if(gm>1e-6){nE/=gm;nN/=gm;const DE=DLng*MPD_LNG,DN=DLat*MPD_LAT;const dot=DE*nE+DN*nN;const TE=DE-dot*nE,TN=DN-dot*nN;const sLat=TN/MPD_LAT,sLng=TE/MPD_LNG;const tLat=S.lat+sLat,tLng=S.lng+sLng;if(sampleDepth(tLat,tLng)>DRAFT){S.lat=tLat;S.lng=tLng;scraping=true;S.speed*=0.9;}else{S.speed*=0.4;scraping=true;}}else{S.speed*=0.4;scraping=true;}}
+  if(depthNow<=DRAFT){scraping=true;const g=depthGradient(S.lat,S.lng);let nE=g.gE,nN=g.gN;let gm=Math.hypot(nE,nN);if(gm<=1e-6){const nw=findNearestWater(S.lat,S.lng);if(nw){nE=(nw.lng-S.lng)*MPD_LNG;nN=(nw.lat-S.lat)*MPD_LAT;gm=Math.hypot(nE,nN);}}if(gm>1e-6){nE/=gm;nN/=gm;const push=1.8;S.lat+=(nN*push)/MPD_LAT;S.lng+=(nE*push)/MPD_LNG;}stuckFrames++;}else stuckFrames=0;
+  S.stuck=stuckFrames>4;if(S.stuck&&autopilot)pilotPortage();
+  if(depthNow<=DRAFT){tSts.textContent='AGROUND';tSts.className='tv flashRed';if(stuckFrames===1){if(navigator.vibrate)navigator.vibrate([80,40,80]);thud();}}
+  else if(scraping){tSts.textContent='SCRAPING';tSts.className='tv flashAmber';}
+  else if(shallow){tSts.textContent='SHOAL';tSts.className='tv flashAmber';}
+  else{const pm=PILOT.msgUntil>performance.now();tSts.textContent=pm?PILOT.msg:(autopilot?'PILOT':(mag>0.12?'UNDERWAY':'DRIFTING'));tSts.className='tv';tSts.style.color=(pm||autopilot)?'#ffd23f':'#19e6c8';}
+  if(frame%24===0&&(Math.abs(S.speed)>1e-7||PILOT.trail.length===0)){PILOT.trail.push({lat:S.lat,lng:S.lng});if(PILOT.trail.length>220)PILOT.trail.shift();}
+  boat.setLatLng([S.lat,S.lng]);miniBoat.setLatLng([S.lat,S.lng]);
+  const bc=document.getElementById('boatC'),bw=document.getElementById('boatW'),mbc=document.getElementById('miniBoatC');const sr=Math.abs(S.speed)/CFG.maxSpeed;
+  if(bc)bc.style.transform=`rotate(${S.heading}deg)`;if(mbc)mbc.style.transform=`rotate(${S.heading}deg)`;
+  if(bw)bw.style.opacity=(sr>0.2&&depthNow>DRAFT)?Math.min(sr*1.5,1):0;
+  if(audioOn&&engGain&&watGain){if(depthNow>DRAFT){engGain.gain.setTargetAtTime(0.08+sr*0.2,actx.currentTime,0.1);engOsc.frequency.setTargetAtTime(30+sr*20,actx.currentTime,0.1);watGain.gain.setTargetAtTime(sr*0.4,actx.currentTime,0.2);}else{engGain.gain.setTargetAtTime(0.02,actx.currentTime,0.1);watGain.gain.setTargetAtTime(0,actx.currentTime,0.1);}}
+  const call=leadCall(depthNow);tCall.textContent=call;tCall.style.color=(depthNow<=DRAFT)?'#ff2e2e':(depthNow<SHOAL)?'#ffd23f':'#19e6c8';tDepth.innerHTML=depthNow.toFixed(1)+' FT';speakCall(call);
+  const hs=Math.round(S.heading).toString().padStart(3,'0');tHdg.textContent=hs+'°';tHdgBig.textContent=hs;joyHdg.textContent=hs+'°';
+  tSpd.innerHTML=(Math.abs(S.speed)*100000).toFixed(1)+unit('KTS');tCur.innerHTML=flow.speedKts.toFixed(1)+unit('KTS');
+  const sog=Math.hypot(DLat,DLng)*100000;tSog.innerHTML=sog.toFixed(1)+unit('KTS');
+  mmLat.textContent=S.lat.toFixed(4);mmLng.textContent=S.lng.toFixed(4);
+  chaseCamera();
+  if(sonarOn&&frame%3===0)castSonar();
+  drawWorld();
+  if(frame%3===0){const sig=Math.round(S.heading*1.5)+'|'+(navTarget?1:0)+'|'+pins.length+'|'+((navTarget||pins.length)?(Math.round(S.lat*4000)+','+Math.round(S.lng*4000)):'');if(sig!==lastHaloSig){lastHaloSig=sig;renderHalo();}} // halo updates on heading change, and on movement when bearing marks exist
+  if(Math.abs(depthNow-lastArcFt)>0.12){lastArcFt=depthNow;updateDepthArc(depthNow);} // arc DOM only on real depth change
+  if(frame%10===0)MINI.setView([S.lat,S.lng],14,{animate:false});
+  if(frame%6===0){const gc=document.getElementById('goalCount');if(gc)gc.textContent=RUN.watchSaved+'/'+RUN.goal;const sc=document.getElementById('scoreCount');if(sc)sc.textContent=RUN.score.toLocaleString();}
+  if(frame%24===0)maybeResurvey();
+  updateBeast(depthNow,scraping,Math.abs(S.speed)/CFG.maxSpeed); // apex predator hunts by noise
+  if(lifeOn)updateLife();
+  updateContacts();
+  if(sonarOn&&performance.now()-lastPingT>2500)sonarPing(); // continuous sweep while listening
+  // FUEL: the master clock. Burn scales with throttle; empty = adrift.
+  if(RUN.active&&!RUN.over&&firstReady){
+    const spd=Math.abs(S.speed)/CFG.maxSpeed;
+    RUN.fuel=clamp(RUN.fuel-(IDLE_BURN+MOVE_BURN*spd),0,FUEL_MAX);
+    if(RUN.fuel<=0){
+      if(!RUN.reserveUsed){RUN.reserveUsed=true;RUN.fuel=15;pilotSay('⚠ RESERVE TANK — 15%',3000);speakCall('switching to reserve');}
+      else if(!RUN.over){RUN.over=true;pilotSay('ADRIFT — RIDE THE CURRENT TO A CACHE',5000);speakCall('out of fuel, adrift, find a fuel cache');spawnFuelCache();}
+    } else if(RUN.over){RUN.over=false;} // refueled somehow -> back in action
+  }
+  if(frame%3===0){const fa=document.getElementById('fuelArc');if(fa){const C=376.99;const frac=clamp(RUN.fuel/FUEL_MAX,0,1);fa.setAttribute('stroke-dashoffset',(C*(1-frac)).toFixed(1));fa.setAttribute('stroke',RUN.fuel<20?'#ff2e2e':RUN.fuel<45?'#ffd23f':'#19e6c8');}}
+  if(BEAST.on&&frame%3===0){const th=document.getElementById('threatHud');
+    document.getElementById('thHull').textContent=Math.round(hull);document.getElementById('thHull').style.color=hull<35?'#ff2e2e':hull<70?'#ffd23f':'#19e6c8';
+    const nz=Math.round(noiseNow/2.2*100);document.getElementById('thNoise').textContent=nz+'%';document.getElementById('thNoise').style.color=nz>55?'#ff2e2e':nz>30?'#ffd23f':'#19e6c8';
+    document.getElementById('thBhp').textContent=Math.round(BEAST.hp)+'%';document.getElementById('thBhp').style.color=BEAST.hp<40?'#7dffd2':'#ffd23f';
+    const hp=document.getElementById('bHarpoon');const openWin=BEAST.alive&&BEAST.vulnT>6;
+    hp.classList.toggle('on',openWin);hp.style.opacity=openWin?'1':'0.5';
+    if(BEAST.alive){
+      const st=BEAST.vulnT>6?'◆ STRIKE NOW':BEAST.baitActive?'BAIT SET':BEAST.aware>0.9?'LOCKED ON':BEAST.aware>0.6?'HUNTING':BEAST.aware>0.35?'STIRRING':'LURKING';
+      document.getElementById('thState').textContent=st;document.getElementById('thState').style.color=BEAST.vulnT>6?'#7dffd2':BEAST.aware>0.6?'#ff2e2e':'#ffd23f';
+      document.getElementById('threatHud').style.display=(BEAST.alive&&BEAST.aware>0.4)?'block':'none';
+    } else {document.getElementById('thState').textContent='SILENT DEEP';document.getElementById('thState').style.color='rgba(25,230,200,.6)';}}
+  requestAnimationFrame(loop);
+}
+
+/* INITIAL SURVEY — viewport-driven; streams tiles, falls back to procedural nodes at home if offline */
+/* try WebGPU first; when ready, the next survey uses the GPU compute path */
+goTo(DEFAULT.lat,DEFAULT.lng,'Cumberland River',16);
+
+}
+</script>
+</body>
+</html>
