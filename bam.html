@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>BAM</title>
+<style>
+:root{--teal:#19e6c8;--amber:#ffd23f;--blue:#5b9dff;--paper:#fff;--red:#ff5a3c}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;overflow:hidden;background:#000;color:#fff;
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+.scr{position:absolute;inset:0;display:none;flex-direction:column}
+.scr.on{display:flex}
+
+/* ---------- start ---------- */
+#start{align-items:center;justify-content:center;gap:min(6vh,44px);padding:5vw}
+.word{font-size:clamp(3.4rem,17vw,9rem);letter-spacing:.14em;font-weight:700;line-height:.9}
+.tag{font-size:clamp(.7rem,3.2vw,1rem);letter-spacing:.34em;color:#666;text-align:center}
+.picker{display:flex;align-items:center;gap:min(7vw,40px)}
+.pm{width:min(21vw,84px);height:min(21vw,84px);border:2px solid #2a2a2a;background:#000;color:#fff;
+  font-size:min(9vw,2.4rem);font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pm:active{background:#151515}
+.num{font-size:clamp(3.6rem,20vw,9rem);font-weight:700;min-width:2.2em;text-align:center;line-height:1}
+.numlab{font-size:clamp(.68rem,3vw,.9rem);letter-spacing:.24em;color:#666;text-align:center;margin-top:-2vh}
+.big{background:#fff;color:#000;border:none;font-family:inherit;font-weight:700;
+  font-size:clamp(1.1rem,5.4vw,1.7rem);letter-spacing:.16em;padding:min(5vh,26px) min(14vw,72px);cursor:pointer}
+.big:active{transform:translateY(2px)}
+
+/* ---------- run ---------- */
+#run{background:#000}
+.card{flex:1;display:flex;flex-direction:column;padding:4vh 5vw 2vh;cursor:pointer;position:relative}
+.rlab{font-size:clamp(.72rem,3.4vw,1.05rem);letter-spacing:.3em;font-weight:700}
+.task{flex:1;display:flex;flex-direction:column;justify-content:center;gap:1.4vh}
+.tbig{font-size:clamp(1.5rem,8.4vw,3.4rem);line-height:1.06;font-weight:700;letter-spacing:-.01em}
+.tsub{font-size:clamp(.78rem,3.6vw,1.15rem);line-height:1.45;opacity:.62}
+.five{display:flex;flex-direction:column;gap:.7vh;margin-top:1.4vh}
+.five div{font-size:clamp(.72rem,3.3vw,1rem);opacity:.72;line-height:1.3}
+.five b{opacity:1}
+.clock{font-size:clamp(4rem,25vw,13rem);line-height:.86;font-weight:700;letter-spacing:-.03em;text-align:center}
+.hint{text-align:center;font-size:clamp(.62rem,2.9vw,.82rem);letter-spacing:.2em;opacity:.42;height:1.4em}
+.dots{display:flex;gap:6px;justify-content:center;padding:1.4vh 5vw 2.4vh;flex-wrap:wrap}
+.dot{width:min(8vw,30px);height:min(8vw,30px);border:2px solid #2c2c2c;background:#000;cursor:pointer}
+.dot.d{background:#ffd23f;border-color:#ffd23f}
+.dot.k{background:#19e6c8;border-color:#19e6c8}
+.nav{position:absolute;top:3vh;right:4vw;display:flex;gap:3vw;align-items:center}
+.nb{background:none;border:none;color:inherit;font-family:inherit;font-size:clamp(1.2rem,5.4vw,1.8rem);
+  opacity:.55;cursor:pointer;padding:6px 4px}
+.pips{position:absolute;top:3.6vh;left:5vw;display:flex;gap:5px}
+.pip{width:14px;height:3px;background:currentColor;opacity:.22}
+.pip.on{opacity:1}
+
+/* colour drives the round */
+#run.c0{background:var(--teal);color:#001a16}
+#run.c1{background:var(--amber);color:#1a1400}
+#run.c2{background:var(--blue);color:#00102a}
+#run.c3{background:var(--paper);color:#000}
+#run.c4{background:var(--red);color:#1a0400}
+#run.running .hint{opacity:.28}
+
+/* ---------- flash ---------- */
+#flash{background:#000;align-items:center;justify-content:center;gap:3vh;padding:6vw;text-align:center;cursor:pointer}
+.fbig{font-size:clamp(2.4rem,15vw,7rem);font-weight:700;letter-spacing:.06em;line-height:.94}
+.fmap{font-size:clamp(.82rem,4vw,1.3rem);line-height:1.7;opacity:.72}
+
+/* ---------- done ---------- */
+#done{align-items:center;justify-content:center;gap:min(5vh,34px);padding:6vw;text-align:center}
+#out{position:absolute;inset:0;background:#000;display:none;flex-direction:column;padding:4vw;gap:10px}
+#out.on{display:flex}
+#out textarea{flex:1;background:#080808;color:#ddd;border:1px solid #222;padding:12px;
+  font-family:inherit;font-size:.74rem;line-height:1.5;resize:none}
+.orow{display:flex;gap:8px}
+.orow button{flex:1;background:#000;border:1px solid #2a2a2a;color:#fff;font-family:inherit;
+  font-size:.82rem;padding:14px 0;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="scr on" id="start">
+    <div class="word">BAM</div>
+    <div class="tag">BARE ASS MINIMUM</div>
+    <div>
+      <div class="picker">
+        <button class="pm" id="minus">&minus;</button>
+        <div class="num" id="num">6</div>
+        <button class="pm" id="plus">+</button>
+      </div>
+      <div class="numlab">TABLES</div>
+    </div>
+    <button class="big" id="go">GO</button>
+  </div>
+
+  <div class="scr" id="run">
+    <div class="card" id="card">
+      <div class="pips" id="pips"></div>
+      <div class="nav"><button class="nb" id="next">&rsaquo;</button></div>
+      <div class="rlab" id="rlab"></div>
+      <div class="task" id="task"></div>
+      <div class="clock" id="clock">12:00</div>
+      <div class="hint" id="hint">TAP TO START</div>
+    </div>
+    <div class="dots" id="dots"></div>
+  </div>
+
+  <div class="scr" id="flash">
+    <div class="fbig" id="fbig">PASS LEFT</div>
+    <div class="fmap" id="fmap"></div>
+  </div>
+
+  <div class="scr" id="done">
+    <div class="word" style="font-size:clamp(2.2rem,12vw,5rem)">DONE</div>
+    <div class="tag" id="donesub"></div>
+    <button class="big" id="exp">TAKE IT</button>
+    <button class="big" id="again" style="background:#000;color:#fff;border:2px solid #333">AGAIN</button>
+  </div>
+
+  <div id="out">
+    <textarea id="txt" spellcheck="false" readonly></textarea>
+    <div class="orow">
+      <button id="cp">COPY</button><button id="dl">SAVE</button><button id="ob">BACK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const R = [
+  { lab:"1 / DRAFT", min:12, shift:0, big:"Your unit.<br>All five.<br>Rough.",
+    sub:"Nobody sees the rough.", five:true },
+  { lab:"2 / PASS LEFT", min:7, shift:1, big:"Their unit.<br>Only the<br>HARD PART.",
+    sub:"Not editing. Adding what they're too close to see." },
+  { lab:"3 / PASS LEFT", min:7, shift:2, big:"Only the<br>PROOF.",
+    sub:"Can't build the test from their objective? Say so out loud." },
+  { lab:"4 / HOME", min:8, shift:0, big:"Yours back.<br>Decide.",
+    sub:"You don't have to accept what they wrote. You do have to decide." },
+  { lab:"5 / DEBRIEF", min:5, shift:0, big:"Write first.<br>Talk after.",
+    sub:"1 — Hardest field, why?<br>2 — What did someone else's unit change?<br>3 — What could nobody supply?" }
+];
+const FIVE = [["ONE THING","what they can do that they can't now"],
+              ["PROOF","what shows it"],
+              ["HARD PART","where they predictably fail"],
+              ["FIRST MOVE","the ten minutes that create the need"],
+              ["FLOOR","what the weakest still leaves with"]];
+
+let n = 6, ri = 0, left = 0, endAt = 0, running = false, warned = false, blown = false;
+let marks = [];
+const $ = i => document.getElementById(i);
+const fmt = ms => { const s = Math.max(0, Math.ceil(ms/1000));
+  return String(Math.floor(s/60)).padStart(2,"0") + ":" + String(s%60).padStart(2,"0"); };
+const holds = (t, r) => ((t - R[r].shift) % n + n) % n;
+
+let AC=null;
+const ac=()=>{ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)();
+  if(AC.state==="suspended") AC.resume(); return AC; };
+function beep(f,d,v,ty){ const c=ac(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+  o.type=ty||"sine"; o.frequency.setValueAtTime(f,t); g.gain.setValueAtTime(v,t);
+  g.gain.exponentialRampToValueAtTime(.0008,t+d); o.connect(g); g.connect(c.destination);
+  o.start(t); o.stop(t+d+.02); }
+const tick=()=>beep(1400,.05,.06,"square");
+const warn=()=>{ beep(660,.3,.11,"triangle"); setTimeout(()=>beep(880,.34,.11,"triangle"),190); };
+const end=()=>[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.6,.12,"triangle"),i*140));
+
+function show(id){ ["start","run","flash","done"].forEach(k=>$(k).classList.toggle("on",k===id)); }
+$("minus").onclick = () => { n = Math.max(3, n-1); $("num").textContent = n; };
+$("plus").onclick  = () => { n = Math.min(12, n+1); $("num").textContent = n; };
+$("go").onclick = () => { ac(); marks = new Array(n).fill(0); ri = 0; load(); show("run"); };
+
+function load(){
+  left = R[ri].min*60000; running=false; warned=false; blown=false;
+  const r = R[ri];
+  $("run").className = "scr on c"+ri;
+  $("rlab").textContent = r.lab;
+  let html = '<div class="tbig">'+r.big+'</div><div class="tsub">'+r.sub+'</div>';
+  if (r.five) { html += '<div class="five">' +
+    FIVE.map(f=>'<div><b>'+f[0]+'</b> · '+f[1]+'</div>').join("") + '</div>'; }
+  $("task").innerHTML = html;
+  $("pips").innerHTML = R.map((_,i)=>'<div class="pip'+(i<=ri?" on":"")+'"></div>').join("");
+  paintDots(); paint();
+}
+function paintDots(){
+  $("dots").innerHTML = "";
+  for (let i=0;i<n;i++){
+    const d = document.createElement("div");
+    d.className = "dot" + (marks[i]===1?" d":marks[i]===2?" k":"");
+    d.onclick = e => { e.stopPropagation(); marks[i]=(marks[i]+1)%3; paintDots(); };
+    $("dots").appendChild(d);
+  }
+}
+function paint(){
+  const ms = running ? Math.max(0, endAt-Date.now()) : left;
+  $("clock").textContent = fmt(ms);
+  $("clock").style.opacity = running ? 1 : .5;
+  $("hint").textContent = ms===0 ? "TIME \u2014 TAP \u203A" : running ? "" : "TAP TO START";
+  $("run").classList.toggle("running", running);
+}
+$("card").onclick = () => {
+  ac();
+  if (running){ left = Math.max(0, endAt-Date.now()); running=false; }
+  else { endAt = Date.now()+left; running=true; }
+  paint();
+};
+$("next").onclick = e => { e.stopPropagation(); advance(); };
+function advance(){
+  if (ri >= R.length-1){ finish(); return; }
+  ri++; load();
+  const r = R[ri];
+  if (r.shift !== R[ri-1].shift && r.shift > 0){
+    $("fbig").textContent = "PASS LEFT";
+    const rows=[]; for(let t=0;t<n;t++) rows.push("T"+(t+1)+" \u2192 unit "+(holds(t,ri)+1));
+    $("fmap").innerHTML = rows.join("<br>");
+    show("flash"); warn();
+  } else if (r.shift === 0 && ri === 3){
+    $("fbig").textContent = "UNITS GO HOME";
+    $("fmap").innerHTML = "Give it back to whoever started it.";
+    show("flash"); warn();
+  }
+}
+$("flash").onclick = () => { show("run"); $("card").click(); };
+
+setInterval(()=>{
+  if (running){
+    const ms = Math.max(0, endAt-Date.now());
+    if (ms<=30000 && !warned){ warned=true; warn(); }
+    if (ms<=10000 && ms>0){ const s=Math.ceil(ms/1000); if(s!==paint._l){ paint._l=s; tick(); } }
+    if (ms===0 && !blown){ blown=true; running=false; left=0; end(); }
+  }
+  paint();
+}, 150);
+
+function finish(){
+  show("done");
+  const done = marks.filter(m=>m===2).length;
+  $("donesub").textContent = done + " OF " + n + " MARKED DONE";
+}
+$("again").onclick = () => { show("start"); };
+$("exp").onclick = () => { $("txt").value = build(); $("out").classList.add("on"); };
+$("ob").onclick = () => $("out").classList.remove("on");
+function build(){
+  const L = ["# BAM session — " + new Date().toISOString().slice(0,10), "",
+             n + " tables · " + R.map(r=>r.lab.split(" / ")[1]+" "+r.min+"m").join(" · "), ""];
+  L.push("## The five, for each unit", "");
+  FIVE.forEach(f => L.push("**"+f[0]+"** — "+f[1]));
+  L.push("", "## Status", "");
+  for (let i=0;i<n;i++) L.push("- Unit "+(i+1)+": "+["not started","draft","done"][marks[i]]);
+  L.push("", "## Turning each BAM into an IPG", "",
+    "- Objective: THE ONE THING, restated student-facing.",
+    "- Standards: map THE ONE THING to codes. Check the verb matches.",
+    "- Essential question: invert THE FIRST MOVE.",
+    "- Summative: THE PROOF. Success criteria from THE FLOOR.",
+    "- Formative: one check either side of THE HARD PART.",
+    "- Misconceptions: THE HARD PART, verbatim. Don't soften it.",
+    "- Sequence: open on THE FIRST MOVE, hit THE HARD PART once they can be wrong productively, close on THE PROOF.",
+    "- Differentiation: THE FLOOR is the non-negotiable.",
+    "- Vocabulary, materials, resources: derivable. Fill last or delegate.",
+    "", "Check against the Instructional Practice Guide Core Actions before it ships.");
+  return L.join("\n");
+}
+$("cp").onclick = async () => {
+  try { await navigator.clipboard.writeText($("txt").value); }
+  catch(e){ $("txt").removeAttribute("readonly"); $("txt").select(); document.execCommand("copy"); $("txt").setAttribute("readonly",""); }
+  $("cp").textContent="COPIED"; setTimeout(()=>$("cp").textContent="COPY",1400);
+};
+$("dl").onclick = () => {
+  const b = new Blob([$("txt").value], {type:"text/markdown"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(b); a.download = "bam.md";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+};
+document.addEventListener("keydown", e => {
+  if (!$("run").classList.contains("on")) return;
+  if (e.code==="Space"){ e.preventDefault(); $("card").click(); }
+  if (e.key==="ArrowRight") advance();
+});
+</script>
+</body>
+</html>
