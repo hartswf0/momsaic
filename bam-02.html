@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BAM ROOM</title>
+<style>
+:root{--ink:#000;--paper:#fff;--teal:#19e6c8;--amber:#ffd23f;--red:#ff2e2e;--blue:#3b82f6;
+  --line:#1e1e1e;--dim:#6a6a6a;--soft:#a8a8a8}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--ink);color:var(--paper);
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+body{overflow-y:auto;overflow-x:hidden}
+button,input,select,textarea{font-family:inherit;font-variant-numeric:inherit}
+.wrap{max-width:1000px;margin:0 auto;padding:22px 18px 70px}
+h1{font-size:1.0rem;letter-spacing:.44em;font-weight:600;margin-bottom:4px}
+.sub{font-size:.74rem;color:var(--dim);letter-spacing:.06em;margin-bottom:26px}
+h2{font-size:.82rem;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);
+  margin:26px 0 10px;font-weight:600}
+p.note{font-size:.76rem;line-height:1.6;color:var(--dim);margin:8px 0}
+p.lede{font-size:.9rem;line-height:1.62;color:#bdbdbd;margin-bottom:18px}
+.scr{display:none}.scr.on{display:block}
+
+label{display:block;font-size:.78rem;color:var(--soft);margin-bottom:14px;line-height:1.8}
+input[type=text],input[type=number],select,textarea{display:block;width:100%;margin-top:5px;
+  background:#0a0a0a;color:var(--paper);border:1px solid var(--line);padding:10px;font-size:.86rem}
+textarea{resize:vertical;line-height:1.55}
+.go{display:block;width:100%;background:var(--paper);color:#000;border:none;padding:15px;
+  font-size:.92rem;font-weight:600;letter-spacing:.07em;margin-top:20px;cursor:pointer}
+.go:disabled{background:#191919;color:#4a4a4a;cursor:default}
+.ghost{background:#000;border:1px solid var(--line);color:var(--paper);padding:11px 15px;
+  font-size:.78rem;cursor:pointer}
+.ghost:hover{background:#111}
+.ghost:disabled{color:#3a3a3a;border-color:#141414;cursor:default}
+.linky{background:none;border:none;color:var(--teal);font-size:.78rem;text-decoration:underline;
+  cursor:pointer;padding:8px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ---- rounds editor ---- */
+table.rt{width:100%;border-collapse:collapse;font-size:.78rem}
+table.rt th,table.rt td{text-align:left;padding:8px 6px;border-bottom:1px solid #161616;color:#c8c8c8}
+table.rt th{color:var(--dim);font-weight:600;letter-spacing:.05em;font-size:.7rem;text-transform:uppercase}
+table.rt input{width:64px;margin:0;padding:6px;text-align:center}
+
+/* ---- run screen ---- */
+.bar{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px}
+.rname{font-size:.86rem;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);font-weight:600}
+.rof{font-size:.72rem;color:var(--dim)}
+.clock{font-size:clamp(4.4rem,21vw,11rem);line-height:.92;letter-spacing:-.02em;font-weight:600;
+  text-align:center;margin:6px 0 2px;color:var(--paper)}
+.clock.warn{color:var(--amber)}
+.clock.out{color:var(--red)}
+.clock.paused{color:#4a4a4a}
+.prog{height:3px;background:#141414;margin-bottom:14px}
+.prog>div{height:3px;background:var(--teal);width:100%}
+.task{border:1px solid var(--line);border-left-width:3px;border-left-color:var(--teal);
+  padding:13px 15px;font-size:.9rem;line-height:1.6;margin-bottom:14px}
+.task b{color:var(--paper)}
+.task span{color:#9a9a9a;font-size:.8rem}
+
+/* ---- holdings ---- */
+.holds{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px;margin-bottom:16px}
+.hold{border:1px solid var(--line);padding:8px 9px;font-size:.72rem;line-height:1.45;color:#b0b0b0}
+.hold b{display:block;color:var(--paper);font-size:.78rem}
+.hold i{font-style:normal;color:var(--teal)}
+
+/* ---- board ---- */
+.board{width:100%;border-collapse:collapse;font-size:.7rem}
+.board th{padding:6px 3px;color:var(--dim);font-weight:600;font-size:.62rem;letter-spacing:.04em;
+  text-transform:uppercase;border-bottom:1px solid var(--line);text-align:center}
+.board th.u{text-align:left;padding-left:6px;min-width:96px}
+.board td{padding:3px;border-bottom:1px solid #101010;text-align:center}
+.board td.u{text-align:left;padding-left:6px;color:#c8c8c8;font-size:.74rem;cursor:pointer}
+.cell{width:100%;height:30px;background:#0b0b0b;border:1px solid #191919;cursor:pointer;
+  color:#333;font-size:.68rem;display:flex;align-items:center;justify-content:center}
+.cell.draft{background:#231d05;border-color:var(--amber);color:var(--amber)}
+.cell.done{background:#06231f;border-color:var(--teal);color:var(--teal)}
+.cell.focus{outline:1px solid #333;outline-offset:1px}
+.gaps{font-size:.74rem;color:var(--amber);margin:10px 0}
+.gaps.clear{color:var(--teal)}
+
+/* ---- ring ---- */
+#ringwrap{position:relative;height:220px;border:1px solid var(--line);margin-bottom:14px;background:#000}
+#ring{position:absolute;inset:0}
+
+/* ---- editor drawer ---- */
+#edit{position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:40;display:none;
+  align-items:flex-start;justify-content:center;overflow-y:auto;padding:18px}
+#edit.on{display:flex}
+.card{width:100%;max-width:620px;border:1px solid var(--line);background:#050505;padding:18px}
+.card h3{font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);margin-bottom:4px}
+.card .fq{font-size:.8rem;color:#9a9a9a;line-height:1.55;margin-bottom:10px}
+.seg{display:flex;gap:0;border:1px solid var(--line);margin-top:12px}
+.seg button{flex:1;background:#000;border:none;border-right:1px solid var(--line);color:var(--dim);
+  padding:11px 0;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.seg button:last-child{border-right:none}
+.seg button.on{background:#0f0f0f;color:var(--paper)}
+.seg button.on.d{color:var(--amber)}
+.seg button.on.k{color:var(--teal)}
+
+/* ---- pass card ---- */
+#pass{position:fixed;inset:0;background:#000;z-index:60;display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:22px;text-align:center}
+#pass.on{display:flex}
+.passbig{font-size:clamp(2rem,11vw,5rem);letter-spacing:.06em;font-weight:600;color:var(--amber)}
+.passsub{font-size:.92rem;color:#b0b0b0;line-height:1.6;max-width:520px}
+#passring{width:min(320px,72vw);height:min(320px,72vw)}
+
+/* ---- projection ---- */
+body.project .wrap{max-width:none;padding:14px 20px}
+body.project .hideproj{display:none}
+body.project .clock{font-size:clamp(6rem,30vw,20rem)}
+body.project .task{font-size:1.15rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ SETUP ============ -->
+  <div class="scr on" id="s-setup">
+    <h1>BAM ROOM</h1>
+    <div class="sub">bare ass minimum &rarr; instructional planning guide</div>
+    <p class="lede">Five fields per unit. Tables rotate so nobody finishes their own. Roughly thirty-five minutes produces one drafted unit per table, each one read by three tables.</p>
+
+    <h2>Tables</h2>
+    <label>How many tables (one unit each)
+      <select id="nTables"></select></label>
+    <p class="note">You can rename units on the board once you start, so it's fine to assign them in the room.</p>
+    <div id="unitList"></div>
+
+    <h2>Rounds</h2>
+    <table class="rt"><thead><tr><th>Round</th><th>Minutes</th><th>Task</th></tr></thead><tbody id="roundRows"></tbody></table>
+    <p class="note">Round 2 and 3 are single-field passes on purpose — narrow enough to finish, and round 3 is the verification: a table that can't write the assessment from someone else's objective has found a vague objective.</p>
+
+    <button class="go" id="start">Open the room</button>
+  </div>
+
+  <!-- ============ RUN ============ -->
+  <div class="scr" id="s-run">
+    <div class="bar">
+      <span class="rname" id="rname"></span>
+      <span class="rof" id="rof"></span>
+    </div>
+    <div class="clock" id="clock">00:00</div>
+    <div class="prog"><div id="progbar"></div></div>
+
+    <div class="task" id="task"></div>
+
+    <div class="row hideproj" style="margin-bottom:16px">
+      <button class="ghost" id="playpause">Start</button>
+      <button class="ghost" id="plus">+1 min</button>
+      <button class="ghost" id="minus">&minus;1 min</button>
+      <button class="ghost" id="reset">Reset round</button>
+      <button class="ghost" id="next">Next round &rarr;</button>
+      <button class="ghost" id="proj">Project</button>
+    </div>
+
+    <h2 class="hideproj">Who is holding what</h2>
+    <div class="holds hideproj" id="holds"></div>
+
+    <div id="ringwrap" class="hideproj"><canvas id="ring"></canvas></div>
+
+    <h2 class="hideproj">Board</h2>
+    <p class="note hideproj">Tap a cell to open the field. Grey empty, amber draft, teal done.</p>
+    <div class="hideproj" style="overflow-x:auto"><table class="board" id="board"></table></div>
+    <div class="gaps hideproj" id="gaps"></div>
+
+    <div class="row hideproj" style="margin-top:18px">
+      <button class="ghost" id="toDebrief">Go to debrief</button>
+      <button class="ghost" id="toExport">Export everything</button>
+    </div>
+  </div>
+
+  <!-- ============ DEBRIEF ============ -->
+  <div class="scr" id="s-debrief">
+    <h1>DEBRIEF</h1>
+    <div class="sub">five minutes &middot; written before anyone talks</div>
+    <div class="clock" id="dclock">05:00</div>
+    <div class="prog"><div id="dprog"></div></div>
+    <div class="row" style="margin:10px 0 22px">
+      <button class="ghost" id="dplay">Start</button>
+      <button class="ghost" id="dback">Back to board</button>
+    </div>
+    <div id="dq"></div>
+    <button class="go" id="toExport2">Export everything</button>
+  </div>
+
+  <!-- ============ EXPORT ============ -->
+  <div class="scr" id="s-export">
+    <h1>EXPORT</h1>
+    <div class="sub">nothing is saved when this tab closes &mdash; take it now</div>
+    <div class="row" style="margin-bottom:14px">
+      <button class="ghost" id="dl">Download .md</button>
+      <button class="ghost" id="copy">Copy to clipboard</button>
+      <button class="ghost" id="xback">Back to board</button>
+    </div>
+    <label>The five fields, plus an IPG skeleton per unit
+      <textarea id="out" rows="26" spellcheck="false"></textarea></label>
+  </div>
+</div>
+
+<!-- field editor -->
+<div id="edit">
+  <div class="card">
+    <h3 id="e-title"></h3>
+    <div class="fq" id="e-q"></div>
+    <textarea id="e-text" rows="7" spellcheck="true"></textarea>
+    <div class="seg">
+      <button id="e-empty">Empty</button>
+      <button id="e-draft" class="d">Draft</button>
+      <button id="e-done" class="k">Done</button>
+    </div>
+    <div class="row" style="margin-top:14px;justify-content:space-between">
+      <button class="ghost" id="e-prev">&larr; previous field</button>
+      <button class="ghost" id="e-next">next field &rarr;</button>
+    </div>
+    <button class="go" id="e-close">Close</button>
+  </div>
+</div>
+
+<!-- pass interstitial -->
+<div id="pass">
+  <div class="passbig" id="passbig">PASS LEFT</div>
+  <canvas id="passring" width="640" height="640"></canvas>
+  <div class="passsub" id="passsub"></div>
+  <button class="go" style="max-width:320px" id="passgo">Start the round</button>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   BAM ROOM
+   Five fields. Four rounds. Nobody finishes their own.
+   ============================================================ */
+
+const FIELDS = [
+  { key: "one",   short: "One thing", name: "The one thing",
+    q: "What can they do at the end that they can't do now? One sentence, verb first. If it takes two sentences, it's two units." },
+  { key: "proof", short: "Proof", name: "The proof",
+    q: "What artifact or performance shows it? If you can't name it, the objective isn't real yet." },
+  { key: "hard",  short: "Hard part", name: "The hard part",
+    q: "Where do students predictably fail? What is the misconception? This is the field a novice cannot fill — spend the time here." },
+  { key: "first", short: "First move", name: "The first move",
+    q: "The opening ten minutes that create the need. What makes them want the answer before you give it?" },
+  { key: "floor", short: "Floor", name: "The floor",
+    q: "What must a student who gets nothing else still leave with? This becomes your differentiation for free." }
+];
+
+const DEFAULT_ROUNDS = [
+  { name: "Draft", min: 12, focus: null, shift: 0,
+    task: "Draft all five fields for your own unit. Rough is fine — nobody sees the rough.",
+    hint: "Hard stop at zero. Whatever is on the page is what gets passed." },
+  { name: "Attack the hard part", min: 7, focus: "hard", shift: 1,
+    task: "Write <b>only the hard part</b> for the unit you just received. Ignore every other field.",
+    hint: "You are not editing their work. You are adding the thing they are too close to see." },
+  { name: "Write the proof", min: 7, focus: "proof", shift: 2,
+    task: "Write <b>only the proof</b> — the assessment — for the unit you now hold.",
+    hint: "If you can't design the assessment from their objective, the objective is vague. Say so out loud." },
+  { name: "Reconcile", min: 8, focus: null, shift: 0,
+    task: "Units go home. Reconcile the three versions into one you'd actually teach.",
+    hint: "You do not have to accept what the other tables wrote. You do have to decide." }
+];
+
+const DEBRIEF_Q = [
+  "Which field was hardest to write, and why?",
+  "What did you learn from reading someone else's unit that changed your own?",
+  "What is still missing that nobody at any table could supply?"
+];
+
+const S = {
+  n: 6,
+  units: [],          // {name, fields:{key:{text,status}}}
+  rounds: JSON.parse(JSON.stringify(DEFAULT_ROUNDS)),
+  ri: 0,
+  endAt: 0, left: 0, running: false,
+  debrief: { left: 300, endAt: 0, running: false, notes: ["", "", ""] },
+  edit: { unit: 0, field: 0 },
+  warned: false, blown: false
+};
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, "0");
+const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return pad(Math.floor(s / 60)) + ":" + pad(s % 60); };
+
+/* ---------- sound: no files, carries across a room ---------- */
+let AC = null;
+function ac() { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === "suspended") AC.resume(); return AC; }
+function beep(f, dur, vol, type, slide) {
+  const c = ac(), t = c.currentTime;
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type || "sine"; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+function tick() { beep(1200, 0.05, 0.05, "square"); }
+function chimeWarn() { beep(660, 0.28, 0.09, "triangle"); setTimeout(() => beep(880, 0.32, 0.09, "triangle"), 180); }
+function chimeEnd() {
+  [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.55, 0.1, "triangle"), i * 130));
+}
+
+/* ---------- setup ---------- */
+function buildSetup() {
+  const sel = $("nTables");
+  for (let i = 3; i <= 12; i++) {
+    const o = document.createElement("option");
+    o.value = String(i); o.textContent = i + " tables";
+    if (i === 6) o.selected = true;
+    sel.appendChild(o);
+  }
+  sel.addEventListener("change", () => { S.n = +sel.value; makeUnits(); renderUnitInputs(); });
+  const rows = $("roundRows");
+  S.rounds.forEach((r, i) => {
+    const tr = document.createElement("tr");
+    const td1 = document.createElement("td"); td1.textContent = (i + 1) + ". " + r.name;
+    const td2 = document.createElement("td");
+    const inp = document.createElement("input"); inp.type = "number"; inp.min = "1"; inp.max = "60"; inp.value = String(r.min);
+    inp.addEventListener("change", () => { r.min = Math.max(1, Math.min(60, +inp.value || r.min)); inp.value = String(r.min); });
+    td2.appendChild(inp);
+    const td3 = document.createElement("td");
+    td3.innerHTML = r.task.replace(/<b>|<\/b>/g, "");
+    tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+    rows.appendChild(tr);
+  });
+  makeUnits(); renderUnitInputs();
+}
+function makeUnits() {
+  const old = S.units;
+  S.units = [];
+  for (let i = 0; i < S.n; i++) {
+    const prev = old[i];
+    const f = {};
+    FIELDS.forEach(fl => { f[fl.key] = prev ? prev.fields[fl.key] : { text: "", status: 0 }; });
+    S.units.push({ name: prev ? prev.name : "Unit " + (i + 1), fields: f });
+  }
+}
+function renderUnitInputs() {
+  const w = $("unitList"); w.innerHTML = "";
+  S.units.forEach((u, i) => {
+    const l = document.createElement("label");
+    l.textContent = "Table " + (i + 1) + " takes";
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.value = u.name;
+    inp.addEventListener("input", () => { u.name = inp.value || "Unit " + (i + 1); });
+    l.appendChild(inp); w.appendChild(l);
+  });
+}
+
+/* ---------- rotation ---------- */
+function holdsUnit(table, roundIndex) {
+  const sh = S.rounds[roundIndex].shift || 0;
+  return ((table - sh) % S.n + S.n) % S.n;
+}
+
+/* ---------- screens ---------- */
+function show(id) {
+  ["s-setup", "s-run", "s-debrief", "s-export"].forEach(k => $(k).classList.toggle("on", k === id));
+  window.scrollTo(0, 0);
+}
+$("start").addEventListener("click", () => {
+  ac();
+  S.ri = 0; loadRound(true);
+  show("s-run");
+  renderAll();
+});
+
+/* ---------- the clock ---------- */
+function loadRound(reset) {
+  const r = S.rounds[S.ri];
+  S.left = r.min * 60000;
+  S.running = false; S.warned = false; S.blown = false;
+  S.endAt = 0;
+  paintClock(); renderTask();
+}
+function toggleRun() {
+  ac();
+  if (S.running) { S.left = Math.max(0, S.endAt - Date.now()); S.running = false; }
+  else { S.endAt = Date.now() + S.left; S.running = true; }
+  paintClock();
+}
+$("playpause").addEventListener("click", toggleRun);
+$("plus").addEventListener("click", () => { S.left += 60000; if (S.running) S.endAt += 60000; S.blown = false; paintClock(); });
+$("minus").addEventListener("click", () => { S.left = Math.max(0, S.left - 60000); if (S.running) S.endAt = Math.max(Date.now(), S.endAt - 60000); paintClock(); });
+$("reset").addEventListener("click", () => loadRound(true));
+$("next").addEventListener("click", () => advance());
+$("proj").addEventListener("click", () => {
+  document.body.classList.toggle("project");
+  $("proj").textContent = document.body.classList.contains("project") ? "Exit projection" : "Project";
+  sizeRing();
+});
+
+function advance() {
+  if (S.ri >= S.rounds.length - 1) { openDebrief(); return; }
+  S.ri++;
+  loadRound(true);
+  showPass();
+  renderAll();
+}
+
+function paintClock() {
+  const ms = S.running ? Math.max(0, S.endAt - Date.now()) : S.left;
+  const c = $("clock");
+  c.textContent = fmt(ms);
+  const total = S.rounds[S.ri].min * 60000;
+  $("progbar").style.width = Math.max(0, Math.min(100, ms / total * 100)) + "%";
+  c.className = "clock" + (!S.running && ms > 0 ? " paused" : "") + (ms === 0 ? " out" : ms <= 30000 ? " warn" : "");
+}
+setInterval(() => {
+  if (S.running) {
+    const ms = Math.max(0, S.endAt - Date.now());
+    if (ms <= 30000 && !S.warned) { S.warned = true; chimeWarn(); }
+    if (ms <= 10000 && ms > 0 && Math.ceil(ms / 1000) !== paintClock._last) { paintClock._last = Math.ceil(ms / 1000); tick(); }
+    if (ms === 0 && !S.blown) { S.blown = true; S.running = false; S.left = 0; chimeEnd(); }
+  }
+  paintClock();
+  if (S.debrief.running) {
+    const ms = Math.max(0, S.debrief.endAt - Date.now());
+    $("dclock").textContent = fmt(ms);
+    $("dprog").style.width = (ms / 300000 * 100) + "%";
+    if (ms === 0) { S.debrief.running = false; chimeEnd(); }
+  }
+}, 120);
+
+/* ---------- task + holdings ---------- */
+function renderTask() {
+  const r = S.rounds[S.ri];
+  $("rname").textContent = r.name;
+  $("rof").textContent = "round " + (S.ri + 1) + " of " + S.rounds.length + " · " + r.min + " min";
+  $("task").innerHTML = "<b>" + r.task + "</b><br><span>" + r.hint + "</span>";
+}
+function renderHolds() {
+  const w = $("holds"); w.innerHTML = "";
+  for (let t = 0; t < S.n; t++) {
+    const u = holdsUnit(t, S.ri);
+    const d = document.createElement("div"); d.className = "hold";
+    d.innerHTML = "<b>Table " + (t + 1) + "</b>" + (t === u ? "<i>" : "") + S.units[u].name + (t === u ? " (own)</i>" : "");
+    w.appendChild(d);
+  }
+}
+
+/* ---------- board ---------- */
+function renderBoard() {
+  const t = $("board"); t.innerHTML = "";
+  const head = document.createElement("tr");
+  head.innerHTML = "<th class='u'>Unit</th>" + FIELDS.map(f => "<th>" + f.short + "</th>").join("");
+  t.appendChild(head);
+  const focus = S.rounds[S.ri].focus;
+  S.units.forEach((u, ui) => {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td"); td.className = "u"; td.textContent = u.name;
+    td.title = "rename";
+    td.addEventListener("click", () => {
+      const v = prompt("Unit name", u.name);
+      if (v !== null && v.trim()) { u.name = v.trim(); renderAll(); }
+    });
+    tr.appendChild(td);
+    FIELDS.forEach((f, fi) => {
+      const cell = document.createElement("td");
+      const b = document.createElement("div");
+      const st = u.fields[f.key].status;
+      b.className = "cell" + (st === 1 ? " draft" : st === 2 ? " done" : "") + (focus === f.key ? " focus" : "");
+      b.textContent = st === 2 ? "\u2713" : st === 1 ? "\u2013" : "";
+      b.addEventListener("click", () => openEdit(ui, fi));
+      cell.appendChild(b); tr.appendChild(cell);
+    });
+    t.appendChild(tr);
+  });
+  // gaps
+  const missing = [];
+  FIELDS.forEach(f => {
+    const n = S.units.filter(u => u.fields[f.key].status === 0).length;
+    if (n) missing.push(n + " × " + f.short);
+  });
+  const g = $("gaps");
+  if (missing.length) { g.className = "gaps"; g.textContent = "Still empty: " + missing.join(", "); }
+  else { g.className = "gaps clear"; g.textContent = "Every field has something in it."; }
+}
+function renderAll() { renderTask(); renderHolds(); renderBoard(); sizeRing(); drawRing($("ring"), S.rounds[S.ri].shift || 0); }
+
+/* ---------- the ring ---------- */
+function sizeRing() {
+  const cv = $("ring"), wrap = $("ringwrap");
+  if (!wrap.clientWidth) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = wrap.clientWidth * dpr; cv.height = wrap.clientHeight * dpr;
+  cv.style.width = wrap.clientWidth + "px"; cv.style.height = wrap.clientHeight + "px";
+  cv.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function drawRing(cv, shift) {
+  const g = cv.getContext("2d");
+  const W = cv.width / (Math.min(2, window.devicePixelRatio || 1));
+  const H = cv.height / (Math.min(2, window.devicePixelRatio || 1));
+  const w = cv.style.width ? parseFloat(cv.style.width) : W;
+  const h = cv.style.height ? parseFloat(cv.style.height) : H;
+  g.clearRect(0, 0, w, h);
+  g.fillStyle = "#000"; g.fillRect(0, 0, w, h);
+  const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.34;
+  const nodes = [];
+  for (let i = 0; i < S.n; i++) {
+    const a = -Math.PI / 2 + (i / S.n) * Math.PI * 2;
+    nodes.push({ x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R });
+  }
+  const r = Math.max(11, Math.min(22, R * 0.9 / S.n + 8));
+  for (let i = 0; i < S.n; i++) {
+    const a = nodes[i], b = nodes[(i + 1) % S.n];
+    const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L;
+    const x1 = a.x + ux * (r + 3), y1 = a.y + uy * (r + 3);
+    const x2 = b.x - ux * (r + 8), y2 = b.y - uy * (r + 8);
+    const live = shift > 0;
+    g.strokeStyle = live ? "rgba(255,210,63,.65)" : "rgba(255,255,255,.10)";
+    g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+    g.beginPath(); g.moveTo(x2, y2);
+    g.lineTo(x2 - ux * 9 - uy * 4.5, y2 - uy * 9 + ux * 4.5);
+    g.lineTo(x2 - ux * 9 + uy * 4.5, y2 - uy * 9 - ux * 4.5);
+    g.closePath(); g.fillStyle = live ? "rgba(255,210,63,.65)" : "rgba(255,255,255,.10)"; g.fill();
+  }
+  for (let i = 0; i < S.n; i++) {
+    const nd = nodes[i], u = holdsUnit(i, S.ri);
+    const own = u === i;
+    g.beginPath(); g.arc(nd.x, nd.y, r, 0, Math.PI * 2);
+    g.fillStyle = own ? "#0d0d0d" : "#06231f"; g.fill();
+    g.strokeStyle = own ? "#3a3a3a" : "#19e6c8"; g.lineWidth = 1.6; g.stroke();
+    g.fillStyle = own ? "#8a8a8a" : "#19e6c8";
+    g.font = "600 " + Math.round(r * 0.9) + "px ui-monospace, monospace";
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(String(i + 1), nd.x, nd.y + 0.5);
+  }
+  g.fillStyle = "#4a4a4a"; g.font = "11px ui-monospace, monospace"; g.textAlign = "center";
+  g.fillText(shift ? "holding someone else's" : "holding their own", cx, cy);
+}
+
+/* ---------- pass interstitial ---------- */
+function showPass() {
+  const r = S.rounds[S.ri];
+  $("passbig").textContent = r.shift > (S.rounds[S.ri - 1] ? S.rounds[S.ri - 1].shift : 0) ? "PASS LEFT" : "UNITS GO HOME";
+  const lines = [];
+  for (let t = 0; t < S.n; t++) lines.push("Table " + (t + 1) + " \u2192 " + S.units[holdsUnit(t, S.ri)].name);
+  $("passsub").innerHTML = "<b>" + r.name + "</b> &middot; " + r.min + " min<br><br>" + lines.join("<br>");
+  const cv = $("passring");
+  const side = Math.min(320, window.innerWidth * 0.72);
+  cv.style.width = side + "px"; cv.style.height = side + "px";
+  cv.width = side * 2; cv.height = side * 2;
+  cv.getContext("2d").setTransform(2, 0, 0, 2, 0, 0);
+  drawRing(cv, r.shift);
+  $("pass").classList.add("on");
+  chimeWarn();
+}
+$("passgo").addEventListener("click", () => { $("pass").classList.remove("on"); toggleRun(); });
+
+/* ---------- field editor ---------- */
+function openEdit(ui, fi) {
+  S.edit = { unit: ui, field: fi };
+  const u = S.units[ui], f = FIELDS[fi];
+  $("e-title").textContent = u.name + " \u2014 " + f.name;
+  $("e-q").textContent = f.q;
+  $("e-text").value = u.fields[f.key].text;
+  markStatus(u.fields[f.key].status);
+  $("edit").classList.add("on");
+  setTimeout(() => $("e-text").focus(), 30);
+}
+function markStatus(st) {
+  $("e-empty").classList.toggle("on", st === 0);
+  $("e-draft").classList.toggle("on", st === 1);
+  $("e-done").classList.toggle("on", st === 2);
+}
+function setStatus(st) {
+  const u = S.units[S.edit.unit], f = FIELDS[S.edit.field];
+  u.fields[f.key].status = st;
+  markStatus(st); renderBoard();
+}
+$("e-text").addEventListener("input", () => {
+  const u = S.units[S.edit.unit], f = FIELDS[S.edit.field];
+  u.fields[f.key].text = $("e-text").value;
+  if (u.fields[f.key].status === 0 && $("e-text").value.trim()) setStatus(1);
+  renderBoard();
+});
+$("e-empty").addEventListener("click", () => setStatus(0));
+$("e-draft").addEventListener("click", () => setStatus(1));
+$("e-done").addEventListener("click", () => setStatus(2));
+$("e-close").addEventListener("click", () => $("edit").classList.remove("on"));
+$("e-prev").addEventListener("click", () => {
+  let { unit, field } = S.edit;
+  field--; if (field < 0) { field = FIELDS.length - 1; unit = (unit - 1 + S.n) % S.n; }
+  openEdit(unit, field);
+});
+$("e-next").addEventListener("click", () => {
+  let { unit, field } = S.edit;
+  field++; if (field >= FIELDS.length) { field = 0; unit = (unit + 1) % S.n; }
+  openEdit(unit, field);
+});
+
+/* ---------- debrief ---------- */
+function openDebrief() {
+  show("s-debrief");
+  const w = $("dq"); w.innerHTML = "";
+  DEBRIEF_Q.forEach((q, i) => {
+    const l = document.createElement("label");
+    l.textContent = (i + 1) + ". " + q;
+    const ta = document.createElement("textarea");
+    ta.rows = 4; ta.value = S.debrief.notes[i];
+    ta.addEventListener("input", () => { S.debrief.notes[i] = ta.value; });
+    l.appendChild(ta); w.appendChild(l);
+  });
+  S.debrief.left = 300000;
+  $("dclock").textContent = "05:00";
+}
+$("toDebrief").addEventListener("click", openDebrief);
+$("dback").addEventListener("click", () => { show("s-run"); renderAll(); });
+$("dplay").addEventListener("click", () => {
+  ac();
+  if (S.debrief.running) { S.debrief.left = Math.max(0, S.debrief.endAt - Date.now()); S.debrief.running = false; $("dplay").textContent = "Start"; }
+  else { S.debrief.endAt = Date.now() + S.debrief.left; S.debrief.running = true; $("dplay").textContent = "Pause"; }
+});
+
+/* ---------- export: BAM in, IPG skeleton out ---------- */
+function buildExport() {
+  const L = [];
+  const d = new Date();
+  L.push("# BAM session — " + d.toISOString().slice(0, 10));
+  L.push("");
+  L.push(S.n + " tables · " + S.rounds.map(r => r.name + " " + r.min + "m").join(" · "));
+  L.push("");
+  L.push("---");
+  S.units.forEach((u, i) => {
+    L.push("");
+    L.push("## " + u.name);
+    L.push("");
+    FIELDS.forEach(f => {
+      const c = u.fields[f.key];
+      const flag = c.status === 2 ? "" : c.status === 1 ? "  _(draft)_" : "  _(EMPTY)_";
+      L.push("**" + f.name + "**" + flag);
+      L.push("");
+      L.push(c.text.trim() ? c.text.trim() : "—");
+      L.push("");
+    });
+    L.push("### IPG skeleton — derive from the above, do not re-decide");
+    L.push("");
+    L.push("- **Objective / learning target:** from *the one thing*, restated in student-facing language.");
+    L.push("- **Standards addressed:** map *the one thing* to your codes. Check the verb matches the standard's verb.");
+    L.push("- **Essential question:** invert *the first move* into a question.");
+    L.push("- **Summative assessment:** *the proof*, with a success-criteria list drawn from *the floor*.");
+    L.push("- **Formative checks:** put one immediately before *the hard part* is encountered, one immediately after.");
+    L.push("- **Anticipated misconceptions:** *the hard part*, verbatim. Do not soften it.");
+    L.push("- **Sequence:** open with *the first move*; place the hard part at the point students have enough to be wrong productively; close on *the proof*.");
+    L.push("- **Differentiation / floor:** *the floor* is the non-negotiable; scaffold toward it, extend past it.");
+    L.push("- **Vocabulary, materials, resources:** derivable — fill last, or delegate.");
+    L.push("");
+    L.push("_Quality check: run this against the Instructional Practice Guide Core Actions before it ships._");
+    L.push("");
+    L.push("---");
+  });
+  L.push("");
+  L.push("## Debrief");
+  L.push("");
+  DEBRIEF_Q.forEach((q, i) => {
+    L.push("**" + q + "**");
+    L.push("");
+    L.push(S.debrief.notes[i].trim() || "—");
+    L.push("");
+  });
+  const gaps = [];
+  S.units.forEach(u => FIELDS.forEach(f => {
+    if (u.fields[f.key].status !== 2) gaps.push(u.name + " — " + f.name + (u.fields[f.key].status === 1 ? " (draft)" : " (empty)"));
+  }));
+  L.push("## Unfinished");
+  L.push("");
+  L.push(gaps.length ? gaps.map(x => "- " + x).join("\n") : "- nothing");
+  return L.join("\n");
+}
+function openExport() { show("s-export"); $("out").value = buildExport(); }
+$("toExport").addEventListener("click", openExport);
+$("toExport2").addEventListener("click", openExport);
+$("xback").addEventListener("click", () => { show("s-run"); renderAll(); });
+$("dl").addEventListener("click", () => {
+  const blob = new Blob([$("out").value], { type: "text/markdown" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "bam-session-" + new Date().toISOString().slice(0, 10) + ".md";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+$("copy").addEventListener("click", async () => {
+  const t = $("out");
+  try { await navigator.clipboard.writeText(t.value); $("copy").textContent = "Copied"; }
+  catch (e) { t.select(); document.execCommand("copy"); $("copy").textContent = "Copied"; }
+  setTimeout(() => { $("copy").textContent = "Copy to clipboard"; }, 1600);
+});
+
+/* ---------- keys, for the person driving ---------- */
+document.addEventListener("keydown", e => {
+  if ($("edit").classList.contains("on")) { if (e.key === "Escape") $("edit").classList.remove("on"); return; }
+  if (!$("s-run").classList.contains("on")) return;
+  if (e.code === "Space") { e.preventDefault(); toggleRun(); }
+  if (e.key === "ArrowRight") advance();
+  if (e.key === "p" || e.key === "P") $("proj").click();
+});
+window.addEventListener("resize", () => { sizeRing(); drawRing($("ring"), S.rounds[S.ri].shift || 0); });
+window.addEventListener("beforeunload", e => {
+  const any = S.units.some(u => FIELDS.some(f => u.fields[f.key].text.trim()));
+  if (any) { e.preventDefault(); e.returnValue = ""; }
+});
+
+buildSetup();
+</script>
+</body>
+</html>
