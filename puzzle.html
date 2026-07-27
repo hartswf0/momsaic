@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>MOMSAIC</title>
+<style>
+:root{--ink:#000;--paper:#fff;--teal:#19e6c8;--amber:#ffd23f;--red:#ff2e2e;--blue:#3b82f6;--line:#1e1e1e;--dim:#5a5a5a}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;overflow:hidden;background:var(--ink);color:var(--paper);
+  font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+#top,#nav{display:none}
+#app.live #top{display:flex}
+#app.live #nav{display:flex}
+
+#top{height:54px;flex:0 0 54px;align-items:center;justify-content:space-between;padding:0 10px;gap:10px;border-bottom:1px solid var(--line)}
+#offer{width:38px;height:38px;background:#000;border:1px solid var(--line);flex:0 0 38px}
+#offer.live{border-color:var(--amber)}
+#prog{flex:1;height:38px;display:flex;align-items:center;gap:3px;overflow:hidden}
+.pd{width:6px;height:6px;background:#191919;flex:0 0 6px}
+.pd.done{background:var(--teal)}
+.pd.me{background:#3a3a3a}
+.pd.me.done{background:var(--paper)}
+.pd.hurt{background:var(--red)}
+
+#main{flex:1;position:relative;overflow:hidden}
+.view{position:absolute;inset:0;display:none}
+.view.on{display:flex;flex-direction:column}
+
+#nav{height:58px;flex:0 0 58px;border-top:1px solid var(--line)}
+.navb{flex:1;position:relative;display:flex;align-items:center;justify-content:center;background:#000;
+  border:none;border-right:1px solid var(--line);color:var(--dim);cursor:pointer}
+.navb:last-child{border-right:none}
+.navb.on{color:var(--paper);background:#0d0d0d}
+#nav[data-mode="solo"] .many{display:none}
+#nav[data-mode="many"][data-mesh="0"] #nb-room{display:none}
+#nav:not([data-dealer="1"]) .dealer{display:none}
+#link{margin-left:2px;color:#2a2a2a;flex:0 0 20px}
+#link.on{color:var(--teal)}
+#link.bad{color:var(--red)}
+#detail[data-mode="many"] #dacts{display:none}
+#nav[data-mode="many"] .solo{display:none}
+.badge{position:absolute;top:12px;right:calc(50% - 26px);width:7px;height:7px;background:var(--amber)}
+svg{display:block}
+.ic{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:square;stroke-linejoin:miter}
+
+#boardwrap{flex:1;display:flex;align-items:center;justify-content:center;padding:10px;min-height:0}
+#board{touch-action:none;display:block;background:#000}
+#hand{flex:0 0 0;height:0;display:flex;gap:6px;padding:0 10px;align-items:center;overflow-x:auto;transition:height .2s,flex-basis .2s}
+#hand.live{height:62px;flex:0 0 62px;border-top:1px solid var(--line)}
+.hp{width:50px;height:50px;flex:0 0 50px;border:1px solid var(--line);background:#000}
+.hp.sel{border-color:var(--amber)}
+
+#roomlist{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px}
+.card{display:flex;gap:10px;align-items:center;padding:8px;border:1px solid var(--line);margin-bottom:8px;background:#060606}
+.card.done{border-color:#0d3b34}
+.card canvas.tb{width:76px;height:114px;flex:0 0 76px;background:#000}
+.cmid{flex:1;display:flex;flex-direction:column;gap:6px}
+.marks{display:flex;gap:4px;align-items:center;height:10px}
+.mk{width:9px;height:9px}
+.mk.red{background:var(--red)}.mk.teal{background:var(--teal)}.mk.amb{background:var(--amber)}.mk.dim{background:#2a2a2a}
+.card canvas.gl{width:60px;height:60px;flex:0 0 60px;background:#000;border:1px solid var(--line)}
+.card canvas.gl.none{opacity:.12}
+
+#detail{position:absolute;inset:0;background:#000;display:none;flex-direction:column;z-index:40}
+#detail.on{display:flex}
+#dtop{height:54px;flex:0 0 54px;display:flex;align-items:center;padding:0 10px;border-bottom:1px solid var(--line)}
+.ghost{background:none;border:none;color:var(--paper);padding:8px;cursor:pointer}
+#dbody{flex:1;display:flex;align-items:center;justify-content:center;gap:14px;padding:12px;min-height:0}
+#dtheir{height:100%;max-height:100%;background:#000}
+#dcol{display:flex;flex-direction:column;gap:14px;align-items:center}
+#dglyph,#dmine{width:104px;height:104px;background:#000;border:1px solid var(--line)}
+#dacts{height:96px;flex:0 0 96px;display:flex;border-top:1px solid var(--line)}
+.act{flex:1;position:relative;background:#000;border:none;border-right:1px solid var(--line);color:var(--dim);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
+.act:last-child{border-right:none}
+.act.able{color:var(--paper)}
+.act .fill{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--amber)}
+.act.take .fill{background:var(--teal)}
+
+.ov{position:fixed;inset:0;background:#000;z-index:80;display:none;align-items:center;justify-content:center;flex-direction:column}
+.ov.on{display:flex}
+#loader{display:grid;grid-template-columns:repeat(6,10px);gap:5px}
+#loader div{width:10px;height:10px;background:#161616}
+#loader div.f{background:var(--teal)}
+
+#door{z-index:88;justify-content:stretch;align-items:stretch}
+#doorbody{flex:1;position:relative}
+#doorcv{position:absolute;inset:0;touch-action:none}
+
+#hs{z-index:92;justify-content:stretch;align-items:stretch}
+#hstop{height:54px;flex:0 0 54px;display:flex;align-items:center;padding:0 10px;border-bottom:1px solid var(--line)}
+#hsbody{flex:1;position:relative}
+#hscv{position:absolute;inset:0;touch-action:none}
+
+#front{z-index:88;display:none;align-items:stretch;justify-content:stretch;overflow:hidden}
+#front.on{display:flex}
+.scr{display:none;position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.scr.on{display:block}
+.sheet{max-width:560px;margin:0 auto;padding:26px 20px 60px}
+.brand{font-size:1.5rem;letter-spacing:.42em;margin-bottom:16px}
+h2{font-size:1.05rem;letter-spacing:.12em;text-transform:uppercase;margin:6px 0 12px;font-weight:600}
+h3{font-size:.82rem;letter-spacing:.1em;text-transform:uppercase;margin:22px 0 8px;color:#9a9a9a;font-weight:600}
+.lede{font-size:.92rem;line-height:1.6;color:#b8b8b8;margin-bottom:22px}
+.note{font-size:.76rem;line-height:1.55;color:#7d7d7d;margin:8px 0 4px}
+.opt{display:block;width:100%;text-align:left;background:#0a0a0a;border:1px solid var(--line);
+  color:var(--paper);padding:15px 16px;margin-bottom:10px;cursor:pointer;font-family:inherit}
+.opt:active{background:#141414}
+.opt b{display:block;font-size:.98rem;margin-bottom:5px;font-weight:600}
+.opt span{display:block;font-size:.78rem;color:#8a8a8a;line-height:1.5}
+.linky{background:none;border:none;color:var(--teal);font-family:inherit;font-size:.8rem;
+  padding:8px 0;cursor:pointer;text-decoration:underline;display:block}
+.linky.back{margin-bottom:14px;color:#8a8a8a}
+.go{display:block;width:100%;background:var(--paper);color:#000;border:none;padding:15px;
+  font-family:inherit;font-size:.92rem;font-weight:600;letter-spacing:.06em;margin-top:22px;cursor:pointer}
+.go:disabled{background:#1c1c1c;color:#555;cursor:default}
+.slots{display:flex;gap:8px;justify-content:center;margin-bottom:14px}
+.slot{width:46px;height:46px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.slot.next{border-color:var(--teal)}
+.slot.size{border-style:dashed}
+.pad{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.markbtn{background:#000;border:1px solid var(--line);padding:8px 0;display:flex;justify-content:center;cursor:pointer}
+.markbtn:active{background:#151515}
+.seats{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.seatbtn{background:#000;border:1px solid var(--line);color:#9a9a9a;font-family:inherit;
+  font-size:.86rem;padding:12px 0;cursor:pointer}
+.seatbtn.on{background:var(--teal);color:#000;border-color:var(--teal)}
+label{display:block;font-size:.8rem;color:#b8b8b8;margin-bottom:16px;line-height:1.7}
+select,input[type=file]{display:block;width:100%;margin-top:6px;background:#0a0a0a;color:var(--paper);
+  border:1px solid var(--line);padding:11px;font-family:inherit;font-size:.86rem}
+.filelab input{padding:9px}
+.code{display:flex;gap:7px;justify-content:center;margin:6px 0 16px}
+.code canvas{border:1px solid var(--line)}
+#t-qr{display:block;margin:0 auto;width:180px;height:180px;background:#0b0b0b;border:1px solid var(--line)}
+#t-link.ok{color:var(--teal)}
+#t-link.warn{color:var(--amber)}
+table{width:100%;border-collapse:collapse;font-size:.72rem;margin-top:6px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid #171717;color:#c4c4c4}
+th{color:#7d7d7d;font-weight:600;letter-spacing:.05em}
+tr.done td{color:var(--teal)}
+tr.away td{color:#4a4a4a}
+.rules{margin:0 0 18px 18px;font-size:.88rem;line-height:1.65;color:#c8c8c8}
+.rules li{margin-bottom:11px}
+.rules .r{color:var(--red)}
+#deal{z-index:90;justify-content:stretch;align-items:stretch}
+#dealtop{height:54px;flex:0 0 54px;display:flex;align-items:center;padding:0 10px;border-bottom:1px solid var(--line)}
+#dealbody{flex:1;position:relative}
+#dealcv{position:absolute;inset:0;touch-action:none}
+#reveal{z-index:95}
+#rcv{display:block}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <canvas id="offer" width="76" height="76"></canvas>
+    <div id="prog"></div>
+    <span id="link" class="off" aria-label="mesh">
+      <svg class="ic" width="20" height="20" viewBox="0 0 24 24">
+        <path d="M9.5 14.5 14.5 9.5"/>
+        <path d="M12.5 6.5 14.5 4.5a3.5 3.5 0 0 1 5 5l-2 2"/>
+        <path d="M11.5 17.5 9.5 19.5a3.5 3.5 0 0 1-5-5l2-2"/>
+      </svg>
+    </span>
+  </div>
+
+  <div id="main">
+    <div class="view on" id="v-board">
+      <div id="boardwrap"><canvas id="board"></canvas></div>
+      <div id="hand"></div>
+    </div>
+    <div class="view" id="v-room"><div id="roomlist"></div></div>
+
+    <div id="detail">
+      <div id="dtop">
+        <button class="ghost" id="dback" aria-label="back">
+          <svg class="ic" width="22" height="22" viewBox="0 0 24 24"><polyline points="15 4 7 12 15 20"/></svg>
+        </button>
+      </div>
+      <div id="dbody">
+        <canvas id="dtheir" width="256" height="384"></canvas>
+        <div id="dcol">
+          <canvas id="dglyph" width="160" height="160"></canvas>
+          <canvas id="dmine" width="160" height="160"></canvas>
+        </div>
+      </div>
+      <div id="dacts">
+        <button class="act give" id="agive">
+          <svg class="ic" width="34" height="34" viewBox="0 0 34 34">
+            <rect x="3" y="7" width="15" height="20"/><line x1="20" y1="17" x2="31" y2="17"/><polyline points="26 12 31 17 26 22"/>
+          </svg><div class="fill"></div>
+        </button>
+        <button class="act take" id="atake">
+          <svg class="ic" width="34" height="34" viewBox="0 0 34 34">
+            <rect x="16" y="7" width="15" height="20"/><line x1="3" y1="17" x2="14" y2="17"/><polyline points="9 12 14 17 9 22"/>
+          </svg><div class="fill"></div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="nav" data-mode="solo">
+    <button class="navb on" id="nb-board" aria-label="board">
+      <svg class="ic" width="24" height="24" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+      </svg>
+    </button>
+    <button class="navb" id="nb-room" aria-label="room">
+      <svg class="ic" width="24" height="24" viewBox="0 0 24 24">
+        <circle cx="12" cy="3.5" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="20.5" cy="12" r="1.6"/>
+        <circle cx="18" cy="18" r="1.6"/><circle cx="12" cy="20.5" r="1.6"/><circle cx="6" cy="18" r="1.6"/>
+        <circle cx="3.5" cy="12" r="1.6"/><circle cx="6" cy="6" r="1.6"/>
+      </svg>
+      <span class="badge" id="roombadge" style="display:none"></span>
+    </button>
+    <button class="navb many" id="nb-give" aria-label="give">
+      <svg class="ic" width="30" height="30" viewBox="0 0 34 34">
+        <rect x="3" y="7" width="15" height="20"/><line x1="20" y1="17" x2="31" y2="17"/><polyline points="26 12 31 17 26 22"/>
+      </svg>
+    </button>
+    <button class="navb many" id="nb-take" aria-label="take">
+      <svg class="ic" width="30" height="30" viewBox="0 0 34 34">
+        <rect x="16" y="7" width="15" height="20"/><line x1="3" y1="17" x2="14" y2="17"/><polyline points="9 12 14 17 9 22"/>
+      </svg>
+    </button>
+    <button class="navb" id="nb-help" aria-label="how to play">
+      <svg class="ic" width="24" height="24" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9"/><path d="M9.4 9.2a2.7 2.7 0 1 1 3.4 2.6v1.6"/><line x1="12.3" y1="16.6" x2="12.3" y2="16.9"/>
+      </svg>
+    </button>
+    <button class="navb many dealer" id="nb-deal" aria-label="deal">
+      <svg class="ic" width="26" height="26" viewBox="0 0 28 28">
+        <rect x="2" y="2" width="9" height="9"/><rect x="17" y="2" width="9" height="9"/>
+        <rect x="2" y="17" width="9" height="9"/><rect x="17" y="17" width="4" height="4"/>
+        <rect x="22" y="22" width="4" height="4"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div class="ov on" id="boot"><div id="loader"></div></div>
+<div class="ov" id="front">
+  <div class="scr" id="scr-door">
+    <div class="sheet">
+      <div class="brand">MOMSAIC</div>
+      <p class="lede">Everyone gets the same 24-piece picture puzzle — except one piece in yours belongs to somebody else, and somebody else is holding the piece you're missing. Find them. Trade. Nobody finishes alone.</p>
+      <button class="opt" id="opt-solo"><b>Play alone</b><span>A short practice round, then a room of 17 stand-ins. Start here.</span></button>
+      <button class="opt" id="opt-join"><b>Join a room</b><span>Someone is running a session. You'll need their five symbols.</span></button>
+      <button class="opt" id="opt-teach"><b>Run a session</b><span>Set the size, use your own pictures, hand out seats, watch the room, see the answer key.</span></button>
+      <button class="linky" id="opt-help">How to play</button>
+    </div>
+  </div>
+
+  <div class="scr" id="scr-join">
+    <div class="sheet">
+      <button class="linky back" id="join-back">Back</button>
+      <h2>Join a room</h2>
+      <p class="lede">Tap the five symbols exactly as they appear on the organiser's screen, left to right. The last one is blue — it sets the room size.</p>
+      <div class="slots" id="join-slots"></div>
+      <button class="linky" id="join-clear" style="display:none">Clear</button>
+      <div class="pad" id="join-pad"></div>
+      <div id="join-seatwrap" style="display:none">
+        <h3>Which seat were you given?</h3>
+        <div class="seats" id="join-seats"></div>
+      </div>
+      <button class="go" id="join-go" disabled>Take my seat</button>
+    </div>
+  </div>
+
+  <div class="scr" id="scr-teach">
+    <div class="sheet">
+      <button class="linky back" id="teach-back">Back</button>
+      <div id="teach-setup">
+        <h2>Run a session</h2>
+        <p class="lede">You don't play. You set the room up, hand out seats, and watch it from here.</p>
+        <label>How many players<select id="t-players">
+          <option>3</option><option>4</option><option>6</option><option>8</option>
+          <option selected>10</option><option>12</option><option>15</option><option>18</option>
+        </select></label>
+        <label>How different should the stray piece look
+          <select id="t-gap">
+            <option value="1">Barely — hardest</option>
+            <option value="2" selected>A little — normal</option>
+            <option value="4">Clearly — easy</option>
+            <option value="8">Obviously — first time out</option>
+          </select></label>
+        <label class="filelab">Your own pictures (3–18 images, optional)
+          <input type="file" id="t-pics" accept="image/*" multiple></label>
+        <p class="note" id="t-picsnote">Using the 18 generated pictures (one scene at 18 magnifications).</p>
+        <button class="go" id="t-start">Open the room</button>
+      </div>
+      <div id="teach-run" style="display:none">
+        <h2>Session open</h2>
+        <p class="lede">Hold this screen up. Players tap <b>Join a room</b> and copy these five symbols, then take the seat you point them at.</p>
+        <div class="code" id="t-code"></div>
+        <canvas id="t-qr" width="320" height="320"></canvas>
+        <p class="note" id="t-qrnote"></p>
+        <p class="note" id="t-link"></p>
+        <h3>Answer key</h3>
+        <p class="note">Use this to unstick a room. Seat numbers are what players see.</p>
+        <table id="t-key"></table>
+        <p class="note" id="t-diffnote"></p>
+        <h3>The loop</h3>
+        <p class="note" id="t-loop"></p>
+        <button class="linky" id="t-reset">End session</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="scr" id="scr-help">
+    <div class="sheet">
+      <button class="linky back" id="help-back">Back</button>
+      <h2>How to play</h2>
+      <ol class="rules">
+        <li>You have 24 pieces. 23 of them make your picture. One doesn't — it belongs to someone else in the room.</li>
+        <li>Drag or tap two pieces to swap them. Build your picture. The piece left over is outlined in <span class="r">red</span>.</li>
+        <li>You are also missing one piece. Someone else in the room is holding it.</li>
+        <li>Get up. Look at other people's screens. The stray piece you're carrying belongs to whoever's picture it matches.</li>
+        <li>To hand a piece over: you press <b>give</b>, they press <b>take</b>, they tap the three symbols showing on your screen. Then you hold the red cross to release it.</li>
+        <li>You cannot take a trade back. If you give a piece to the wrong person, you've broken their board, not yours.</li>
+        <li>When every board in the room is whole, look up.</li>
+      </ol>
+      <p class="note">Playing alone? The room tab shows all the other boards, and you trade from there.</p>
+    </div>
+  </div>
+</div>
+<div class="ov" id="deal">
+  <div id="dealtop">
+    <button class="ghost" id="dealback" aria-label="back">
+      <svg class="ic" width="22" height="22" viewBox="0 0 24 24"><polyline points="15 4 7 12 15 20"/></svg>
+    </button>
+  </div>
+  <div id="dealbody"><canvas id="dealcv"></canvas></div>
+</div>
+<div class="ov" id="hs">
+  <div id="hstop">
+    <button class="ghost" id="hsback" aria-label="back">
+      <svg class="ic" width="22" height="22" viewBox="0 0 24 24"><polyline points="15 4 7 12 15 20"/></svg>
+    </button>
+  </div>
+  <div id="hsbody"><canvas id="hscv"></canvas></div>
+</div>
+<div class="ov" id="reveal"><canvas id="rcv"></canvas></div>
+
+<script>
+
+"use strict";
+/* ============================================================
+   MOMSAIC — single file
+   18 rungs of one image. 24 pieces each. One piece is not yours.
+   No words.
+   ============================================================ */
+
+const N = 18, COLS = 4, ROWS = 6, NSEAT = 24;
+const IW = 256, IH = 384, PS = 64;      // rung canvas + piece source size
+const NWD = 128, NHT = 192;             // noise pass resolution
+
+/* ---------- deterministic rng ---------- */
+let SEED = (Math.random() * 1e9) | 0;
+function mulberry(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+let RND = mulberry(SEED);
+
+/* ---------- noise ---------- */
+function h2(x, y, s) {
+  let n = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(s | 0, 1274126177);
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  n = n ^ (n >>> 16);
+  return (n >>> 0) / 4294967296;
+}
+function vn(x, y, s) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = h2(xi, yi, s), b = h2(xi + 1, yi, s);
+  const c = h2(xi, yi + 1, s), d = h2(xi + 1, yi + 1, s);
+  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
+}
+function fbm(x, y, s, oct) {
+  let amp = 0.5, f = 1, t = 0, nrm = 0;
+  for (let i = 0; i < oct; i++) {
+    t += amp * vn(x * f, y * f, s + i * 131);
+    nrm += amp; amp *= 0.5; f *= 2;
+  }
+  return t / nrm;
+}
+/* ridged multifractal — gives the substance its filament / swirl grain */
+function ridge(x, y, s, oct) {
+  let amp = 0.5, f = 1, t = 0, nrm = 0;
+  for (let i = 0; i < oct; i++) {
+    let n = vn(x * f, y * f, s + i * 131);
+    n = 1 - Math.abs(2 * n - 1); n = n * n;
+    t += amp * n; nrm += amp; amp *= 0.52; f *= 2.07;
+  }
+  return t / nrm;
+}
+
+/* ---------- the ladder ----------
+   PR  = planet radius in image px (huge = we are inside it)
+   TOP = y of the disk apex, so centre y = TOP + PR
+   frequency falls smoothly: grain at rung 0, whole system at rung 17 */
+const PR  = [26000,18000,12500,8600,6000,4200,2900,2000,1350,900,620,430,300,190,115,62,30,14];
+const TOP = [ -620, -540, -470,-400,-340,-280,-215,-130,  -20, 62, 110, 148, 178,200,222,244,262,278];
+const F0 = 28, F1 = 2.6;
+
+function rungFreq(i) { return F0 * Math.pow(F1 / F0, i / (N - 1)); }
+function rungHue(i)  { return 18 + (226 - 18) * (i / (N - 1)); }
+
+const RUNGS = [];   // 18 canvases, IW x IH
+
+function renderRung(i) {
+  const cv = document.createElement("canvas");
+  cv.width = IW; cv.height = IH;
+  const g = cv.getContext("2d");
+
+  const small = document.createElement("canvas");
+  small.width = NWD; small.height = NHT;
+  const sg = small.getContext("2d");
+  const img = sg.createImageData(NWD, NHT);
+  const d = img.data;
+
+  const f = rungFreq(i);
+  const hue = rungHue(i);
+  const pr = PR[i], pcx = IW / 2, pcy = TOP[i] + PR[i];
+  const sk = SEED + 7, W = 1.25;
+  const dep = clamp((i - 7) / 9, 0, 1);      // depth of interstellar medium
+  const lx = -0.46, ly = -0.55, lz = 0.70;   // light
+
+  for (let y = 0; y < NHT; y++) {
+    for (let x = 0; x < NWD; x++) {
+      const nx = (x / NWD) * f, ny = (y / NWD) * f;
+      // two-stage domain warp: this is what curls the substance
+      const w1x = (fbm(nx * 0.5 + 11.3, ny * 0.5 + 4.1, sk + 900, 3) - 0.5) * W;
+      const w1y = (fbm(nx * 0.5 - 6.7, ny * 0.5 + 19.5, sk + 1900, 3) - 0.5) * W;
+      const w2x = (fbm(nx + w1x * 2 + 3.2, ny + w1y * 2 - 7.7, sk + 2900, 2) - 0.5) * W * 0.6;
+      const w2y = (fbm(nx + w1x * 2 - 9.1, ny + w1y * 2 + 2.4, sk + 3900, 2) - 0.5) * W * 0.6;
+      let v = ridge(nx + w1x + w2x, ny + w1y + w2y, sk, 4);
+      v = clamp((v - 0.18) / 0.55, 0, 1);
+      v = v * v * (3 - 2 * v);
+
+      const px = (x / NWD) * IW, py = (y / NHT) * IH;
+      const dx = px - pcx, dy = py - pcy;
+      const dr = Math.sqrt(dx * dx + dy * dy) / pr;
+
+      let c;
+      if (dr <= 1) {
+        const u = dx / pr, w = dy / pr;
+        const zz = Math.sqrt(Math.max(0, 1 - u * u - w * w));
+        let sh = Math.max(0.04, u * lx + w * ly + zz * lz);
+        sh *= 0.45 + 0.55 * zz;                        // limb darkening
+        c = hsl(hue + v * 34 - 17, 0.50 - 0.22 * (i / N), (0.10 + 0.80 * v) * sh);
+      } else {
+        // the same substance, thinner: every piece carries the rung's frequency
+        const neb = Math.pow(v, 1.55) * (0.16 + 0.42 * dep);
+        c = hsl(hue + 18, 0.60, neb + 0.012);
+      }
+      const o = (y * NWD + x) * 4;
+      d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+    }
+  }
+  sg.putImageData(img, 0, 0);
+  g.imageSmoothingEnabled = true;
+  g.drawImage(small, 0, 0, IW, IH);
+
+  // atmosphere rim, once the ball is small enough to have an edge
+  if (pr < 1200) {
+    for (let k = 0; k < 7; k++) {
+      g.strokeStyle = "rgba(150,200,255," + (0.31 * (1 - k / 7)).toFixed(3) + ")";
+      g.lineWidth = 1;
+      g.beginPath(); g.arc(pcx, pcy, pr + k, 0, Math.PI * 2); g.stroke();
+    }
+  }
+
+  // sun, orbits, companions — the system assembles as we pull back
+  const sysT = clamp((i - 10) / 7, 0, 1);
+  if (sysT > 0) {
+    const sx = 44, sy = 74, R0 = 110 * sysT + 20;
+    const gr = g.createRadialGradient(sx, sy, 0, sx, sy, R0);
+    gr.addColorStop(0, "rgba(255,246,214," + (0.92 * sysT) + ")");
+    gr.addColorStop(0.22, "rgba(255,214,130," + (0.34 * sysT) + ")");
+    gr.addColorStop(1, "rgba(255,180,80,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, IW, IH);
+    const rings = Math.max(1, Math.round(6 * sysT));
+    const rr = mulberry(SEED + 700 + i);
+    for (let k = 1; k <= rings; k++) {
+      const R = k * 54 + 34;
+      g.strokeStyle = "rgba(190,210,255," + (0.31 * sysT).toFixed(3) + ")";
+      g.lineWidth = 1;
+      g.beginPath(); g.ellipse(sx, sy, R, R * 0.40, 0, 0, Math.PI * 2); g.stroke();
+      const a = rr() * Math.PI * 2;
+      const ox = sx + Math.cos(a) * R, oy = sy + Math.sin(a) * R * 0.40;
+      g.fillStyle = "rgba(210,220,240," + (0.86 * sysT).toFixed(3) + ")";
+      g.beginPath(); g.arc(ox, oy, Math.max(2, 4 * sysT), 0, Math.PI * 2); g.fill();
+    }
+  }
+
+  // stars
+  const st = clamp((i - 7) / 6, 0, 1);
+  if (st > 0) {
+    const rr = mulberry(SEED + 4000 + i);
+    const count = Math.floor(220 * st);
+    for (let k = 0; k < count; k++) {
+      const x = rr() * IW, y = rr() * IH;
+      const dx = x - pcx, dy = y - pcy;
+      const big = rr() > 0.93;
+      const a = (0.25 + rr() * 0.75) * st;
+      if (Math.sqrt(dx * dx + dy * dy) < pr) continue;
+      g.fillStyle = "rgba(255,255,255," + a.toFixed(3) + ")";
+      g.fillRect(x | 0, y | 0, big ? 2 : 1, big ? 2 : 1);
+    }
+  }
+  return cv;
+}
+
+function hsl(h, s, l) {
+  h = ((h % 360) + 360) % 360 / 360;
+  l = clamp(l, 0, 1); s = clamp(s, 0, 1);
+  if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  return [hk(p, q, h + 1 / 3), hk(p, q, h), hk(p, q, h - 1 / 3)];
+}
+function hk(p, q, t) {
+  if (t < 0) t += 1; if (t > 1) t -= 1;
+  let v;
+  if (t < 1 / 6) v = p + (q - p) * 6 * t;
+  else if (t < 1 / 2) v = q;
+  else if (t < 2 / 3) v = p + (q - p) * (2 / 3 - t) * 6;
+  else v = p;
+  return Math.round(v * 255);
+}
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+/* ---------- audio ---------- */
+const AU = {
+  ctx: null,
+  on() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+         if (this.ctx.state === "suspended") this.ctx.resume(); },
+  tone(f, dur, type, vol, slideTo) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type || "sine"; o.frequency.setValueAtTime(f, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(vol || 0.06, t);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    o.connect(g); g.connect(this.ctx.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  },
+  tick() { this.tone(320, 0.07, "triangle", 0.05); },
+  seat() { this.tone(880, 0.16, "sine", 0.07, 1320); },
+  give() { this.tone(150, 0.35, "sine", 0.10, 60); },
+  take() { this.tone(220, 0.30, "triangle", 0.08, 660); },
+  dead() { this.tone(70, 0.09, "square", 0.04); },
+  swell() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    [65.4, 98, 130.8, 196, 261.6].forEach((f, i) => {
+      const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = "triangle"; o.frequency.value = f;
+      g.gain.setValueAtTime(0, t + i * 0.9);
+      g.gain.linearRampToValueAtTime(0.05, t + i * 0.9 + 1.2);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 11);
+      o.connect(g); g.connect(this.ctx.destination);
+      o.start(t + i * 0.9); o.stop(t + 12);
+    });
+  }
+};
+
+/* ============================================================
+   PART 2 — state, onboarding, room, handshake
+   ============================================================ */
+
+/* ---------- marks: the eight-symbol alphabet ---------- */
+const MARKS = 8;
+function drawMark(g, k, x, y, s, col) {
+  g.save();
+  g.translate(x, y);
+  g.strokeStyle = col || "#fff"; g.fillStyle = col || "#fff";
+  g.lineWidth = Math.max(2, s * 0.11); g.lineCap = "butt"; g.lineJoin = "miter";
+  const r = s * 0.40;
+  g.beginPath();
+  switch (k) {
+    case 0: g.arc(0, 0, r, 0, Math.PI * 2); g.stroke(); break;                       // ring
+    case 1: g.rect(-r, -r, r * 2, r * 2); g.stroke(); break;                          // square
+    case 2: g.moveTo(0, -r); g.lineTo(r, r); g.lineTo(-r, r); g.closePath(); g.stroke(); break; // triangle
+    case 3: g.moveTo(-r, -r); g.lineTo(r, r); g.moveTo(r, -r); g.lineTo(-r, r); g.stroke(); break; // cross
+    case 4: g.moveTo(-r, r * 0.5); g.lineTo(0, -r * 0.6); g.lineTo(r, r * 0.5); g.stroke(); break; // chevron
+    case 5: g.rect(-r, -r * 0.28, r * 2, r * 0.56); g.fill(); break;                  // bar
+    case 6: g.moveTo(0, -r); g.lineTo(r, 0); g.lineTo(0, r); g.lineTo(-r, 0);
+            g.closePath(); g.stroke(); break;                                          // diamond
+    case 7: g.arc(0, 0, r * 0.62, 0, Math.PI * 2); g.fill(); break;                    // dot
+  }
+  g.restore();
+}
+
+/* a piece is one number under 432; three marks carry it exactly */
+function encodePiece(p) {
+  const v = p.img * 24 + p.seat;
+  return [(v / 64) | 0, ((v / 8) | 0) % 8, v % 8];
+}
+function decodeMarks(a) {
+  const v = a[0] * 64 + a[1] * 8 + a[2];
+  const img = (v / 24) | 0, seat = v % 24;
+  if (img >= IMGN || seat >= NSEAT) return null;
+  return { img: img, seat: seat };
+}
+
+/* ---------- state ---------- */
+const S = {
+  mode: "solo",     // solo | many
+  n: N,             // seats in play
+  me: 0,
+  tut: false,
+  cycle: [], owes: [], awaits: [], missing: [], rungOf: [],
+  slots: [], hand: [],
+  bots: [],
+  sel: -1, selHand: -1, maxGap: 0, observer: false,
+  shake: 0,
+  finished: false,
+  dealSeat: 0, dealer: false,
+  roomMarks: []
+};
+function P(img, seat) { return { img: img, seat: seat }; }
+function rungFor(seat) { return S.rungOf[seat]; }
+
+function buildCycle(n, rnd) {
+  const MAXD = Math.max(1, Math.min(n - 1, S.maxGap || (n <= 6 ? n - 1 : 3)));
+  const ok = c => {
+    if (c.length !== n || new Set(c).size !== n) return false;
+    for (let k = 0; k < n; k++) if (Math.abs(c[k] - c[(k + 1) % n]) > MAXD) return false;
+    return true;
+  };
+  for (let a = 0; a < 600; a++) {
+    const bias = a < 300 ? 1.5 : 0;          // near-neighbours first, then plain random
+    const path = [Math.floor(rnd() * n)];
+    const used = new Array(n).fill(false); used[path[0]] = true;
+    let good = true;
+    for (let step = 1; step < n; step++) {
+      const cur = path[path.length - 1], opts = [];
+      for (let j = 0; j < n; j++) {
+        if (used[j] || Math.abs(j - cur) > MAXD) continue;
+        if (step === n - 1 && Math.abs(j - path[0]) > MAXD) continue;
+        opts.push(j);
+      }
+      if (!opts.length) { good = false; break; }
+      if (bias) opts.sort((x, y) => (Math.abs(x - cur) - rnd() * bias) - (Math.abs(y - cur) - rnd() * bias));
+      else opts.sort(() => rnd() - 0.5);
+      path.push(opts[0]); used[opts[0]] = true;
+    }
+    if (good && ok(path)) return path;
+  }
+  // guaranteed loop for any n >= 3: up one parity class, back down the other
+  const f = [];
+  for (let i = 0; i < n; i += 2) f.push(i);
+  for (let i = (n % 2 === 0 ? n - 1 : n - 2); i >= 1; i -= 2) f.push(i);
+  if (rnd() < 0.5) f.reverse();
+  return f;
+}
+
+function seedRoom(seedVal, n, mySeat, tutorial) {
+  const rnd = mulberry(seedVal);
+  S.n = n; S.me = mySeat; S.tut = !!tutorial; S.finished = false;
+  S.rungOf = [];
+  for (let i = 0; i < n; i++) S.rungOf.push(n === 1 ? 0 : Math.round(i * (IMGN - 1) / (n - 1)));
+  S.cycle = buildCycle(n, rnd);
+  S.owes = new Array(n); S.awaits = new Array(n); S.missing = new Array(n);
+  for (let k = 0; k < n; k++) {
+    const a = S.cycle[k], b = S.cycle[(k + 1) % n];
+    S.owes[a] = b; S.awaits[b] = a;
+  }
+  for (let i = 0; i < n; i++) S.missing[i] = Math.floor(rnd() * NSEAT);
+
+  const myR = rungFor(S.me);
+  const pieces = [];
+  for (let s = 0; s < NSEAT; s++) if (s !== S.missing[S.me]) pieces.push(P(myR, s));
+  pieces.push(P(rungFor(S.owes[S.me]), S.missing[S.owes[S.me]]));
+
+  S.slots = new Array(NSEAT).fill(null);
+  if (tutorial) {
+    // dealt, not explained: twenty-one seats already true, three loose, one intruder
+    for (const p of pieces) if (p.img === myR) S.slots[p.seat] = p;
+    const foreign = pieces.find(p => p.img !== myR);
+    const occupied = [];
+    for (let s = 0; s < NSEAT; s++) if (S.slots[s]) occupied.push(s);
+    for (let i = occupied.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1)); const t = occupied[i]; occupied[i] = occupied[j]; occupied[j] = t;
+    }
+    const loose = [];
+    for (let k = 0; k < 3; k++) { loose.push(S.slots[occupied[k]]); S.slots[occupied[k]] = null; }
+    loose.push(foreign);
+    const free = [];
+    for (let s = 0; s < NSEAT; s++) if (!S.slots[s]) free.push(s);
+    // rotate until no loose piece sits in its own seat: three swaps, always
+    for (let rot = 0; rot < loose.length; rot++) {
+      let clean = true;
+      for (let i = 0; i < loose.length; i++)
+        if (loose[i].img === myR && loose[i].seat === free[i]) clean = false;
+      if (clean) break;
+      loose.push(loose.shift());
+    }
+    loose.forEach((p, i) => { S.slots[free[i]] = p; });
+  } else {
+    for (let i = pieces.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = pieces[i]; pieces[i] = pieces[j]; pieces[j] = t; }
+    S.slots = pieces;
+  }
+  S.hand = []; S.sel = -1; S.selHand = -1;
+
+  S.bots = [];
+  for (let i = 0; i < n; i++) {
+    if (i === S.me) { S.bots.push(null); continue; }
+    S.bots.push({
+      seat: i, rung: rungFor(i), missingSeat: S.missing[i],
+      occupant: P(rungFor(S.owes[i]), S.missing[S.owes[i]]),
+      extra: []
+    });
+  }
+}
+
+/* ---------- neighbours (solo only) ---------- */
+function botOffering(b) {
+  if (!b) return null;
+  if (b.occupant && b.occupant.img !== b.rung) return b.occupant;
+  if (b.extra.length) return b.extra[0];
+  return null;
+}
+function botComplete(b) {
+  return b && b.extra.length === 0 && b.occupant &&
+         b.occupant.img === b.rung && b.occupant.seat === b.missingSeat;
+}
+function botReceive(b, p) {
+  if (p.img === b.rung && p.seat === b.missingSeat && b.occupant === null) b.occupant = p;
+  else b.extra.push(p);
+}
+function seatOfRung(r) { for (let i = 0; i < S.n; i++) if (rungFor(i) === r) return i; return -1; }
+function botTick() {
+  if (S.finished || S.tut || S.mode !== "solo") return;
+  const order = [];
+  for (let i = 0; i < S.n; i++) if (S.bots[i]) order.push(i);
+  order.sort(() => Math.random() - 0.5);
+  for (const i of order) {
+    const b = S.bots[i];
+    let piece = null, from = null;
+    if (b.occupant && b.occupant.img !== b.rung) { piece = b.occupant; from = "occ"; }
+    else if (b.extra.length) { piece = b.extra[0]; from = "ext"; }
+    if (!piece) continue;
+    const tgtSeat = seatOfRung(piece.img);
+    if (tgtSeat < 0 || tgtSeat === S.me) continue;   // your edges are yours to close
+    if (from === "occ") b.occupant = null; else b.extra.shift();
+    botReceive(S.bots[tgtSeat], piece);
+    paintRoom(); paintProgress(); checkFinish();
+    return;
+  }
+}
+
+/* ---------- player ---------- */
+function myRung() { return rungFor(S.me); }
+function myPieces() {
+  const out = [];
+  S.slots.forEach((p, i) => { if (p) out.push({ p: p, where: "slot", i: i }); });
+  S.hand.forEach((p, i) => out.push({ p: p, where: "hand", i: i }));
+  return out;
+}
+function myOffering() {
+  if (S.selHand >= 0 && S.hand[S.selHand] && S.hand[S.selHand].img !== myRung())
+    return { p: S.hand[S.selHand], where: "hand", i: S.selHand };
+  if (S.sel >= 0 && S.slots[S.sel] && S.slots[S.sel].img !== myRung())
+    return { p: S.slots[S.sel], where: "slot", i: S.sel };
+  return myPieces().find(o => o.p.img !== myRung()) || null;
+}
+function dropOffering(o) {
+  if (o.where === "slot") S.slots[o.i] = null; else S.hand.splice(o.i, 1);
+  S.sel = -1; S.selHand = -1;
+}
+function acceptPiece(p) {
+  const e = S.slots.indexOf(null);
+  if (e >= 0) S.slots[e] = p; else S.hand.push(p);
+}
+function seatedCount() {
+  let n = 0; const r = myRung();
+  for (let i = 0; i < NSEAT; i++) { const p = S.slots[i]; if (p && p.img === r && p.seat === i) n++; }
+  return n;
+}
+function boardComplete() {
+  if (S.hand.length) return false;
+  const r = myRung();
+  for (let i = 0; i < NSEAT; i++) { const p = S.slots[i]; if (!p || p.img !== r || p.seat !== i) return false; }
+  return true;
+}
+function allComplete() {
+  if (!boardComplete()) return false;
+  if (S.mode === "many" && !NET.live) return true;   // no mesh: your own board ends your game
+  for (let i = 0; i < S.n; i++) if (i !== S.me && !doneOf(i)) return false;
+  return true;
+}
+function checkFinish() {
+  if (S.finished) return;
+  if (S.tut) { if (boardComplete()) { S.finished = true; setTimeout(endTutorial, 1200); } return; }
+  if (allComplete()) { S.finished = true; setTimeout(runReveal, 900); }
+}
+
+/* ---------- drawing pieces ---------- */
+function drawPiece(g, piece, x, y, w, h) {
+  if (!piece) { g.fillStyle = "#000"; g.fillRect(x, y, w, h); return; }
+  const sc = piece.seat % COLS, sr = (piece.seat / COLS) | 0;
+  g.drawImage(RUNGS[piece.img], sc * PS, sr * PS, PS, PS, x, y, w, h);
+}
+const glyphCache = {};
+function glyphData(piece) {
+  const key = piece.img + ":" + piece.seat;
+  if (glyphCache[key]) return glyphCache[key];
+  const G = 13, t = document.createElement("canvas"); t.width = G; t.height = G;
+  const tg = t.getContext("2d");
+  const sc = piece.seat % COLS, sr = (piece.seat / COLS) | 0;
+  tg.drawImage(RUNGS[piece.img], sc * PS, sr * PS, PS, PS, 0, 0, G, G);
+  const d = tg.getImageData(0, 0, G, G).data, arr = [];
+  for (let k = 0; k < G * G; k++) { const o = k * 4; arr.push((0.299 * d[o] + 0.587 * d[o + 1] + 0.114 * d[o + 2]) / 255); }
+  glyphCache[key] = { g: G, v: arr };
+  return glyphCache[key];
+}
+function drawGlyph(cv, piece, tint) {
+  const g = cv.getContext("2d");
+  g.fillStyle = "#000"; g.fillRect(0, 0, cv.width, cv.height);
+  if (!piece) return;
+  const gd = glyphData(piece), G = gd.g, cell = cv.width / G;
+  g.fillStyle = tint || "#fff";
+  for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
+    const r = Math.pow(gd.v[y * G + x], 0.75) * cell * 0.52;
+    if (r < 0.35) continue;
+    g.beginPath(); g.arc((x + 0.5) * cell, (y + 0.5) * cell, r, 0, Math.PI * 2); g.fill();
+  }
+}
+function drawBotBoard(cv, b) {
+  const g = cv.getContext("2d"), w = cv.width, h = cv.height;
+  g.fillStyle = "#000"; g.fillRect(0, 0, w, h);
+  g.drawImage(RUNGS[b.rung], 0, 0, w, h);
+  const cw = w / COLS, ch = h / ROWS;
+  const x = (b.missingSeat % COLS) * cw, y = ((b.missingSeat / COLS) | 0) * ch;
+  g.fillStyle = "#000"; g.fillRect(x, y, cw, ch);
+  if (b.occupant) drawPiece(g, b.occupant, x, y, cw, ch);
+  const dn = (b.done !== undefined) ? b.done : botComplete(b);
+  g.strokeStyle = dn ? "#19e6c8" : "#ff2e2e";
+  g.lineWidth = 2; g.strokeRect(x + 1, y + 1, cw - 2, ch - 2);
+  if (b.unknown) { g.fillStyle = "rgba(0,0,0,.72)"; g.fillRect(0, 0, w, h); }
+}
+
+/* ---------- board ---------- */
+const boardCv = document.getElementById("board"), bg = boardCv.getContext("2d");
+let BW = 0, BH = 0, CW = 0, CH = 0;
+const anim = [];
+function sizeBoard() {
+  const wrap = document.getElementById("boardwrap");
+  const maxW = wrap.clientWidth - 8, maxH = wrap.clientHeight - 8;
+  let w = maxW, h = w * (IH / IW);
+  if (h > maxH) { h = maxH; w = h * (IW / IH); }
+  BW = Math.floor(w); BH = Math.floor(h);
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  boardCv.width = BW * dpr; boardCv.height = BH * dpr;
+  boardCv.style.width = BW + "px"; boardCv.style.height = BH + "px";
+  bg.setTransform(dpr, 0, 0, dpr, 0, 0);
+  CW = BW / COLS; CH = BH / ROWS;
+  for (let i = 0; i < NSEAT; i++) if (!anim[i]) anim[i] = { x: (i % COLS) * CW, y: ((i / COLS) | 0) * CH };
+}
+let drag = null;
+function slotAt(cx, cy) {
+  const r = boardCv.getBoundingClientRect();
+  const x = cx - r.left, y = cy - r.top;
+  if (x < 0 || y < 0 || x > BW || y > BH) return -1;
+  return Math.min(ROWS - 1, Math.floor(y / CH)) * COLS + Math.min(COLS - 1, Math.floor(x / CW));
+}
+function swapSlots(a, b) {
+  const t = S.slots[a]; S.slots[a] = S.slots[b]; S.slots[b] = t;
+  const ta = anim[a]; anim[a] = anim[b]; anim[b] = ta;
+  AU.tick();
+  const r = myRung();
+  if (S.slots[a] && S.slots[a].img === r && S.slots[a].seat === a) AU.seat();
+  if (S.slots[b] && S.slots[b].img === r && S.slots[b].seat === b) AU.seat();
+  paintOffer(); paintProgress(); checkFinish();
+}
+function placeFromHand(hi, slot) {
+  const p = S.hand[hi], out = S.slots[slot];
+  S.slots[slot] = p;
+  if (out) S.hand[hi] = out; else S.hand.splice(hi, 1);
+  S.selHand = -1; AU.tick();
+  if (p.img === myRung() && p.seat === slot) AU.seat();
+  paintHand(); paintOffer(); paintProgress(); checkFinish();
+}
+boardCv.addEventListener("pointerdown", e => {
+  e.preventDefault(); AU.on();
+  const s = slotAt(e.clientX, e.clientY); if (s < 0) return;
+  if (S.selHand >= 0) { placeFromHand(S.selHand, s); return; }
+  if (!S.slots[s]) { S.shake = 1; AU.dead(); return; }
+  drag = { slot: s, x: e.clientX, y: e.clientY, moved: false };
+  try { boardCv.setPointerCapture(e.pointerId); } catch (err) {}
+});
+boardCv.addEventListener("pointermove", e => {
+  if (!drag) return;
+  if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 6) drag.moved = true;
+  drag.x = e.clientX; drag.y = e.clientY;
+});
+boardCv.addEventListener("pointerup", e => {
+  if (!drag) return;
+  const s = slotAt(e.clientX, e.clientY);
+  if (drag.moved && s >= 0 && s !== drag.slot) { swapSlots(drag.slot, s); S.sel = -1; }
+  else if (!drag.moved) {
+    if (S.sel === drag.slot) S.sel = -1;
+    else if (S.sel >= 0) { swapSlots(S.sel, drag.slot); S.sel = -1; }
+    else S.sel = drag.slot;
+    paintOffer();
+  }
+  drag = null;
+});
+boardCv.addEventListener("pointercancel", () => { drag = null; });
+
+function paintBoard() {
+  if (!BW) return;
+  bg.fillStyle = "#000"; bg.fillRect(0, 0, BW, BH);
+  let sx = 0;
+  if (S.shake > 0) { sx = Math.sin(S.shake * 34) * 5 * S.shake; S.shake -= 0.06; if (S.shake < 0) S.shake = 0; }
+  const r = myRung(), armed = seatedCount() >= NSEAT - 1;
+  const order = []; for (let i = 0; i < NSEAT; i++) order.push(i);
+  if (drag) { order.splice(order.indexOf(drag.slot), 1); order.push(drag.slot); }
+  for (const i of order) {
+    const tx = (i % COLS) * CW, ty = ((i / COLS) | 0) * CH, a = anim[i];
+    a.x += (tx - a.x) * 0.3; a.y += (ty - a.y) * 0.3;
+    const x = a.x + sx, y = a.y, w = CW + 0.6, h = CH + 0.6;
+    const p = S.slots[i], correct = p && p.img === r && p.seat === i, foreign = p && p.img !== r;
+    bg.save();
+    if (drag && drag.slot === i) {
+      bg.translate(x + w / 2, y + h / 2); bg.scale(1.08, 1.08); bg.translate(-(x + w / 2), -(y + h / 2));
+    }
+    if (!p) {
+      bg.fillStyle = "#000"; bg.fillRect(x, y, w, h);
+      bg.strokeStyle = "rgba(255,255,255,.22)"; bg.lineWidth = 1; bg.strokeRect(x + .5, y + .5, w - 1, h - 1);
+    } else {
+      drawPiece(bg, p, x, y, w, h);
+      if (!correct) { bg.strokeStyle = "rgba(0,0,0,.45)"; bg.lineWidth = 1; bg.strokeRect(x + .5, y + .5, w - 1, h - 1); }
+    }
+    if (foreign && armed) { bg.strokeStyle = "#ff2e2e"; bg.lineWidth = 2; bg.strokeRect(x + 1, y + 1, w - 2, h - 2); }
+    if (S.sel === i) { bg.strokeStyle = "#ffd23f"; bg.lineWidth = 2; bg.strokeRect(x + 1, y + 1, w - 2, h - 2); }
+    bg.restore();
+  }
+  if (boardComplete()) { bg.strokeStyle = "#19e6c8"; bg.lineWidth = 2; bg.strokeRect(1, 1, BW - 2, BH - 2); }
+}
+
+/* ---------- hand ---------- */
+function paintHand() {
+  const el = document.getElementById("hand");
+  el.innerHTML = "";
+  if (!S.hand.length) { el.classList.remove("live"); return; }
+  el.classList.add("live");
+  S.hand.forEach((p, i) => {
+    const c = document.createElement("canvas");
+    c.width = 100; c.height = 100; c.className = "hp" + (S.selHand === i ? " sel" : "");
+    drawPiece(c.getContext("2d"), p, 0, 0, 100, 100);
+    c.addEventListener("click", () => { S.selHand = S.selHand === i ? -1 : i; S.sel = -1; paintHand(); paintOffer(); });
+    el.appendChild(c);
+  });
+}
+
+/* ---------- top bar ---------- */
+function paintOffer() {
+  const cv = document.getElementById("offer"), o = myOffering();
+  drawGlyph(cv, o ? o.p : null);
+  cv.classList.toggle("live", !!o);
+}
+function paintProgress() {
+  const el = document.getElementById("prog");
+  if (el.children.length !== S.n) {
+    el.innerHTML = "";
+    for (let i = 0; i < S.n; i++) { const d = document.createElement("div"); d.className = "pd"; el.appendChild(d); }
+  }
+  for (let i = 0; i < S.n; i++) {
+    let cls = "pd";
+    if (i === S.me) { cls += " me"; if (boardComplete()) cls += " done"; }
+    else if (S.mode === "solo") {
+      const b = S.bots[i];
+      if (botComplete(b)) cls += " done"; else if (b.extra.length) cls += " hurt";
+    }
+    el.children[i].className = cls;
+  }
+  document.getElementById("roombadge").style.display = myOffering() ? "block" : "none";
+  if (S.mode === "many" && NET.live) NET.push();
+}
+
+/* ---------- room list (solo) ---------- */
+let roomBuilt = false;
+function buildRoom() {
+  const list = document.getElementById("roomlist");
+  list.innerHTML = "";
+  for (let i = 0; i < S.n; i++) {
+    if (i === S.me) continue;
+    if (S.tut && i !== S.owes[S.me] && i !== S.awaits[S.me]) continue;   // dealt: two neighbours, no crowd
+    const card = document.createElement("div");
+    card.className = "card"; card.dataset.i = i;
+    const tb = document.createElement("canvas"); tb.className = "tb"; tb.width = 152; tb.height = 228;
+    const mid = document.createElement("div"); mid.className = "cmid";
+    const marks = document.createElement("div"); marks.className = "marks"; mid.appendChild(marks);
+    const gl = document.createElement("canvas"); gl.className = "gl"; gl.width = 120; gl.height = 120;
+    card.appendChild(tb); card.appendChild(mid); card.appendChild(gl);
+    card.addEventListener("click", () => openDetail(i));
+    list.appendChild(card);
+  }
+  roomBuilt = true;
+}
+function paintRoom() {
+  if (!roomBuilt) return;
+  for (const card of document.getElementById("roomlist").children) {
+    const i = +card.dataset.i, b = boardOf(i);
+    drawBotBoard(card.querySelector(".tb"), b);
+    const off = offeringOf(b), gl = card.querySelector(".gl");
+    drawGlyph(gl, off); gl.classList.toggle("none", !off);
+    const marks = card.querySelector(".marks"); marks.innerHTML = "";
+    const add = c => { const d = document.createElement("div"); d.className = "mk " + c; marks.appendChild(d); };
+    if (b.unknown) add("dim"); else if (doneOf(i)) add("teal"); else add("red");
+    for (let k = 0; k < b.extra.length; k++) add("amb");
+    card.classList.toggle("done", doneOf(i));
+  }
+}
+
+/* ---------- detail (solo) ---------- */
+let dIdx = -1;
+function openDetail(i) {
+  dIdx = i;
+  const b = boardOf(i);
+  drawBotBoard(document.getElementById("dtheir"), b);
+  drawGlyph(document.getElementById("dglyph"), offeringOf(b));
+  const o = myOffering();
+  drawGlyph(document.getElementById("dmine"), o ? o.p : null, "#ffd23f");
+  const det = document.getElementById("detail");
+  det.dataset.mode = S.mode;
+  document.getElementById("agive").classList.toggle("able", !!o);
+  document.getElementById("atake").classList.toggle("able", !!offeringOf(b));
+  det.classList.add("on");
+}
+document.getElementById("dback").addEventListener("click", () => {
+  document.getElementById("detail").classList.remove("on"); dIdx = -1;
+});
+function holdButton(el, enabled, done) {
+  let raf = null, t0 = 0;
+  const fill = el.querySelector(".fill");
+  const stop = () => { if (raf) cancelAnimationFrame(raf); raf = null; fill.style.width = "0%"; };
+  el.addEventListener("pointerdown", e => {
+    e.preventDefault(); AU.on();
+    if (!enabled()) { AU.dead(); return; }
+    t0 = performance.now();
+    const step = () => {
+      const p = Math.min(1, (performance.now() - t0) / 700);
+      fill.style.width = (p * 100) + "%";
+      if (p >= 1) { stop(); done(); return; }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(ev => el.addEventListener(ev, stop));
+}
+holdButton(document.getElementById("agive"),
+  () => dIdx >= 0 && !!myOffering(),
+  () => {
+    const o = myOffering(); if (!o || dIdx < 0) return;
+    dropOffering(o); botReceive(S.bots[dIdx], o.p); AU.give();
+    paintHand(); paintOffer(); paintProgress(); paintRoom(); openDetail(dIdx); checkFinish();
+  });
+holdButton(document.getElementById("atake"),
+  () => dIdx >= 0 && !!botOffering(S.bots[dIdx]),
+  () => {
+    const b = S.bots[dIdx], p = botOffering(b); if (!p) return;
+    if (b.occupant === p) b.occupant = null; else b.extra.shift();
+    acceptPiece(p); AU.take();
+    paintHand(); paintOffer(); paintProgress(); paintRoom(); openDetail(dIdx); checkFinish();
+  });
+
+/* ---------- handshake (many) ----------
+   three marks carry the piece. read them off their screen, tap them on yours. */
+const HS = { open: false, side: null, entry: [], code: [] };
+const hsCv = document.getElementById("hscv");
+let hsW = 0, hsH = 0;
+
+function openHandshake(side) {
+  HS.open = true; HS.side = side; HS.entry = [];
+  if (side === "give") {
+    const o = myOffering();
+    if (!o) { HS.open = false; AU.dead(); return; }
+    HS.code = encodePiece(o.p);
+  }
+  document.getElementById("hs").classList.add("on");
+  sizeHandshake();
+}
+function closeHandshake() {
+  HS.open = false; document.getElementById("hs").classList.remove("on");
+}
+document.getElementById("hsback").addEventListener("click", closeHandshake);
+document.getElementById("nb-give").addEventListener("click", () => { AU.on(); openHandshake("give"); });
+document.getElementById("nb-take").addEventListener("click", () => { AU.on(); openHandshake("take"); });
+
+function sizeHandshake() {
+  const wrap = document.getElementById("hsbody");
+  hsW = wrap.clientWidth; hsH = wrap.clientHeight;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  hsCv.width = hsW * dpr; hsCv.height = hsH * dpr;
+  hsCv.style.width = hsW + "px"; hsCv.style.height = hsH + "px";
+  hsCv.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function padCells() {
+  const cols = 4, rows = 2;
+  const pw = hsW, ph = Math.min(hsH * 0.52, hsW * 0.55);
+  const cw = pw / cols, ch = ph / rows;
+  const y0 = hsH - ph;
+  const cells = [];
+  for (let k = 0; k < MARKS; k++) {
+    const c = k % cols, r = (k / cols) | 0;
+    cells.push({ k: k, x: c * cw, y: y0 + r * ch, w: cw, h: ch });
+  }
+  return cells;
+}
+function paintHandshake() {
+  if (!HS.open || !hsW) return;
+  const g = hsCv.getContext("2d");
+  g.fillStyle = "#000"; g.fillRect(0, 0, hsW, hsH);
+  const top = hsH - Math.min(hsH * 0.52, hsW * 0.55);
+  const slotW = Math.min(hsW / 3.6, top * 0.7), cy = top * 0.52;
+
+  if (HS.side === "give") {
+    // the three marks to be read off this screen
+    for (let i = 0; i < 3; i++) {
+      const x = hsW / 2 + (i - 1) * (slotW + 10);
+      g.strokeStyle = "#1e1e1e"; g.lineWidth = 1;
+      g.strokeRect(x - slotW / 2, cy - slotW / 2, slotW, slotW);
+      drawMark(g, HS.code[i], x, cy, slotW * 0.72, "#ffd23f");
+    }
+    const o = myOffering();
+    const th = Math.min(top * 0.34, 84);
+    if (o) {
+      const tmp = document.createElement("canvas"); tmp.width = 120; tmp.height = 120;
+      drawGlyph(tmp, o.p);
+      g.drawImage(tmp, hsW / 2 - th / 2, cy + slotW * 0.62, th, th);
+    }
+    // commit strip
+    const cells = padCells();
+    const y0 = cells[0].y;
+    g.fillStyle = "#0d0d0d"; g.fillRect(0, y0, hsW, hsH - y0);
+    g.strokeStyle = "#1e1e1e"; g.strokeRect(0.5, y0 + 0.5, hsW - 1, hsH - y0 - 1);
+    drawMark(g, 3, hsW / 2, y0 + (hsH - y0) / 2, Math.min(hsW, hsH - y0) * 0.30, "#ff2e2e");
+    g.fillStyle = "#ff2e2e"; g.fillRect(0, y0, hsW * HS.commit, 3);
+  } else {
+    for (let i = 0; i < 3; i++) {
+      const x = hsW / 2 + (i - 1) * (slotW + 10);
+      g.strokeStyle = i === HS.entry.length ? "#19e6c8" : "#1e1e1e"; g.lineWidth = 2;
+      g.strokeRect(x - slotW / 2, cy - slotW / 2, slotW, slotW);
+      if (HS.entry[i] !== undefined) drawMark(g, HS.entry[i], x, cy, slotW * 0.72, "#19e6c8");
+    }
+    for (const c of padCells()) {
+      g.strokeStyle = "#161616"; g.lineWidth = 1;
+      g.strokeRect(c.x + .5, c.y + .5, c.w - 1, c.h - 1);
+      drawMark(g, c.k, c.x + c.w / 2, c.y + c.h / 2, Math.min(c.w, c.h) * 0.52, "#fff");
+    }
+  }
+}
+HS.commit = 0;
+let commitRaf = null, commitT0 = 0;
+hsCv.addEventListener("pointerdown", e => {
+  if (!HS.open) return;
+  e.preventDefault(); AU.on();
+  const r = hsCv.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  if (HS.side === "take") {
+    for (const c of padCells()) {
+      if (x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h) {
+        HS.entry.push(c.k); AU.tick();
+        if (HS.entry.length === 3) {
+          const p = decodeMarks(HS.entry);
+          HS.entry = [];
+          if (p) { acceptPiece(p); AU.take(); paintHand(); paintOffer(); paintProgress(); checkFinish(); closeHandshake(); }
+          else { S.shake = 1; AU.dead(); }
+        }
+        return;
+      }
+    }
+  } else {
+    const cells = padCells();
+    if (y >= cells[0].y) {
+      commitT0 = performance.now();
+      const step = () => {
+        HS.commit = Math.min(1, (performance.now() - commitT0) / 900);
+        if (HS.commit >= 1) {
+          const o = myOffering();
+          if (o) { dropOffering(o); AU.give(); paintHand(); paintOffer(); paintProgress(); checkFinish(); }
+          HS.commit = 0; commitRaf = null; closeHandshake(); return;
+        }
+        commitRaf = requestAnimationFrame(step);
+      };
+      commitRaf = requestAnimationFrame(step);
+    }
+  }
+});
+["pointerup", "pointercancel", "pointerleave"].forEach(ev =>
+  hsCv.addEventListener(ev, () => { if (commitRaf) cancelAnimationFrame(commitRaf); commitRaf = null; HS.commit = 0; }));
+
+/* ---------- nav ---------- */
+function show(v) {
+  document.getElementById("v-board").classList.toggle("on", v === "board");
+  document.getElementById("v-room").classList.toggle("on", v === "room");
+  document.getElementById("nb-board").classList.toggle("on", v === "board");
+  const nr = document.getElementById("nb-room");
+  if (nr) nr.classList.toggle("on", v === "room");
+  if (v === "board") sizeBoard();
+  if (v === "room") { if (!roomBuilt) buildRoom(); paintRoom(); }
+}
+document.getElementById("nb-board").addEventListener("click", () => { AU.on(); show("board"); });
+document.getElementById("nb-room").addEventListener("click", () => { AU.on(); show("room"); });
+window.addEventListener("resize", () => {
+  sizeBoard();
+  if (HS.open) sizeHandshake();
+  if (dealOpen) { sizeDeal(); paintDeal(); }
+});
+
+/* ---------- reveal ---------- */
+function runReveal() {
+  const ov = document.getElementById("reveal"), cv = document.getElementById("rcv");
+  const w = Math.min(window.innerWidth, window.innerHeight * (IW / IH));
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.style.width = w + "px"; cv.style.height = (w * IH / IW) + "px";
+  cv.width = w * dpr; cv.height = (w * IH / IW) * dpr;
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = w, H = w * IH / IW;
+  ov.classList.add("on"); AU.on(); AU.swell();
+  const T0 = performance.now(), DUR = 12000, HOLD = 2600;
+  (function frame() {
+    const el = performance.now() - T0;
+    const t = el < HOLD ? 0 : clamp((el - HOLD) / DUR, 0, 1) * (IMGN - 1);
+    const lo = Math.floor(t), hi = Math.min(IMGN - 1, lo + 1), fr = t - lo;
+    g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+    g.globalAlpha = 1; g.save(); g.translate(W / 2, H / 2);
+    g.scale(1 + fr * 0.16, 1 + fr * 0.16); g.drawImage(RUNGS[lo], -W / 2, -H / 2, W, H); g.restore();
+    if (hi !== lo) { g.globalAlpha = fr; g.drawImage(RUNGS[hi], 0, 0, W, H); g.globalAlpha = 1; }
+    if (el < HOLD + DUR + 4000) requestAnimationFrame(frame);
+  })();
+  cv.addEventListener("click", () => location.reload());
+}
+
+/* ---------- entries ---------- */
+function marksToSeed(m) { return ((m[0] * 8 + m[1]) * 8 + m[2]) * 8 + m[3] + 1; }
+
+function startSolo() {
+  S.mode = "solo";
+  S.observer = false;
+  document.getElementById("nav").dataset.mode = "solo";
+  seedRoom(SEED, N, Math.floor(Math.random() * N), true);   // dealt round first
+  roomBuilt = false;
+  enterGame();
+}
+function endTutorial() {
+  S.tut = false; S.finished = false;
+  seedRoom(SEED + 12345, N, S.me, false);
+  roomBuilt = false; buildRoom();
+  sizeBoard(); paintHand(); paintOffer(); paintProgress(); paintRoom();
+  show("board"); AU.seat();
+}
+function enterGame() {
+  document.getElementById("app").classList.add("live");
+  sizeBoard();
+  buildRoom();
+  paintHand(); paintOffer(); paintProgress(); paintRoom();
+  show("board");
+  if (!window.__ticking) { window.__ticking = true; setInterval(botTick, 2600); }
+}
+
+
+/* ============================================================
+   PART 3 — mesh, QR, dealer roster
+   The mesh never moves a piece. Pieces move by three marks,
+   in person. The mesh only mirrors boards so the room tab works,
+   and everything below degrades to silence if it fails.
+   ============================================================ */
+
+const CDN = {
+  peer: ["https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js",
+         "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"],
+  qr:   ["https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js",
+         "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.1/qrcode.min.js"]
+};
+function loadOne(url) {
+  return new Promise(res => {
+    const s = document.createElement("script");
+    s.src = url; s.async = true;
+    s.onload = () => res(true); s.onerror = () => res(false);
+    document.head.appendChild(s);
+    setTimeout(() => res(false), 6000);
+  });
+}
+async function loadAny(urls, check) {
+  for (const u of urls) { await loadOne(u); if (check()) return true; }
+  return false;
+}
+
+const NET = {
+  lib: false, live: false, host: false, code: "", peer: null,
+  conns: [], hostConn: null, states: {}, lastPush: 0, pending: false,
+
+  hostId() { return "mmsc-" + NET.code + "-h"; },
+
+  async start(code, seat, isHost) {
+    NET.code = code; NET.host = !!isHost;
+    NET.lib = await loadAny(CDN.peer, () => typeof window.Peer === "function");
+    paintLink();
+    if (!NET.lib) return false;
+    try {
+      NET.peer = isHost ? new window.Peer(NET.hostId()) : new window.Peer();
+    } catch (e) { NET.fail(); return false; }
+    NET.peer.on("error", err => {
+      // an occupied host id means someone else already holds this room
+      if (!NET.live) NET.fail();
+    });
+    NET.peer.on("open", () => {
+      if (isHost) { NET.live = true; paintLink(); NET.push(true); }
+      else {
+        const c = NET.peer.connect(NET.hostId(), { reliable: true });
+        NET.hostConn = c;
+        c.on("open", () => { NET.live = true; paintLink(); NET.push(true); });
+        c.on("data", m => NET.recv(m));
+        c.on("close", () => { NET.live = false; paintLink(); });
+        c.on("error", () => { NET.live = false; paintLink(); });
+      }
+    });
+    if (isHost) {
+      NET.peer.on("connection", c => {
+        NET.conns.push(c);
+        c.on("open", () => NET.relay());
+        c.on("data", m => { if (m && m.t === "s") { NET.states[m.seat] = m; NET.relay(); NET.touch(); } });
+        c.on("close", () => { NET.conns = NET.conns.filter(x => x !== c); });
+      });
+    }
+    return true;
+  },
+  fail() { NET.live = false; paintLink(true); },
+
+  mine() {
+    const o = myOffering();
+    return { t: "s", seat: S.me,
+             off: o ? [o.p.img, o.p.seat] : null,
+             ex: Math.max(0, myPieces().length - NSEAT),
+             done: boardComplete() };
+  },
+  push(force) {
+    if (!NET.live || S.observer) return;   // the facilitator holds no seat and reports nothing
+    const now = Date.now();
+    if (!force && now - NET.lastPush < 700) {
+      if (!NET.pending) { NET.pending = true; setTimeout(() => { NET.pending = false; NET.push(true); }, 750); }
+      return;
+    }
+    NET.lastPush = now;
+    const m = NET.mine();
+    NET.states[S.me] = m;
+    if (NET.host) NET.relay();
+    else if (NET.hostConn && NET.hostConn.open) { try { NET.hostConn.send(m); } catch (e) {} }
+  },
+  relay() {
+    if (!NET.host) return;
+    const pkt = { t: "all", states: NET.states };
+    for (const c of NET.conns) { if (c.open) { try { c.send(pkt); } catch (e) {} } }
+  },
+  recv(m) {
+    if (!m) return;
+    if (m.t === "all") { NET.states = m.states || {}; NET.touch(); }
+  },
+  touch() {
+    if (S.observer) { renderTeachRun(); return; }   // the facilitator has no board of their own
+    paintRoom(); paintProgress();
+    if (dealOpen) paintDeal();
+    checkFinish();
+  },
+  seatsIn() { return Object.keys(NET.states).map(Number); }
+};
+
+function paintLink(bad) {
+  const el = document.getElementById("link");
+  el.classList.toggle("on", NET.live);
+  el.classList.toggle("bad", !!bad && !NET.live);
+  const nav = document.getElementById("nav");
+  nav.dataset.mesh = NET.live ? "1" : "0";
+}
+
+/* ---------- boards seen from here ---------- */
+function boardOf(i) {
+  if (S.mode === "solo") return S.bots[i];
+  const st = NET.states[i];
+  const b = { seat: i, rung: rungFor(i), missingSeat: S.missing[i], occupant: null, extra: [], remote: true };
+  if (!st) { b.unknown = true; return b; }
+  if (st.off) b.occupant = { img: st.off[0], seat: st.off[1] };
+  else if (st.done) b.occupant = P(rungFor(i), S.missing[i]);
+  b.extra = new Array(st.ex || 0).fill(null);
+  b.done = !!st.done;
+  return b;
+}
+function doneOf(i) {
+  if (S.mode === "solo") return botComplete(S.bots[i]);
+  const st = NET.states[i];
+  return !!(st && st.done);
+}
+function offeringOf(b) {
+  if (!b) return null;
+  if (b.remote) return (b.occupant && b.occupant.img !== b.rung) ? b.occupant : null;
+  return botOffering(b);
+}
+
+/* ---------- dealer roster + QR ---------- */
+let dealOpen = false, QRLIB = false;
+const dealCv = document.getElementById("dealcv");
+let DLW = 0, DLH = 0;
+
+document.getElementById("nb-deal").addEventListener("click", () => { AU.on(); openDeal(); });
+document.getElementById("dealback").addEventListener("click", () => {
+  dealOpen = false; document.getElementById("deal").classList.remove("on");
+});
+function openDeal() {
+  dealOpen = true;
+  document.getElementById("deal").classList.add("on");
+  sizeDeal(); paintDeal();
+}
+function sizeDeal() {
+  const wrap = document.getElementById("dealbody");
+  DLW = wrap.clientWidth; DLH = wrap.clientHeight;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  dealCv.width = DLW * dpr; dealCv.height = DLH * dpr;
+  dealCv.style.width = DLW + "px"; dealCv.style.height = DLH + "px";
+  dealCv.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function joinURL() {
+  const base = location.origin + location.pathname;
+  return base + "#" + NET.code;
+}
+function drawQR(g, x, y, size) {
+  if (!QRLIB || typeof window.qrcode !== "function") {
+    g.strokeStyle = "#2a2a2a"; g.lineWidth = 1; g.strokeRect(x, y, size, size);
+    return false;
+  }
+  let qr;
+  try { qr = window.qrcode(0, "M"); qr.addData(joinURL()); qr.make(); }
+  catch (e) { return false; }
+  const n = qr.getModuleCount(), c = size / (n + 4);
+  g.fillStyle = "#fff"; g.fillRect(x, y, size, size);
+  g.fillStyle = "#000";
+  for (let r = 0; r < n; r++) for (let k = 0; k < n; k++)
+    if (qr.isDark(r, k)) g.fillRect(x + (k + 2) * c, y + (r + 2) * c, c + 0.6, c + 0.6);
+  return true;
+}
+function paintDeal() {
+  if (!DLW) return;
+  const g = dealCv.getContext("2d");
+  g.fillStyle = "#000"; g.fillRect(0, 0, DLW, DLH);
+
+  // the five marks: always readable, always sufficient on their own
+  const sw = Math.min(DLW / 6.4, DLH * 0.10), cy = DLH * 0.09;
+  for (let i = 0; i < 5; i++) {
+    const x = DLW / 2 + (i - 2) * (sw + 8);
+    g.strokeStyle = "#1e1e1e"; g.lineWidth = 1;
+    g.strokeRect(x - sw / 2, cy - sw / 2, sw, sw);
+    drawMark(g, +NET.code[i], x, cy, sw * 0.7, i === 4 ? "#3b82f6" : "#fff");
+  }
+  // the same thing as a code, for phones with a camera
+  const qs = Math.min(DLW * 0.52, DLH * 0.38);
+  drawQR(g, DLW / 2 - qs / 2, DLH * 0.18, qs);
+
+  // who is actually here
+  const cols = Math.min(6, S.n), rows = Math.ceil(S.n / cols);
+  const cell = Math.min(DLW / (cols + 1), (DLH * 0.30) / (rows + 0.6));
+  const x0 = (DLW - cols * cell) / 2, y0 = DLH * 0.66;
+  for (let i = 0; i < S.n; i++) {
+    const x = x0 + (i % cols) * cell, y = y0 + ((i / cols) | 0) * cell;
+    const here = i === S.me || !!NET.states[i];
+    g.strokeStyle = here ? "#19e6c8" : "#2a2a2a";
+    g.lineWidth = here ? 2 : 1;
+    g.strokeRect(x + 3, y + 3, cell - 6, cell - 6);
+    if (here) { g.fillStyle = i === S.me ? "#fff" : "#19e6c8"; g.fillRect(x + 8, y + 8, cell - 16, cell - 16); }
+  }
+}
+
+/* ---------- hash join ---------- */
+function hashCode() {
+  const m = (location.hash || "").match(/^#([0-7]{5})$/);
+  return m ? m[1] : null;
+}
+
+
+/* ============================================================
+   PART 4 — the parts that need words
+   The play surface stays visual. Setup, help, and the
+   facilitator's console do not. Refusing words here was a
+   mistake; this is the correction.
+   ============================================================ */
+
+let IMGN = N;                 // how many pictures are in play (18 generated, or yours)
+const SIZES = [3, 4, 6, 8, 10, 12, 15, 18];
+
+/* ---------- small helpers ---------- */
+function el(id) { return document.getElementById(id); }
+function markButton(k, onTap, size) {
+  const b = document.createElement("button");
+  b.className = "markbtn";
+  const c = document.createElement("canvas");
+  const s = size || 56;
+  c.width = s * 2; c.height = s * 2; c.style.width = s + "px"; c.style.height = s + "px";
+  const g = c.getContext("2d"); g.scale(2, 2);
+  g.fillStyle = "#000"; g.fillRect(0, 0, s, s);
+  drawMark(g, k, s / 2, s / 2, s * 0.66, "#fff");
+  b.appendChild(c);
+  b.addEventListener("click", () => { AU.on(); onTap(k); });
+  return b;
+}
+function screen(name) {
+  ["door", "join", "teach", "help"].forEach(k => el("scr-" + k).classList.toggle("on", k === name));
+  el("front").classList.toggle("on", !!name);
+}
+
+/* ---------- custom pictures ---------- */
+function fitInto(img) {
+  const cv = document.createElement("canvas");
+  cv.width = IW; cv.height = IH;
+  const g = cv.getContext("2d");
+  g.fillStyle = "#000"; g.fillRect(0, 0, IW, IH);
+  const s = Math.max(IW / img.width, IH / img.height);
+  const w = img.width * s, h = img.height * s;
+  g.drawImage(img, (IW - w) / 2, (IH - h) / 2, w, h);
+  return cv;
+}
+function loadPictures(files, done) {
+  const list = Array.prototype.slice.call(files).slice(0, 18);
+  if (list.length < 3) { done(0); return; }
+  let loaded = 0;
+  const out = new Array(list.length);
+  list.forEach((f, i) => {
+    const r = new FileReader();
+    r.onload = ev => {
+      const im = new Image();
+      im.onload = () => {
+        out[i] = fitInto(im);
+        if (++loaded === list.length) {
+          for (let k = 0; k < out.length; k++) RUNGS[k] = out[k];
+          RUNGS.length = out.length;
+          IMGN = out.length;
+          for (const k in glyphCache) delete glyphCache[k];
+          done(IMGN);
+        }
+      };
+      im.onerror = () => { if (++loaded === list.length) done(IMGN); };
+      im.src = ev.target.result;
+    };
+    r.readAsDataURL(f);
+  });
+}
+
+/* ---------- door ---------- */
+el("opt-solo").addEventListener("click", () => { AU.on(); screen(null); startSolo(); });
+el("opt-join").addEventListener("click", () => { AU.on(); joinReset(); screen("join"); });
+el("opt-teach").addEventListener("click", () => { AU.on(); screen("teach"); teachSetup(); });
+el("opt-help").addEventListener("click", () => { AU.on(); helpFrom = "door"; screen("help"); });
+el("help-back").addEventListener("click", () => { screen(helpFrom === "game" ? null : helpFrom); });
+el("nb-help").addEventListener("click", () => { AU.on(); helpFrom = "game"; screen("help"); });
+let helpFrom = "door";
+
+/* ---------- join ---------- */
+let joinMarks = [], joinSeat = -1, joinSeats = 10;
+function joinReset() { joinMarks = []; joinSeat = -1; renderJoin(); }
+function renderJoin() {
+  const slots = el("join-slots"); slots.innerHTML = "";
+  for (let i = 0; i < 5; i++) {
+    const d = document.createElement("div");
+    d.className = "slot" + (i === joinMarks.length ? " next" : "") + (i === 4 ? " size" : "");
+    if (joinMarks[i] !== undefined) {
+      const c = document.createElement("canvas");
+      c.width = 72; c.height = 72; c.style.width = "36px"; c.style.height = "36px";
+      const g = c.getContext("2d"); g.scale(2, 2);
+      drawMark(g, joinMarks[i], 18, 18, 26, i === 4 ? "#3b82f6" : "#fff");
+      d.appendChild(c);
+    }
+    slots.appendChild(d);
+  }
+  const pad = el("join-pad");
+  if (!pad.children.length) for (let k = 0; k < MARKS; k++) pad.appendChild(markButton(k, tapJoinMark, 48));
+  el("join-clear").style.display = joinMarks.length ? "block" : "none";
+
+  const ready = joinMarks.length === 5;
+  el("join-seatwrap").style.display = ready ? "block" : "none";
+  if (ready) {
+    joinSeats = SIZES[joinMarks[4] % SIZES.length];
+    const sg = el("join-seats"); sg.innerHTML = "";
+    for (let i = 0; i < joinSeats; i++) {
+      const b = document.createElement("button");
+      b.className = "seatbtn" + (i === joinSeat ? " on" : "");
+      b.textContent = String(i + 1);
+      b.addEventListener("click", () => { joinSeat = i; AU.tick(); renderJoin(); });
+      sg.appendChild(b);
+    }
+  }
+  el("join-go").disabled = !(ready && joinSeat >= 0);
+}
+function tapJoinMark(k) { if (joinMarks.length < 5) { joinMarks.push(k); AU.tick(); renderJoin(); } }
+el("join-clear").addEventListener("click", () => { joinMarks = []; joinSeat = -1; renderJoin(); });
+el("join-back").addEventListener("click", () => screen("door"));
+el("join-go").addEventListener("click", () => {
+  screen(null);
+  beginMany(joinMarks.slice(), joinSeat, false);
+});
+
+/* ---------- facilitator ---------- */
+let teachMarks = [], teachStarted = false, teachTimer = null;
+function teachSetup() {
+  teachStarted = false;
+  el("teach-setup").style.display = "block";
+  el("teach-run").style.display = "none";
+  el("t-players").value = "10";
+  el("t-gap").value = "2";
+  el("t-picsnote").textContent = "Using the 18 generated pictures (one scene at 18 magnifications).";
+  if (teachTimer) { clearInterval(teachTimer); teachTimer = null; }
+}
+el("teach-back").addEventListener("click", () => screen("door"));
+el("t-pics").addEventListener("change", e => {
+  el("t-picsnote").textContent = "Loading…";
+  loadPictures(e.target.files, n => {
+    if (!n) { el("t-picsnote").textContent = "Need at least 3 pictures. Still using the generated ones."; return; }
+    el("t-picsnote").textContent = "Using your " + n + " pictures. Seats are capped at " + n + ".";
+    const sel = el("t-players");
+    for (const o of sel.options) o.disabled = (+o.value > n);
+    if (+sel.value > n) sel.value = String(n);
+  });
+});
+el("t-start").addEventListener("click", () => {
+  const n = +el("t-players").value;
+  const wantRungGap = +el("t-gap").value;
+  // seats are spread across the pictures, so translate the wanted look-alikeness into seat distance
+  const step = (IMGN - 1) / Math.max(1, n - 1);
+  const gap = Math.max(1, Math.min(n - 1, Math.round(wantRungGap / step)));
+  teachMarks = [];
+  for (let i = 0; i < 4; i++) teachMarks.push(Math.floor(Math.random() * MARKS));
+  let si = SIZES.indexOf(n); if (si < 0) si = 4;
+  teachMarks.push(si);
+  S.maxGap = gap;
+  S.observer = true;
+  el("t-diffnote").textContent = "Each stray piece comes from a picture about " +
+    Math.max(1, Math.round(gap * step)) + " step(s) away on the ladder of " + IMGN + ".";
+  seedRoom(marksToSeed(teachMarks), n, 0, false);   // seeded only to compute the key
+  NET.code = teachMarks.join("");
+  loadAny(CDN.qr, () => typeof window.qrcode === "function").then(v => { QRLIB = v; renderTeachRun(); });
+  NET.start(NET.code, 0, true).then(renderTeachRun);
+  teachStarted = true;
+  el("teach-setup").style.display = "none";
+  el("teach-run").style.display = "block";
+  renderTeachRun();
+  teachTimer = setInterval(renderTeachRun, 1500);
+});
+el("t-reset").addEventListener("click", () => { if (confirm("End this session and set up a new one?")) teachSetup(); });
+
+function renderTeachRun() {
+  if (!teachStarted) return;
+  // the code, in symbols
+  const cw = el("t-code"); cw.innerHTML = "";
+  teachMarks.forEach((m, i) => {
+    const c = document.createElement("canvas");
+    c.width = 96; c.height = 96; c.style.width = "48px"; c.style.height = "48px";
+    const g = c.getContext("2d"); g.scale(2, 2);
+    g.fillStyle = "#000"; g.fillRect(0, 0, 48, 48);
+    drawMark(g, m, 24, 24, 34, i === 4 ? "#3b82f6" : "#fff");
+    cw.appendChild(c);
+  });
+  // the same code as a scannable link
+  const qc = el("t-qr"), qg = qc.getContext("2d");
+  qg.setTransform(1, 0, 0, 1, 0, 0);
+  qg.fillStyle = "#0b0b0b"; qg.fillRect(0, 0, qc.width, qc.height);
+  const okQR = drawQR(qg, 0, 0, qc.width);
+  el("t-qrnote").textContent = okQR
+    ? "Or have them scan this. Only works if this page is on a real web address."
+    : "Symbol code only — the scannable version needs this page hosted on the web.";
+  el("t-link").textContent = NET.live ? "Live — " + (Object.keys(NET.states).length) + " phone(s) reporting in"
+                                      : "Not connected. The game still works; you just can't watch it from here.";
+  el("t-link").className = NET.live ? "ok" : "warn";
+
+  // roster + answer key
+  const tb = el("t-key"); tb.innerHTML = "";
+  const head = document.createElement("tr");
+  head.innerHTML = "<th>Seat</th><th>Picture</th><th>Is holding a piece of</th><th>Waiting on</th><th>Status</th>";
+  tb.appendChild(head);
+  for (let i = 0; i < S.n; i++) {
+    const tr = document.createElement("tr");
+    const st = NET.states[i];
+    const status = !st ? "not joined" : (st.done ? "done" : (st.off ? "still holding" : "handed it on"));
+    tr.className = !st ? "away" : (st.done ? "done" : "");
+    tr.innerHTML = "<td>" + (i + 1) + "</td><td>#" + (S.rungOf[i] + 1) + "</td><td>seat " + (S.owes[i] + 1) +
+                   "</td><td>seat " + (S.awaits[i] + 1) + "</td><td>" + status + "</td>";
+    tb.appendChild(tr);
+  }
+  el("t-loop").textContent = S.cycle.map(x => x + 1).join(" \u2192 ") + " \u2192 " + (S.cycle[0] + 1);
+}
+
+/* ---------- entry into a networked room ---------- */
+function beginMany(marks, seat, isDealer) {
+  S.mode = "many";
+  const nav = el("nav");
+  nav.dataset.mode = "many";
+  nav.dataset.dealer = isDealer ? "1" : "0";
+  nav.dataset.mesh = "0";
+  const n = SIZES[marks[4] % SIZES.length];
+  seedRoom(marksToSeed(marks), n, Math.min(seat, n - 1), false);
+  roomBuilt = false;
+  enterGame();
+  NET.code = marks.join("");
+  loadAny(CDN.qr, () => typeof window.qrcode === "function").then(v => { QRLIB = v; if (dealOpen) paintDeal(); });
+  NET.start(NET.code, S.me, !!isDealer).then(() => { paintLink(); paintRoom(); });
+}
+
+/* ---------- boot ---------- */
+function boot() {
+  const ld = el("loader");
+  for (let i = 0; i < N; i++) ld.appendChild(document.createElement("div"));
+  let i = 0;
+  (function step() {
+    RUNGS[i] = renderRung(i);
+    ld.children[i].classList.add("f");
+    i++;
+    if (i < N) requestAnimationFrame(step);
+    else setTimeout(() => {
+      el("boot").classList.remove("on");
+      const hc = hashCode();
+      if (hc) { joinMarks = hc.split("").map(Number); joinSeat = -1; renderJoin(); screen("join"); }
+      else screen("door");
+    }, 320);
+  })();
+  (function loop() { paintBoard(); paintHandshake(); requestAnimationFrame(loop); })();
+}
+boot();
+</script>
+</body>
+</html>
