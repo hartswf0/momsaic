@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>WINE-DARK — Attestation Helm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<style>
+  :root{--teal:#19e6c8;--amber:#ffd23f;--red:#ff2e2e;--blue:#3b82f6;--ink:#04101a;}
+  html,body{margin:0;padding:0;height:100%;width:100%;overflow:hidden;background:#000;
+    font-family:'IBM Plex Mono',ui-monospace,monospace;color:var(--teal);
+    touch-action:none;user-select:none;-webkit-user-select:none;}
+  #map{position:absolute;inset:0;z-index:1;background:#000;}
+  #overlay{position:absolute;inset:0;z-index:200;pointer-events:none;}
+  .leaflet-control-zoom,.leaflet-control-attribution{display:none!important;}
+  .leaflet-container:focus{outline:none;}
+  .mode-sat .leaflet-tile-pane{filter:grayscale(.4) contrast(1.15) brightness(.6) sepia(.2) hue-rotate(195deg);}
+  .mode-chart .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(1.1) contrast(1.4) sepia(.45) hue-rotate(155deg);}
+
+  .tl{color:rgba(25,230,200,.5);font-size:8px;font-weight:700;letter-spacing:2px;}
+  .tv{color:var(--teal);font-weight:700;font-size:13px;text-shadow:0 0 8px rgba(25,230,200,.5);line-height:1;}
+  .u{font-size:9px;color:rgba(25,230,200,.45);margin-left:2px;}
+  .tele{position:absolute;top:8px;z-index:901;pointer-events:none;letter-spacing:1.5px;}
+
+  #haloWrap{position:absolute;top:0;left:50%;transform:translateX(-50%);width:210%;max-width:1500px;height:150px;z-index:900;pointer-events:none;}
+  #haloSvg{width:100%;height:100%;overflow:visible;}
+  .tick{stroke:rgba(120,220,205,.45);stroke-width:1.2;}
+  .tickMaj{stroke:rgba(25,230,200,.9);stroke-width:1.8;}
+
+  #attArc{position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:1000;width:92px;height:440px;pointer-events:none;}
+  #attArc svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 6px rgba(0,0,0,.75));}
+  .aaTick{stroke:rgba(120,220,205,.45);stroke-width:1.1;}
+  .aaTickMaj{stroke:rgba(25,230,200,.85);stroke-width:1.7;}
+
+  #rail{position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:1000;width:110px;height:470px;pointer-events:none;}
+  #rail svg.spine{position:absolute;inset:0;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 6px rgba(0,0,0,.75));}
+  .rw{position:absolute;transform:translate(-100%,-50%);background:transparent;border:none;cursor:pointer;pointer-events:auto;
+    color:rgba(25,230,200,.72);font-family:inherit;font-size:10px;font-weight:700;letter-spacing:2px;
+    padding:9px 10px 9px 14px;text-shadow:0 0 8px rgba(0,0,0,.95);transition:color .15s,opacity .25s;}
+  .rw:active{color:#fff;}
+  .rw.on{color:#fff;text-shadow:0 0 12px rgba(25,230,200,.95);}
+  .rw.owed{color:var(--amber);text-shadow:0 0 12px rgba(255,210,63,.9);}
+  .rw.strike{color:#ff8a8a;}
+
+  #leadBox{position:absolute;top:112px;left:50%;transform:translateX(-50%);z-index:1000;text-align:center;pointer-events:none;}
+  #castStrip{display:block;margin:6px auto 0;width:230px;height:48px;pointer-events:auto;touch-action:none;cursor:ew-resize;}
+
+  #ledgerBox{position:absolute;left:8px;bottom:12px;z-index:1000;width:186px;pointer-events:none;}
+  .lgRow{display:flex;justify-content:space-between;font-size:9px;letter-spacing:1px;line-height:1.5;}
+  .lgK{color:rgba(25,230,200,.45);font-weight:700;}
+  .lgV{color:var(--teal);font-weight:700;}
+  #draftBar{height:3px;background:rgba(255,210,63,.16);margin-top:3px;}
+  #draftFill{height:100%;width:33%;background:var(--amber);}
+
+  .panel{border:1px solid rgba(25,230,200,.5);background:rgba(4,16,26,.94);padding:16px 18px;}
+  .chip{border:1px solid rgba(25,230,200,.4);background:rgba(25,230,200,.06);color:var(--teal);
+    font-family:inherit;font-size:10px;font-weight:700;letter-spacing:1px;padding:8px 10px;cursor:pointer;}
+  .chip:active,.chip.sel{background:rgba(25,230,200,.28);color:#fff;}
+  .btn{border:1px solid rgba(25,230,200,.6);background:rgba(25,230,200,.16);color:#fff;font-family:inherit;
+    font-size:11px;font-weight:700;letter-spacing:2px;padding:10px 16px;cursor:pointer;}
+  .btn:active{background:rgba(25,230,200,.36);}
+  .modal{position:absolute;inset:0;z-index:2000;background:rgba(2,8,14,.93);display:none;align-items:center;justify-content:center;pointer-events:auto;padding:18px;}
+  .modal .inner{max-width:360px;width:100%;max-height:82vh;overflow:auto;}
+
+  #wheelWrap{position:absolute;right:16px;bottom:20px;z-index:1000;pointer-events:auto;}
+  #wheel{width:118px;height:118px;position:relative;display:flex;align-items:center;justify-content:center;
+    border:2px solid rgba(25,230,200,.4);background:rgba(4,16,26,.5);backdrop-filter:blur(5px);}
+  #stick{width:44px;height:44px;position:absolute;background:var(--teal);border:2px solid #bff7ee;box-shadow:0 0 14px rgba(25,230,200,.8);}
+  #standDown{position:absolute;bottom:150px;left:50%;transform:translateX(-50%);z-index:1290;display:none;
+    background:rgba(4,16,26,.7);border:1px solid rgba(255,210,63,.45);color:var(--amber);font-family:inherit;
+    font-size:9px;font-weight:700;letter-spacing:2px;padding:6px 14px;pointer-events:auto;}
+  #say{position:absolute;bottom:186px;left:50%;transform:translateX(-50%);z-index:1290;text-align:center;pointer-events:none;
+    font-size:11px;font-weight:700;letter-spacing:2px;color:var(--amber);text-shadow:0 0 10px rgba(0,0,0,.9);}
+  .flashRed{animation:fr 1s infinite;}@keyframes fr{0%,100%{color:var(--red)}50%{color:#7f1d1d}}
+  .flashAmber{animation:fa 1s infinite;}@keyframes fa{0%,100%{color:var(--amber)}50%{color:#7a5a00}}
+  #wrathHud{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);z-index:1290;display:none;text-align:center;pointer-events:none;}
+</style>
+</head>
+<body class="mode-sat">
+
+<div id="map"></div>
+<canvas id="overlay"></canvas>
+<div style="position:absolute;inset:0;z-index:500;pointer-events:none;background:radial-gradient(circle at center,transparent 52%,rgba(0,0,0,.72) 100%)"></div>
+
+<div id="haloWrap">
+  <svg id="haloSvg" viewBox="0 0 1500 150" preserveAspectRatio="xMidYMin meet">
+    <path d="M 50 140 Q 750 14 1450 140" fill="none" stroke="rgba(25,230,200,.3)" stroke-width="1.4"/>
+    <g id="haloTicks"></g><g id="haloMarks"></g>
+  </svg>
+</div>
+
+<div class="tele" style="left:5%"><div class="tl">CREW</div><div id="tCrew" class="tv">46</div></div>
+<div class="tele" style="right:5%;text-align:right"><div class="tl">DRAFT</div><div id="tDraft" class="tv">4.0<span class="u">FA</span></div></div>
+<div class="tele" style="left:50%;transform:translateX(-50%);top:0;text-align:center">
+  <div id="tHdg" class="tv" style="font-size:20px">000</div>
+  <div class="tl" style="text-align:center">HEADING</div>
+  <div id="tSts" class="tv" style="font-size:11px;margin-top:3px">SURVEY</div>
+</div>
+
+<div id="leadBox">
+  <div class="tl" style="text-align:center">LEADSMAN · SOURCE CRITIC</div>
+  <div id="tCall" class="tv" style="font-size:14px;letter-spacing:2px">— — —</div>
+  <div id="tAtt" class="tv" style="font-size:11px;color:rgba(25,230,200,.7)">-- FA</div>
+  <canvas id="castStrip" width="230" height="48"></canvas>
+</div>
+
+<div id="attArc"><svg viewBox="0 0 92 430"><g id="aaStatic"></g><path id="aaFill" fill="none" stroke="#3b82f6" stroke-width="6" opacity=".45" stroke-linecap="round"/><g id="aaMark"></g></svg></div>
+
+<div id="rail">
+  <svg class="spine" viewBox="0 0 110 470"><g id="railSpine"></g></svg>
+  <button id="bChart"  class="rw" style="left:60px;top:96px"><span>CHART</span></button>
+  <button id="bSound"  class="rw" style="left:62px;top:136px"><span>SOUND</span></button>
+  <button id="bRead"   class="rw" style="left:62px;top:176px"><span>READING</span></button>
+  <button id="bTell"   class="rw" style="left:60px;top:216px"><span>TELLING</span></button>
+  <button id="bCommit" class="rw" style="left:58px;top:262px;display:none"><span>COMMIT</span></button>
+  <button id="bJust"   class="rw" style="left:56px;top:302px;display:none"><span>JUSTIFY</span></button>
+  <button id="bName"   class="rw" style="left:54px;top:342px;display:none"><span>NAME CAUSE</span></button>
+  <button id="bStrike" class="rw strike" style="left:56px;top:382px;display:none"><span>STRIKE</span></button>
+</div>
+
+<div id="ledgerBox">
+  <div class="lgRow"><span class="lgK">CLAIMS</span><span class="lgV" id="lgClaims">0/14</span></div>
+  <div class="lgRow"><span class="lgK">UNSUPPORTED</span><span class="lgV" id="lgUnsup">0</span></div>
+  <div class="lgRow"><span class="lgK">GROUNDINGS</span><span class="lgV" id="lgGround">0</span></div>
+  <div class="lgRow"><span class="lgK">HARBOUR</span><span class="lgV" id="lgHarbour">4.0 / 12.0</span></div>
+  <div id="draftBar"><div id="draftFill"></div></div>
+</div>
+
+<div id="say"></div>
+<button id="standDown">STAND DOWN · HELM YOURS</button>
+
+<div id="wrathHud">
+  <div id="wrState" class="tv" style="font-size:12px;letter-spacing:3px;color:var(--red)">LURKING</div>
+  <div class="tl" style="text-align:center">NOISE <span id="wrNoise" style="color:var(--amber)">0%</span></div>
+</div>
+
+<div id="wheelWrap">
+  <div id="wheel">
+    <svg viewBox="0 0 118 118" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">
+      <circle cx="59" cy="59" r="55" fill="none" stroke="rgba(255,210,63,.12)" stroke-width="3"/>
+      <circle id="crewArc" cx="59" cy="59" r="55" fill="none" stroke="#ffd23f" stroke-width="3"
+        stroke-dasharray="345.6" stroke-dashoffset="0" transform="rotate(-90 59 59)"/>
+      <line x1="59" y1="14" x2="59" y2="104" stroke="rgba(25,230,200,.14)"/>
+      <line x1="14" y1="59" x2="104" y2="59" stroke="rgba(25,230,200,.14)"/>
+      <text x="59" y="12" fill="rgba(25,230,200,.6)" font-size="8" font-weight="700" text-anchor="middle" font-family="IBM Plex Mono">N</text>
+    </svg>
+    <div id="stick"></div>
+  </div>
+  <div class="tl" style="text-align:center;margin-top:4px;letter-spacing:3px">DRAG TO STEER</div>
+</div>
+
+<!-- TITLE -->
+<div id="mTitle" class="modal" style="display:flex">
+  <div class="inner" style="text-align:center">
+    <div class="tl" style="letter-spacing:6px;color:rgba(25,230,200,.6)">SOUNDINGS OF THE NOSTOS</div>
+    <div style="font-size:38px;font-weight:700;letter-spacing:4px;color:#fff;margin-top:6px;line-height:1;text-shadow:0 0 26px rgba(25,230,200,.7)">WINE<span style="color:var(--teal)">-DARK</span></div>
+    <div style="font-size:10px;letter-spacing:2px;color:rgba(255,210,63,.8);margin-top:12px">YOU ARE NOT SAILING. YOU ARE TELLING.</div>
+    <div style="font-size:10px;line-height:1.7;color:rgba(220,245,240,.85);margin-top:16px;text-align:left">
+      The lead sounds evidence, not seabed. Deep water is attested — wrecks, palaces, real winds.
+      Shoal water is poetic invention. Ground your ship and the claim collapses.<br><br>
+      Crew is your clock: men are spent by every league, and each loss must be given a cause.
+      Draft is the weight of your thesis: every claim you file makes the ship sit lower.
+      Ithaca has a shallow harbour.
+    </div>
+    <div style="margin-top:18px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button id="bWrathOn" class="chip" style="border-color:rgba(255,46,46,.5);color:#ff8a8a">DIVINE CAUSALITY · ON</button>
+    </div>
+    <button id="bBegin" class="btn" style="margin-top:20px;padding:14px 42px">PUT TO SEA</button>
+  </div>
+</div>
+
+<!-- READING -->
+<div id="mRead" class="modal">
+  <div class="inner panel">
+    <div class="tl" style="letter-spacing:3px;color:#a5f3fc">READING</div>
+    <div style="font-size:9px;color:rgba(25,230,200,.6);margin:6px 0 12px;line-height:1.6">
+      The sea does not move. Only the confidence over it does.
+    </div>
+    <div id="readWrap" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div id="readNote" style="font-size:9px;color:var(--amber);margin-top:12px;line-height:1.6;min-height:28px"></div>
+    <button id="bReadClose" class="btn" style="margin-top:14px;width:100%">CLOSE</button>
+  </div>
+</div>
+
+<!-- JUSTIFY -->
+<div id="mJust" class="modal">
+  <div class="inner panel">
+    <div class="tl" style="letter-spacing:3px;color:#a5f3fc">GIVE THE DEATH A CAUSE</div>
+    <div id="justHead" style="font-size:10px;color:rgba(220,245,240,.85);margin:8px 0 12px;line-height:1.6"></div>
+    <div id="justWrap" style="display:flex;flex-direction:column;gap:7px"></div>
+    <div style="font-size:9px;color:rgba(25,230,200,.45);margin-top:12px;line-height:1.6">
+      A structural cause must be supported by the water you stand in. Wrath is always available, and always costs.
+    </div>
+  </div>
+</div>
+
+<!-- TELLING -->
+<div id="mTell" class="modal">
+  <div class="inner panel">
+    <div class="tl" style="letter-spacing:3px;color:#a5f3fc">YOUR TELLING</div>
+    <div id="tellBody" style="font-size:9.5px;line-height:1.7;margin-top:10px;color:rgba(220,245,240,.9)"></div>
+    <button id="bTellClose" class="btn" style="margin-top:14px;width:100%">CLOSE</button>
+  </div>
+</div>
+
+<!-- END -->
+<div id="mEnd" class="modal">
+  <div class="inner panel" style="text-align:center">
+    <div id="endTitle" style="font-size:24px;font-weight:700;letter-spacing:3px;color:#fff">RECOGNITION</div>
+    <div id="endBody" style="font-size:10px;line-height:1.8;margin-top:14px;text-align:left;color:rgba(220,245,240,.9)"></div>
+    <button id="bEndClose" class="btn" style="margin-top:16px;width:100%">CLOSE THE HALL</button>
+  </div>
+</div>
+
+<script>
+function loadJS(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.crossOrigin='';s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+window.addEventListener('load',function(){
+  if(window.L){BOOT();return;}
+  loadJS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js')
+    .then(function(){BOOT();})
+    .catch(function(){
+      loadJS('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js').then(function(){BOOT();})
+      .catch(function(){document.getElementById('tSts').textContent='NO CHART';});
+    });
+});
+
+function BOOT(){
+/* ============================================================
+   WINE-DARK — Attestation Helm
+   Program text for the theory: DEPTH -> ATTESTATION.
+   Named loop ceilings are declared with their entity.
+   ============================================================ */
+
+/* ---------- 1. GEOGRAPHY (I1 SAME SEA) --------------------- */
+/* One traced ring encloses the Mediterranean basin; islands are
+   solid land inside it. Coarse on purpose: the coast is drawn no
+   sharper than the evidence for it. Labelled SCHEMATIC in-chart. */
+var MED=[[36.00,-5.40],[36.75,-2.45],[37.60,-0.98],[38.60,-0.05],[39.45,-0.33],[40.70,0.72],[41.40,2.20],
+[42.30,3.30],[43.10,3.05],[43.35,5.35],[43.10,5.95],[43.55,6.95],[43.70,7.30],[44.40,8.90],[44.10,9.85],
+[43.50,10.30],[42.40,11.15],[42.10,11.80],[41.75,12.25],[41.20,13.05],[40.80,14.25],[40.60,14.95],
+[40.02,15.30],[39.95,15.95],[39.00,15.90],[38.25,15.63],[38.05,15.68],[38.10,16.10],[38.65,16.60],
+[39.10,17.15],[39.85,17.10],[40.05,17.25],[40.05,18.00],[40.15,18.50],[40.65,17.95],[41.12,16.87],
+[41.55,16.05],[41.95,16.20],[42.10,15.30],[42.50,14.20],[43.15,13.75],[43.62,13.52],[44.15,12.30],
+[45.40,12.30],[45.68,13.75],[44.88,13.85],[45.30,14.55],[44.55,15.05],[44.10,15.22],[43.50,16.42],
+[42.95,17.20],[42.65,18.10],[42.10,19.10],[41.32,19.45],[40.50,19.50],[39.98,20.15],[39.70,20.22],
+[39.15,20.48],[38.95,20.75],[38.35,21.35],[38.10,21.40],[37.65,21.30],[36.95,21.68],[36.80,21.72],
+[36.72,22.48],[36.42,22.50],[36.75,22.70],[36.43,23.20],[36.80,23.05],[37.45,23.15],[37.55,22.80],
+[37.93,22.93],[37.94,23.65],[37.65,24.03],[38.05,23.75],[38.46,23.60],[38.90,22.80],[39.35,22.95],
+[39.90,22.75],[40.30,22.60],[40.60,22.95],[40.25,23.35],[40.10,23.90],[40.55,24.05],[40.93,24.42],
+[40.85,25.87],[40.60,26.10],[40.20,26.28],[39.98,26.18],[39.60,26.20],[38.95,26.75],[38.42,26.90],
+[38.30,26.35],[37.90,27.05],[37.85,27.28],[37.55,27.05],[37.03,27.43],[36.75,28.10],[36.62,29.10],
+[36.20,29.65],[36.55,30.55],[36.85,30.70],[36.30,32.10],[36.80,34.60],[36.60,35.30],[36.60,36.15],
+[35.90,35.95],[35.50,35.78],[34.60,35.62],[33.90,35.50],[33.30,35.30],[32.80,35.00],[32.10,34.75],
+[31.50,34.45],[31.25,32.30],[31.50,31.80],[31.35,30.40],[31.20,29.90],[31.05,28.50],[31.35,27.25],
+[31.55,25.15],[32.10,23.30],[32.75,22.60],[32.65,21.60],[32.10,20.05],[31.20,19.80],[30.40,19.20],
+[30.55,17.90],[31.20,16.60],[32.40,15.10],[32.90,13.20],[32.90,12.10],[33.50,11.20],[33.80,10.90],
+[33.90,10.10],[34.75,10.75],[35.80,10.60],[36.85,11.10],[37.08,11.03],[37.00,10.20],[37.30,9.90],
+[36.95,8.75],[36.90,7.77],[36.75,5.10],[36.80,3.06],[36.40,1.30],[35.70,-0.65],[35.30,-2.95],[35.90,-5.30]];
+
+var ISLES=[
+ {n:'SICILY',r:[[38.25,15.63],[37.90,15.10],[37.35,15.10],[36.80,15.10],[36.65,14.95],[36.70,14.50],[37.00,12.50],[38.02,12.42],[38.15,13.35],[38.10,14.80],[38.25,15.63]]},
+ {n:'SARDINIA',r:[[41.25,9.20],[40.90,9.55],[40.50,9.80],[39.90,9.70],[39.20,9.55],[38.90,8.90],[39.20,8.40],[40.00,8.40],[40.60,8.15],[41.10,8.30],[41.25,9.20]]},
+ {n:'CORSICA',r:[[43.00,9.40],[42.60,9.55],[41.90,9.40],[41.40,9.20],[41.50,8.80],[42.20,8.55],[42.60,8.70],[43.00,9.40]]},
+ {n:'CRETE',r:[[35.50,23.60],[35.20,24.70],[35.40,25.70],[35.20,26.30],[34.95,25.70],[34.90,24.70],[35.20,23.50],[35.50,23.60]]},
+ {n:'CYPRUS',r:[[35.35,32.90],[35.70,34.55],[35.10,34.05],[34.60,33.00],[34.65,32.40],[35.05,32.30],[35.35,32.90]]},
+ {n:'EUBOEA',r:[[39.00,23.20],[38.60,24.10],[38.00,24.55],[38.15,23.90],[38.60,23.35],[39.00,23.20]]},
+ {n:'RHODES',r:[[36.45,28.20],[36.20,28.25],[35.90,27.75],[36.30,27.70],[36.45,28.20]]},
+ {n:'MALLORCA',r:[[39.95,3.20],[39.30,3.35],[39.30,2.35],[39.80,2.65],[39.95,3.20]]},
+ {n:'MALTA',r:[[36.08,14.19],[35.80,14.57],[35.82,14.34],[36.08,14.19]]},
+ {n:'KEFALONIA',r:[[38.45,20.40],[38.15,20.35],[38.10,20.75],[38.40,20.78],[38.45,20.40]]},
+ {n:'ITHACA',r:[[38.48,20.62],[38.33,20.60],[38.35,20.76],[38.47,20.73],[38.48,20.62]]},
+ {n:'KERKYRA',r:[[39.80,19.85],[39.40,19.88],[39.35,20.12],[39.75,20.05],[39.80,19.85]]},
+ {n:'LESBOS',r:[[39.35,25.85],[39.05,26.60],[38.95,26.20],[39.15,25.90],[39.35,25.85]]}
+];
+
+function bboxOf(ring){var s=90,w=180,n=-90,e=-180,i;
+  for(i=0;i<ring.length;i++){var p=ring[i];if(p[0]<s)s=p[0];if(p[0]>n)n=p[0];if(p[1]<w)w=p[1];if(p[1]>e)e=p[1];}
+  return{s:s,w:w,n:n,e:e};}
+var MED_BB=bboxOf(MED);
+for(var ii=0;ii<ISLES.length;ii++)ISLES[ii].bb=bboxOf(ISLES[ii].r);
+
+function pip(lat,lng,ring){var inside=false,i,j;
+  for(i=0,j=ring.length-1;i<ring.length;j=i++){
+    var yi=ring[i][0],xi=ring[i][1],yj=ring[j][0],xj=ring[j][1];
+    if(((yi>lat)!==(yj>lat))&&(lng<(xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi))inside=!inside;}
+  return inside;}
+function inBB(lat,lng,b){return lat>=b.s&&lat<=b.n&&lng>=b.w&&lng<=b.e;}
+function isSea(lat,lng){
+  if(!inBB(lat,lng,MED_BB))return false;
+  if(!pip(lat,lng,MED))return false;
+  for(var i=0;i<ISLES.length;i++){var I=ISLES[i];if(inBB(lat,lng,I.bb)&&pip(lat,lng,I.r))return false;}
+  return true;}
+
+var MPD_LAT=111320;
+function mpdLng(lat){return 111320*Math.cos(lat*Math.PI/180);}
+function metres(aLat,aLng,bLat,bLng){var k=mpdLng((aLat+bLat)/2);
+  return Math.hypot((bLat-aLat)*MPD_LAT,(bLng-aLng)*k);}
+function bearing(aLat,aLng,bLat,bLng){
+  var dL=(bLng-aLng)*Math.PI/180,la1=aLat*Math.PI/180,la2=bLat*Math.PI/180;
+  var y=Math.sin(dL)*Math.cos(la2);
+  var x=Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(dL);
+  return(Math.atan2(y,x)*180/Math.PI+360)%360;}
+function clamp(v,a,b){return v<a?a:v>b?b:v;}
+function dAng(a,b){var d=b-a;while(d<-180)d+=360;while(d>180)d-=360;return d;}
+
+/* ---------- 2. THE ATTESTATION FIELD ----------------------- */
+/* Confidence decays from named evidence anchors. Nothing here is
+   a scholarly consensus; it is a modelled field, and the interface
+   never pretends otherwise (I4). */
+var ATT_MAX=45;                       /* fathom ceiling of the gauge */
+var ANCHORS=[
+ {n:'HISARLIK',        la:39.957,lo:26.239,t:1.00,r:130},
+ {n:'PYLOS · LINEAR B',la:36.910,lo:21.700,t:1.00,r:110},
+ {n:'MYCENAE',         la:37.730,lo:22.760,t:1.00,r:100},
+ {n:'KNOSSOS',         la:35.300,lo:25.160,t:1.00,r:130},
+ {n:'ENKOMI · CYPRUS', la:35.160,lo:33.870,t:1.00,r:130},
+ {n:'UGARIT',          la:35.600,lo:35.780,t:1.00,r:110},
+ {n:'ULUBURUN WRECK',  la:36.130,lo:29.680,t:1.00,r:110},
+ {n:'CAPE MALEA',      la:36.430,lo:23.200,t:1.00,r:80},
+ {n:'KYTHERA',         la:36.150,lo:23.000,t:0.92,r:70},
+ {n:'RHODES HARBOUR',  la:36.200,lo:28.000,t:0.92,r:95},
+ {n:'MARSA MATRUH',    la:31.350,lo:27.250,t:0.90,r:110},
+ {n:'MESSINA RACE',    la:38.240,lo:15.630,t:0.62,r:85},
+ {n:'KERKYRA · SCHERIA',la:39.620,lo:19.920,t:0.62,r:80},
+ {n:'ITHACA',          la:38.400,lo:20.710,t:0.62,r:65},
+ {n:'CYRENAICA',       la:32.100,lo:20.060,t:0.62,r:120},
+ {n:'DJERBA',          la:33.800,lo:10.850,t:0.58,r:100},
+ {n:'GOZO',            la:36.050,lo:14.250,t:0.55,r:70},
+ {n:'MONTE CIRCEO',    la:41.240,lo:13.090,t:0.30,r:80},
+ {n:'BONIFACIO',       la:41.390,lo: 9.160,t:0.30,r:80},
+ {n:'AVERNUS',         la:40.840,lo:14.070,t:0.30,r:65},
+ {n:'GALLI ISLETS',    la:40.570,lo:14.430,t:0.30,r:55},
+ {n:'GELA COAST',      la:37.070,lo:14.250,t:0.30,r:80}
+];
+/* attested Bronze Age corridors: a route is evidence even where no site is */
+var CORRIDORS=[
+ [[39.90,26.15],[39.10,26.50],[38.40,26.20],[37.60,27.00],[36.70,28.00],[36.10,29.70],[35.60,32.30],[35.30,34.00],[35.55,35.60]],
+ [[35.30,25.16],[35.60,23.60],[36.40,23.10],[36.90,21.70],[37.65,21.20],[38.35,20.80],[39.55,19.95]],
+ [[35.20,25.60],[33.60,26.60],[31.60,27.40],[31.25,29.90]]
+];
+function segDistKm(la,lo,aLa,aLo,bLa,bLo){
+  var k=mpdLng(la);
+  var ax=aLo*k,ay=aLa*MPD_LAT,bx=bLo*k,by=bLa*MPD_LAT,px=lo*k,py=la*MPD_LAT;
+  var vx=bx-ax,vy=by-ay,wx=px-ax,wy=py-ay,L2=vx*vx+vy*vy||1e-9;
+  var t=clamp((wx*vx+wy*vy)/L2,0,1);
+  return Math.hypot(px-(ax+t*vx),py-(ay+t*vy))/1000;}
+
+var READINGS=[
+ {k:'LITERALIST',  rad:0.28,floor:0.10,disc:0.20,
+  note:'Every waypoint gets a coordinate. Uncertainty vanishes from the chart and reappears under the keel. This is the fraud, sailable.'},
+ {k:'GEOGRAPHIC',  rad:1.00,floor:0.21,disc:1.00,
+  note:'Berard and Bradford: the poem as a real voyage, waypoints as discs the size of the argument for them.'},
+ {k:'ALLEGORICAL', rad:2.20,floor:0.46,disc:3.20,
+  note:'Nothing is located, so nothing can be wrong. Claims here are cheap and score nothing.'}
+];
+var reading=1;
+
+function attestation(lat,lng){
+  if(!isSea(lat,lng))return 0;
+  var R=READINGS[reading],best=R.floor,i,j;
+  for(i=0;i<ANCHORS.length;i++){
+    var A=ANCHORS[i];
+    var d=metres(lat,lng,A.la,A.lo)/1000;
+    var rr=A.r*R.rad;
+    if(d<rr){var v=A.t*(1-Math.pow(d/rr,1.5));if(v>best)best=v;}
+  }
+  for(i=0;i<CORRIDORS.length;i++){
+    var C=CORRIDORS[i];
+    for(j=0;j<C.length-1;j++){
+      var dk=segDistKm(lat,lng,C[j][0],C[j][1],C[j+1][0],C[j+1][1]);
+      var w=70*R.rad;
+      if(dk<w){var cv=0.66*(1-dk/w);if(cv>best)best=cv;}
+    }
+  }
+  if(SHIP.crew<=0)best*=0.60;      /* nobody left to corroborate */
+  return clamp(best,0,1)*ATT_MAX;
+}
+
+/* ---------- 3. STATIONS ------------------------------------ */
+/* Placed at their conjectural coordinates and drawn as DISCS whose
+   radius is the uncertainty. A station is never a point (I4). */
+var STATIONS=[
+ {n:'ILIOS',        la:39.957,lo:26.239,km: 30,line:'Where the sacking ends and the telling begins.'},
+ {n:'THE CICONES',  la:40.870,lo:25.520,km: 70,line:'A raid that went well, then did not. The first men spent.'},
+ {n:'LOTUS EATERS', la:33.800,lo:10.850,km:270,line:'Nine days south on a real north wind. Then men who would not leave.'},
+ {n:'THE CYCLOPS',  la:37.350,lo:15.050,km:420,line:'A cave, a stake, a name given away at sea.'},
+ {n:'AEOLIA',       la:38.550,lo:14.850,km:300,line:'A bag of winds, opened by the crew within sight of home.'},
+ {n:'LAESTRYGONES', la:41.390,lo: 9.160,km:380,line:'A narrow harbour with cliffs on both sides. Eleven ships lost.'},
+ {n:'AIAIA',        la:41.240,lo:13.090,km:400,line:'A year on an island, remembered as one season.'},
+ {n:'THE NEKYIA',   la:40.840,lo:14.070,km:520,line:'A trench, a prophecy, the dead who answer only questions.'},
+ {n:'THE SIRENS',   la:40.570,lo:14.430,km:380,line:'Wax in the ears of the crew. Only the captain hears it.'},
+ {n:'SCYLLA',       la:38.240,lo:15.630,km: 95,line:'A real tidal race, given two mouths.'},
+ {n:'THRINACIA',    la:37.070,lo:14.250,km:330,line:'Becalmed and starving beside cattle they were told not to eat.'},
+ {n:'OGYGIA',       la:36.050,lo:14.250,km:620,line:'Seven years off every chart. The longest gap in the account.'},
+ {n:'SCHERIA',      la:39.620,lo:19.920,km:180,line:'The hall where all of this is being said aloud.'},
+ {n:'ITHACA',       la:38.400,lo:20.710,km: 55,line:'A shallow harbour. Only a light ship gets in.'}
+];
+var HARBOUR=12.0;                    /* draft ceiling at Ithaca */
+
+/* ---------- 4. SHIP + LEDGER ------------------------------- */
+var CREW_START=46, DRAFT_START=4.0;
+var SHIP={la:39.90,lo:26.05,hdg:210,spd:0,crew:CREW_START,draft:DRAFT_START,noise:0,ground:0,alone:false};
+var LEDGER={claims:[],deaths:[],strikes:0,groundings:0,unsupported:0,owed:0,lastToll:0};
+var CFG={maxSpd:0.0021,accel:0.00006,turn:2.6,drag:0.055};
+var CREW_BURN=0.0024;                /* men per frame at full speed */
+
+var CAST_N=14, CAST_MIN=60000, CAST_MAX=420000, CAST_RANGE=180000;   /* metres */
+var LOG_MAX=260, LOG_SPACING=14000, LOG_FADE=90000;
+var RASTER_N=140;
+var SPINE_TICKS=44;
+
+/* ---------- 5. MAP ----------------------------------------- */
+var MAP=L.map('map',{zoomControl:false,attributionControl:false,keyboard:false,
+  minZoom:4,maxZoom:9,inertia:false,zoomSnap:0.5,preferCanvas:true}).setView([SHIP.la,SHIP.lo],6);
+MAP.dragging.disable();
+var satLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:12,keepBuffer:4}).addTo(MAP);
+var chartLayer=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:12,keepBuffer:4});
+var chartMode='sat';
+
+var overlay=document.getElementById('overlay'), ox=overlay.getContext('2d');
+function sizeOverlay(){overlay.width=window.innerWidth;overlay.height=window.innerHeight;}
+sizeOverlay();
+window.addEventListener('resize',function(){sizeOverlay();MAP.invalidateSize();fieldDirty=true;});
+
+/* ---------- 6. FIELD RASTER -------------------------------- */
+var fieldCv=document.createElement('canvas');fieldCv.width=RASTER_N;fieldCv.height=RASTER_N;
+var fcx=fieldCv.getContext('2d');
+var fieldBB=null, fieldDirty=true, fieldZoom=null;
+
+function ramp(ft){
+  if(ft<=0)return[0,0,0,0];
+  var t=clamp(ft/ATT_MAX,0,1),c;
+  if(ft<=SHIP.draft)c=[255,46,46];
+  else if(t<0.27)c=[255,140,60];
+  else if(t<0.53)c=[255,210,63];
+  else if(t<0.80)c=[25,230,200];
+  else c=[59,130,246];
+  var a=Math.round(24+t*t*150);
+  if(ft<=SHIP.draft)a=Math.max(a,96);
+  return[c[0],c[1],c[2],a];
+}
+function buildField(){
+  var b=MAP.getBounds().pad(0.12);
+  var bb={s:b.getSouth(),n:b.getNorth(),w:b.getWest(),e:b.getEast()};
+  var img=fcx.createImageData(RASTER_N,RASTER_N),d=img.data,gx,gy;
+  for(gy=0;gy<RASTER_N;gy++){
+    var la=bb.n-(gy/(RASTER_N-1))*(bb.n-bb.s);
+    for(gx=0;gx<RASTER_N;gx++){
+      var lo=bb.w+(gx/(RASTER_N-1))*(bb.e-bb.w);
+      var col=ramp(attestation(la,lo)),o=(gy*RASTER_N+gx)*4;
+      d[o]=col[0];d[o+1]=col[1];d[o+2]=col[2];d[o+3]=col[3];
+    }
+  }
+  fcx.putImageData(img,0,0);
+  fieldBB=bb;fieldDirty=false;fieldZoom=MAP.getZoom();
+}
+var fieldTimer=null;
+function scheduleField(){if(fieldTimer)clearTimeout(fieldTimer);
+  fieldTimer=setTimeout(function(){fieldTimer=null;buildField();},140);}
+MAP.on('moveend zoomend',function(){fieldDirty=true;scheduleField();});
+
+/* ---------- 7. THE LEAD (cast ahead) ----------------------- */
+var LEAD={s:[],shoal:null,range:CAST_RANGE};
+function castLead(){
+  var step=LEAD.range/CAST_N,la=SHIP.la,lo=SHIP.lo,i;
+  var hr=(90-SHIP.hdg)*Math.PI/180;
+  var out=[],shoal=null;
+  for(i=1;i<=CAST_N;i++){
+    la+=Math.sin(hr)*step/MPD_LAT;
+    lo+=Math.cos(hr)*step/mpdLng(la);
+    var ft=attestation(la,lo);
+    out.push({la:la,lo:lo,ft:ft,d:i*step});
+    if(!shoal&&ft<=SHIP.draft+1.5)shoal={ft:ft,d:i*step,la:la,lo:lo};
+  }
+  LEAD.s=out;LEAD.shoal=shoal;
+}
+function call(ft){
+  if(ft<=SHIP.draft)return'GROUND — COHERENCE FRAUD';
+  if(ft<10)return'SHOAL — INVENTED';
+  if(ft<20)return'AND A HALF — INFERRED';
+  if(ft<32)return'BY THE MARK — ATTESTED';
+  return'NO BOTTOM HERE — HARD TRACE';
+}
+function callCol(ft){return ft<=SHIP.draft?'#ff2e2e':ft<10?'#ff8c3c':ft<20?'#ffd23f':ft<32?'#19e6c8':'#3b82f6';}
+
+var strip=document.getElementById('castStrip'),sx=strip.getContext('2d');
+function drawStrip(){
+  var W=strip.width,H=strip.height;
+  sx.clearRect(0,0,W,H);
+  sx.fillStyle='rgba(4,16,26,.6)';sx.fillRect(0,0,W,H);
+  sx.strokeStyle='rgba(25,230,200,.32)';sx.lineWidth=1;sx.strokeRect(.5,.5,W-1,H-1);
+  if(!LEAD.s.length)return;
+  var x0=10,x1=W-8;
+  function Y(ft){return 4+clamp(ft/ATT_MAX,0,1)*(H-10);}
+  var px=x0,py=Y(attestation(SHIP.la,SHIP.lo)),i;
+  for(i=0;i<LEAD.s.length;i++){
+    var s=LEAD.s[i],x=x0+(s.d/LEAD.range)*(x1-x0),y=Y(s.ft);
+    sx.strokeStyle=callCol(s.ft);sx.lineWidth=1.7;
+    sx.beginPath();sx.moveTo(px,py);sx.lineTo(x,y);sx.stroke();px=x;py=y;
+  }
+  var yd=Y(SHIP.draft);
+  sx.strokeStyle='rgba(255,46,46,.75)';sx.setLineDash([3,3]);sx.lineWidth=1;
+  sx.beginPath();sx.moveTo(x0,yd);sx.lineTo(x1,yd);sx.stroke();sx.setLineDash([]);
+  sx.fillStyle='rgba(255,46,46,.75)';sx.font='700 7px IBM Plex Mono';sx.textAlign='left';
+  sx.fillText('DRAFT',x0+2,yd-3);
+  if(LEAD.shoal){
+    var xs=x0+(LEAD.shoal.d/LEAD.range)*(x1-x0);
+    sx.strokeStyle='#ffd23f';sx.lineWidth=1.4;
+    sx.beginPath();sx.moveTo(xs,3);sx.lineTo(xs,H-3);sx.stroke();
+    sx.fillStyle='#ffd23f';sx.font='700 8px IBM Plex Mono';
+    sx.textAlign=xs>W-58?'right':'left';
+    sx.fillText(Math.round(LEAD.shoal.d/1000)+' KM',xs+(xs>W-58?-3:3),11);
+  }
+  sx.fillStyle='#19e6c8';sx.beginPath();sx.moveTo(x0-6,4);sx.lineTo(x0,8);sx.lineTo(x0-6,12);sx.closePath();sx.fill();
+  sx.fillStyle='rgba(25,230,200,.5)';sx.font='700 7px IBM Plex Mono';sx.textAlign='right';
+  sx.fillText('CAST '+Math.round(LEAD.range/1000)+' KM',W-4,H-4);
+}
+(function(){var drag=null;
+ strip.addEventListener('pointerdown',function(e){drag={x:e.clientX,r:LEAD.range};strip.setPointerCapture(e.pointerId);e.preventDefault();e.stopPropagation();});
+ strip.addEventListener('pointermove',function(e){if(!drag)return;LEAD.range=clamp(drag.r+(e.clientX-drag.x)*2200,CAST_MIN,CAST_MAX);e.preventDefault();});
+ function up(){drag=null;}
+ strip.addEventListener('pointerup',up);strip.addEventListener('pointercancel',up);})();
+
+/* ---------- 8. THE TELLING (append-only wake, I6) ----------- */
+var LOG=[],logLast=null;
+function logSounding(ft){
+  if(ft<=0)return;
+  if(logLast&&metres(SHIP.la,SHIP.lo,logLast.la,logLast.lo)<LOG_SPACING)return;
+  logLast={la:SHIP.la,lo:SHIP.lo};
+  LOG.push({la:SHIP.la,lo:SHIP.lo,ft:ft,t:performance.now()});
+  if(LOG.length>LOG_MAX)LOG.shift();
+}
+
+/* ---------- 9. THE WRATH ----------------------------------- */
+var WRATH={armed:true,alive:false,la:0,lo:0,aware:0,vuln:0,cool:0,dist:9e9};
+function wrathUpdate(){
+  if(!WRATH.armed){WRATH.alive=false;return;}
+  SHIP.noise=clamp(SHIP.noise*0.985+(Math.abs(SHIP.spd)/CFG.maxSpd)*0.010+(soundOn?0.004:0),0,1.4);
+  if(!WRATH.alive){
+    if(SHIP.noise>0.42&&performance.now()>WRATH.cool){
+      var hr=Math.random()*6.283, d=260000+Math.random()*180000;
+      var la=SHIP.la+Math.sin(hr)*d/MPD_LAT, lo=SHIP.lo+Math.cos(hr)*d/mpdLng(SHIP.la);
+      if(isSea(la,lo)){WRATH.la=la;WRATH.lo=lo;WRATH.alive=true;WRATH.aware=0.4;WRATH.vuln=0;
+        say('THE SEA TAKES AN INTEREST');speak('the sea takes an interest');}
+    }
+    return;
+  }
+  WRATH.dist=metres(SHIP.la,SHIP.lo,WRATH.la,WRATH.lo);
+  var prox=clamp(1-WRATH.dist/700000,0,1);
+  WRATH.aware=clamp(WRATH.aware+SHIP.noise*prox*0.010-0.0035,0,1.3);
+  if(WRATH.aware>0.45){
+    var b=(90-bearing(WRATH.la,WRATH.lo,SHIP.la,SHIP.lo))*Math.PI/180;
+    var sp=CFG.maxSpd*0.42*WRATH.aware;
+    WRATH.la+=Math.sin(b)*sp;WRATH.lo+=Math.cos(b)*sp;
+  }
+  if(WRATH.vuln>0)WRATH.vuln--;
+  if(WRATH.vuln<=0&&WRATH.aware>=1.0&&WRATH.dist<60000){
+    toll(5,'THE SEA STRUCK');WRATH.vuln=220;WRATH.aware=0.75;
+    say('STRUCK — NAME A CAUSE');speak('struck');
+    if(navigator.vibrate)navigator.vibrate([80,50,80]);
+  }
+  if(WRATH.aware<0.18&&WRATH.dist>800000){WRATH.alive=false;WRATH.cool=performance.now()+16000;say('IT SINKS AWAY');}
+}
+function nameCause(){
+  if(!WRATH.alive||WRATH.vuln<=6){say('NO OPENING');return;}
+  var ft=attestation(SHIP.la,SHIP.lo);
+  if(ft<=SHIP.draft+2){SHIP.draft+=0.4;say('UNSUPPORTED — DRAFT +0.4');}
+  else{WRATH.aware=0.1;WRATH.vuln=0;SHIP.noise*=0.3;
+    say('STRUCTURAL CAUSE NAMED');speak('a wind, not a god');}
+  syncRail();
+}
+
+/* ---------- 10. CREW, DEATH, JUSTIFICATION (I3) ------------ */
+function toll(n,why){
+  SHIP.crew=clamp(SHIP.crew-n,0,CREW_START);
+  LEDGER.owed=Math.min(LEDGER.owed+1,3);
+  LEDGER.pendingWhy=why||'THE LEAGUES';
+  if(SHIP.crew<=0&&!SHIP.alone){SHIP.alone=true;fieldDirty=true;scheduleField();
+    say('ALONE — NO WITNESS REMAINS');speak('no witness remains');}
+  syncRail();
+}
+var CAUSES=[
+ {k:'STORM',      s:true },
+ {k:'MUTINY',     s:true },
+ {k:'STARVATION', s:true },
+ {k:'NAVIGATION', s:true },
+ {k:'WRATH',      s:false}
+];
+function openJustify(){
+  if(LEDGER.owed<=0)return;
+  var head=document.getElementById('justHead');
+  var ft=attestation(SHIP.la,SHIP.lo);
+  head.textContent=(LEDGER.pendingWhy||'MEN LOST')+'. The water you stand in sounds '+ft.toFixed(1)+' fathoms.';
+  var w=document.getElementById('justWrap');w.textContent='';
+  CAUSES.forEach(function(c){
+    var b=document.createElement('button');b.className='chip';b.style.textAlign='left';
+    b.textContent=c.k+(c.s?'  · structural':'  · divine');
+    if(!c.s)b.style.borderColor='rgba(255,46,46,.5)';
+    b.onclick=function(){applyCause(c,ft);};
+    w.appendChild(b);
+  });
+  show('mJust');
+}
+function applyCause(c,ft){
+  var supported=true;
+  if(c.s){
+    if(ft<20){supported=false;SHIP.draft+=0.8;LEDGER.unsupported++;}
+  }else{
+    SHIP.draft+=0.5;SHIP.noise=clamp(SHIP.noise+0.35,0,1.4);
+    if(WRATH.armed&&!WRATH.alive)WRATH.cool=0;
+  }
+  LEDGER.deaths.push({cause:c.k,supported:supported,ft:ft,la:SHIP.la,lo:SHIP.lo});
+  LEDGER.owed--;
+  say(c.k+(supported?' — ENTERED':' — UNSUPPORTED'));
+  hide('mJust');syncLedger();syncRail();
+}
+
+/* ---------- 11. CLAIMS: COMMIT & STRIKE (I2) --------------- */
+function stationHere(){
+  var R=READINGS[reading],i;
+  for(i=0;i<STATIONS.length;i++){
+    var S=STATIONS[i];
+    if(metres(SHIP.la,SHIP.lo,S.la,S.lo)<=S.km*1000*R.disc)return S;
+  }
+  return null;
+}
+function claimFor(S){for(var i=0;i<LEDGER.claims.length;i++)if(LEDGER.claims[i].n===S.n)return LEDGER.claims[i];return null;}
+function commit(){
+  var S=stationHere();if(!S)return;
+  if(claimFor(S)){say('ALREADY FILED');return;}
+  var ft=attestation(SHIP.la,SHIP.lo);
+  var tier=ft<10?'INVENTED':ft<20?'INFERRED':ft<32?'ATTESTED':'HARD TRACE';
+  var cost=ft<10?2.2:ft<20?1.1:ft<32?0.6:0.4;
+  var pts =ft<10?25 :ft<20?70 :ft<32?120:150;
+  if(reading===2)pts=Math.round(pts*0.15);       /* nothing located, nothing earned */
+  SHIP.draft+=cost;
+  var disp=metres(SHIP.la,SHIP.lo,S.la,S.lo)/1000;
+  LEDGER.claims.push({n:S.n,tier:tier,ft:ft,pts:pts,cost:cost,disp:disp,la:SHIP.la,lo:SHIP.lo});
+  say(S.n+' FILED · '+tier+' · DRAFT +'+cost.toFixed(1));
+  speak(S.n.toLowerCase()+', '+tier.toLowerCase());
+  if(navigator.vibrate)navigator.vibrate(30);
+  syncLedger();syncRail();
+  if(S.n==='ITHACA')tryLanding();
+}
+function strikeLast(){
+  if(!LEDGER.claims.length)return;
+  var c=LEDGER.claims.pop();
+  SHIP.draft=Math.max(DRAFT_START,SHIP.draft-c.cost);
+  LEDGER.strikes++;
+  say('STRUCK: '+c.n+' — RETRACTION ENTERED');
+  syncLedger();syncRail();
+}
+function tryLanding(){
+  if(SHIP.draft<=HARBOUR)endRun(true);
+  else{say('YOUR THESIS DRAWS TOO MUCH WATER');speak('too much water');}
+}
+
+/* ---------- 12. RENDER ------------------------------------- */
+function cp(la,lo){return MAP.latLngToContainerPoint([la,lo]);}
+function drawField(){
+  if(!fieldBB)return;
+  var a=cp(fieldBB.n,fieldBB.w),b=cp(fieldBB.s,fieldBB.e);
+  ox.imageSmoothingEnabled=true;ox.imageSmoothingQuality='high';
+  ox.globalAlpha=0.95;
+  ox.drawImage(fieldCv,a.x,a.y,Math.max(1,b.x-a.x),Math.max(1,b.y-a.y));
+  ox.globalAlpha=1;
+}
+function drawCoast(){
+  ox.save();ox.strokeStyle='rgba(25,230,200,.18)';ox.lineWidth=1;
+  ox.setLineDash([2,4]);
+  var i,j;
+  for(i=0;i<ISLES.length;i++){
+    var r=ISLES[i].r;ox.beginPath();
+    for(j=0;j<r.length;j++){var p=cp(r[j][0],r[j][1]);if(j===0)ox.moveTo(p.x,p.y);else ox.lineTo(p.x,p.y);}
+    ox.closePath();ox.stroke();
+  }
+  ox.setLineDash([]);ox.restore();
+}
+function drawCourse(){
+  ox.save();ox.setLineDash([3,9]);ox.strokeStyle='rgba(25,230,200,.22)';ox.lineWidth=1.2;
+  ox.beginPath();
+  for(var i=0;i<STATIONS.length;i++){var p=cp(STATIONS[i].la,STATIONS[i].lo);
+    if(i===0)ox.moveTo(p.x,p.y);else ox.lineTo(p.x,p.y);}
+  ox.stroke();ox.setLineDash([]);ox.restore();
+}
+function drawStations(){
+  var R=READINGS[reading],i;
+  var mpp=metres(MAP.getBounds().getNorth(),MAP.getCenter().lng,MAP.getBounds().getSouth(),MAP.getCenter().lng)/overlay.height;
+  for(i=0;i<STATIONS.length;i++){
+    var S=STATIONS[i],p=cp(S.la,S.lo),c=claimFor(S);
+    var rpx=(S.km*1000*R.disc)/Math.max(mpp,1e-6);
+    ox.save();
+    ox.strokeStyle=c?'rgba(25,230,200,.55)':'rgba(255,210,63,.42)';
+    ox.lineWidth=1.1;ox.setLineDash([4,6]);
+    ox.beginPath();ox.arc(p.x,p.y,Math.max(4,rpx),0,6.283);ox.stroke();ox.setLineDash([]);
+    ox.fillStyle=c?'#19e6c8':'#ffd23f';
+    ox.beginPath();ox.moveTo(p.x,p.y-4);ox.lineTo(p.x+4,p.y);ox.lineTo(p.x,p.y+4);ox.lineTo(p.x-4,p.y);ox.closePath();ox.fill();
+    if(rpx>26||i===STATIONS.length-1){
+      ox.font='700 8px IBM Plex Mono';ox.textAlign='center';
+      ox.fillStyle=c?'rgba(25,230,200,.9)':'rgba(255,210,63,.85)';
+      ox.fillText(S.n,p.x,p.y-8);
+      if(c){ox.fillStyle='rgba(25,230,200,.55)';ox.fillText(c.tier,p.x,p.y+16);}
+    }
+    ox.restore();
+  }
+}
+function drawLog(){
+  var now=performance.now(),i;
+  ox.save();
+  for(i=LOG.length-1;i>=0;i--){
+    var s=LOG[i],age=(now-s.t)/LOG_FADE;
+    if(age>=1){LOG.splice(i,1);continue;}
+    var p=cp(s.la,s.lo);
+    if(p.x<-20||p.y<-20||p.x>overlay.width+20||p.y>overlay.height+20)continue;
+    ox.globalAlpha=(1-age)*0.55;ox.fillStyle=callCol(s.ft);
+    ox.beginPath();ox.arc(p.x,p.y,1.7,0,6.283);ox.fill();
+  }
+  ox.restore();
+}
+function drawCast(){
+  if(!LEAD.s.length)return;
+  var i;ox.save();
+  for(i=0;i<LEAD.s.length;i++){
+    var s=LEAD.s[i],p=cp(s.la,s.lo);
+    ox.globalAlpha=0.85-0.55*(s.d/LEAD.range);
+    ox.fillStyle=callCol(s.ft);
+    ox.beginPath();ox.arc(p.x,p.y,2,0,6.283);ox.fill();
+  }
+  if(LEAD.shoal){
+    var q=cp(LEAD.shoal.la,LEAD.shoal.lo);
+    ox.globalAlpha=1;ox.strokeStyle='#ffd23f';ox.lineWidth=1.5;
+    ox.beginPath();ox.arc(q.x,q.y,7,0,6.283);ox.stroke();
+  }
+  ox.restore();
+}
+function drawWrath(){
+  if(!WRATH.armed||!WRATH.alive)return;
+  var p=cp(WRATH.la,WRATH.lo),now=performance.now();
+  var ph=(now%1300)/1300;
+  ox.save();
+  ox.strokeStyle='rgba(255,46,46,'+(0.2+WRATH.aware*0.5)+')';ox.lineWidth=1.4;
+  ox.beginPath();ox.arc(p.x,p.y,8+ph*22,0,6.283);ox.stroke();
+  if(WRATH.vuln>6){
+    ox.strokeStyle='#19e6c8';ox.lineWidth=2;
+    ox.beginPath();ox.arc(p.x,p.y,14,0,6.283);ox.stroke();
+  }
+  if(WRATH.aware>0.5){
+    ox.fillStyle='rgba(255,46,46,.85)';
+    ox.beginPath();ox.moveTo(p.x-7,p.y+4);ox.lineTo(p.x,p.y-7);ox.lineTo(p.x+7,p.y+4);ox.closePath();ox.fill();
+  }
+  ox.restore();
+}
+function drawShip(){
+  var p=cp(SHIP.la,SHIP.lo);
+  ox.save();ox.translate(p.x,p.y);ox.rotate(SHIP.hdg*Math.PI/180);
+  ox.fillStyle='#19e6c8';ox.shadowColor='#19e6c8';ox.shadowBlur=10;
+  ox.beginPath();ox.moveTo(0,-11);ox.lineTo(7,9);ox.lineTo(0,5);ox.lineTo(-7,9);ox.closePath();ox.fill();
+  ox.restore();
+}
+function drawTarget(){
+  if(!TARGET)return;
+  var p=cp(TARGET.la,TARGET.lo),ph=(performance.now()%1600)/1600;
+  ox.save();ox.globalAlpha=1-ph;ox.strokeStyle='#ffd23f';ox.lineWidth=1.6;
+  ox.beginPath();ox.arc(p.x,p.y,4+ph*18,0,6.283);ox.stroke();ox.restore();
+}
+function render(){
+  ox.clearRect(0,0,overlay.width,overlay.height);
+  drawField();drawCoast();drawCourse();drawLog();drawStations();drawCast();
+  drawTarget();drawWrath();drawShip();
+}
+
+/* ---------- 13. HALO + ARC --------------------------------- */
+var NS='http://www.w3.org/2000/svg';
+var haloTicks=document.getElementById('haloTicks'),haloMarks=document.getElementById('haloMarks');
+var FOV=140;
+function bez(t){var p0={x:50,y:140},p1={x:750,y:14},p2={x:1450,y:140},m=1-t;
+  return{x:m*m*p0.x+2*m*t*p1.x+t*t*p2.x,y:m*m*p0.y+2*m*t*p1.y+t*t*p2.y};}
+var CARD={0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'};
+function renderHalo(){
+  haloTicks.textContent='';haloMarks.textContent='';
+  for(var d=-FOV/2;d<=FOV/2;d+=5){
+    var comp=((SHIP.hdg+d)%360+360)%360,t=(d+FOV/2)/FOV;
+    var p=bez(t),p2=bez(Math.min(t+0.002,1));
+    var ang=Math.atan2(p2.y-p.y,p2.x-p.x)+Math.PI/2;
+    var rc=Math.round(comp),maj=rc%45===0,mid=rc%15===0,len=maj?14:mid?9:5;
+    var ln=document.createElementNS(NS,'line');
+    ln.setAttribute('x1',p.x);ln.setAttribute('y1',p.y);
+    ln.setAttribute('x2',p.x+Math.cos(ang)*len);ln.setAttribute('y2',p.y+Math.sin(ang)*len);
+    ln.setAttribute('class',maj?'tickMaj':'tick');haloTicks.appendChild(ln);
+    if(maj){
+      var bn='',bd=999;
+      for(var k in CARD){var df=Math.abs(((rc-k+540)%360)-180);if(df<bd){bd=df;bn=CARD[k];}}
+      var tx=document.createElementNS(NS,'text');
+      tx.setAttribute('x',p.x+Math.cos(ang)*(len+12));tx.setAttribute('y',p.y+Math.sin(ang)*(len+12)+4);
+      tx.setAttribute('fill','#fff');tx.setAttribute('font-size','13');tx.setAttribute('font-weight','700');
+      tx.setAttribute('text-anchor','middle');tx.textContent=bn;haloTicks.appendChild(tx);
+    }
+  }
+  var marks=[],i;
+  for(i=0;i<STATIONS.length;i++){
+    var S=STATIONS[i];
+    if(claimFor(S))continue;
+    marks.push({b:bearing(SHIP.la,SHIP.lo,S.la,S.lo),c:'#ffd23f',t:S.n.slice(0,4)});
+  }
+  if(TARGET)marks.push({b:bearing(SHIP.la,SHIP.lo,TARGET.la,TARGET.lo),c:'#19e6c8',t:'CRS'});
+  for(i=0;i<marks.length;i++){
+    var m=marks[i],off=((m.b-SHIP.hdg+540)%360)-180;
+    if(off<-FOV/2||off>FOV/2)continue;
+    var q=bez((off+FOV/2)/FOV);
+    var dm=document.createElementNS(NS,'path');
+    dm.setAttribute('d','M '+q.x+' '+(q.y-8)+' l 5 5 l -5 5 l -5 -5 z');
+    dm.setAttribute('fill',m.c);dm.setAttribute('opacity','.8');haloMarks.appendChild(dm);
+    var lb=document.createElementNS(NS,'text');
+    lb.setAttribute('x',q.x);lb.setAttribute('y',q.y-12);lb.setAttribute('fill',m.c);
+    lb.setAttribute('font-size','8');lb.setAttribute('font-weight','700');
+    lb.setAttribute('text-anchor','middle');lb.textContent=m.t;haloMarks.appendChild(lb);
+  }
+}
+
+var aaStatic=document.getElementById('aaStatic'),aaFill=document.getElementById('aaFill'),aaMark=document.getElementById('aaMark');
+function aaBez(t){var p0={x:66,y:14},p1={x:14,y:215},p2={x:66,y:416},m=1-t;
+  return{x:m*m*p0.x+2*m*t*p1.x+t*t*p2.x,y:m*m*p0.y+2*m*t*p1.y+t*t*p2.y};}
+function aaNorm(t){var p=aaBez(t),p2=aaBez(Math.min(t+0.004,1));
+  var nx=p2.y-p.y,ny=-(p2.x-p.x),m=Math.hypot(nx,ny)||1;nx/=m;ny/=m;
+  if(nx<0){nx=-nx;ny=-ny;}return{x:nx,y:ny};}
+function buildArc(){
+  var h='',d='M '+aaBez(0).x+' '+aaBez(0).y,t;
+  for(t=0.02;t<=1.001;t+=0.02){var p=aaBez(t);d+=' L '+p.x.toFixed(1)+' '+p.y.toFixed(1);}
+  h+='<path d="'+d+'" fill="none" stroke="rgba(25,230,200,.28)" stroke-width="1.4"/>';
+  var labels={10:'INVENTED',20:'INFERRED',32:'ATTESTED',44:'HARD'};
+  for(var ft=0;ft<=ATT_MAX;ft+=3){
+    var tt=clamp(ft/ATT_MAX,0,1),p=aaBez(tt),n=aaNorm(tt),maj=(ft%6===0),len=maj?12:6;
+    h+='<line x1="'+p.x.toFixed(1)+'" y1="'+p.y.toFixed(1)+'" x2="'+(p.x+n.x*len).toFixed(1)+'" y2="'+(p.y+n.y*len).toFixed(1)+'" class="'+(maj?'aaTickMaj':'aaTick')+'"/>';
+  }
+  for(var key in labels){
+    var tk=clamp(key/ATT_MAX,0,1),pk=aaBez(tk),nk=aaNorm(tk);
+    h+='<text x="'+(pk.x+nk.x*15).toFixed(1)+'" y="'+(pk.y+nk.y*15+3).toFixed(1)+'" fill="rgba(180,245,235,.8)" font-size="7" font-weight="700" font-family="IBM Plex Mono">'+labels[key]+'</text>';
+  }
+  h+='<text x="66" y="8" fill="rgba(25,230,200,.65)" font-size="7" font-weight="700" text-anchor="middle" font-family="IBM Plex Mono">VOID</text>';
+  h+='<text x="66" y="428" fill="rgba(25,230,200,.65)" font-size="7" font-weight="700" text-anchor="middle" font-family="IBM Plex Mono">TRACE</text>';
+  aaStatic.innerHTML=h;
+}
+function updateArc(ft){
+  var tc=clamp(ft/ATT_MAX,0,1),d='M '+aaBez(0).x+' '+aaBez(0).y,t;
+  for(t=0.02;t<=tc+1e-4;t+=0.02){var p=aaBez(Math.min(t,tc));d+=' L '+p.x.toFixed(1)+' '+p.y.toFixed(1);}
+  var pe=aaBez(tc);d+=' L '+pe.x.toFixed(1)+' '+pe.y.toFixed(1);
+  aaFill.setAttribute('d',d);aaFill.setAttribute('stroke',callCol(ft));
+  var n=aaNorm(tc),col=callCol(ft);
+  aaMark.innerHTML='<line x1="'+(pe.x-n.x*5).toFixed(1)+'" y1="'+(pe.y-n.y*5).toFixed(1)+'" x2="'+(pe.x+n.x*18).toFixed(1)+'" y2="'+(pe.y+n.y*18).toFixed(1)+'" stroke="'+col+'" stroke-width="2"/>'+
+    '<circle cx="'+pe.x.toFixed(1)+'" cy="'+pe.y.toFixed(1)+'" r="4" fill="'+col+'"/>'+
+    '<text x="'+(pe.x+n.x*22).toFixed(1)+'" y="'+(pe.y+n.y*22+3).toFixed(1)+'" fill="'+col+'" font-size="10" font-weight="700" font-family="IBM Plex Mono">'+ft.toFixed(0)+'</text>';
+  var dt=clamp(SHIP.draft/ATT_MAX,0,1),pd=aaBez(dt),nd=aaNorm(dt);
+  aaMark.innerHTML+='<line x1="'+(pd.x-nd.x*4).toFixed(1)+'" y1="'+(pd.y-nd.y*4).toFixed(1)+'" x2="'+(pd.x+nd.x*20).toFixed(1)+'" y2="'+(pd.y+nd.y*20).toFixed(1)+'" stroke="#ff2e2e" stroke-width="1.6"/>'+
+    '<text x="'+(pd.x+nd.x*23).toFixed(1)+'" y="'+(pd.y+nd.y*23+3).toFixed(1)+'" fill="#ff2e2e" font-size="7" font-weight="700" font-family="IBM Plex Mono">DRAFT</text>';
+}
+(function buildSpine(){
+  var el=document.getElementById('railSpine'),h='',t;
+  function cb(t){var p0={x:26,y:14},p1={x:88,y:235},p2={x:26,y:456},m=1-t;
+    return{x:m*m*p0.x+2*m*t*p1.x+t*t*p2.x,y:m*m*p0.y+2*m*t*p1.y+t*t*p2.y};}
+  var d='M '+cb(0).x+' '+cb(0).y;
+  for(t=0.02;t<=1.001;t+=0.02){var p=cb(t);d+=' L '+p.x.toFixed(1)+' '+p.y.toFixed(1);}
+  h+='<path d="'+d+'" fill="none" stroke="rgba(25,230,200,.28)" stroke-width="1.4"/>';
+  for(var i=0;i<=SPINE_TICKS;i++){
+    var tt=i/SPINE_TICKS,p1=cb(tt),p2=cb(Math.min(tt+0.004,1));
+    var nx=p2.y-p1.y,ny=-(p2.x-p1.x),m=Math.hypot(nx,ny)||1;nx/=m;ny/=m;
+    if(nx>0){nx=-nx;ny=-ny;}
+    var len=(i%6===0)?9:5;
+    h+='<line x1="'+p1.x.toFixed(1)+'" y1="'+p1.y.toFixed(1)+'" x2="'+(p1.x+nx*len).toFixed(1)+'" y2="'+(p1.y+ny*len).toFixed(1)+'" class="'+((i%6===0)?'aaTickMaj':'aaTick')+'"/>';
+  }
+  el.innerHTML=h;
+})();
+buildArc();
+
+/* ---------- 14. RAIL (truth-conditional) ------------------- */
+function syncRail(){
+  var here=stationHere(),unclaimed=here&&!claimFor(here);
+  var atIthaca=here&&here.n==='ITHACA'&&!unclaimed;
+  var b=document.getElementById('bCommit');
+  b.style.display=(unclaimed||atIthaca)?'':'none';
+  b.classList.toggle('owed',!!atIthaca);
+  if(unclaimed)b.querySelector('span').textContent='COMMIT · '+here.n;
+  else if(atIthaca)b.querySelector('span').textContent='LAND · ITHACA';
+  railAction=atIthaca?tryLanding:commit;
+  var j=document.getElementById('bJust');
+  j.style.display=LEDGER.owed>0?'':'none';
+  j.classList.toggle('owed',LEDGER.owed>0);
+  if(LEDGER.owed>0)j.querySelector('span').textContent='JUSTIFY ('+LEDGER.owed+')';
+  document.getElementById('bName').style.display=(WRATH.armed&&WRATH.alive&&WRATH.vuln>6)?'':'none';
+  document.getElementById('bStrike').style.display=LEDGER.claims.length?'':'none';
+}
+function syncLedger(){
+  document.getElementById('lgClaims').textContent=LEDGER.claims.length+'/'+STATIONS.length;
+  document.getElementById('lgUnsup').textContent=String(LEDGER.unsupported);
+  document.getElementById('lgGround').textContent=String(LEDGER.groundings);
+  document.getElementById('lgHarbour').textContent=SHIP.draft.toFixed(1)+' / '+HARBOUR.toFixed(1);
+  var f=document.getElementById('draftFill');
+  f.style.width=clamp(SHIP.draft/HARBOUR,0,1)*100+'%';
+  f.style.background=SHIP.draft>HARBOUR?'#ff2e2e':'#ffd23f';
+}
+
+/* ---------- 15. VOICE + MESSAGES --------------------------- */
+var soundOn=false,lastSaid='',lastSaidT=0;
+function say(t){var el=document.getElementById('say');el.textContent=t;el.dataset.t=String(performance.now());}
+function speak(t){
+  if(!soundOn||!('speechSynthesis'in window))return;
+  var now=performance.now();
+  if(t===lastSaid||now-lastSaidT<2600)return;
+  lastSaid=t;lastSaidT=now;
+  try{speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(t.toLowerCase());
+    u.rate=0.82;u.pitch=0.62;u.volume=0.9;speechSynthesis.speak(u);}catch(e){}
+}
+
+/* ---------- 16. INPUT -------------------------------------- */
+var TARGET=null,autopilot=false,railAction=null;
+var wheel=document.getElementById('wheel'),stick=document.getElementById('stick');
+var wheelActive=false,sxp=0,syp=0,R_W=36;
+function wheelMove(e){
+  e.preventDefault();wheelActive=true;
+  var cx=e.touches?e.touches[0].clientX:e.clientX;
+  var cy=e.touches?e.touches[0].clientY:e.clientY;
+  var r=wheel.getBoundingClientRect();
+  var dx=cx-(r.left+r.width/2),dy=cy-(r.top+r.height/2),d=Math.hypot(dx,dy);
+  if(d>R_W){dx*=R_W/d;dy*=R_W/d;}
+  sxp=dx;syp=dy;TARGET=null;autopilot=false;syncStand();
+}
+function wheelEnd(){wheelActive=false;}
+wheel.addEventListener('touchstart',wheelMove,{passive:false});
+wheel.addEventListener('touchmove',wheelMove,{passive:false});
+wheel.addEventListener('touchend',wheelEnd);
+wheel.addEventListener('mousedown',wheelMove);
+window.addEventListener('mousemove',function(e){if(wheelActive)wheelMove(e);});
+window.addEventListener('mouseup',wheelEnd);
+
+MAP.on('click',function(e){
+  if(!running)return;
+  var la=e.latlng.lat,lo=e.latlng.lng;
+  if(!isSea(la,lo)){say('THAT IS LAND');return;}
+  TARGET={la:la,lo:lo};autopilot=true;syncStand();
+});
+function syncStand(){document.getElementById('standDown').style.display=autopilot?'block':'none';}
+document.getElementById('standDown').onclick=function(){TARGET=null;autopilot=false;syncStand();say('HELM YOURS');};
+
+/* ---------- 17. MODALS + RAIL WIRING ----------------------- */
+function show(id){document.getElementById(id).style.display='flex';}
+function hide(id){document.getElementById(id).style.display='none';}
+document.getElementById('bChart').onclick=function(){
+  if(chartMode==='sat'){MAP.removeLayer(satLayer);MAP.addLayer(chartLayer);
+    document.body.className='mode-chart';chartMode='chart';this.classList.add('on');
+    this.querySelector('span').textContent='SCHEMATIC';}
+  else{MAP.removeLayer(chartLayer);MAP.addLayer(satLayer);
+    document.body.className='mode-sat';chartMode='sat';this.classList.remove('on');
+    this.querySelector('span').textContent='CHART';}
+};
+document.getElementById('bSound').onclick=function(){
+  soundOn=!soundOn;this.classList.toggle('on',soundOn);
+  say(soundOn?'LEADSMAN SPEAKS':'LEADSMAN SILENT');
+};
+document.getElementById('bTell').onclick=function(){renderTelling();show('mTell');};
+document.getElementById('bTellClose').onclick=function(){hide('mTell');};
+document.getElementById('bCommit').onclick=function(){(railAction||commit)();};
+document.getElementById('bJust').onclick=openJustify;
+document.getElementById('bName').onclick=nameCause;
+document.getElementById('bStrike').onclick=strikeLast;
+document.getElementById('bRead').onclick=function(){renderReadings();show('mRead');};
+document.getElementById('bReadClose').onclick=function(){hide('mRead');};
+function renderReadings(){
+  var w=document.getElementById('readWrap');w.textContent='';
+  READINGS.forEach(function(R,i){
+    var b=document.createElement('button');
+    b.className='chip'+(i===reading?' sel':'');b.style.textAlign='left';
+    b.textContent=R.k;
+    b.onclick=function(){
+      reading=i;fieldDirty=true;scheduleField();
+      document.getElementById('readNote').textContent=R.note;
+      renderReadings();syncRail();say('READING · '+R.k);
+    };
+    w.appendChild(b);
+  });
+  document.getElementById('readNote').textContent=READINGS[reading].note;
+}
+function renderTelling(){
+  var h='',i;
+  h+='<div style="color:rgba(25,230,200,.5);letter-spacing:2px">CLAIMS FILED</div>';
+  if(!LEDGER.claims.length)h+='<div style="color:rgba(255,210,63,.7)">None. The voyage is unrecorded.</div>';
+  for(i=0;i<LEDGER.claims.length;i++){
+    var c=LEDGER.claims[i];
+    h+='<div>'+c.n+' &middot; <span style="color:'+callCol(c.ft)+'">'+c.tier+'</span> &middot; '+c.ft.toFixed(1)+' fa &middot; draft +'+c.cost.toFixed(1)+
+       (c.disp>40?' &middot; <span style="color:#ffd23f">stood '+Math.round(c.disp)+' km off the named place</span>':'')+'</div>';
+  }
+  h+='<div style="margin-top:10px;color:rgba(25,230,200,.5);letter-spacing:2px">DEATHS AND THEIR CAUSES</div>';
+  if(!LEDGER.deaths.length)h+='<div style="color:rgba(255,210,63,.7)">No death has yet been given a cause.</div>';
+  for(i=0;i<LEDGER.deaths.length;i++){
+    var d=LEDGER.deaths[i];
+    h+='<div>'+(i+1)+'. '+d.cause+(d.supported?'':' <span style="color:#ff2e2e">— unsupported</span>')+'</div>';
+  }
+  h+='<div style="margin-top:10px;color:rgba(25,230,200,.5);letter-spacing:2px">THE VOID</div>';
+  var missing=[];
+  for(i=0;i<STATIONS.length;i++)if(!claimFor(STATIONS[i]))missing.push(STATIONS[i].n);
+  h+='<div style="color:rgba(255,210,63,.75)">'+(missing.length?missing.join(' &middot; '):'Nothing left unsaid.')+'</div>';
+  h+='<div style="margin-top:10px">Retractions '+LEDGER.strikes+' &middot; Groundings '+LEDGER.groundings+' &middot; Crew '+Math.max(0,Math.round(SHIP.crew))+'/'+CREW_START+'</div>';
+  document.getElementById('tellBody').innerHTML=h;
+}
+document.getElementById('bWrathOn').onclick=function(){
+  WRATH.armed=!WRATH.armed;
+  this.textContent='DIVINE CAUSALITY · '+(WRATH.armed?'ON':'OFF');
+  this.style.color=WRATH.armed?'#ff8a8a':'rgba(255,138,138,.5)';
+};
+var running=false;
+document.getElementById('bBegin').onclick=function(){
+  hide('mTitle');running=true;
+  buildField();say('ILIOS ASTERN');
+  document.getElementById('wrathHud').style.display=WRATH.armed?'block':'none';
+};
+document.getElementById('bEndClose').onclick=function(){hide('mEnd');};
+
+function endRun(landed){
+  running=false;
+  var pts=0,i;
+  for(i=0;i<LEDGER.claims.length;i++)pts+=LEDGER.claims[i].pts;
+  pts-=LEDGER.unsupported*40+LEDGER.groundings*25+LEDGER.strikes*15;
+  document.getElementById('endTitle').textContent=landed?'RECOGNITION':'THE TELLING ENDS';
+  var h='';
+  h+='<div>Claims filed: '+LEDGER.claims.length+' of '+STATIONS.length+'</div>';
+  h+='<div>Final draft: '+SHIP.draft.toFixed(1)+' fathoms (harbour '+HARBOUR.toFixed(1)+')</div>';
+  h+='<div>Crew remaining: '+Math.max(0,Math.round(SHIP.crew))+' of '+CREW_START+'</div>';
+  h+='<div>Unsupported causes: '+LEDGER.unsupported+' &middot; Groundings: '+LEDGER.groundings+'</div>';
+  h+='<div style="margin-top:10px;color:var(--amber)">Synthesis: '+pts+'</div>';
+  h+='<div style="margin-top:12px;color:rgba(220,245,240,.75);line-height:1.7">'+
+     (landed?'The ship was light enough to enter. What you did not claim stays a void, and the void is drawn.'
+            :'The hall is quiet. The voyage stands as told.')+'</div>';
+  document.getElementById('endBody').innerHTML=h;
+  show('mEnd');
+}
+
+/* ---------- 18. LOOP --------------------------------------- */
+var frame=0,lastHaloSig='',lastArc=-99;
+function chase(){
+  var p=cp(SHIP.la,SHIP.lo),s=MAP.getSize();
+  var dx=p.x-s.x/2,dy=p.y-s.y/2;
+  if(Math.hypot(dx,dy)<8)return;
+  MAP.panBy([Math.round(dx),Math.round(dy)],{animate:false});
+}
+function loop(){
+  frame++;
+  requestAnimationFrame(loop);
+  if(!running){render();return;}
+
+  /* steering */
+  if(!wheelActive){sxp*=0.72;syp*=0.72;if(Math.abs(sxp)<0.4)sxp=0;if(Math.abs(syp)<0.4)syp=0;}
+  stick.style.transform='translate('+sxp+'px,'+syp+'px)';
+  var jx=sxp/R_W,jy=-(syp/R_W),mag=Math.hypot(jx,jy);
+  var want=null,thrust=0;
+  if(mag>0.14){want=(Math.atan2(jx,jy)*180/Math.PI+360)%360;thrust=Math.min(mag,1);}
+  else if(TARGET){
+    var dm=metres(SHIP.la,SHIP.lo,TARGET.la,TARGET.lo);
+    if(dm<12000){TARGET=null;autopilot=false;syncStand();say('MADE FAST');}
+    else{want=bearing(SHIP.la,SHIP.lo,TARGET.la,TARGET.lo);thrust=clamp(dm/60000,0.4,1);}
+  }
+  if(want!==null){
+    var diff=dAng(SHIP.hdg,want);
+    SHIP.hdg=(SHIP.hdg+Math.sign(diff)*Math.min(Math.abs(diff),CFG.turn)+360)%360;
+    if(Math.abs(diff)<60&&SHIP.crew>0)SHIP.spd+=CFG.accel*thrust;
+    else if(Math.abs(diff)<60)SHIP.spd+=CFG.accel*thrust*0.25;
+  }
+  SHIP.spd-=SHIP.spd*CFG.drag;
+  if(SHIP.spd>CFG.maxSpd)SHIP.spd=CFG.maxSpd;
+  if(SHIP.spd<0)SHIP.spd=0;
+
+  /* motion, with land as land and murk as ground */
+  var hr=(90-SHIP.hdg)*Math.PI/180;
+  var nLa=SHIP.la+Math.sin(hr)*SHIP.spd, nLo=SHIP.lo+Math.cos(hr)*SHIP.spd;
+  var att=attestation(SHIP.la,SHIP.lo);
+  if(isSea(nLa,nLo)){SHIP.la=nLa;SHIP.lo=nLo;}
+  else{SHIP.spd*=0.25;say('COAST');}
+
+  /* grounding = the claim collapses under the thesis */
+  /* The ship is never immobilised: unattested water is sailable, it just
+     will not hold a claim. Grounding costs coherence and raises noise. */
+  if(att<=SHIP.draft&&att>0){
+    SHIP.spd*=0.86;SHIP.ground++;
+    SHIP.noise=clamp(SHIP.noise+0.0016,0,1.4);
+    if(SHIP.ground===1){LEDGER.groundings++;syncLedger();
+      say('AGROUND — RETROSPECTIVE COHERENCE FRAUD');speak('aground');
+      if(navigator.vibrate)navigator.vibrate([70,40,70]);}
+    /* set toward better-attested water, if any is within reach */
+    var best=null,bv=att+0.4,k;
+    for(k=0;k<12;k++){
+      var b2=k*30,h2=(90-b2)*Math.PI/180;
+      var tl=SHIP.la+Math.sin(h2)*0.30,tg=SHIP.lo+Math.cos(h2)*0.30;
+      var v=attestation(tl,tg);
+      if(v>bv){bv=v;best={la:SHIP.la+Math.sin(h2)*0.0016,lo:SHIP.lo+Math.cos(h2)*0.0016};}
+    }
+    if(best&&isSea(best.la,best.lo)){SHIP.la=best.la;SHIP.lo=best.lo;}
+  } else SHIP.ground=0;
+
+  /* crew: the clock (I3 — every loss is owed a cause) */
+  if(SHIP.crew>0){
+    SHIP.crew=clamp(SHIP.crew-CREW_BURN*(Math.abs(SHIP.spd)/CFG.maxSpd),0,CREW_START);
+    var spent=CREW_START-SHIP.crew;
+    if(Math.floor(spent/5)>LEDGER.lastToll){LEDGER.lastToll=Math.floor(spent/5);toll(0,'THE LEAGUES TOOK MEN');}
+  }
+
+  wrathUpdate();
+  if(frame%2===0){castLead();drawStrip();}
+  logSounding(att);
+
+  /* readouts */
+  var c=call(att);
+  var tc=document.getElementById('tCall');
+  tc.textContent=c;tc.style.color=callCol(att);
+  if(att>SHIP.draft&&LEAD.shoal){
+    tc.textContent=call(LEAD.shoal.ft)+' AHEAD';tc.style.color='#ffd23f';
+  }
+  document.getElementById('tAtt').textContent=att.toFixed(1)+' FA';
+  speak(tc.textContent);
+  var hs=Math.round(SHIP.hdg).toString();while(hs.length<3)hs='0'+hs;
+  document.getElementById('tHdg').textContent=hs;
+  document.getElementById('tCrew').textContent=String(Math.max(0,Math.round(SHIP.crew)));
+  document.getElementById('tDraft').innerHTML=SHIP.draft.toFixed(1)+'<span class="u">FA</span>';
+  var ca=document.getElementById('crewArc');
+  ca.setAttribute('stroke-dashoffset',(345.6*(1-clamp(SHIP.crew/CREW_START,0,1))).toFixed(1));
+  ca.setAttribute('stroke',SHIP.crew<10?'#ff2e2e':SHIP.crew<24?'#ffd23f':'#19e6c8');
+
+  var st=document.getElementById('tSts');
+  if(att<=SHIP.draft){st.textContent='AGROUND';st.className='tv flashRed';}
+  else if(SHIP.alone){st.textContent='ALONE';st.className='tv flashAmber';}
+  else if(autopilot){st.textContent='COURSE SET';st.className='tv';}
+  else if(mag>0.14){st.textContent='UNDER WAY';st.className='tv';}
+  else{st.textContent='DRIFTING';st.className='tv';}
+
+  if(WRATH.armed){
+    document.getElementById('wrNoise').textContent=Math.round(SHIP.noise/1.4*100)+'%';
+    var ws=document.getElementById('wrState');
+    ws.textContent=!WRATH.alive?'SILENT':WRATH.vuln>6?'OPENING — NAME A CAUSE':WRATH.aware>0.9?'IT HAS YOUR NAME':WRATH.aware>0.5?'HUNTING':'STIRRING';
+    ws.style.color=WRATH.vuln>6?'#19e6c8':WRATH.aware>0.5?'#ff2e2e':'#ffd23f';
+  }
+
+  var sayEl=document.getElementById('say');
+  if(sayEl.dataset.t&&performance.now()-Number(sayEl.dataset.t)>2600)sayEl.textContent='';
+
+  if(frame%10===0)syncRail();
+  if(frame%4===0){
+    var sig=Math.round(SHIP.hdg*1.5)+'|'+LEDGER.claims.length+'|'+(TARGET?1:0);
+    if(sig!==lastHaloSig){lastHaloSig=sig;renderHalo();}
+  }
+  if(Math.abs(att-lastArc)>0.15){lastArc=att;updateArc(att);}
+  chase();
+  if(fieldDirty&&!fieldTimer)scheduleField();
+  render();
+}
+
+syncLedger();syncRail();renderHalo();updateArc(0);renderReadings();
+buildField();
+loop();
+}
+</script>
+</body>
+</html>
