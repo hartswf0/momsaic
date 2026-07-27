@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#050505">
+<title>PARALLAX — Distributed Puzzle</title>
+<style>
+:root{
+  --bg:#f4f8ff;--panel:#ffffff;--panel2:#eef4ff;--line:#17233b;
+  --ink:#101828;--dim:#4b5d79;--blue:#006cff;--cyan:#007a8a;--amber:#ffb000;
+  --red:#d92d20;--green:#087a43;--soft-blue:#dceaff;--soft-yellow:#fff1b8;
+  --soft-green:#dff7e9;--shadow:0 8px 24px rgba(23,35,59,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif;overflow:hidden}
+button,input{font:inherit}button{color:inherit}button:focus-visible,input:focus-visible{outline:4px solid var(--amber);outline-offset:2px}
+.hidden{display:none!important}.screen{position:fixed;inset:0;background:var(--bg)}
+#boot{overflow:auto;padding:18px;display:grid;place-items:center}
+.boot-shell{width:min(820px,100%);border:3px solid var(--line);padding:clamp(18px,4vw,38px);background:var(--panel);box-shadow:var(--shadow)}
+.kicker{display:inline-block;font-size:13px;letter-spacing:.08em;color:#fff;background:var(--blue);padding:8px 10px;text-transform:uppercase;font-weight:800}
+h1{font-weight:900;letter-spacing:-.07em;font-size:clamp(58px,15vw,138px);line-height:.8;margin:18px 0 20px;color:var(--ink)}
+.boot-copy{max-width:670px;font-size:clamp(17px,2.4vw,22px);line-height:1.38;color:var(--ink);margin-bottom:24px}.boot-copy strong{color:var(--blue)}
+.start-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 24px}.start-step{border:2px solid var(--line);background:var(--panel2);padding:13px;min-height:100px}.start-step b{display:block;font-size:26px;color:var(--blue);margin-bottom:6px}.start-step span{font-size:14px;line-height:1.35;font-weight:700}
+.field-label{display:block;font-size:13px;letter-spacing:.06em;color:var(--ink);margin:18px 0 8px;text-transform:uppercase;font-weight:900}
+.field{width:100%;height:58px;background:#fff;border:3px solid var(--line);color:var(--ink);padding:0 14px;text-transform:uppercase;border-radius:0;font-size:20px;font-weight:900}
+.seat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:10px 0 20px}.seat-btn{height:54px;background:#fff;border:2px solid var(--line);cursor:pointer;font-size:18px;font-weight:900}.seat-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);transform:translateY(-2px);box-shadow:0 5px 0 var(--line)}
+.boot-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.action{min-height:56px;border:2px solid var(--line);background:#fff;padding:12px 15px;cursor:pointer;text-transform:uppercase;letter-spacing:.04em;font-size:14px;font-weight:900}.action.primary{background:var(--blue);color:#fff;border-color:var(--blue)}.action.cyan{border-color:var(--blue);color:var(--blue)}.action.warn{border-color:var(--amber);background:var(--soft-yellow);color:var(--ink)}.action:disabled{opacity:.35;cursor:not-allowed}.boot-note{margin-top:16px;color:var(--dim);font-size:13px;line-height:1.45}
+
+#app{display:grid;grid-template-rows:68px 1fr 76px}.topbar{border-bottom:3px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;align-items:center;padding:0 14px;background:#fff;z-index:20}.brand{font-weight:900;letter-spacing:-.05em;font-size:24px}.identity{text-align:center;font-size:13px;line-height:1.25;color:var(--ink);font-weight:900;letter-spacing:.03em}.net{justify-self:end;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink);font-weight:900}.net-dot{width:12px;height:12px;border:2px solid var(--dim);border-radius:50%}.net-dot.live{background:var(--green);border-color:var(--green)}.net-dot.error{background:var(--red);border-color:var(--red)}
+.main{min-height:0;position:relative;overflow:hidden}.view{position:absolute;inset:0;overflow:auto;padding:14px 14px 30px;display:none}.view.active{display:block}.bottomnav{border-top:3px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);background:#fff;z-index:20}.navbtn{border:0;border-right:2px solid var(--line);background:#fff;color:var(--ink);text-transform:uppercase;letter-spacing:.04em;font-size:14px;cursor:pointer;position:relative;font-weight:900}.navbtn:last-child{border-right:0}.navbtn.active{color:#fff;background:var(--blue)}.navbtn.pulse::after{content:"";position:absolute;right:12px;top:10px;width:11px;height:11px;background:var(--amber);border:2px solid var(--line);border-radius:50%;animation:pulse 1s infinite}@keyframes pulse{50%{transform:scale(1.45)}}
+
+.orientation{max-width:920px;margin:0 auto 12px;border:3px solid var(--line);background:#fff;box-shadow:var(--shadow)}.orientation-top{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 14px;border-bottom:2px solid var(--line)}.you-are{font-size:clamp(20px,5vw,34px);font-weight:900;letter-spacing:-.04em}.you-room{font-size:12px;color:var(--dim);font-weight:800;text-align:right}.step-track{display:grid;grid-template-columns:repeat(4,1fr)}.step-chip{padding:10px 5px;border-right:2px solid var(--line);background:#fff;text-align:center;font-size:11px;font-weight:900}.step-chip:last-child{border-right:0}.step-chip.current{background:var(--amber);color:var(--ink)}.step-chip.done{background:var(--soft-green);color:var(--green)}
+.next-action{max-width:920px;margin:0 auto 12px;border:3px solid var(--blue);background:var(--soft-blue);padding:14px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}.next-kicker{font-size:11px;font-weight:900;color:var(--blue);letter-spacing:.08em;text-transform:uppercase}.next-text{font-size:clamp(17px,3vw,24px);line-height:1.2;font-weight:900;margin-top:4px}.next-button{min-height:52px;border:2px solid var(--line);background:var(--blue);color:#fff;padding:10px 16px;font-weight:900;text-transform:uppercase;cursor:pointer}
+.status-strip{max-width:920px;margin:0 auto 10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}.obligation{border:2px solid var(--line);background:#fff;padding:12px;min-height:84px}.obligation .label{font-size:11px;letter-spacing:.07em;color:var(--blue);font-weight:900}.obligation .value{margin-top:7px;font-size:16px;line-height:1.25;font-weight:900}.obligation.done{border-color:var(--green);background:var(--soft-green)}.obligation.done .value{color:var(--green)}
+.scene-head{max-width:920px;margin:14px auto 8px;display:flex;justify-content:space-between;gap:10px;align-items:end}.scene-title{font-size:clamp(34px,8vw,68px);font-weight:900;letter-spacing:-.06em;line-height:.9}.scene-index{font-size:12px;color:var(--dim);text-align:right;line-height:1.35;font-weight:700}.board-wrap{border:3px solid var(--line);background:#000;position:relative;max-width:920px;margin:auto;box-shadow:var(--shadow)}.board-badge{position:absolute;z-index:3;left:8px;top:8px;background:#fff;color:var(--ink);border:2px solid var(--line);padding:7px 9px;font-size:12px;font-weight:900;pointer-events:none}#board{width:100%;display:block;touch-action:none;cursor:pointer}.board-instruction{font-size:16px;line-height:1.35;color:var(--ink);margin:10px auto 8px;max-width:920px;min-height:44px;background:var(--soft-yellow);border:2px solid var(--line);padding:10px;font-weight:800}.tray-heading{max-width:920px;margin:16px auto 8px;display:flex;justify-content:space-between;gap:12px;align-items:end}.tray-label{font-size:13px;letter-spacing:.07em;color:var(--ink);font-weight:900}.tray-help{font-size:12px;color:var(--dim);text-align:right;font-weight:700}#tray{max-width:920px;margin:auto;display:grid;grid-template-columns:repeat(6,minmax(52px,1fr));gap:8px}.piece{aspect-ratio:3/2;border:3px solid var(--line);background:#fff;padding:0;position:relative;cursor:pointer;overflow:hidden}.piece canvas{width:100%;height:100%;display:block}.piece.selected{border:5px solid var(--blue);transform:translateY(-4px);box-shadow:0 6px 0 var(--line)}.piece.foreign::after{content:"NOT YOUR PUZZLE";position:absolute;left:4px;right:4px;bottom:4px;background:var(--amber);color:var(--ink);border:1px solid var(--line);font-size:9px;font-weight:900;text-align:center;padding:4px}.piece.incoming::after{content:"YOUR MISSING PIECE";position:absolute;left:4px;right:4px;bottom:4px;background:var(--green);color:#fff;border:1px solid var(--line);font-size:9px;font-weight:900;text-align:center;padding:4px}.micro-actions{max-width:920px;margin:14px auto 0;display:flex;gap:8px;flex-wrap:wrap}.micro{border:2px solid var(--line);background:#fff;padding:10px 12px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-weight:900}
+
+.encounter-shell{max-width:920px;margin:auto}.encounter-intro{border:3px solid var(--line);padding:16px;background:#fff;margin-bottom:10px}.encounter-intro h2,.room-head h2{font-size:clamp(38px,9vw,76px);letter-spacing:-.06em;line-height:.9;font-weight:900}.encounter-intro p{margin-top:12px;color:var(--ink);line-height:1.4;font-size:17px;max-width:720px;font-weight:800}.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.contact-card{border:3px solid var(--line);background:#fff;padding:14px;min-height:260px}.contact-card h3{font-size:14px;letter-spacing:.05em;color:var(--blue);margin-bottom:12px;font-weight:900}#qr{background:#fff;width:220px;height:220px;padding:8px;margin:auto;border:3px solid var(--line);display:grid;place-items:center}#qr img,#qr canvas{max-width:100%;height:auto}.peer-id{font-size:12px;color:var(--ink);margin-top:10px;text-align:center;font-weight:900}.scan-frame{aspect-ratio:1;background:#111;border:3px solid var(--line);position:relative;overflow:hidden;display:grid;place-items:center}#scanVideo{width:100%;height:100%;object-fit:cover;display:none}.scan-corners{position:absolute;inset:12%;border:5px solid var(--amber);pointer-events:none}.scan-status{text-align:center;color:#fff;font-size:15px;line-height:1.4;padding:16px;font-weight:800}.manual-row{display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:8px}.manual-row input{height:46px;background:#fff;border:2px solid var(--line);color:var(--ink);padding:0 10px;min-width:0;border-radius:0;font-weight:800}.manual-row button{border:2px solid var(--line);background:var(--blue);color:#fff;padding:0 12px;cursor:pointer;font-weight:900}.encounter-panel{border:4px solid var(--blue);background:var(--soft-blue);margin-top:10px;padding:14px;display:none}.encounter-panel.active{display:block}.encounter-top{display:flex;justify-content:space-between;gap:10px;align-items:start}.encounter-name{font-size:36px;font-weight:900;letter-spacing:-.04em}.encounter-phase{font-size:11px;letter-spacing:.08em;color:var(--blue);font-weight:900}.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.compare-card{border:3px solid var(--line);background:#fff;padding:9px}.compare-card label{display:block;font-size:12px;letter-spacing:.05em;color:var(--ink);margin-bottom:7px;font-weight:900}.compare-card canvas{width:100%;display:block;background:#000;aspect-ratio:3/2}.say-line{border:3px solid var(--amber);padding:11px;margin-top:10px;font-size:15px;line-height:1.4;color:var(--ink);background:var(--soft-yellow);font-weight:800}.hold{width:100%;height:58px;margin-top:10px;border:3px solid var(--blue);background:#fff;color:var(--blue);cursor:pointer;position:relative;overflow:hidden;text-transform:uppercase;letter-spacing:.05em;font-size:14px;font-weight:900}.hold-fill{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--blue);opacity:.22;pointer-events:none}.hold.ready{color:#fff;background:var(--blue)}.demo-list{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-top:10px}.demo-peer{height:50px;border:2px solid var(--line);background:#fff;cursor:pointer;font-size:15px;font-weight:900}
+
+.room-head{max-width:1100px;margin:auto auto 12px;display:flex;justify-content:space-between;align-items:end;gap:14px}.room-head p{color:var(--ink);font-size:14px;line-height:1.35;text-align:right;font-weight:800}.room-grid{max-width:1100px;margin:auto;display:grid;grid-template-columns:repeat(6,1fr);gap:8px}.room-card{aspect-ratio:4/5;border:3px solid var(--line);background:#fff;position:relative;overflow:hidden;padding:0;text-align:left;color:var(--ink)}.room-card canvas{width:100%;height:58%;display:block;object-fit:cover;background:#050505}.room-card.unknown canvas{display:none}.room-card.unknown::before{content:"NOT MET";position:absolute;inset:0 0 42% 0;display:grid;place-items:center;color:var(--dim);font-size:12px;letter-spacing:.08em;font-weight:900;background:var(--panel2)}.room-copy{position:absolute;left:8px;right:8px;bottom:8px}.room-num{font-weight:900;font-size:28px;line-height:.9}.room-name{font-size:10px;color:var(--dim);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:800}.room-state{font-size:10px;color:var(--blue);margin-top:4px;font-weight:900}.room-card.complete{border-color:var(--green);background:var(--soft-green)}.room-card.me{outline:6px solid var(--amber);outline-offset:-6px}.room-card.me::after{content:"YOU";position:absolute;right:5px;top:5px;background:var(--amber);border:2px solid var(--line);padding:4px;font-size:10px;font-weight:900}.room-card.demo-click{cursor:pointer}.collective{max-width:1100px;margin:14px auto 0;border:4px solid var(--green);background:#fff;padding:12px;display:none}.collective.active{display:block}.collective h3{font-size:13px;letter-spacing:.06em;color:var(--green);margin-bottom:9px;font-weight:900}.collective-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}.collective-strip canvas{width:100%;display:block}
+.modal{position:fixed;inset:0;background:rgba(16,24,40,.78);z-index:100;display:none;place-items:center;padding:18px}.modal.active{display:grid}.modal-card{width:min(600px,100%);border:4px solid var(--line);background:#fff;padding:22px;box-shadow:var(--shadow)}.modal-kicker{font-size:12px;color:var(--blue);letter-spacing:.07em;font-weight:900}.modal-title{font-weight:900;font-size:clamp(36px,9vw,68px);letter-spacing:-.06em;line-height:.9;margin:10px 0}.modal-copy{color:var(--ink);font-size:17px;line-height:1.45;font-weight:800}.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}#toast{position:fixed;left:50%;top:80px;transform:translate(-50%,-12px);z-index:200;background:var(--ink);color:#fff;border:3px solid var(--amber);padding:12px 16px;font-size:14px;font-weight:900;opacity:0;pointer-events:none;transition:.2s;max-width:calc(100vw - 28px);text-align:center}#toast.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:720px){#app{grid-template-rows:62px 1fr 70px}.topbar{padding:0 9px}.brand{font-size:19px}.view{padding:10px 10px 24px}.contact-grid{grid-template-columns:1fr}.contact-card{min-height:auto}#qr{width:190px;height:190px}.room-grid{grid-template-columns:repeat(3,1fr)}.collective-strip{grid-template-columns:repeat(3,1fr)}.room-head{align-items:start}.room-head p{max-width:160px}.compare-grid{grid-template-columns:1fr 1fr}.demo-list{grid-template-columns:repeat(6,1fr)}.next-action{grid-template-columns:1fr}.next-button{width:100%}}
+@media(max-width:500px){.start-steps{grid-template-columns:1fr}.start-step{min-height:auto}.boot-actions{grid-template-columns:1fr}.seat-grid{grid-template-columns:repeat(6,1fr);gap:5px}.seat-btn{height:48px;font-size:15px}#tray{grid-template-columns:repeat(3,1fr)}.status-strip{grid-template-columns:1fr 1fr}.obligation{padding:10px;min-height:80px}.contact-card{padding:11px}.room-grid{gap:5px}.room-copy{left:5px;right:5px;bottom:5px}.room-num{font-size:21px}.orientation-top{align-items:flex-start}.you-room{max-width:120px}.step-chip{font-size:9px;padding:9px 2px}.tray-heading{align-items:start}.tray-help{max-width:150px}.compare-card label{font-size:10px}.identity{font-size:10px}.net{font-size:10px}}
+
+/* --- Room creation and teacher controls --- */
+.role-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:18px 0}.role-btn{min-height:64px;border:3px solid var(--line);background:#fff;font-size:17px;font-weight:900;text-transform:uppercase;cursor:pointer}.role-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.setup-panel{border-top:3px solid var(--line);padding-top:16px}.setup-title{font-size:clamp(28px,7vw,48px);font-weight:900;letter-spacing:-.05em;line-height:1;margin-bottom:8px}.setup-copy{font-size:15px;line-height:1.4;font-weight:700;color:var(--dim);margin-bottom:14px}.room-check{border:3px solid var(--line);background:var(--panel2);padding:12px;margin:10px 0;font-size:14px;font-weight:900}.room-check.found{border-color:var(--green);background:var(--soft-green);color:var(--green)}.room-check.bad{border-color:var(--red);background:#ffe4e1;color:var(--red)}
+.join-room-grid{display:grid;grid-template-columns:minmax(220px,.85fr) 1.15fr;gap:12px;align-items:start}.join-scan-card{border:3px solid var(--line);background:#fff;padding:12px}.join-scan-card h3{font-size:13px;letter-spacing:.05em;color:var(--blue);margin-bottom:9px;font-weight:900}.join-scan-frame{aspect-ratio:1;background:#111;border:3px solid var(--line);position:relative;overflow:hidden;display:grid;place-items:center}.join-scan-frame video{width:100%;height:100%;object-fit:cover;display:none}.join-scan-status{text-align:center;color:#fff;font-size:14px;line-height:1.35;padding:14px;font-weight:800}.join-scan-corners{position:absolute;inset:13%;border:5px solid var(--amber);pointer-events:none}
+#teacher{overflow:auto;background:var(--bg)}.teacher-topbar{position:sticky;top:0;z-index:10;border-bottom:3px solid var(--line);background:#fff;min-height:70px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}.teacher-brand{font-size:24px;font-weight:900;letter-spacing:-.04em}.teacher-room-name{text-align:right;font-weight:900;font-size:13px}.teacher-main{width:min(1180px,100%);margin:auto;padding:16px}.teacher-live-banner{border:4px solid var(--line);background:var(--soft-yellow);padding:16px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;margin-bottom:12px}.teacher-live-banner.live{background:var(--soft-green);border-color:var(--green)}.teacher-live-banner.error{background:#ffe4e1;border-color:var(--red)}.teacher-live-kicker{font-size:12px;font-weight:900;letter-spacing:.08em}.teacher-live-title{font-size:clamp(42px,9vw,86px);font-weight:900;letter-spacing:-.06em;line-height:.85;margin-top:8px}.teacher-live-copy{font-size:16px;line-height:1.35;font-weight:800;margin-top:12px;max-width:700px}.teacher-count{font-size:clamp(34px,7vw,64px);font-weight:900;text-align:center}.teacher-count small{display:block;font-size:12px;letter-spacing:.06em}.teacher-panels{display:grid;grid-template-columns:minmax(280px,.8fr) 1.2fr;gap:12px}.teacher-card{border:3px solid var(--line);background:#fff;padding:14px}.teacher-card h2{font-size:18px;font-weight:900;letter-spacing:.03em;margin-bottom:10px}.teacher-qr{width:min(300px,100%);aspect-ratio:1;background:#fff;border:3px solid var(--line);display:grid;place-items:center;margin:auto;padding:8px}.teacher-qr img,.teacher-qr canvas{max-width:100%;height:auto}.teacher-code{font-size:clamp(30px,7vw,58px);font-weight:900;text-align:center;letter-spacing:.04em;margin:12px 0 4px}.teacher-instruction{text-align:center;font-size:14px;font-weight:800;line-height:1.35;color:var(--dim)}.teacher-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}.teacher-controls .action{min-height:66px}.teacher-seat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}.teacher-seat{min-height:90px;border:3px solid var(--line);background:var(--panel2);padding:8px;text-align:left}.teacher-seat.connected{background:var(--soft-blue);border-color:var(--blue)}.teacher-seat.complete{background:var(--soft-green);border-color:var(--green)}.teacher-seat .num{font-size:27px;font-weight:900}.teacher-seat .state{font-size:10px;font-weight:900;color:var(--dim);margin-top:6px}.teacher-log{margin-top:12px;border:3px solid var(--line);background:#fff;padding:12px;max-height:170px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.5}.teacher-log-line{border-bottom:1px solid #d0d5dd;padding:4px 0}.teacher-log-line:last-child{border-bottom:0}
+.room-gate{position:fixed;inset:68px 0 0;z-index:80;background:rgba(244,248,255,.97);display:none;place-items:center;padding:18px}.room-gate.active{display:grid}.room-gate-card{width:min(660px,100%);border:4px solid var(--line);background:#fff;padding:22px;text-align:center;box-shadow:var(--shadow)}.room-gate-status{display:inline-block;background:var(--amber);border:2px solid var(--line);padding:7px 10px;font-size:12px;font-weight:900;letter-spacing:.07em}.room-gate-title{font-size:clamp(38px,9vw,72px);font-weight:900;letter-spacing:-.06em;line-height:.9;margin:14px 0}.room-gate-copy{font-size:17px;line-height:1.4;font-weight:800}.room-gate-card.error{border-color:var(--red)}.room-gate-card.live{border-color:var(--green)}
+@media(max-width:780px){.join-room-grid,.teacher-panels{grid-template-columns:1fr}.teacher-live-banner{grid-template-columns:1fr}.teacher-count{text-align:left}.teacher-seat-grid{grid-template-columns:repeat(3,1fr)}.teacher-controls{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.role-switch{grid-template-columns:1fr}.teacher-main{padding:10px}.teacher-controls{grid-template-columns:1fr}.teacher-seat-grid{grid-template-columns:repeat(3,1fr)}.teacher-seat{min-height:78px}.room-gate{inset:62px 0 0}}
+
+</style>
+</head>
+<body>
+<div id="boot" class="screen">
+  <div class="boot-shell">
+    <div class="kicker">18 CARDS • ONE PIECE IN THE WRONG HAND</div>
+    <h1>PARALLAX</h1>
+    <div class="boot-copy">Choose one role. <strong>The teacher creates the room.</strong> Students scan the teacher’s room QR, choose a card, and join.</div>
+    <div class="role-switch">
+      <button id="studentRole" class="role-btn active">I am a student</button>
+      <button id="teacherRole" class="role-btn">I am the teacher</button>
+    </div>
+
+    <section id="studentSetup" class="setup-panel">
+      <div class="setup-title">JOIN A ROOM</div>
+      <div class="setup-copy">Scan the large QR on the teacher screen. A green message confirms that this device has the room address.</div>
+      <div class="join-room-grid">
+        <div class="join-scan-card">
+          <h3>1. SCAN THE TEACHER’S ROOM QR</h3>
+          <div class="join-scan-frame">
+            <video id="joinScanVideo" playsinline muted></video>
+            <div class="join-scan-corners"></div>
+            <div id="joinScanStatus" class="join-scan-status">Camera is off.<br>Press SCAN ROOM QR.</div>
+          </div>
+          <button id="joinScanBtn" class="action cyan" style="width:100%;margin-top:8px">Scan room QR</button>
+        </div>
+        <div>
+          <label class="field-label" for="studentRoomCode">Or type the room code</label>
+          <input id="studentRoomCode" class="field" maxlength="12" value="TINY-EARTH" autocomplete="off">
+          <div id="studentRoomCheck" class="room-check">ROOM NOT CHECKED — scan the QR or press START to check this code.</div>
+          <div class="field-label">2. Tap your printed card number</div>
+          <div id="seatGrid" class="seat-grid"></div>
+          <div class="boot-actions">
+            <button id="joinBtn" class="action primary" disabled>3. Check room and join</button>
+            <button id="demoBtn" class="action cyan" disabled>Practice on one device</button>
+          </div>
+        </div>
+      </div>
+      <div class="boot-note">QR scanning requires camera permission and usually HTTPS. Typing the room code still works. After joining, the MEET screen has a second scanner for person-to-person piece trades.</div>
+    </section>
+
+    <section id="teacherSetup" class="setup-panel hidden">
+      <div class="setup-title">CREATE THE ROOM</div>
+      <div class="setup-copy">Use one teacher device. Keep its screen open. The room exists only after the next screen turns green and says ROOM LIVE.</div>
+      <label class="field-label" for="teacherRoomCode">Room code</label>
+      <input id="teacherRoomCode" class="field" maxlength="12" value="TINY-EARTH" autocomplete="off">
+      <div class="boot-actions">
+        <button id="createRoomBtn" class="action primary">Create room</button>
+        <button id="randomRoomBtn" class="action cyan">Make a new code</button>
+      </div>
+      <div class="boot-note">If another teacher already owns this room code, the room will not open. Choose a new code. Students cannot begin until you press START ROOM.</div>
+    </section>
+  </div>
+</div>
+
+<div id="teacher" class="screen hidden">
+  <header class="teacher-topbar">
+    <div class="teacher-brand">PARALLAX • TEACHER</div>
+    <div id="teacherRoomName" class="teacher-room-name">ROOM</div>
+  </header>
+  <main class="teacher-main">
+    <section id="teacherLiveBanner" class="teacher-live-banner">
+      <div>
+        <div class="teacher-live-kicker">ROOM STATUS</div>
+        <div id="teacherLiveTitle" class="teacher-live-title">CREATING ROOM…</div>
+        <div id="teacherLiveCopy" class="teacher-live-copy">Keep this screen open while Peer.js registers the room.</div>
+      </div>
+      <div id="teacherCount" class="teacher-count">0<small>OF 18 CONNECTED</small></div>
+    </section>
+    <div class="teacher-panels">
+      <section class="teacher-card">
+        <h2>STUDENTS SCAN THIS</h2>
+        <div id="teacherQR" class="teacher-qr">Preparing QR…</div>
+        <div id="teacherCode" class="teacher-code">—</div>
+        <div class="teacher-instruction">Students open this same HTML file, choose STUDENT, and scan this QR.</div>
+        <button id="teacherCopyInvite" class="action cyan" style="width:100%;margin-top:10px" disabled>Copy room invite</button>
+      </section>
+      <section class="teacher-card">
+        <h2>TEACHER CONTROLS</h2>
+        <div class="teacher-controls">
+          <button id="teacherPlayBtn" class="action primary" disabled>Start room</button>
+          <button id="teacherLockBtn" class="action warn" disabled>Lock joining</button>
+          <button id="teacherRevealBtn" class="action cyan" disabled>Reveal final wall</button>
+          <button id="teacherResetBtn" class="action" disabled>Reset all cards</button>
+          <button id="teacherEndBtn" class="action" style="grid-column:1/-1">End room and return</button>
+        </div>
+        <div class="boot-note">START releases the puzzle on every connected card. PAUSE covers every student screen without deleting progress. LOCK blocks new students but keeps current students connected.</div>
+      </section>
+    </div>
+    <section class="teacher-card" style="margin-top:12px">
+      <h2 id="teacherRosterTitle">CONNECTED CARDS • 0 / 18</h2>
+      <div id="teacherSeatGrid" class="teacher-seat-grid"></div>
+    </section>
+    <div id="teacherLog" class="teacher-log"></div>
+  </main>
+</div>
+
+<div id="app" class="screen hidden">
+  <header class="topbar">
+    <div class="brand">PARALLAX</div>
+    <div id="identity" class="identity"></div>
+    <div class="net"><span id="netDot" class="net-dot"></span><span id="netText">LOCAL</span></div>
+  </header>
+  <div id="roomGate" class="room-gate active">
+    <div id="roomGateCard" class="room-gate-card">
+      <div id="roomGateStatus" class="room-gate-status">CHECKING ROOM</div>
+      <div id="roomGateTitle" class="room-gate-title">FINDING THE TEACHER…</div>
+      <div id="roomGateCopy" class="room-gate-copy">Keep this screen open. The puzzle starts after this device reaches the teacher room and the teacher presses START ROOM.</div>
+      <button id="roomGateBack" class="action" style="margin-top:18px">Return to join screen</button>
+    </div>
+  </div>
+  <main class="main">
+    <section id="puzzleView" class="view active">
+      <div class="orientation">
+        <div class="orientation-top">
+          <div id="youAre" class="you-are">YOU ARE CARD 00</div>
+          <div id="youRoom" class="you-room">ROOM</div>
+        </div>
+        <div class="step-track">
+          <div class="step-chip" data-step="1">1 • BUILD</div>
+          <div class="step-chip" data-step="2">2 • FIND</div>
+          <div class="step-chip" data-step="3">3 • TRADE</div>
+          <div class="step-chip" data-step="4">4 • HELP</div>
+        </div>
+      </div>
+      <div class="next-action">
+        <div><div class="next-kicker">DO THIS NOW</div><div id="nextText" class="next-text">Tap a loose piece. Then tap its matching space.</div></div>
+        <button id="nextButton" class="next-button">USE PUZZLE</button>
+      </div>
+      <div class="status-strip">
+        <div id="needBox" class="obligation"><div class="label">YOUR PUZZLE NEEDS</div><div class="value">One piece held by another person</div></div>
+        <div id="carryBox" class="obligation"><div class="label">YOUR HAND HOLDS</div><div class="value">One piece for another puzzle</div></div>
+      </div>
+      <div class="scene-head">
+        <div id="sceneTitle" class="scene-title">SCENE</div>
+        <div id="sceneIndex" class="scene-index"></div>
+      </div>
+      <div class="board-wrap"><div id="boardBadge" class="board-badge">YOUR PUZZLE • 18 / 24 PLACED</div><canvas id="board" width="1200" height="800"></canvas></div>
+      <div id="boardInstruction" class="board-instruction">Tap one piece below. Then tap the empty square where its lines continue.</div>
+      <div class="tray-heading"><div class="tray-label">PIECES IN YOUR HAND</div><div class="tray-help">Tap one piece. A blue border marks your selection.</div></div>
+      <div id="tray"></div>
+      <div class="micro-actions">
+        <button id="resetPuzzle" class="micro">Reset local assembly</button>
+        <button id="soundToggle" class="micro">Sound on</button>
+        <button id="copyContact" class="micro">Copy contact code</button>
+      </div>
+    </section>
+
+    <section id="encounterView" class="view">
+      <div class="encounter-shell">
+        <div class="encounter-intro">
+          <h2>MEET ONE PERSON.</h2>
+          <p>Stand beside one person. Show the piece in your hand. Compare its colors, lines, and edges with their empty space. Scan only when the piece could fit.</p>
+        </div>
+        <div id="liveContact" class="contact-grid">
+          <div class="contact-card">
+            <h3>THE OTHER PERSON SCANS YOUR CODE</h3>
+            <div id="qr"></div>
+            <div id="peerId" class="peer-id">Preparing contact code…</div>
+          </div>
+          <div class="contact-card">
+            <h3>SCAN THE OTHER PERSON’S CODE</h3>
+            <div class="scan-frame">
+              <video id="scanVideo" playsinline muted></video>
+              <div class="scan-corners"></div>
+              <div id="scanStatus" class="scan-status">Camera is off.<br>Stand together, then press START CAMERA.</div>
+            </div>
+            <button id="scanBtn" class="action cyan" style="width:100%;margin-top:8px">Start camera</button>
+            <div class="manual-row"><input id="manualCode" placeholder="PASTE THEIR COPIED CODE"><button id="manualConnect">OPEN</button></div>
+          </div>
+        </div>
+        <div id="demoContact" class="contact-card hidden">
+          <h3>PRACTICE ROOM — TAP ONE CARD TO COMPARE</h3>
+          <div id="demoPeers" class="demo-list"></div>
+        </div>
+        <div id="encounterPanel" class="encounter-panel">
+          <div class="encounter-top">
+            <div><div class="encounter-phase">YOU ARE STANDING WITH</div><div id="encounterName" class="encounter-name"></div></div>
+            <button id="closeEncounter" class="micro">Close</button>
+          </div>
+          <div class="compare-grid">
+            <div class="compare-card"><label>PIECE IN YOUR HAND</label><canvas id="carryCompare" width="480" height="320"></canvas></div>
+            <div class="compare-card"><label>THEIR EMPTY SPACE</label><canvas id="gapCompare" width="480" height="320"></canvas></div>
+          </div>
+          <div class="say-line">Say what is visible: “This piece has ___. Your empty space has ___.” Then test the trade.</div>
+          <button id="proposeBtn" class="hold"><span class="hold-fill"></span><span class="hold-label">Hold to offer this piece</span></button>
+          <button id="demoAskBtn" class="action warn hidden" style="width:100%;margin-top:8px">Ask them to offer your missing piece</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="roomView" class="view">
+      <div class="room-head">
+        <h2>ROOM MAP</h2>
+        <p>Your card has a yellow border.<br>Cards appear after you meet them.</p>
+      </div>
+      <div id="roomGrid" class="room-grid"></div>
+      <div id="collective" class="collective">
+        <h3>ALL 18 FINISHED CARDS</h3>
+        <div id="collectiveStrip" class="collective-strip"></div>
+      </div>
+      <div class="micro-actions" style="max-width:1100px">
+        <button id="revealDemo" class="micro hidden">Rehearsal: reveal collective sequence</button>
+      </div>
+    </section>
+  </main>
+  <nav class="bottomnav">
+    <button class="navbtn active" data-view="puzzleView">1 • Build</button>
+    <button id="encounterNav" class="navbtn" data-view="encounterView">2 • Meet</button>
+    <button class="navbtn" data-view="roomView">3 • Room</button>
+  </nav>
+</div>
+
+<div id="tradeModal" class="modal">
+  <div class="modal-card">
+    <div class="modal-kicker">CHECK THE FIT</div>
+    <div id="tradeTitle" class="modal-title">A PIECE IS OFFERED.</div>
+    <div id="tradeCopy" class="modal-copy"></div>
+    <div class="modal-actions">
+      <button id="rejectTrade" class="action">Does not fit</button>
+      <button id="acceptTrade" class="action cyan">Hold to take piece</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+(() => {
+'use strict';
+const CFG={seats:18,cols:6,rows:4,holdMs:900,savePrefix:'parallax-v2'};
+const SCENES=[
+ ['PALE POINT','find the cyan dot inside black space'],['ORBIT','trace the rings around the blue sphere'],['HALF-LIGHT','match the bright half to the dark half'],
+ ['ATMOSPHERE','continue the curved bands above the planet'],['STORM','follow the white spiral into its center'],['CURRENT','continue the horizontal wave lines'],
+ ['COAST','join the green coast to the blue water'],['CITY','connect lights, boxes, and thin lines'],['CROWD','match heads and bodies across the crowd'],
+ ['FIGURE','join the head, torso, arms, and legs'],['FACE','continue the eyes, nose, and mouth'],['EYE','match the eyelid, iris, and black center'],
+ ['IRIS','follow the colored lines around the pupil'],['CELL','join the green cell wall and purple center'],['MOLECULE','connect the dots with the nearest lines'],
+ ['GALAXY','follow the white spiral through the stars'],['COSMIC WEB','continue the thin links between star points'],['MOSAIC','match each colored tile to the grid']
+];
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const safeCode=s=>(s||'').toUpperCase().replace(/[^A-Z0-9-]/g,'').slice(0,12);
+const hashString=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)};
+const rng=seed=>{let s=seed>>>0;return()=>((s=Math.imul(1664525,s)+1013904223>>>0)/4294967296)};
+const eventSeed=()=>parseInt(hashString(state.event||'PARALLAX'),36)>>>0;
+const cycleOrder=()=>{const a=Array.from({length:18},(_,i)=>i+1),r=rng(eventSeed()^0x9e3779b9);for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const missingIndexFor=seat=>(seat*7+3+(eventSeed()%24))%24;
+const carryOwnerFor=seat=>{const a=cycleOrder(),i=a.indexOf(Number(seat)),g=Math.floor(i/6)*6;return a[g+((i-g+1)%6)]};
+const holderOf=owner=>{const a=cycleOrder(),i=a.indexOf(Number(owner)),g=Math.floor(i/6)*6;return a[g+((i-g+5)%6)]};
+const looseIndexesFor=seat=>{const miss=missingIndexFor(seat),out=[];let x=(seat*11+5+(eventSeed()%17))%24;while(out.length<5){if(x!==miss&&!out.includes(x))out.push(x);x=(x+7)%24}return out};
+const storeKey=()=>`${CFG.savePrefix}:${state.event}:${state.seat}`;
+const now=()=>Date.now();
+const memoryStore={};
+function storageGet(k){try{return window.localStorage.getItem(k)}catch(e){return Object.prototype.hasOwnProperty.call(memoryStore,k)?memoryStore[k]:null}}
+function storageSet(k,v){try{window.localStorage.setItem(k,v)}catch(e){memoryStore[k]=String(v)}}
+function storageRemove(k){try{window.localStorage.removeItem(k)}catch(e){delete memoryStore[k]}}
+let state={event:'',seat:0,mode:'live',peerId:'',hostPeerId:'',teacherState:null,teacherConnected:false,placed:[],foreignDelivered:false,receivedOwn:false,missingPlaced:false,encountered:[],roster:{},sound:true,selected:null,phase:'ASSEMBLING'};
+let scenes=[], peer=null, connections=new Map(), teacherConn=null, teacherConnectTimer=0, activeEncounter=null, pendingTrade=null, scanStream=null, scanRAF=0, joinScanStream=null, joinScanRAF=0, toastTimer=0;
+let teacherPeer=null,teacherConnections=new Map(),teacherRoom={event:'',hostId:'',live:false,error:'',locked:false,running:false,paused:false,reveal:false,seats:{},logs:[]};
+
+function makeScene(seat){
+ const c=document.createElement('canvas');c.width=1200;c.height=800;const x=c.getContext('2d');drawScene(x,seat,1200,800);return c;
+}
+function stars(x,r,w,h,count=100){x.fillStyle='#d8f8ff';for(let i=0;i<count;i++){const px=r()*w,py=r()*h,s=r()<.9?1:2;x.globalAlpha=.18+r()*.72;x.fillRect(px,py,s,s)}x.globalAlpha=1}
+function circle(x,cx,cy,rad,fill,stroke=null,lw=2){x.beginPath();x.arc(cx,cy,rad,0,Math.PI*2);if(fill){x.fillStyle=fill;x.fill()}if(stroke){x.strokeStyle=stroke;x.lineWidth=lw;x.stroke()}}
+function line(x,a,b,c,d,color='#fff',lw=2){x.beginPath();x.moveTo(a,b);x.lineTo(c,d);x.strokeStyle=color;x.lineWidth=lw;x.stroke()}
+function spiral(x,cx,cy,maxR,turns,color,lw=5){x.beginPath();for(let i=0;i<240;i++){const t=i/239*Math.PI*2*turns,r=maxR*i/239;x.lineTo(cx+Math.cos(t)*r,cy+Math.sin(t)*r)}x.strokeStyle=color;x.lineWidth=lw;x.stroke()}
+function drawScene(x,seat,w,h){
+ const r=rng(9000+seat*431);x.fillStyle='#020304';x.fillRect(0,0,w,h);stars(x,r,w,h,70+seat*3);
+ const cyan='#00e5ff',white='#f4f2e8',blue='#1557a7',green='#45d483',amber='#ffcc33',red='#ff5a5f';
+ x.lineCap='round';x.lineJoin='round';
+ switch(seat){
+  case 1: circle(x,w*.52,h*.48,10,cyan);line(x,80,h*.51,w-80,h*.51,'#263238',2);circle(x,w*.52,h*.48,80,null,'#15232b',2);circle(x,w*.52,h*.48,180,null,'#111c22',2);break;
+  case 2: circle(x,w*.5,h*.5,215,blue);circle(x,w*.43,h*.43,42,green);circle(x,w*.58,h*.58,55,green);for(let i=0;i<5;i++)circle(x,w*.5,h*.5,280+i*42,null,i===2?cyan:'#17252d',2);break;
+  case 3: circle(x,w*.5,h*.5,260,blue);x.save();x.beginPath();x.rect(w*.5,0,w*.5,h);x.clip();circle(x,w*.5,h*.5,260,'#020304');x.restore();line(x,w*.5,h*.24,w*.5,h*.76,cyan,4);break;
+  case 4: for(let i=0;i<7;i++){x.beginPath();x.arc(w*.5,h*.56,190+i*18,Math.PI*1.07,Math.PI*1.93);x.strokeStyle=i%2?cyan:'#244958';x.lineWidth=5-i*.4;x.stroke()}circle(x,w*.5,h*.56,190,blue);break;
+  case 5: circle(x,w*.5,h*.5,260,'#08233b');spiral(x,w*.52,h*.48,220,3.1,white,13);spiral(x,w*.52,h*.48,180,3.1,cyan,5);circle(x,w*.52,h*.48,22,'#020304');break;
+  case 6: x.fillStyle='#08233b';x.fillRect(0,0,w,h);for(let i=0;i<10;i++){x.beginPath();for(let j=0;j<=40;j++){const px=j/40*w,py=h*(.12+i*.085)+Math.sin(j*.32+i)*24;x.lineTo(px,py)}x.strokeStyle=i%3===0?cyan:'#d7f4ff';x.globalAlpha=.35+i*.04;x.lineWidth=3+i%2*3;x.stroke()}x.globalAlpha=1;break;
+  case 7: x.fillStyle='#09324a';x.fillRect(0,0,w,h);x.beginPath();x.moveTo(0,h*.17);for(let i=0;i<=20;i++){x.lineTo(i/20*w,h*(.35+.12*Math.sin(i*.8)+.08*Math.sin(i*1.9)))}x.lineTo(w,h);x.lineTo(0,h);x.closePath();x.fillStyle='#27492f';x.fill();x.strokeStyle=white;x.lineWidth=7;x.stroke();break;
+  case 8: for(let i=0;i<42;i++){const px=r()*w,py=r()*h;circle(x,px,py,4+r()*8,i%5?white:cyan);if(i){const qx=r()*w,qy=r()*h;line(x,px,py,qx,qy,'#17313a',1)}}for(let i=0;i<9;i++){x.strokeStyle=i%2?amber:cyan;x.lineWidth=2;x.strokeRect(100+i*100,100+(i%3)*170,80,100)}break;
+  case 9: for(let i=0;i<90;i++){const px=60+(i%15)*78+(i%2)*9,py=70+Math.floor(i/15)*116;circle(x,px,py,19,i%11===0?cyan:'#ddd9cf');x.fillStyle=i%7===0?amber:'#343434';x.fillRect(px-25,py+20,50,60)}break;
+  case 10: circle(x,w*.5,h*.25,70,white);x.fillStyle='#202629';x.fillRect(w*.41,h*.34,w*.18,h*.39);line(x,w*.41,h*.4,w*.28,h*.66,cyan,12);line(x,w*.59,h*.4,w*.72,h*.66,cyan,12);break;
+  case 11: x.fillStyle='#d8c2a8';x.fillRect(w*.24,h*.08,w*.52,h*.84);circle(x,w*.4,h*.41,28,'#020304');circle(x,w*.6,h*.41,28,'#020304');line(x,w*.5,h*.45,w*.47,h*.62,'#5c4033',8);x.beginPath();x.arc(w*.5,h*.66,90,.18*Math.PI,.82*Math.PI);x.strokeStyle=red;x.lineWidth=8;x.stroke();break;
+  case 12: x.fillStyle='#e6e0d2';x.beginPath();x.ellipse(w*.5,h*.5,410,190,0,0,Math.PI*2);x.fill();circle(x,w*.5,h*.5,165,'#0d6f87');circle(x,w*.5,h*.5,72,'#020304');circle(x,w*.45,h*.44,22,white);line(x,100,h*.5,w-100,h*.5,'#6d6d67',3);break;
+  case 13: circle(x,w*.5,h*.5,280,'#0b3440');for(let i=0;i<46;i++){const a=i/46*Math.PI*2;line(x,w*.5+Math.cos(a)*70,h*.5+Math.sin(a)*70,w*.5+Math.cos(a+.5)*270,h*.5+Math.sin(a+.5)*270,i%4===0?amber:cyan,3)}circle(x,w*.5,h*.5,78,'#020304');break;
+  case 14: circle(x,w*.5,h*.5,260,'#18382f',cyan,6);circle(x,w*.5,h*.5,95,'#5e2f73',white,3);for(let i=0;i<24;i++){circle(x,220+r()*760,120+r()*560,8+r()*22,i%3?green:amber)}break;
+  case 15: for(let i=0;i<22;i++){const ax=100+r()*1000,ay=80+r()*640;circle(x,ax,ay,12+r()*14,i%3?cyan:amber);for(let j=0;j<2;j++){const bx=100+r()*1000,by=80+r()*640;line(x,ax,ay,bx,by,'#35505b',2)}}break;
+  case 16: spiral(x,w*.5,h*.5,330,4.2,white,18);spiral(x,w*.5,h*.5,310,4.2,cyan,5);for(let i=0;i<60;i++)circle(x,w*.5+(r()-.5)*650,h*.5+(r()-.5)*650,2+r()*4,i%6?white:amber);break;
+  case 17: for(let i=0;i<75;i++){const ax=r()*w,ay=r()*h;circle(x,ax,ay,2+r()*5,i%9?white:cyan);for(let j=0;j<2;j++){const bx=clamp(ax+(r()-.5)*260,0,w),by=clamp(ay+(r()-.5)*260,0,h);line(x,ax,ay,bx,by,'#24404b',1)}}break;
+  case 18: for(let rr=0;rr<4;rr++)for(let cc=0;cc<6;cc++){const idx=rr*6+cc;const col=[cyan,white,amber,green,blue,red][(idx+rr)%6];x.fillStyle=col;x.globalAlpha=.12+.09*((idx%4)+1);x.fillRect(cc*w/6+4,rr*h/4+4,w/6-8,h/4-8)}x.globalAlpha=1;circle(x,w*.5,h*.5,90,null,white,5);circle(x,w*.5,h*.5,13,cyan);break;
+ }
+ x.fillStyle='rgba(0,0,0,.5)';x.fillRect(0,h-34,w,34);x.fillStyle='#f4f2e8';x.font='18px Courier New';x.fillText(String(seat).padStart(2,'0')+' / '+SCENES[seat-1][0],18,h-11);
+}
+function initScenes(){scenes=Array.from({length:CFG.seats},(_,i)=>makeScene(i+1))}
+
+function defaultProgress(seat){
+ const loose=looseIndexesFor(seat),miss=missingIndexFor(seat);return Array.from({length:24},(_,i)=>i).filter(i=>i!==miss&&!loose.includes(i));
+}
+function loadProgress(){
+ const raw=storageGet(storeKey());if(!raw)return;
+ try{const p=JSON.parse(raw);state.placed=Array.isArray(p.placed)?p.placed:state.placed;state.foreignDelivered=!!p.foreignDelivered;state.receivedOwn=!!p.receivedOwn;state.missingPlaced=!!p.missingPlaced;state.encountered=Array.isArray(p.encountered)?p.encountered:[];state.sound=p.sound!==false}catch(e){}
+}
+function saveProgress(){
+ storageSet(storeKey(),JSON.stringify({placed:state.placed,foreignDelivered:state.foreignDelivered,receivedOwn:state.receivedOwn,missingPlaced:state.missingPlaced,encountered:state.encountered,sound:state.sound}));
+}
+function ownComplete(){return state.placed.length===24}
+function localAssemblyDone(){return looseIndexesFor(state.seat).every(i=>state.placed.includes(i))}
+function updatePhase(){
+ if(ownComplete()&&state.foreignDelivered)state.phase='GUIDE';
+ else if(ownComplete())state.phase='DELIVERING';
+ else if(localAssemblyDone())state.phase=state.receivedOwn?'RESTORING':'SEEKING';
+ else state.phase='ASSEMBLING';
+}
+function publicState(){return{seat:state.seat,phase:state.phase,complete:ownComplete(),delivered:state.foreignDelivered,title:SCENES[state.seat-1][0],updated:now()}}
+function updateRosterLocal(){state.roster[state.seat]=publicState()}
+function mergeRoster(incoming){if(!incoming)return;for(const [k,v] of Object.entries(incoming)){const old=state.roster[k];if(!old||Number(v.updated)>Number(old.updated))state.roster[k]=v}}
+function broadcastState(){updatePhase();updateRosterLocal();const msg={type:'state',profile:publicState(),roster:state.roster};connections.forEach(c=>{if(c.open)try{c.send(msg)}catch(e){}});if(teacherConn&&teacherConn.open)try{teacherConn.send({type:'student-state',profile:publicState()})}catch(e){}renderAll()}
+
+
+function roomHostId(event){return `px-room-${hashString(safeCode(event)||'PARALLAX')}`}
+function roomInviteText(event,host){
+ if(location.protocol==='http:'||location.protocol==='https:'){try{const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set('room',event);u.searchParams.set('host',host);return u.toString()}catch(e){}}return JSON.stringify({v:1,type:'room',event,host})
+}
+function parseRoomInvite(raw){
+ if(!raw)return null;
+ try{const u=new URL(raw,location.href),event=safeCode(u.searchParams.get('room')),host=u.searchParams.get('host');if(event&&host)return{event,host}}catch(e){}
+ try{const d=JSON.parse(raw);if(d&&d.type==='room'&&d.event&&d.host)return{event:safeCode(d.event),host:d.host}}catch(e){}
+ return null;
+}
+function showRole(role){
+ const student=role==='student';$('#studentSetup').classList.toggle('hidden',!student);$('#teacherSetup').classList.toggle('hidden',student);$('#studentRole').classList.toggle('active',student);$('#teacherRole').classList.toggle('active',!student);stopJoinScan();
+}
+function setStudentRoomCheck(text,kind=''){$('#studentRoomCheck').textContent=text;$('#studentRoomCheck').className='room-check'+(kind?' '+kind:'')}
+function applyRoomInvite(d){
+ if(!d||!d.event||!d.host)return false;$('#studentRoomCode').value=safeCode(d.event);state.hostPeerId=d.host;setStudentRoomCheck(`ROOM ADDRESS LOADED • ${safeCode(d.event)} — choose your card and press JOIN.`,'found');stopJoinScan();return true;
+}
+async function startJoinScan(){
+ if(joinScanStream){stopJoinScan();return}if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){setStudentRoomCheck('CAMERA UNAVAILABLE — type the room code.','bad');return}
+ try{joinScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});const v=$('#joinScanVideo');v.srcObject=joinScanStream;v.style.display='block';await v.play();$('#joinScanStatus').style.display='none';$('#joinScanBtn').textContent='Stop camera';joinScanLoop()}catch(e){setStudentRoomCheck('CAMERA PERMISSION FAILED — type the room code.','bad')}
+}
+function stopJoinScan(){if(joinScanStream)joinScanStream.getTracks().forEach(t=>t.stop());joinScanStream=null;cancelAnimationFrame(joinScanRAF);const v=$('#joinScanVideo');if(v)v.style.display='none';if($('#joinScanStatus'))$('#joinScanStatus').style.display='block';if($('#joinScanBtn'))$('#joinScanBtn').textContent='Scan room QR'}
+function joinScanLoop(){
+ if(!joinScanStream)return;const v=$('#joinScanVideo');if(v.readyState>=2&&typeof jsQR!=='undefined'){const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(v,0,0);const data=x.getImageData(0,0,c.width,c.height),code=jsQR(data.data,c.width,c.height,{inversionAttempts:'attemptBoth'});if(code){const d=parseRoomInvite(code.data);if(d&&applyRoomInvite(d)){vibe(30);return}}}joinScanRAF=requestAnimationFrame(joinScanLoop)
+}
+function teacherLog(msg){const stamp=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});teacherRoom.logs.unshift(`${stamp}  ${msg}`);teacherRoom.logs=teacherRoom.logs.slice(0,40);renderTeacher()}
+function createTeacherRoom(){
+ const event=safeCode($('#teacherRoomCode').value);if(!event)return;stopJoinScan();teacherRoom={event,hostId:roomHostId(event),live:false,error:'',locked:false,running:false,paused:false,reveal:false,seats:{},logs:[]};$('#boot').classList.add('hidden');$('#teacher').classList.remove('hidden');renderTeacher();
+ if(typeof Peer==='undefined'){teacherRoom.error='PEER.JS DID NOT LOAD';teacherLog('Room failed: Peer.js library unavailable.');return}
+ try{teacherPeer=new Peer(teacherRoom.hostId);teacherLog(`Creating room ${event}…`);
+  teacherPeer.on('open',id=>{teacherRoom.live=true;teacherRoom.hostId=id;teacherLog('ROOM LIVE. Students may scan the QR.');renderTeacher()});
+  teacherPeer.on('connection',bindTeacherConnection);
+  teacherPeer.on('error',err=>{teacherRoom.live=false;teacherRoom.error=err&&err.type==='unavailable-id'?'ROOM CODE ALREADY IN USE':((err&&err.type)||'NETWORK ERROR').toUpperCase();teacherLog(`Room failed: ${teacherRoom.error}.`);renderTeacher()});
+  teacherPeer.on('disconnected',()=>{teacherRoom.live=false;teacherRoom.error='SIGNAL LOST';teacherLog('Teacher signaling disconnected.');renderTeacher()});
+ }catch(e){teacherRoom.error='ROOM CREATION FAILED';teacherLog('Room creation threw an error.');renderTeacher()}
+}
+function teacherStatePayload(){return{type:'teacher-state',event:teacherRoom.event,locked:teacherRoom.locked,running:teacherRoom.running,paused:teacherRoom.paused,reveal:teacherRoom.reveal,roster:teacherRoom.seats,updated:now()}}
+function bindTeacherConnection(conn){
+ teacherConnections.set(conn.peer,conn);conn.on('open',()=>teacherLog('A device reached the room host.'));
+ conn.on('data',d=>{
+  if(!d||typeof d!=='object')return;
+  if(d.type==='student-register'){
+   if(safeCode(d.event)!==teacherRoom.event){conn.send({type:'join-rejected',reason:'Different room code.'});conn.close();return}
+   const seat=Number(d.profile&&d.profile.seat);if(!seat||seat<1||seat>18){conn.send({type:'join-rejected',reason:'Invalid card number.'});return}
+   if(teacherRoom.locked&&!teacherRoom.seats[seat]){conn.send({type:'join-rejected',reason:'The teacher locked new joins.'});return}
+   const occupied=teacherRoom.seats[seat];if(occupied&&occupied.connected&&occupied.peerId!==conn.peer){conn.send({type:'join-rejected',reason:`Card ${String(seat).padStart(2,'0')} is already connected on another device.`});return}
+   teacherRoom.seats[seat]={...d.profile,peerId:conn.peer,connected:true,updated:now()};conn.__seat=seat;conn.send(teacherStatePayload());teacherBroadcast();teacherLog(`Card ${String(seat).padStart(2,'0')} joined.`)
+  }else if(d.type==='student-state'){
+   const seat=Number(d.profile&&d.profile.seat);if(seat){teacherRoom.seats[seat]={...(teacherRoom.seats[seat]||{}),...d.profile,peerId:conn.peer,connected:true,updated:now()};conn.__seat=seat;teacherBroadcast(false);renderTeacher()}
+  }
+ });
+ conn.on('close',()=>{teacherConnections.delete(conn.peer);if(conn.__seat&&teacherRoom.seats[conn.__seat])teacherRoom.seats[conn.__seat].connected=false;teacherLog(`Card ${String(conn.__seat||0).padStart(2,'0')} disconnected.`)});
+ conn.on('error',()=>teacherLog('A student connection reported an error.'));
+}
+function teacherBroadcast(log=false){const msg=teacherStatePayload();teacherConnections.forEach(c=>{if(c.open)try{c.send(msg)}catch(e){}});if(log)teacherLog('Room state sent to students.');renderTeacher()}
+function renderTeacher(){
+ if($('#teacherRoomName'))$('#teacherRoomName').textContent=`ROOM ${teacherRoom.event||'—'}`;if($('#teacherCode'))$('#teacherCode').textContent=teacherRoom.event||'—';
+ const banner=$('#teacherLiveBanner'),title=$('#teacherLiveTitle'),copy=$('#teacherLiveCopy');banner.className='teacher-live-banner'+(teacherRoom.live?' live':teacherRoom.error?' error':'');
+ if(teacherRoom.live){title.textContent=teacherRoom.running?(teacherRoom.paused?'ROOM PAUSED':'ROOM RUNNING'):'ROOM LIVE';copy.textContent=teacherRoom.running?(teacherRoom.paused?'Student screens are covered. Press RESUME ROOM to continue.':'Students may build, meet, scan, and trade pieces.'):'Students can join now. Press START ROOM when the group is ready.'}
+ else if(teacherRoom.error){title.textContent='ROOM NOT CREATED';copy.textContent=teacherRoom.error==='ROOM CODE ALREADY IN USE'?'Another teacher device already owns this code. End that room or return and choose a different code.':teacherRoom.error}
+ else{title.textContent='CREATING ROOM…';copy.textContent='Keep this screen open while Peer.js registers the room.'}
+ const connected=Object.values(teacherRoom.seats).filter(s=>s.connected).length;$('#teacherCount').innerHTML=`${connected}<small>OF 18 CONNECTED</small>`;$('#teacherRosterTitle').textContent=`CONNECTED CARDS • ${connected} / 18`;
+ const qr=$('#teacherQR');qr.innerHTML='';if(teacherRoom.live&&typeof QRCode!=='undefined')new QRCode(qr,{text:roomInviteText(teacherRoom.event,teacherRoom.hostId),width:270,height:270,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else qr.textContent=teacherRoom.error?'NO QR — ROOM IS NOT LIVE':'Preparing QR…';
+ ['teacherCopyInvite','teacherPlayBtn','teacherLockBtn','teacherRevealBtn','teacherResetBtn'].forEach(id=>$('#'+id).disabled=!teacherRoom.live);$('#teacherPlayBtn').textContent=!teacherRoom.running?'Start room':teacherRoom.paused?'Resume room':'Pause room';$('#teacherLockBtn').textContent=teacherRoom.locked?'Open joining':'Lock joining';
+ const grid=$('#teacherSeatGrid');grid.innerHTML='';for(let seat=1;seat<=18;seat++){const s=teacherRoom.seats[seat],b=document.createElement('div');b.className='teacher-seat'+(s&&s.connected?' connected':'')+(s&&s.complete&&s.delivered?' complete':'');b.innerHTML=`<div class="num">${String(seat).padStart(2,'0')}</div><div class="state">${!s?'NOT CONNECTED':s.connected?(s.phase||'CONNECTED'):'DISCONNECTED'}</div>`;grid.appendChild(b)}
+ const log=$('#teacherLog');log.innerHTML=teacherRoom.logs.length?teacherRoom.logs.map(x=>`<div class="teacher-log-line">${x}</div>`).join(''):'<div class="teacher-log-line">No room events yet.</div>';
+}
+function teacherTogglePlay(){if(!teacherRoom.live)return;if(!teacherRoom.running){teacherRoom.running=true;teacherRoom.paused=false;teacherLog('Teacher started the room.')}else{teacherRoom.paused=!teacherRoom.paused;teacherLog(teacherRoom.paused?'Teacher paused all student screens.':'Teacher resumed the room.')}teacherBroadcast()}
+function teacherToggleLock(){teacherRoom.locked=!teacherRoom.locked;teacherLog(teacherRoom.locked?'New joins locked.':'New joins opened.');teacherBroadcast()}
+function teacherReveal(){teacherRoom.reveal=true;teacherLog('Teacher revealed the final 18-card wall.');teacherBroadcast()}
+function teacherResetAll(){if(!confirm('Reset progress on every connected student card?'))return;teacherConnections.forEach(c=>{if(c.open)c.send({type:'teacher-reset'})});teacherRoom.seats={};teacherLog('Reset command sent to every connected card.');teacherBroadcast()}
+function endTeacherRoom(){if(teacherPeer)teacherPeer.destroy();teacherPeer=null;teacherConnections.clear();teacherRoom={event:'',hostId:'',live:false,error:'',locked:false,running:false,paused:false,reveal:false,seats:{},logs:[]};$('#teacher').classList.add('hidden');$('#boot').classList.remove('hidden');showRole('teacher')}
+function connectTeacherRoom(){
+ if(state.mode==='demo')return;const host=state.hostPeerId||roomHostId(state.event);state.hostPeerId=host;state.teacherConnected=false;updateRoomGate('checking');clearTimeout(teacherConnectTimer);
+ try{teacherConn=peer.connect(host,{reliable:true,metadata:{type:'student-room',event:state.event,seat:state.seat}});teacherConnectTimer=setTimeout(()=>{if(!state.teacherConnected)updateRoomGate('missing')},6500);
+  teacherConn.on('open',()=>{teacherConn.send({type:'student-register',event:state.event,profile:publicState()})});
+  teacherConn.on('data',d=>{
+   if(!d||typeof d!=='object')return;
+   if(d.type==='teacher-state'){clearTimeout(teacherConnectTimer);state.teacherConnected=true;state.teacherState=d;mergeRoster(d.roster);setStudentRoomCheck(`ROOM LIVE • ${state.event}`,'found');updateRoomGate();renderAll()}
+   else if(d.type==='join-rejected'){clearTimeout(teacherConnectTimer);state.teacherConnected=false;updateRoomGate('rejected',d.reason)}
+   else if(d.type==='teacher-reset'){storageRemove(storeKey());state.placed=defaultProgress(state.seat);state.foreignDelivered=false;state.receivedOwn=false;state.missingPlaced=false;state.selected=null;saveProgress();broadcastState();toast('The teacher reset all cards.')}
+  });
+  teacherConn.on('close',()=>{state.teacherConnected=false;updateRoomGate('lost')});teacherConn.on('error',()=>{state.teacherConnected=false;updateRoomGate('missing')});
+ }catch(e){updateRoomGate('missing')}
+}
+function updateRoomGate(mode='',detail=''){
+ const gate=$('#roomGate'),card=$('#roomGateCard'),status=$('#roomGateStatus'),title=$('#roomGateTitle'),copy=$('#roomGateCopy');if(state.mode==='demo'){gate.classList.remove('active');return}
+ gate.classList.add('active');card.className='room-gate-card';
+ if(mode==='missing'){card.classList.add('error');status.textContent='ROOM NOT FOUND';title.textContent='THE TEACHER ROOM IS NOT LIVE.';copy.textContent='Check the room code. Ask the teacher to keep the green ROOM LIVE screen open, then return and join again.';return}
+ if(mode==='rejected'){card.classList.add('error');status.textContent='JOIN BLOCKED';title.textContent='THIS CARD DID NOT JOIN.';copy.textContent=detail||'Ask the teacher to open joining or choose an unused card number.';return}
+ if(mode==='lost'){card.classList.add('error');status.textContent='CONNECTION LOST';title.textContent='THE TEACHER DEVICE DISCONNECTED.';copy.textContent='Keep your progress. Ask the teacher to reopen the room, then return and join again.';return}
+ if(!state.teacherConnected||!state.teacherState){status.textContent='CHECKING ROOM';title.textContent='FINDING THE TEACHER…';copy.textContent='The app is checking that this room exists.';return}
+ if(!state.teacherState.running){card.classList.add('live');status.textContent='ROOM LIVE';title.textContent='WAIT FOR THE TEACHER.';copy.textContent='Your card is connected. The teacher presses START ROOM when everyone is ready.';return}
+ if(state.teacherState.paused){status.textContent='ROOM PAUSED';title.textContent='LOOK UP AT THE TEACHER.';copy.textContent='Your progress is saved. The teacher will resume the room.';return}
+ gate.classList.remove('active');if(state.teacherState.reveal){for(let i=1;i<=18;i++)state.roster[i]={seat:i,phase:'GUIDE',complete:true,delivered:true,title:SCENES[i-1][0],updated:now()};renderRoom()}
+}
+function returnToJoin(){stopScan();if(peer)peer.destroy();peer=null;teacherConn=null;connections.clear();$('#app').classList.add('hidden');$('#boot').classList.remove('hidden');showRole('student')}
+
+function startApp(mode){
+ const event=safeCode($('#studentRoomCode').value);if(!event||!state.seat)return;
+ state.event=event;state.mode=mode;state.peerId='';state.teacherState=null;state.teacherConnected=false;if(mode==='live'&&!state.hostPeerId)state.hostPeerId=roomHostId(event);state.placed=defaultProgress(state.seat);state.foreignDelivered=false;state.receivedOwn=false;state.missingPlaced=false;state.encountered=[];state.roster={};state.sound=true;state.selected=null;
+ loadProgress();updatePhase();updateRosterLocal();
+ $('#boot').classList.add('hidden');$('#app').classList.remove('hidden');
+ $('#identity').innerHTML=`YOU: CARD ${String(state.seat).padStart(2,'0')}<br>ROOM ${state.event}`;
+ $('#liveContact').classList.toggle('hidden',mode==='demo');$('#demoContact').classList.toggle('hidden',mode!=='demo');$('#revealDemo').classList.toggle('hidden',mode!=='demo');
+ initPeer();renderAll();showView('puzzleView');updateRoomGate();
+}
+function initPeer(){
+ if(state.mode==='demo'){setNetwork('REHEARSAL','live');state.peerId=`DEMO-${state.event}-${state.seat}`;renderQR();renderDemoPeers();return}
+ if(typeof Peer==='undefined'){setNetwork('PEER LIBRARY FAILED','error');toast('Peer.js did not load. Manual rehearsal still works after reload in demo mode.');return}
+ const remembered=storageGet(`${CFG.savePrefix}:peer:${state.event}:${state.seat}`);
+ const custom=remembered||`px-${hashString(state.event)}-${state.seat}-${Math.random().toString(36).slice(2,8)}`;
+ try{peer=new Peer(custom);setNetwork('SIGNALING','');
+  peer.on('open',id=>{state.peerId=id;storageSet(`${CFG.savePrefix}:peer:${state.event}:${state.seat}`,id);setNetwork('READY','live');renderQR();broadcastState();connectTeacherRoom()});
+  peer.on('connection',conn=>bindConnection(conn));
+  peer.on('error',err=>{console.warn(err);if(err&&err.type==='unavailable-id'){storageRemove(`${CFG.savePrefix}:peer:${state.event}:${state.seat}`);toast('This saved contact address was occupied. Reload to create another.')}setNetwork((err&&err.type)||'NETWORK ERROR','error')});
+  peer.on('disconnected',()=>setNetwork('SIGNAL LOST','error'));
+ }catch(e){setNetwork('PEER ERROR','error');console.error(e)}
+}
+function setNetwork(text,kind){$('#netText').textContent=text;$('#netDot').className='net-dot'+(kind?' '+kind:'')}
+function contactPayload(){return JSON.stringify({v:1,event:state.event,seat:state.seat,peer:state.peerId})}
+function renderQR(){
+ $('#peerId').textContent=`YOUR CARD ${String(state.seat).padStart(2,'0')} • ROOM ${state.event}`;const q=$('#qr');q.innerHTML='';if(!state.peerId){q.textContent='…';return}
+ if(typeof QRCode!=='undefined')new QRCode(q,{text:contactPayload(),width:194,height:194,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});else q.textContent='QR library unavailable';
+}
+function parseContact(raw){
+ try{const d=JSON.parse(raw);if(d&&d.v===1&&d.event&&d.peer)return d}catch(e){}
+ return null;
+}
+function connectPayload(raw){
+ const d=parseContact(raw);if(!d){toast('That pasted text is not a contact code from this room.');return}if(safeCode(d.event)!==state.event){toast(`Different room: ${d.event}`);return}if(Number(d.seat)===state.seat){toast('That is your own code. Scan the other person’s code.');return}connectPeer(d.peer,Number(d.seat));
+}
+function connectPeer(peerId,seatHint){
+ if(!peer||!state.peerId){toast('The connection is not ready. Wait for READY at the top.');return}if(connections.has(peerId)){openEncounter(seatHint,peerId);return}
+ const conn=peer.connect(peerId,{reliable:true,metadata:{event:state.event,seat:state.seat}});bindConnection(conn,seatHint)
+}
+function bindConnection(conn,seatHint=0){
+ if(connections.has(conn.peer))return;connections.set(conn.peer,conn);
+ conn.on('open',()=>{conn.send({type:'hello',event:state.event,profile:publicState(),roster:state.roster});if(seatHint)openEncounter(seatHint,conn.peer);setNetwork(`${connections.size} LINK${connections.size===1?'':'S'}`,'live')});
+ conn.on('data',data=>handleData(conn,data));
+ conn.on('close',()=>{connections.delete(conn.peer);setNetwork(connections.size?`${connections.size} LINKS`:'READY','live')});
+ conn.on('error',()=>toast('That encounter could not stay connected.'));
+}
+function handleData(conn,d){
+ if(!d||typeof d!=='object')return;
+ if(d.type==='hello'){
+  if(safeCode(d.event)!==state.event){conn.close();return}mergeRoster(d.roster);if(d.profile){state.roster[d.profile.seat]=d.profile;rememberEncounter(d.profile.seat);openEncounter(d.profile.seat,conn.peer)}conn.send({type:'state',profile:publicState(),roster:state.roster});renderAll();
+ }else if(d.type==='state'){
+  mergeRoster(d.roster);if(d.profile){state.roster[d.profile.seat]=d.profile;rememberEncounter(d.profile.seat)}renderAll();
+ }else if(d.type==='trade-proposal'){
+  pendingTrade={...d,conn};showIncomingTrade(d);
+ }else if(d.type==='trade-accept'){
+  if(d.nonce&&pendingOutgoing&&d.nonce===pendingOutgoing.nonce){completeSend(pendingOutgoing.toSeat);pendingOutgoing=null;toast('Piece delivered. Your hand no longer holds it.');broadcastState()}
+ }else if(d.type==='trade-reject'){
+  pendingOutgoing=null;toast(d.reason||'The piece does not fit that empty space. Compare with another card.');
+ }
+}
+let pendingOutgoing=null;
+function rememberEncounter(seat){if(!state.encountered.includes(seat)){state.encountered.push(seat);saveProgress()}}
+function openEncounter(seat,peerId=''){
+ seat=Number(seat);if(!seat||seat===state.seat)return;rememberEncounter(seat);activeEncounter={seat,peerId};$('#encounterPanel').classList.add('active');$('#encounterName').textContent=`CARD ${String(seat).padStart(2,'0')}`;renderCompare();renderRoom();
+}
+function closeEncounter(){$('#encounterPanel').classList.remove('active');activeEncounter=null}
+function renderCompare(){
+ if(!activeEncounter)return;const s=activeEncounter.seat;drawPieceCanvas($('#carryCompare'),carryOwnerFor(state.seat),missingIndexFor(carryOwnerFor(state.seat)),state.foreignDelivered);drawGapPreview($('#gapCompare'),s);
+ const canOffer=!state.foreignDelivered&&localAssemblyDone();$('#proposeBtn').disabled=!canOffer;$('.hold-label').textContent=canOffer?'Hold to offer this piece':state.foreignDelivered?'You already delivered what you carried':'First discover the mismatch in your puzzle';
+ const remoteCarriesMine=carryOwnerFor(s)===state.seat;$('#demoAskBtn').classList.toggle('hidden',state.mode!=='demo'||!remoteCarriesMine||state.receivedOwn);
+}
+function drawPieceCanvas(c,owner,index,muted=false){const x=c.getContext('2d'),sw=scenes[owner-1].width/CFG.cols,sh=scenes[owner-1].height/CFG.rows,col=index%CFG.cols,row=Math.floor(index/CFG.cols);x.clearRect(0,0,c.width,c.height);x.globalAlpha=muted?.16:1;x.drawImage(scenes[owner-1],col*sw,row*sh,sw,sh,0,0,c.width,c.height);x.globalAlpha=1;if(muted){x.fillStyle='#050505';x.fillRect(0,0,c.width,c.height);x.fillStyle='#777';x.font='18px Courier New';x.textAlign='center';x.fillText('DELIVERED',c.width/2,c.height/2)}}
+function drawGapPreview(c,seat){
+ const x=c.getContext('2d'),scene=scenes[seat-1],idx=missingIndexFor(seat),col=idx%CFG.cols,row=Math.floor(idx/CFG.cols),sw=scene.width/CFG.cols,sh=scene.height/CFG.rows;x.clearRect(0,0,c.width,c.height);
+ const sx=clamp((col-1)*sw,0,scene.width-3*sw),sy=clamp((row-1)*sh,0,scene.height-3*sh);x.drawImage(scene,sx,sy,Math.min(3*sw,scene.width-sx),Math.min(3*sh,scene.height-sy),0,0,c.width,c.height);
+ const localCol=col-(sx/sw),localRow=row-(sy/sh),dw=c.width/3,dh=c.height/3;x.fillStyle='#020304';x.fillRect(localCol*dw,localRow*dh,dw,dh);x.strokeStyle='#00e5ff';x.lineWidth=4;x.setLineDash([10,8]);x.strokeRect(localCol*dw+3,localRow*dh+3,dw-6,dh-6);x.setLineDash([]);
+}
+function sendProposal(){
+ if(!activeEncounter||state.foreignDelivered)return;const toSeat=activeEncounter.seat,nonce=Math.random().toString(36).slice(2);const data={type:'trade-proposal',fromSeat:state.seat,toSeat,pieceOwner:carryOwnerFor(state.seat),pieceIndex:missingIndexFor(carryOwnerFor(state.seat)),nonce};pendingOutgoing=data;
+ if(state.mode==='demo'){setTimeout(()=>{if(data.pieceOwner===toSeat){completeSend(toSeat);toast('They accepted. Piece delivered. Your hand no longer holds it.');broadcastState()}else toast('The piece does not fit that empty space. Try another card.')},380);return}
+ const conn=connections.get(activeEncounter.peerId);if(conn&&conn.open){conn.send(data);toast('Offer sent. The other person must compare and accept.')}else toast('The two devices disconnected. Scan the code again.');
+}
+function showIncomingTrade(d){
+ $('#tradeTitle').textContent=`CARD ${String(d.fromSeat).padStart(2,'0')} OFFERS A PIECE.`;$('#tradeCopy').textContent='Compare the offered piece with your blue empty square. Press DOES NOT FIT when the image breaks. Hold TAKE PIECE when the colors, lines, and edges continue.';$('#tradeModal').classList.add('active');
+}
+function resolveIncoming(accept){
+ if(!pendingTrade)return;const d=pendingTrade,correct=d.pieceOwner===state.seat&&d.pieceIndex===missingIndexFor(state.seat)&&!state.receivedOwn;
+ if(!accept){if(d.conn&&d.conn.open)d.conn.send({type:'trade-reject',nonce:d.nonce,reason:'They pressed DOES NOT FIT. Keep the piece.'});$('#tradeModal').classList.remove('active');pendingTrade=null;return}
+ if(correct){state.receivedOwn=true;saveProgress();if(d.conn&&d.conn.open)d.conn.send({type:'trade-accept',nonce:d.nonce});tone('receive');toast('Your missing piece arrived. Return to BUILD and place the green-labeled piece.');broadcastState()}
+ else{if(d.conn&&d.conn.open)d.conn.send({type:'trade-reject',nonce:d.nonce,reason:'The piece does not fit that empty space. Compare with another card.'});tone('wrong');toast('This piece does not fit your puzzle. The other person keeps it.')}
+ $('#tradeModal').classList.remove('active');pendingTrade=null;
+}
+function completeSend(toSeat){if(carryOwnerFor(state.seat)!==Number(toSeat))return;state.foreignDelivered=true;state.selected=null;saveProgress();tone('send');renderAll()}
+function demoReceive(){if(!activeEncounter||carryOwnerFor(activeEncounter.seat)!==state.seat||state.receivedOwn)return;pendingTrade={type:'trade-proposal',fromSeat:activeEncounter.seat,toSeat:state.seat,pieceOwner:state.seat,pieceIndex:missingIndexFor(state.seat),nonce:'demo'};showIncomingTrade(pendingTrade)}
+
+function renderAll(){updatePhase();updateRosterLocal();renderPuzzle();renderStatus();renderRoom();renderDemoPeers();if(activeEncounter)renderCompare();$('#soundToggle').textContent=state.sound?'Sound on':'Sound off'}
+function renderStatus(){
+ const n=$('#needBox'),c=$('#carryBox');n.classList.toggle('done',ownComplete());c.classList.toggle('done',state.foreignDelivered);
+ n.querySelector('.value').textContent=ownComplete()?'COMPLETE — all 24 pieces placed':state.receivedOwn?'ARRIVED — place the green-labeled piece':'1 piece is held by someone in this room';
+ c.querySelector('.value').textContent=state.foreignDelivered?'DELIVERED — your hand is clear':localAssemblyDone()?'1 piece does not fit your puzzle':'6 loose pieces — one belongs elsewhere';
+ $('#encounterNav').classList.toggle('pulse',localAssemblyDone()&&(!state.foreignDelivered||!state.receivedOwn));
+ $('#youAre').textContent=`YOU ARE CARD ${String(state.seat).padStart(2,'0')}`;$('#youRoom').textContent=`ROOM ${state.event} • ${SCENES[state.seat-1][0]}`;
+ let step=1,text='Tap a loose piece. Then tap the empty square where its image continues.',button='USE PUZZLE',go='puzzleView';
+ if(state.phase==='SEEKING'){step=2;text=state.foreignDelivered?'Meet people. Ask them to compare their extra piece with your blue empty square.':'Stand beside one person. Compare your extra piece with their empty square.';button='MEET PEOPLE';go='encounterView'}
+ else if(state.phase==='RESTORING'){step=3;text='Your missing piece is in the tray. Tap the green-labeled piece, then tap the blue dashed square.';button='PLACE PIECE';go='puzzleView'}
+ else if(state.phase==='DELIVERING'){step=3;text='Your puzzle is complete. You still hold another person’s piece. Meet people and give it away.';button='GIVE PIECE';go='encounterView'}
+ else if(state.phase==='GUIDE'){step=4;text='You finished both jobs. Open the room map and help one unfinished card compare pieces.';button='OPEN ROOM MAP';go='roomView'}
+ $('#nextText').textContent=text;$('#nextButton').textContent=button;$('#nextButton').dataset.go=go;
+ $$('.step-chip').forEach(chip=>{const n=Number(chip.dataset.step);chip.classList.toggle('current',n===step);chip.classList.toggle('done',n<step)});
+}
+function renderPuzzle(){
+ const seat=state.seat,scene=scenes[seat-1],c=$('#board'),x=c.getContext('2d'),sw=c.width/CFG.cols,sh=c.height/CFG.rows,srcW=scene.width/CFG.cols,srcH=scene.height/CFG.rows;x.clearRect(0,0,c.width,c.height);
+ for(let i=0;i<24;i++){const col=i%CFG.cols,row=Math.floor(i/CFG.cols),placed=state.placed.includes(i);if(placed)x.drawImage(scene,col*srcW,row*srcH,srcW,srcH,col*sw,row*sh,sw+.5,sh+.5);else{x.fillStyle='#070707';x.fillRect(col*sw,row*sh,sw,sh);x.strokeStyle=i===missingIndexFor(seat)?'#00e5ff':'#2d2d2d';x.lineWidth=i===missingIndexFor(seat)?5:2;x.setLineDash(i===missingIndexFor(seat)?[15,10]:[5,8]);x.strokeRect(col*sw+4,row*sh+4,sw-8,sh-8);x.setLineDash([])}x.strokeStyle='rgba(0,0,0,.32)';x.lineWidth=1;x.strokeRect(col*sw,row*sh,sw,sh)}
+ $('#sceneTitle').textContent=SCENES[seat-1][0];$('#sceneIndex').innerHTML=`YOUR CARD ${String(seat).padStart(2,'0')} OF 18<br>${SCENES[seat-1][1]}`;$('#boardBadge').textContent=`YOUR PUZZLE • ${state.placed.length} / 24 PLACED`;
+ const tray=$('#tray');tray.innerHTML='';const localLoose=looseIndexesFor(seat).filter(i=>!state.placed.includes(i));localLoose.forEach(i=>tray.appendChild(pieceButton({owner:seat,index:i,kind:'local'})));
+ if(!state.foreignDelivered)tray.appendChild(pieceButton({owner:carryOwnerFor(seat),index:missingIndexFor(carryOwnerFor(seat)),kind:'foreign'}));
+ if(state.receivedOwn&&!state.placed.includes(missingIndexFor(seat)))tray.appendChild(pieceButton({owner:seat,index:missingIndexFor(seat),kind:'incoming'}));
+ if(!tray.children.length){const d=document.createElement('div');d.style.cssText='grid-column:1/-1;border:1px solid #313131;padding:16px;color:#8d8d86;font-size:11px';d.textContent=ownComplete()?'No pieces remain in your hand. Open ROOM or help another player.':'Your hand is empty. Meet people until your missing piece arrives.';tray.appendChild(d)}
+ const inst=$('#boardInstruction');if(!localAssemblyDone())inst.textContent='Tap one piece below. Then tap the empty square where its lines continue.';else if(!state.receivedOwn)inst.textContent='One gap and one incompatible fragment remain. Look up. Describe the fragment. Find its world.';else if(!ownComplete())inst.textContent='Your missing fragment has arrived. Complete the final continuation.';else if(!state.foreignDelivered)inst.textContent='Your world is complete, but you still carry responsibility for another world.';else inst.textContent='You are now a guide. Help the remaining room compare without giving away the answer.';
+}
+function pieceButton(p){
+ const b=document.createElement('button');b.className=`piece ${p.kind==='foreign'&&localAssemblyDone()?'foreign':''} ${p.kind==='incoming'?'incoming':''}`;b.dataset.owner=p.owner;b.dataset.index=p.index;b.dataset.kind=p.kind;if(state.selected&&state.selected.owner===p.owner&&state.selected.index===p.index&&state.selected.kind===p.kind)b.classList.add('selected');const c=document.createElement('canvas');c.width=300;c.height=200;drawPieceCanvas(c,p.owner,p.index);b.appendChild(c);b.addEventListener('click',()=>{state.selected={...p};tone('select');renderPuzzle()});return b;
+}
+function boardTap(e){
+ if(!state.selected)return;const r=$('#board').getBoundingClientRect(),x=(e.clientX-r.left)/r.width*CFG.cols,y=(e.clientY-r.top)/r.height*CFG.rows,idx=Math.floor(y)*CFG.cols+Math.floor(x);const p=state.selected;
+ if(p.owner!==state.seat){tone('wrong');vibe([30,40,30]);toast('This piece does not fit your puzzle. Take it to another person.');return}
+ if(idx!==p.index){tone('wrong');vibe(30);toast('That square does not match. Try another empty square.');return}
+ if(!state.placed.includes(idx)){state.placed.push(idx);state.selected=null;if(idx===missingIndexFor(state.seat))state.missingPlaced=true;saveProgress();tone('snap');vibe(18);if(localAssemblyDone()&&!state.receivedOwn)toast('Five pieces fit. The piece marked NOT YOUR PUZZLE belongs to someone else.');if(ownComplete())toast(state.foreignDelivered?'Both jobs complete. Open the room map and help someone else.':'Your puzzle is complete. Now give away the piece you still hold.');broadcastState()}
+}
+function resetLocal(){if(!confirm('Reset only this card’s local assembly and exchanges?'))return;storageRemove(storeKey());state.placed=defaultProgress(state.seat);state.foreignDelivered=false;state.receivedOwn=false;state.missingPlaced=false;state.selected=null;saveProgress();broadcastState()}
+
+function renderRoom(){
+ const grid=$('#roomGrid');grid.innerHTML='';for(let s=1;s<=CFG.seats;s++){const known=s===state.seat||state.encountered.includes(s)||state.mode==='demo';const pub=state.roster[s];const card=document.createElement('button');card.className='room-card'+(known?'':' unknown')+(s===state.seat?' me':'')+(pub&&pub.complete&&pub.delivered?' complete':'')+(state.mode==='demo'?' demo-click':'');card.disabled=state.mode!=='demo';if(known){const c=document.createElement('canvas');c.width=240;c.height=160;c.getContext('2d').drawImage(scenes[s-1],0,0,c.width,c.height);card.appendChild(c)}const copy=document.createElement('div');copy.className='room-copy';copy.innerHTML=`<div class="room-num">${String(s).padStart(2,'0')}</div><div class="room-name">${known?SCENES[s-1][0]:'NOT MET'}</div><div class="room-state">${s===state.seat?state.phase:(pub?pub.phase:(known?'UNCONFIRMED':'CLOSED'))}</div>`;card.appendChild(copy);if(state.mode==='demo'&&s!==state.seat)card.addEventListener('click',()=>{showView('encounterView');openEncounter(s)});grid.appendChild(card)}
+ const count=Object.values(state.roster).filter(v=>v.complete&&v.delivered).length;const collectiveReady=count===18||(state.teacherState&&state.teacherState.reveal);$('#collective').classList.toggle('active',collectiveReady);if(collectiveReady)renderCollective();
+}
+function renderCollective(){const strip=$('#collectiveStrip');strip.innerHTML='';scenes.forEach((scene,i)=>{const c=document.createElement('canvas');c.width=300;c.height=200;c.getContext('2d').drawImage(scene,0,0,c.width,c.height);c.title=`${i+1}: ${SCENES[i][0]}`;strip.appendChild(c)})}
+function revealCollective(){for(let i=1;i<=18;i++)state.roster[i]={seat:i,phase:'GUIDE',complete:true,delivered:true,title:SCENES[i-1][0],updated:now()};renderRoom();renderCollective();toast('All 18 cards are complete. Place them in sequence.')}
+function renderDemoPeers(){if(state.mode!=='demo')return;const host=$('#demoPeers');host.innerHTML='';for(let s=1;s<=18;s++){if(s===state.seat)continue;const b=document.createElement('button');b.className='demo-peer';b.textContent=String(s).padStart(2,'0');b.addEventListener('click',()=>openEncounter(s));host.appendChild(b)}}
+
+async function startScan(){
+ if(scanStream){stopScan();return}if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('Camera scanning is unavailable. Paste the contact code instead.');return}
+ try{scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});const v=$('#scanVideo');v.srcObject=scanStream;v.style.display='block';await v.play();$('#scanStatus').style.display='none';$('#scanBtn').textContent='Stop camera';scanLoop()}catch(e){toast('Camera permission failed. Use the manual contact code.');console.warn(e)}
+}
+function stopScan(){if(scanStream)scanStream.getTracks().forEach(t=>t.stop());scanStream=null;cancelAnimationFrame(scanRAF);$('#scanVideo').style.display='none';$('#scanStatus').style.display='block';$('#scanBtn').textContent='Start camera'}
+function scanLoop(){
+ if(!scanStream)return;const v=$('#scanVideo');if(v.readyState>=2&&typeof jsQR!=='undefined'){const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(v,0,0);const data=x.getImageData(0,0,c.width,c.height);const code=jsQR(data.data,c.width,c.height,{inversionAttempts:'dontInvert'});if(code&&parseContact(code.data)){stopScan();connectPayload(code.data);return}}scanRAF=requestAnimationFrame(scanLoop)
+}
+function copyContact(){navigator.clipboard?.writeText(contactPayload()).then(()=>toast('Contact code copied. Paste it into the other device.')).catch(()=>{const t=document.createElement('textarea');t.value=contactPayload();document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('Contact code copied. Paste it into the other device.')})}
+function showView(id){$$('.view').forEach(v=>v.classList.toggle('active',v.id===id));$$('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id!=='encounterView')stopScan()}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2800)}
+function vibe(p){if(navigator.vibrate)navigator.vibrate(p)}
+let audioCtx=null;function tone(type){if(!state.sound)return;try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain(),t=audioCtx.currentTime;o.connect(g);g.connect(audioCtx.destination);o.type=type==='wrong'?'square':type==='send'?'triangle':'sine';const f={select:330,snap:740,wrong:110,send:440,receive:620}[type]||260;o.frequency.setValueAtTime(f,t);if(type==='receive')o.frequency.exponentialRampToValueAtTime(980,t+.22);g.gain.setValueAtTime(.05,t);g.gain.exponentialRampToValueAtTime(.001,t+(type==='receive'?.28:.12));o.start(t);o.stop(t+.3)}catch(e){}}
+function installHold(button,fn){let start=0,raf=0,active=false;const fill=button.querySelector('.hold-fill');const end=()=>{active=false;cancelAnimationFrame(raf);if(fill)fill.style.width='0'};const tick=()=>{if(!active)return;const p=clamp((performance.now()-start)/CFG.holdMs,0,1);if(fill)fill.style.width=`${p*100}%`;if(p>=1){end();vibe(22);fn();return}raf=requestAnimationFrame(tick)};const begin=e=>{if(button.disabled)return;e.preventDefault();active=true;start=performance.now();tick()};button.addEventListener('pointerdown',begin);window.addEventListener('pointerup',end);button.addEventListener('pointerleave',end)}
+
+function bindUI(){
+ for(let i=1;i<=18;i++){const b=document.createElement('button');b.className='seat-btn';b.textContent=String(i).padStart(2,'0');b.addEventListener('click',()=>{state.seat=i;$$('.seat-btn').forEach(x=>x.classList.toggle('active',x===b));$('#joinBtn').disabled=false;$('#demoBtn').disabled=false});$('#seatGrid').appendChild(b)}
+ $('#studentRole').onclick=()=>showRole('student');$('#teacherRole').onclick=()=>showRole('teacher');
+ $('#studentRoomCode').addEventListener('input',e=>{e.target.value=safeCode(e.target.value);state.hostPeerId='';setStudentRoomCheck('ROOM NOT CHECKED — press JOIN to check this code.')});
+ $('#teacherRoomCode').addEventListener('input',e=>e.target.value=safeCode(e.target.value));$('#joinScanBtn').onclick=startJoinScan;
+ $('#joinBtn').onclick=()=>startApp('live');$('#demoBtn').onclick=()=>startApp('demo');$('#createRoomBtn').onclick=createTeacherRoom;$('#randomRoomBtn').onclick=()=>{$('#teacherRoomCode').value=`ROOM-${Math.random().toString(36).slice(2,6).toUpperCase()}`};
+ $('#teacherPlayBtn').onclick=teacherTogglePlay;$('#teacherLockBtn').onclick=teacherToggleLock;$('#teacherRevealBtn').onclick=teacherReveal;$('#teacherResetBtn').onclick=teacherResetAll;$('#teacherEndBtn').onclick=endTeacherRoom;$('#teacherCopyInvite').onclick=()=>navigator.clipboard?.writeText(roomInviteText(teacherRoom.event,teacherRoom.hostId)).then(()=>teacherLog('Room invite copied.')).catch(()=>teacherLog('Copy failed. Students can scan the QR.'));
+ $$('.navbtn').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));$('#board').addEventListener('click',boardTap);$('#resetPuzzle').onclick=resetLocal;$('#soundToggle').onclick=()=>{state.sound=!state.sound;saveProgress();renderAll()};$('#copyContact').onclick=copyContact;
+ $('#nextButton').onclick=()=>showView($('#nextButton').dataset.go||'puzzleView');$('#scanBtn').onclick=startScan;$('#manualConnect').onclick=()=>connectPayload($('#manualCode').value.trim());$('#closeEncounter').onclick=closeEncounter;$('#demoAskBtn').onclick=demoReceive;$('#rejectTrade').onclick=()=>resolveIncoming(false);installHold($('#proposeBtn'),sendProposal);installHold($('#acceptTrade'),()=>resolveIncoming(true));$('#revealDemo').onclick=revealCollective;$('#roomGateBack').onclick=returnToJoin;
+ document.addEventListener('visibilitychange',()=>{if(document.hidden){stopScan();stopJoinScan()}});window.addEventListener('beforeunload',()=>{stopScan();stopJoinScan();if(peer)peer.destroy();if(teacherPeer)teacherPeer.destroy()});
+ const params=new URLSearchParams(location.search),room=safeCode(params.get('room')),host=params.get('host');if(room&&host){showRole('student');applyRoomInvite({event:room,host})}
+}
+initScenes();bindUI();
+})();
+</script>
+</body>
+</html>
