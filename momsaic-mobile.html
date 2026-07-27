@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>MOMSAIC — Mobile</title>
+<style>
+:root{
+  --ink:#000;--panel:#0a0a0a;--panel2:#111;--paper:#fff;--dim:#8a8a8a;
+  --line:#292929;--teal:#19e6c8;--amber:#ffd23f;--red:#ff4a3d;--blue:#58a6ff;
+  --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--ink);color:var(--paper);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Cascadia Mono",monospace;font-variant-numeric:tabular-nums}
+button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.35;cursor:not-allowed}
+#app{position:fixed;inset:0;height:100dvh;overflow:hidden;background:#000}
+.screen{position:absolute;inset:0;display:none}.screen.on{display:flex}
+.scroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+
+/* boot */
+#boot{z-index:300;align-items:center;justify-content:center;flex-direction:column;gap:18px;background:#000}
+.logo{font-weight:900;letter-spacing:.38em;font-size:clamp(1.8rem,9vw,4rem);padding-left:.38em}
+.boot-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;width:min(82vw,380px)}
+.boot-cell{aspect-ratio:2/3;background:#111;overflow:hidden}.boot-cell canvas{width:100%;height:100%;display:block;animation:pop .26s ease both}
+@keyframes pop{from{opacity:0;transform:scale(.75)}to{opacity:1;transform:none}}
+.boot-note{font-size:.72rem;color:#707070;letter-spacing:.18em;text-transform:uppercase}
+
+/* sheets */
+#front{z-index:200;background:#000;align-items:stretch;justify-content:stretch}
+.page{width:min(100%,620px);margin:auto;padding:calc(24px + var(--safe-t)) 18px calc(44px + var(--safe-b));min-height:100%;display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-size:.7rem;letter-spacing:.18em;color:var(--teal);text-transform:uppercase}
+h1{font-size:clamp(2.8rem,15vw,6rem);line-height:.88;letter-spacing:-.05em}h2{font-size:1.35rem;letter-spacing:.04em}h3{font-size:.78rem;letter-spacing:.15em;color:#999;text-transform:uppercase;margin-top:8px}
+.lede{font-size:.92rem;line-height:1.55;color:#b8b8b8}.small{font-size:.76rem;line-height:1.45;color:#858585}.warn{color:var(--amber)}.ok{color:var(--teal)}.bad{color:var(--red)}
+.choice{width:100%;min-height:78px;border:1px solid var(--line);background:#080808;color:#fff;text-align:left;padding:15px 16px;display:flex;flex-direction:column;justify-content:center;gap:5px}
+.choice:active{background:#151515}.choice b{font-size:1rem}.choice span{font-size:.76rem;color:#8b8b8b;line-height:1.4}
+.primary,.secondary,.danger{width:100%;min-height:56px;border:none;padding:15px 16px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.primary{background:#fff;color:#000}.secondary{background:#0a0a0a;color:#fff;border:1px solid #343434}.danger{background:var(--red);color:#160200}
+.row{display:flex;gap:10px}.row>*{flex:1}.back{align-self:flex-start;background:none;border:none;color:#aaa;padding:10px 0;text-decoration:underline}
+.field{display:flex;flex-direction:column;gap:7px;font-size:.78rem;color:#aaa}.field input,.field select{width:100%;height:52px;background:#080808;border:1px solid #303030;color:#fff;padding:0 12px;font-size:1rem}
+.qrbox{width:min(74vw,300px);aspect-ratio:1;background:#fff;margin:8px auto;display:grid;place-items:center;color:#000;text-align:center;padding:14px;overflow:hidden}.qrbox img,.qrbox canvas{width:100%!important;height:100%!important}
+.code-big{font-size:clamp(2.1rem,12vw,4.2rem);letter-spacing:.18em;text-align:center;font-weight:900;color:var(--amber)}
+.seat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.seat{min-height:52px;border:1px solid #333;background:#080808;color:#aaa}.seat.on{background:var(--teal);border-color:var(--teal);color:#001812}.seat.busy{border-color:#333;color:#444}.seat.me{outline:3px solid #fff;outline-offset:2px}
+.host-status{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.host-stat{border:1px solid #262626;background:#080808;padding:12px}.host-stat b{display:block;font-size:1.35rem}.host-stat span{font-size:.66rem;color:#888;letter-spacing:.1em}
+
+/* game shell */
+#game{z-index:50;background:#000;flex-direction:column;padding-top:var(--safe-t)}
+#statusbar{height:58px;flex:0 0 58px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;align-items:center;padding:0 12px;gap:8px;background:#050505}
+.identity{min-width:0}.who{font-size:.82rem;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.where{font-size:.64rem;color:#777;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.net{height:34px;min-width:68px;padding:0 9px;border:1px solid #2b2b2b;background:#090909;color:#777;font-size:.67rem;font-weight:900}.net.live{border-color:var(--teal);color:var(--teal)}.net.wait{border-color:var(--amber);color:var(--amber)}
+#now{min-height:66px;flex:0 0 auto;border-bottom:1px solid #282828;background:#0a0a0a;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px 12px}
+.now-label{font-size:.6rem;letter-spacing:.16em;color:var(--amber);font-weight:900}.now-text{font-size:.84rem;line-height:1.3;margin-top:4px}.now-btn{min-height:44px;min-width:88px;border:1px solid #3c3c3c;background:#fff;color:#000;font-size:.72rem;font-weight:900;padding:0 10px}
+#stage{position:relative;flex:1;min-height:0;overflow:hidden}.view{position:absolute;inset:0;display:none}.view.on{display:flex}
+
+/* puzzle */
+#puzzleView{flex-direction:column;background:#000}
+#boardArea{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px;position:relative}
+#board{display:block;background:#050505;touch-action:none;box-shadow:0 0 0 1px #222;max-width:100%;max-height:100%}
+.board-tag{position:absolute;top:14px;left:14px;background:rgba(0,0,0,.78);border:1px solid #333;padding:7px 9px;font-size:.65rem;font-weight:900;pointer-events:none}
+#tray{height:86px;flex:0 0 86px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:8px 10px;overflow-x:auto;overscroll-behavior-x:contain;background:#070707}
+.tray-empty{font-size:.72rem;color:#777;line-height:1.35}.piece-card{width:68px;height:68px;flex:0 0 68px;border:2px solid #2d2d2d;background:#000;padding:0;position:relative}.piece-card canvas{width:100%;height:100%}.piece-card.incoming{border-color:var(--teal)}.piece-card.foreign{border-color:var(--amber)}.piece-card.sel{outline:3px solid #fff;outline-offset:1px}
+.piece-label{position:absolute;left:2px;right:2px;bottom:2px;background:rgba(0,0,0,.82);font-size:.5rem;padding:2px;color:#fff;text-align:center}
+
+/* meet */
+#meetView{flex-direction:column;overflow-y:auto;padding:12px;background:#000;gap:12px}
+.meet-card{border:1px solid #292929;background:#080808;padding:12px}.meet-title{font-size:.72rem;letter-spacing:.14em;color:#999}.meet-seat{font-size:2rem;font-weight:900;margin-top:3px}.meet-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.meet-actions button{min-height:54px;border:1px solid #333;background:#111;color:#fff;font-weight:900}.meet-actions .give{border-color:var(--amber);color:var(--amber)}.meet-actions .take{border-color:var(--teal);color:var(--teal)}
+.contact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.contact{aspect-ratio:1;border:1px solid #292929;background:#080808;color:#777;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}.contact b{font-size:1.2rem}.contact.here{border-color:#4b4b4b;color:#fff}.contact.done{border-color:var(--teal);color:var(--teal)}.contact.me{outline:3px solid #fff;outline-offset:1px}.contact.target{border-color:var(--amber);color:var(--amber)}
+#personalQR{width:min(52vw,210px);aspect-ratio:1;background:#fff;margin:8px auto;display:grid;place-items:center;color:#000;padding:8px}.scan-person{min-height:56px;border:none;background:var(--teal);color:#001812;font-weight:900;letter-spacing:.08em;width:100%}
+
+/* room */
+#roomView{flex-direction:column;overflow-y:auto;padding:12px;gap:10px}.room-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.room-summary div{border:1px solid #252525;background:#080808;padding:10px}.room-summary b{font-size:1.25rem;display:block}.room-summary span{font-size:.58rem;color:#777}.room-list{display:flex;flex-direction:column;gap:8px}.room-row{border:1px solid #252525;background:#070707;display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:10px;padding:8px}.mini{width:52px;height:70px;background:#000}.room-row h4{font-size:.82rem}.room-row p{font-size:.65rem;color:#777;margin-top:3px}.phase{font-size:.62rem;border:1px solid #333;padding:7px;color:#999}.phase.done{border-color:var(--teal);color:var(--teal)}
+
+/* bottom nav */
+#nav{height:calc(66px + var(--safe-b));flex:0 0 calc(66px + var(--safe-b));padding-bottom:var(--safe-b);display:flex;border-top:1px solid var(--line);background:#050505}
+.navb{flex:1;border:none;border-right:1px solid #222;background:#050505;color:#666;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:.61rem;font-weight:900;letter-spacing:.08em}.navb:last-child{border-right:none}.navb.on{color:#fff;background:#101010}.navb .ico{font-size:1.35rem;line-height:1}.navb.attn{color:var(--amber)}
+
+/* overlays */
+.overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.94);display:none;align-items:center;justify-content:center;padding:18px}.overlay.on{display:flex}.modal{width:min(100%,480px);max-height:90dvh;overflow-y:auto;background:#090909;border:1px solid #333;padding:16px}.modal h2{margin-bottom:8px}.modal p{font-size:.8rem;line-height:1.5;color:#aaa;margin-bottom:10px}
+#toast{position:fixed;z-index:800;left:50%;top:calc(70px + var(--safe-t));transform:translate(-50%,-10px);max-width:min(92vw,480px);background:#fff;color:#000;padding:11px 14px;font-size:.75rem;font-weight:900;opacity:0;pointer-events:none;transition:.2s}#toast.on{opacity:1;transform:translate(-50%,0)}
+#scanOverlay{padding:0;background:#000}#scanVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.8}.scan-frame{position:relative;width:min(72vw,320px);aspect-ratio:1;border:4px solid var(--teal);box-shadow:0 0 0 999px rgba(0,0,0,.35)}.scan-copy{position:absolute;bottom:calc(28px + var(--safe-b));left:18px;right:18px;display:flex;flex-direction:column;gap:10px}.scan-copy button{min-height:54px}
+
+@media (orientation:landscape) and (max-height:620px){
+  #statusbar{height:48px;flex-basis:48px}#now{min-height:54px;padding:6px 10px}.now-text{font-size:.74rem}
+  #puzzleView{display:grid!important;grid-template-columns:minmax(0,1fr) 170px;grid-template-rows:1fr}.view:not(.on){display:none!important}
+  #boardArea{grid-column:1;grid-row:1;padding:5px}#tray{grid-column:2;grid-row:1;width:170px;height:auto;flex-basis:auto;border-top:none;border-left:1px solid var(--line);flex-direction:column;overflow-y:auto;overflow-x:hidden}
+  .piece-card{width:72px;height:72px;flex:0 0 72px}#nav{height:52px;flex-basis:52px}.navb{font-size:.55rem;gap:1px}.navb .ico{font-size:1.05rem}
+}
+@media (min-width:760px){.contact-grid{grid-template-columns:repeat(6,1fr)}#game{width:min(100%,920px);left:50%;transform:translateX(-50%);border-left:1px solid #222;border-right:1px solid #222}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="boot" class="screen on"><div class="logo">MOMSAIC</div><div id="bootGrid" class="boot-grid"></div><div id="bootNote" class="boot-note">building the ladder</div></section>
+
+  <section id="front" class="screen">
+    <div id="doorPage" class="page scroll">
+      <div class="eyebrow">24 PIECES · 1 DOES NOT BELONG</div><h1>MOM<br>SAIC</h1>
+      <p class="lede">Build your picture. Carry the piece that belongs to somebody else. Find the person holding yours. Nobody finishes alone.</p>
+      <button class="choice" id="practiceBtn"><b>Practice on this phone</b><span>Learn the complete loop with simulated players. Works offline.</span></button>
+      <button class="choice" id="joinBtn"><b>Join a live room</b><span>Scan the organiser’s room code, claim your seat, then play.</span></button>
+      <button class="choice" id="hostBtn"><b>Run a live room</b><span>Choose player count, show one QR, start everyone together.</span></button>
+      <button class="choice" id="helpBtn"><b>How play works</b><span>Seven short rules. No hidden gestures.</span></button>
+    </div>
+
+    <div id="joinPage" class="page scroll" style="display:none">
+      <button class="back" data-back>Back</button><div class="eyebrow">JOIN</div><h2>Enter the same room</h2>
+      <p class="lede">Scan the organiser’s QR. The room code and game fingerprint must match on every phone.</p>
+      <button class="primary" id="scanRoomBtn">Scan room QR</button>
+      <label class="field">Room code<input id="joinCode" maxlength="6" inputmode="text" autocomplete="off" placeholder="ABC123"></label>
+      <button class="secondary" id="findRoomBtn">Find room</button>
+      <div id="joinInfo" class="small">No room loaded.</div>
+      <div id="joinSeats" class="seat-grid"></div>
+      <button class="primary" id="enterSeatBtn" disabled>Choose a seat</button>
+    </div>
+
+    <div id="hostPage" class="page scroll" style="display:none">
+      <button class="back" data-back>Back</button><div class="eyebrow">HOST</div><h2>Open one verified room</h2>
+      <label class="field">Players<select id="hostCount"><option>3</option><option>4</option><option>6</option><option>8</option><option selected>10</option><option>12</option><option>15</option><option>18</option></select></label>
+      <button class="primary" id="createRoomBtn">Create room</button>
+      <div id="hostLive" style="display:none">
+        <div id="hostCode" class="code-big"></div><div id="roomQR" class="qrbox">Preparing QR…</div>
+        <div id="hostStatus" class="small">Creating host…</div>
+        <div class="host-status"><div class="host-stat"><b id="hostJoined">0</b><span>JOINED</span></div><div class="host-stat"><b id="hostExpected">10</b><span>EXPECTED</span></div></div>
+        <div id="hostSeats" class="seat-grid"></div>
+        <button class="primary" id="hostStartBtn" disabled>Start room</button>
+        <button class="danger" id="hostEndBtn">End room</button>
+      </div>
+    </div>
+
+    <div id="helpPage" class="page scroll" style="display:none">
+      <button class="back" data-back>Back</button><div class="eyebrow">HOW TO PLAY</div><h2>Four visible jobs</h2>
+      <div class="choice"><b>1 · BUILD</b><span>Tap one tile, then another. Swap until 23 pieces continue the picture.</span></div>
+      <div class="choice"><b>2 · FIND</b><span>The remaining yellow piece belongs to another player. Your board has one empty place.</span></div>
+      <div class="choice"><b>3 · TRADE</b><span>Scan a person or tap their seat. Give your yellow piece. Ask the correct holder for yours.</span></div>
+      <div class="choice"><b>4 · FINISH</b><span>Tap the green incoming piece, then the empty square. Your two jobs are complete.</span></div>
+      <p class="small">Mobile rule: no dragging is required. Every action works with tap, tap.</p>
+    </div>
+  </section>
+
+  <section id="game" class="screen">
+    <header id="statusbar"><div class="identity"><div id="who" class="who">YOU · SEAT 01</div><div id="where" class="where">PRACTICE · GAME 00000</div></div><button id="netBtn" class="net">OFFLINE</button></header>
+    <section id="now"><div><div class="now-label">DO THIS NOW</div><div id="nowText" class="now-text">Tap one tile, then another.</div></div><button id="nowButton" class="now-btn">PUZZLE</button></section>
+    <main id="stage">
+      <section id="puzzleView" class="view on"><div id="boardArea"><canvas id="board"></canvas><div id="boardTag" class="board-tag">0 / 24</div></div><div id="tray"></div></section>
+      <section id="meetView" class="view"><div class="meet-card"><div class="meet-title">SHOW THIS TO ANOTHER PLAYER</div><div id="personalQR"></div><button id="scanPersonBtn" class="scan-person">SCAN A PERSON</button><p class="small" style="margin-top:8px">No camera? Tap their seat below.</p></div><div id="contactGrid" class="contact-grid"></div><div id="meetDetail"></div></section>
+      <section id="roomView" class="view"><div id="roomSummary" class="room-summary"></div><div id="roomList" class="room-list"></div></section>
+    </main>
+    <nav id="nav"><button class="navb on" data-view="puzzle"><span class="ico">▦</span>PUZZLE</button><button class="navb" data-view="meet"><span class="ico">⇄</span>MEET</button><button class="navb" data-view="room"><span class="ico">◎</span>ROOM</button></nav>
+  </section>
+</div>
+
+<div id="tradeOverlay" class="overlay"><div class="modal"><h2 id="tradeTitle">Trade</h2><p id="tradeCopy"></p><div class="row"><button id="tradeCancel" class="secondary">Cancel</button><button id="tradeConfirm" class="primary">Confirm</button></div></div></div>
+<div id="scanOverlay" class="overlay"><video id="scanVideo" playsinline muted></video><canvas id="scanCanvas" hidden></canvas><div class="scan-frame"></div><div class="scan-copy"><div id="scanNote" class="small">Point at a QR code.</div><button id="scanCancel" class="secondary">Cancel scan</button></div></div>
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const COLS=4,ROWS=6,PIECES=24,SCENES=18,SW=256,SH=384;
+const scenes=[];let audio=null;
+const state={mode:"practice",room:"PRACT",fingerprint:"00000",seed:1,n:10,seat:1,started:false,slots:[],selected:-1,delivered:false,received:false,incomingPlaced:false,view:"puzzle",peers:{},roster:{},hostId:"",peer:null,conn:null,hostPeer:null,hostClients:new Map(),hostStates:{},pendingRoom:null};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function rng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296}}
+function code(){const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";for(let i=0;i<6;i++)s+=chars[Math.floor(Math.random()*chars.length)];return s}
+function fp(room,seed,n){return (hash(room+"|"+seed+"|"+n).toString(36).toUpperCase()+"00000").slice(0,5)}
+function nextSeat(s){return s%state.n+1}function prevSeat(s){return (s-2+state.n)%state.n+1}
+function sceneOf(s){return state.n===1?0:Math.round((s-1)*(SCENES-1)/(state.n-1))}
+function missingOf(s){return hash(state.seed+":"+s)%PIECES}
+function ownPiece(s,i){return{owner:s,index:i}}
+function foreignPiece(s){const t=nextSeat(s);return{owner:t,index:missingOf(t)}}
+function vibrate(p=18){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+function tone(kind="tap"){
+  try{if(!audio)audio=new (AudioContext||webkitAudioContext)();if(audio.state==="suspended")audio.resume();const o=audio.createOscillator(),g=audio.createGain(),t=audio.currentTime;const f={tap:320,snap:880,bad:90,give:180,take:620,win:1040}[kind]||320;o.type=kind==="bad"?"square":"triangle";o.frequency.setValueAtTime(f,t);if(kind==="give")o.frequency.exponentialRampToValueAtTime(70,t+.25);if(kind==="take")o.frequency.exponentialRampToValueAtTime(920,t+.22);g.gain.setValueAtTime(.06,t);g.gain.exponentialRampToValueAtTime(.001,t+.28);o.connect(g);g.connect(audio.destination);o.start(t);o.stop(t+.3)}catch(e){}
+}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("on"),2300)}
+function showPage(id){["doorPage","joinPage","hostPage","helpPage"].forEach(x=>$("#"+x).style.display=x===id?"flex":"none")}
+function showFront(){$("#front").classList.add("on");$("#game").classList.remove("on");showPage("doorPage")}
+function save(){if(!state.started)return;const key=`momsaic:${state.room}:${state.seat}`;try{localStorage.setItem(key,JSON.stringify({slots:state.slots,delivered:state.delivered,received:state.received,incomingPlaced:state.incomingPlaced}))}catch(e){}}
+function restore(){const key=`momsaic:${state.room}:${state.seat}`;try{const d=JSON.parse(localStorage.getItem(key));if(d&&Array.isArray(d.slots)&&d.slots.length===PIECES){state.slots=d.slots;state.delivered=!!d.delivered;state.received=!!d.received;state.incomingPlaced=!!d.incomingPlaced;return true}}catch(e){}return false}
+function resetProgress(){try{localStorage.removeItem(`momsaic:${state.room}:${state.seat}`)}catch(e){}}
+
+/* images */
+function hsl(h,s,l){h=((h%360)+360)%360/360;s=clamp(s,0,1);l=clamp(l,0,1);if(!s){const v=Math.round(l*255);return[v,v,v]}const q=l<.5?l*(1+s):l+s-l*s,p=2*l-q;const k=t=>{if(t<0)t++;if(t>1)t--;let v;if(t<1/6)v=p+(q-p)*6*t;else if(t<1/2)v=q;else if(t<2/3)v=p+(q-p)*(2/3-t)*6;else v=p;return Math.round(v*255)};return[k(h+1/3),k(h),k(h-1/3)]}
+function makeScene(i){const c=document.createElement("canvas");c.width=SW;c.height=SH;const x=c.getContext("2d"),sm=document.createElement("canvas");sm.width=96;sm.height=144;const sx=sm.getContext("2d"),im=sx.createImageData(sm.width,sm.height),d=im.data,r=rng(1000+i*97),p=i/(SCENES-1),hue=18+215*p;for(let yy=0;yy<sm.height;yy++)for(let xx=0;xx<sm.width;xx++){const nx=xx/sm.width,ny=yy/sm.height;const wave=Math.sin((nx*7+ny*4+i*.33)*Math.PI)+Math.sin((nx*17-ny*9+i)*1.2)*.45;const n=(r()*.7+r()*.3);let v=clamp(.42+.24*wave+.35*n,0,1);const rad=10+220*(1-p),cx=.5,cy=.55+(.23-p*.4),dx=(nx-cx)*sm.width,dy=(ny-cy)*sm.width,inside=Math.hypot(dx,dy)<rad;let l=inside?(.05+.55*v)*(0.35+.65*clamp(1-(dx+dy)/220,0,1)):.005+.10*Math.pow(v,3)*p;const col=hsl(hue+wave*8,.58,l);const o=(yy*sm.width+xx)*4;d[o]=col[0];d[o+1]=col[1];d[o+2]=col[2];d[o+3]=255}
+  sx.putImageData(im,0,0);x.imageSmoothingEnabled=true;x.drawImage(sm,0,0,SW,SH);if(i>6){const rr=rng(9000+i);x.fillStyle="#fff";for(let k=0;k<Math.floor((i-6)*15);k++){const px=rr()*SW,py=rr()*SH,a=.2+rr()*.8;x.globalAlpha=a;x.fillRect(px,py,rr()>.94?2:1,rr()>.94?2:1)}x.globalAlpha=1}if(i>11){x.strokeStyle=`rgba(150,200,255,${.12+(i-11)*.03})`;for(let q=1;q<4;q++){x.beginPath();x.ellipse(44,68,q*54,q*19,0,0,Math.PI*2);x.stroke()}}return c}
+function drawPiece(ctx,p,x,y,w,h){if(!p)return;const sc=p.index%COLS,sr=Math.floor(p.index/COLS),scene=scenes[sceneOf(p.owner)];ctx.drawImage(scene,sc*(SW/COLS),sr*(SH/ROWS),SW/COLS,SH/ROWS,x,y,w,h)}
+
+/* game setup */
+function newBoard(){const list=[];const miss=missingOf(state.seat);for(let i=0;i<PIECES;i++)if(i!==miss)list.push(ownPiece(state.seat,i));list.push(foreignPiece(state.seat));const r=rng(state.seed+state.seat*31);for(let i=list.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[list[i],list[j]]=[list[j],list[i]]}state.slots=list;state.selected=-1;state.delivered=false;state.received=false;state.incomingPlaced=false;save()}
+function localReady(){const miss=missingOf(state.seat);for(let i=0;i<PIECES;i++){const p=state.slots[i];if(i===miss){if(!p||p.owner===state.seat)return false}else if(!p||p.owner!==state.seat||p.index!==i)return false}return true}
+function ownCorrect(){let n=0;for(let i=0;i<PIECES;i++){const p=state.slots[i];if(p&&p.owner===state.seat&&p.index===i)n++}return n}
+function complete(){return state.incomingPlaced&&state.delivered}
+function phase(){const assemblyReached=localReady()||state.delivered||state.received||state.incomingPlaced;if(!assemblyReached)return"BUILD";if(!state.delivered||!state.received)return"FIND";if(!state.incomingPlaced)return"PLACE";return"HELP"}
+function startGame(){if(!restore())newBoard();state.started=true;$("#front").classList.remove("on");$("#game").classList.add("on");showView("puzzle");resizeBoard();renderAll();sendState();}
+
+/* board */
+const board=$("#board");let BW=0,BH=0,CW=0,CH=0;
+function resizeBoard(){const area=$("#boardArea"),maxW=Math.max(120,area.clientWidth-16),maxH=Math.max(160,area.clientHeight-16);let w=maxW,h=w*SH/SW;if(h>maxH){h=maxH;w=h*SW/SH}BW=Math.floor(w);BH=Math.floor(h);const dpr=Math.min(2,devicePixelRatio||1);board.width=BW*dpr;board.height=BH*dpr;board.style.width=BW+"px";board.style.height=BH+"px";board.getContext("2d").setTransform(dpr,0,0,dpr,0,0);CW=BW/COLS;CH=BH/ROWS;drawBoard()}
+function slotAt(e){const r=board.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;if(x<0||y<0||x>r.width||y>r.height)return-1;return clamp(Math.floor(y/(r.height/ROWS)),0,ROWS-1)*COLS+clamp(Math.floor(x/(r.width/COLS)),0,COLS-1)}
+board.addEventListener("pointerdown",e=>{e.preventDefault();const s=slotAt(e);if(s<0)return;const incoming=$(".piece-card.incoming.sel");if(incoming){placeIncoming(s);return}if(localReady()||state.delivered||state.received){tone("bad");toast(state.received?"Tap the green piece in the tray, then the empty square.":"Your local picture is set. Open MEET to trade.");return}if(!state.slots[s]){tone("bad");vibrate(25);return}if(state.selected<0){state.selected=s;tone();renderAll();return}if(state.selected===s){state.selected=-1;renderAll();return}const a=state.selected;[state.slots[a],state.slots[s]]=[state.slots[s],state.slots[a]];state.selected=-1;const p=state.slots[s];if(p&&p.owner===state.seat&&p.index===s){tone("snap");vibrate(15)}else tone();save();renderAll();sendState()});
+function placeIncoming(s){const miss=missingOf(state.seat);if(s!==miss||state.slots[s]){tone("bad");toast("Place the green piece in the empty outlined square.");return}state.slots[s]=ownPiece(state.seat,miss);state.incomingPlaced=true;tone("win");vibrate([20,30,20]);save();renderAll();sendState();if(complete())toast("Both jobs complete. Open ROOM and help somebody else.")}
+function drawBoard(){if(!BW)return;const x=board.getContext("2d"),miss=missingOf(state.seat),ready=localReady();x.clearRect(0,0,BW,BH);for(let i=0;i<PIECES;i++){const c=i%COLS,r=Math.floor(i/COLS),px=c*CW,py=r*CH,p=state.slots[i];x.fillStyle="#050505";x.fillRect(px,py,CW+.5,CH+.5);if(p)drawPiece(x,p,px,py,CW+.5,CH+.5);x.strokeStyle="rgba(0,0,0,.42)";x.lineWidth=1;x.strokeRect(px+.5,py+.5,CW-1,CH-1);if(state.selected===i){x.strokeStyle="#fff";x.lineWidth=4;x.strokeRect(px+3,py+3,CW-6,CH-6)}if(!p&&i===miss){x.setLineDash([8,6]);x.strokeStyle=state.received?"#19e6c8":"#58a6ff";x.lineWidth=4;x.strokeRect(px+5,py+5,CW-10,CH-10);x.setLineDash([])}if(ready&&p&&p.owner!==state.seat){x.strokeStyle="#ffd23f";x.lineWidth=4;x.strokeRect(px+4,py+4,CW-8,CH-8)}}}
+
+/* UI */
+function renderAll(){drawBoard();renderTray();renderStatus();renderMeet();renderRoom();}
+function renderTray(){const t=$("#tray");t.innerHTML="";if(state.received&&!state.incomingPlaced){const b=document.createElement("button");b.className="piece-card incoming";const c=document.createElement("canvas");c.width=140;c.height=140;drawPiece(c.getContext("2d"),ownPiece(state.seat,missingOf(state.seat)),0,0,140,140);b.append(c);const lab=document.createElement("div");lab.className="piece-label";lab.textContent="YOUR PIECE";b.append(lab);b.onclick=()=>{b.classList.toggle("sel");tone();};t.append(b)}if(localReady()&&!state.delivered){const i=state.slots.findIndex(p=>p&&p.owner!==state.seat);if(i>=0){const b=document.createElement("button");b.className="piece-card foreign";const c=document.createElement("canvas");c.width=140;c.height=140;drawPiece(c.getContext("2d"),state.slots[i],0,0,140,140);b.append(c);const lab=document.createElement("div");lab.className="piece-label";lab.textContent=`FOR ${String(nextSeat(state.seat)).padStart(2,"0")}`;b.append(lab);b.onclick=()=>{showView("meet");selectContact(nextSeat(state.seat));};t.append(b)}}if(!t.children.length){const d=document.createElement("div");d.className="tray-empty";d.textContent=localReady()?"No loose pieces here. Use MEET to trade.":"Tap two board tiles to swap them. No dragging required.";t.append(d)}}
+function renderStatus(){const ph=phase(),correct=ownCorrect();$("#who").textContent=`YOU · SEAT ${String(state.seat).padStart(2,"0")} · ${ph}`;$("#where").textContent=`ROOM ${state.room} · GAME ${state.fingerprint} · ${state.n} PLAYERS`;$("#boardTag").textContent=`${correct} / 24 OWN PIECES`;let text="Tap one tile, then another. Put each image fragment where its lines continue.",btn="PUZZLE",view="puzzle";if(ph==="FIND"){if(!state.delivered&&!state.received)text=`Carry the yellow piece to seat ${String(nextSeat(state.seat)).padStart(2,"0")}. Seat ${String(prevSeat(state.seat)).padStart(2,"0")} holds yours.`;else if(!state.delivered)text=`Your piece arrived. You still must give the yellow piece to seat ${String(nextSeat(state.seat)).padStart(2,"0")}.`;else text=`Your hand is clear. Ask seat ${String(prevSeat(state.seat)).padStart(2,"0")} for your missing piece.`;btn="MEET";view="meet"}else if(ph==="PLACE"){text="Tap the green piece in your tray, then tap the empty outlined square.";btn="PLACE";view="puzzle"}else if(ph==="HELP"){text="Both jobs complete. Open the room and help one unfinished seat.";btn="ROOM";view="room"}$("#nowText").textContent=text;$("#nowButton").textContent=btn;$("#nowButton").dataset.view=view;$$('.navb[data-view="meet"]').forEach(b=>b.classList.toggle("attn",ph==="FIND"));const net=$("#netBtn");if(state.mode==="practice"){net.textContent="PRACTICE";net.className="net live"}else if(state.conn&&state.conn.open){net.textContent="LIVE";net.className="net live"}else{net.textContent="WAIT";net.className="net wait"}}
+function showView(v){state.view=v;["puzzle","meet","room"].forEach(k=>{$("#"+k+"View").classList.toggle("on",k===v);$(`.navb[data-view="${k}"]`).classList.toggle("on",k===v)});if(v==="puzzle")requestAnimationFrame(resizeBoard);if(v==="meet")renderPersonalQR()}
+$$('.navb').forEach(b=>b.onclick=()=>showView(b.dataset.view));$("#nowButton").onclick=()=>showView($("#nowButton").dataset.view||"puzzle");
+
+/* meet / practice and live */
+let contactSeat=0;
+function seatState(s){if(s===state.seat)return{connected:true,done:complete(),phase:phase(),correct:ownCorrect()};if(state.mode==="practice"){const done=state.peers[s]?.done||false;return{connected:true,done,phase:done?"DONE":"SEARCH",correct:done?24:22}}return state.roster[s]||{connected:false,done:false,phase:"AWAY",correct:0}}
+function renderMeet(){const grid=$("#contactGrid");grid.innerHTML="";for(let s=1;s<=state.n;s++){const st=seatState(s),b=document.createElement("button");b.className="contact"+(st.connected?" here":"")+(st.done?" done":"")+(s===state.seat?" me":"")+(s===nextSeat(state.seat)&&!state.delivered?" target":"");b.innerHTML=`<b>${String(s).padStart(2,"0")}</b><span>${s===state.seat?"YOU":st.connected?(st.done?"DONE":st.phase):"AWAY"}</span>`;b.disabled=s===state.seat||!st.connected;b.onclick=()=>selectContact(s);grid.append(b)}if(contactSeat)renderMeetDetail()}
+function selectContact(s){contactSeat=s;renderMeetDetail();$("#meetDetail").scrollIntoView({behavior:"smooth",block:"nearest"})}
+function renderMeetDetail(){const box=$("#meetDetail");if(!contactSeat){box.innerHTML="";return}const st=seatState(contactSeat);box.innerHTML=`<div class="meet-card"><div class="meet-title">YOU ARE WITH</div><div class="meet-seat">SEAT ${String(contactSeat).padStart(2,"0")}</div><p class="small">Compare screens before pressing a trade button.</p><div class="meet-actions"><button class="give" id="giveBtn">GIVE MY PIECE</button><button class="take" id="takeBtn">ASK FOR MINE</button></div></div>`;$("#giveBtn").disabled=!localReady()||state.delivered;$("#takeBtn").disabled=state.received;$("#giveBtn").onclick=()=>tradePrompt("give",contactSeat);$("#takeBtn").onclick=()=>tradePrompt("ask",contactSeat)}
+function tradePrompt(kind,target){const correct=kind==="give"?target===nextSeat(state.seat):target===prevSeat(state.seat);$("#tradeTitle").textContent=kind==="give"?`Give to seat ${target}`:`Ask seat ${target}`;$("#tradeCopy").textContent=kind==="give"?"This hands over the yellow piece you are carrying. Confirm only after both screens match.":"This asks the selected seat to release the piece missing from your puzzle.";$("#tradeOverlay").classList.add("on");$("#tradeConfirm").onclick=()=>{closeTrade();if(state.mode==="practice")resolvePracticeTrade(kind,target,correct);else sendTrade(kind,target)}}
+function closeTrade(){$("#tradeOverlay").classList.remove("on")}$("#tradeCancel").onclick=closeTrade;
+function resolvePracticeTrade(kind,target,correct){if(!correct){tone("bad");vibrate([30,50,30]);toast("Those pieces do not connect. Keep searching.");return}if(kind==="give"){const i=state.slots.findIndex(p=>p&&p.owner!==state.seat);if(i>=0)state.slots[i]=null;state.delivered=true;state.peers[target]={done:true};tone("give");toast(`Piece delivered to seat ${String(target).padStart(2,"0")}.`)}else{state.received=true;tone("take");toast("Your missing piece arrived in the tray.")}save();renderAll();}
+function sendTrade(kind,target){if(!state.conn||!state.conn.open){toast("Room connection is not ready.");return}state.conn.send({t:"trade",kind,target,from:state.seat});toast("Trade request sent.")}
+function renderPersonalQR(){const box=$("#personalQR");box.innerHTML="";const payload=JSON.stringify({type:"person",room:state.room,fp:state.fingerprint,seat:state.seat});if(window.QRCode)new QRCode(box,{text:payload,width:190,height:190,colorDark:"#000",colorLight:"#fff"});else box.textContent=`SEAT ${state.seat}`}
+
+/* room */
+function renderRoom(){const sum=$("#roomSummary"),connected=Array.from({length:state.n},(_,i)=>seatState(i+1)).filter(x=>x.connected).length,done=Array.from({length:state.n},(_,i)=>seatState(i+1)).filter(x=>x.done).length;sum.innerHTML=`<div><b>${connected}</b><span>CONNECTED</span></div><div><b>${done}</b><span>DONE</span></div><div><b>${state.n-done}</b><span>ACTIVE</span></div>`;const list=$("#roomList");list.innerHTML="";for(let s=1;s<=state.n;s++){const st=seatState(s),r=document.createElement("div");r.className="room-row";const c=document.createElement("canvas");c.className="mini";c.width=104;c.height=140;c.getContext("2d").drawImage(scenes[sceneOf(s)],0,0,104,140);r.append(c);const mid=document.createElement("div");mid.innerHTML=`<h4>${s===state.seat?"YOU · ":""}SEAT ${String(s).padStart(2,"0")}</h4><p>${st.connected?`${st.correct||0} own pieces · ${st.phase}`:"not connected"}</p>`;r.append(mid);const ph=document.createElement("div");ph.className="phase"+(st.done?" done":"");ph.textContent=st.done?"DONE":st.phase;r.append(ph);if(st.connected&&s!==state.seat)r.onclick=()=>{showView("meet");selectContact(s)};list.append(r)}}
+
+/* practice */
+function beginPractice(){state.mode="practice";state.room="PRACT";state.seed=Math.floor(Math.random()*1e9);state.n=10;state.seat=1+Math.floor(Math.random()*10);state.fingerprint=fp(state.room,state.seed,state.n);state.peers={};for(let s=1;s<=state.n;s++)if(s!==state.seat)state.peers[s]={done:false};resetProgress();newBoard();startGame()}
+
+/* networking */
+function hostPeerId(room){return"momsaic-mobile-"+room.toLowerCase()}
+function roomInvite(){const u=new URL(location.href);u.search="";u.hash="";u.searchParams.set("room",state.room);u.searchParams.set("seed",state.seed);u.searchParams.set("n",state.n);u.searchParams.set("host",state.hostId);u.searchParams.set("fp",state.fingerprint);return u.toString()}
+function parseInvite(raw){try{const u=new URL(raw,location.href),room=(u.searchParams.get("room")||"").toUpperCase(),seed=Number(u.searchParams.get("seed")),n=Number(u.searchParams.get("n")),host=u.searchParams.get("host"),f=u.searchParams.get("fp");if(room&&seed&&n&&host)return{room,seed,n,host,fp:f||fp(room,seed,n)}}catch(e){}try{const d=JSON.parse(raw);if(d.type==="room")return d}catch(e){}return null}
+function createHost(){if(!window.Peer){$("#hostStatus").textContent="PeerJS did not load. Practice still works.";return}state.mode="host";state.room=code();state.seed=Math.floor(Math.random()*1e9);state.n=Number($("#hostCount").value);state.hostId=hostPeerId(state.room);state.fingerprint=fp(state.room,state.seed,state.n);state.hostStates={};state.hostClients=new Map();$("#hostLive").style.display="block";$("#hostCode").textContent=state.room;$("#hostExpected").textContent=state.n;renderRoomQR();renderHostRoster();$("#hostStatus").textContent="Registering room…";try{state.hostPeer=new Peer(state.hostId);state.hostPeer.on("open",()=>{$("#hostStatus").textContent=`ROOM LIVE · GAME ${state.fingerprint}`;$("#hostStatus").className="small ok"});state.hostPeer.on("connection",conn=>{conn.on("open",()=>conn.send({t:"room",room:state.room,seed:state.seed,n:state.n,fp:state.fingerprint,roster:state.hostStates}));conn.on("data",m=>hostMessage(conn,m));conn.on("close",()=>{if(conn.seat){delete state.hostStates[conn.seat];state.hostClients.delete(conn.seat);broadcastHost();renderHostRoster()}})});state.hostPeer.on("error",e=>{$("#hostStatus").textContent=e.type==="unavailable-id"?"That room code is already open. End it or create another.":"Room network error.";$("#hostStatus").className="small bad"})}catch(e){$("#hostStatus").textContent="Could not create room."}}
+function hostMessage(conn,m){if(!m||typeof m!=="object")return;if(m.t==="claim"){if(state.hostStates[m.seat]){conn.send({t:"deny",reason:"Seat already taken"});return}conn.seat=m.seat;state.hostClients.set(m.seat,conn);state.hostStates[m.seat]={connected:true,phase:"WAIT",correct:0,done:false,delivered:false,received:false};conn.send({t:"accepted",seat:m.seat,room:state.room,seed:state.seed,n:state.n,fp:state.fingerprint});broadcastHost();renderHostRoster()}else if(m.t==="state"){state.hostStates[m.seat]={...state.hostStates[m.seat],...m.data,connected:true};broadcastHost();renderHostRoster()}else if(m.t==="trade"){hostTrade(m)}}
+function hostTrade(m){const from=Number(m.from),target=Number(m.target),a=state.hostStates[from],b=state.hostStates[target];if(!a||!b)return;let ok=false,msg="Those seats do not exchange those pieces.";if(m.kind==="give"&&target===from%state.n+1&&a.phase!=="BUILD"&&!a.delivered){a.delivered=true;b.received=true;ok=true;msg="Piece delivered."}else if(m.kind==="ask"&&target===(from-2+state.n)%state.n+1&&b.phase!=="BUILD"&&!b.delivered){b.delivered=true;a.received=true;ok=true;msg="Missing piece released."}const ca=state.hostClients.get(from),cb=state.hostClients.get(target);if(ca?.open)ca.send({t:"tradeResult",ok,msg,me:a});if(cb?.open)cb.send({t:"tradeResult",ok,msg,me:b});broadcastHost();renderHostRoster()}
+function broadcastHost(){const pkt={t:"roster",roster:state.hostStates};state.hostClients.forEach(c=>{if(c.open)c.send(pkt)})}
+function renderHostRoster(){const grid=$("#hostSeats");grid.innerHTML="";let joined=0;for(let s=1;s<=state.n;s++){const b=document.createElement("button");b.className="seat"+(state.hostStates[s]?" on":"");b.textContent=String(s).padStart(2,"0");b.disabled=true;if(state.hostStates[s])joined++;grid.append(b)}$("#hostJoined").textContent=joined;$("#hostStartBtn").disabled=joined!==state.n;$("#hostStartBtn").textContent=joined===state.n?"START ROOM":`WAITING ${joined} / ${state.n}`;$("#hostStatus").textContent=state.hostPeer&&state.hostPeer.open?`ROOM LIVE · GAME ${state.fingerprint} · ${joined}/${state.n} JOINED`:$("#hostStatus").textContent}
+function renderRoomQR(){const box=$("#roomQR");box.innerHTML="";if(window.QRCode)new QRCode(box,{text:roomInvite(),width:280,height:280,colorDark:"#000",colorLight:"#fff"});else box.textContent=roomInvite()}
+function hostStart(){state.hostClients.forEach(c=>{if(c.open)c.send({t:"start"})});$("#hostStatus").textContent="ROOM STARTED · keep this screen open"}
+function endHost(){try{state.hostPeer?.destroy()}catch(e){}state.hostPeer=null;showFront()}
+function findRoom(){const room=$("#joinCode").value.trim().toUpperCase();if(!room){toast("Enter the room code.");return}state.pendingRoom={room,host:hostPeerId(room)};connectJoin(state.pendingRoom)}
+function connectJoin(meta){if(!window.Peer){$("#joinInfo").textContent="PeerJS did not load. Live rooms need internet.";return}state.mode="client";state.pendingRoom=meta;$("#joinInfo").textContent=`Finding room ${meta.room}…`;try{state.peer=new Peer();state.peer.on("open",()=>{const c=state.peer.connect(meta.host,{reliable:true});state.conn=c;c.on("open",()=>{$("#joinInfo").textContent="Room found. Waiting for room details…"});c.on("data",clientMessage);c.on("close",()=>toast("Room connection closed."));c.on("error",()=>toast("Could not stay connected."))});state.peer.on("error",()=>{$("#joinInfo").textContent="Room not found. Check the code and host screen."})}catch(e){$("#joinInfo").textContent="Could not open network connection."}}
+function clientMessage(m){if(!m||typeof m!=="object")return;if(m.t==="room"){state.room=m.room;state.seed=m.seed;state.n=m.n;state.fingerprint=m.fp;state.hostId=state.pendingRoom.host;state.roster=m.roster||{};renderJoinSeats();$("#joinInfo").innerHTML=`<span class="ok">ROOM LIVE</span> · GAME ${state.fingerprint} · choose one open seat.`}else if(m.t==="accepted"){state.seat=m.seat;state.room=m.room;state.seed=m.seed;state.n=m.n;state.fingerprint=m.fp;$("#enterSeatBtn").textContent=`ENTER AS SEAT ${String(state.seat).padStart(2,"0")}`;$("#enterSeatBtn").disabled=false}else if(m.t==="deny"){toast(m.reason||"Seat unavailable");state.seat=0;renderJoinSeats()}else if(m.t==="start"){if(state.seat){resetProgress();newBoard();startGame()}}else if(m.t==="roster"){state.roster=m.roster||{};renderJoinSeats();renderAll()}else if(m.t==="tradeResult"){if(m.me){state.delivered=!!m.me.delivered;state.received=!!m.me.received;if(state.delivered){const i=state.slots.findIndex(p=>p&&p.owner!==state.seat);if(i>=0)state.slots[i]=null}save();renderAll();sendState()}tone(m.ok?"take":"bad");toast(m.msg)}}
+function renderJoinSeats(){const grid=$("#joinSeats");grid.innerHTML="";for(let s=1;s<=state.n;s++){const b=document.createElement("button");b.className="seat"+(state.roster[s]?" busy":"")+(state.seat===s?" on me":"");b.textContent=String(s).padStart(2,"0");b.disabled=!!state.roster[s]&&state.seat!==s;b.onclick=()=>{state.seat=s;state.conn.send({t:"claim",seat:s})};grid.append(b)}}
+function sendState(){if(state.mode!=="client"||!state.conn?.open||!state.seat)return;state.conn.send({t:"state",seat:state.seat,data:{phase:phase(),correct:ownCorrect(),done:complete(),delivered:state.delivered,received:state.received,connected:true}})}
+
+/* QR scanning */
+const scan={stream:null,raf:0,cb:null,det:null};
+async function startScan(cb){scan.cb=cb;$("#scanOverlay").classList.add("on");$("#scanNote").textContent="Starting camera…";if(!navigator.mediaDevices?.getUserMedia){$("#scanNote").textContent="Camera unavailable. Use the room code or seat grid.";return}try{scan.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});const v=$("#scanVideo");v.srcObject=scan.stream;await v.play();if("BarcodeDetector" in window)scan.det=new BarcodeDetector({formats:["qr_code"]});$("#scanNote").textContent=scan.det?"Point at the QR code.":"This browser cannot read QR inside the page. Use your phone camera app or enter the code.";if(scan.det)scanTick()}catch(e){$("#scanNote").textContent="Camera blocked. Allow camera access or enter the code."}}
+async function scanTick(){if(!scan.stream||!scan.det)return;try{const r=await scan.det.detect($("#scanVideo"));if(r.length){const raw=r[0].rawValue;stopScan();scan.cb?.(raw);return}}catch(e){}scan.raf=requestAnimationFrame(scanTick)}
+function stopScan(){cancelAnimationFrame(scan.raf);scan.raf=0;if(scan.stream)scan.stream.getTracks().forEach(t=>t.stop());scan.stream=null;$("#scanOverlay").classList.remove("on")}
+$("#scanCancel").onclick=stopScan;
+function scanRoom(){startScan(raw=>{const d=parseInvite(raw);if(!d){toast("That QR is not a MOMSAIC room.");return}$("#joinCode").value=d.room;state.pendingRoom=d;connectJoin(d)})}
+function scanPerson(){startScan(raw=>{try{const d=JSON.parse(raw);if(d.type!=="person"||d.room!==state.room||d.fp!==state.fingerprint)throw 0;showView("meet");selectContact(Number(d.seat))}catch(e){toast("That person is in a different room or game.")}})}
+
+/* events */
+$("#practiceBtn").onclick=beginPractice;$("#joinBtn").onclick=()=>showPage("joinPage");$("#hostBtn").onclick=()=>showPage("hostPage");$("#helpBtn").onclick=()=>showPage("helpPage");$$('[data-back]').forEach(b=>b.onclick=()=>showPage("doorPage"));
+$("#scanRoomBtn").onclick=scanRoom;$("#findRoomBtn").onclick=findRoom;$("#enterSeatBtn").onclick=()=>{if(state.seat){$("#enterSeatBtn").textContent="WAIT FOR HOST TO START";$("#enterSeatBtn").disabled=true}};
+$("#createRoomBtn").onclick=createHost;$("#hostStartBtn").onclick=hostStart;$("#hostEndBtn").onclick=endHost;$("#scanPersonBtn").onclick=scanPerson;$("#netBtn").onclick=()=>toast(state.mode==="practice"?"Practice runs entirely on this phone.":state.conn?.open?"Connected to the room host.":"Waiting for the room host connection.");
+window.addEventListener("resize",()=>{if($("#game").classList.contains("on"))resizeBoard()});window.addEventListener("orientationchange",()=>setTimeout(resizeBoard,180));
+
+/* boot */
+(function boot(){const g=$("#bootGrid"),notes=["building the picture","pulling back","spacing the rungs","checking the seams","ready"];let i=0;function step(){scenes[i]=makeScene(i);const cell=document.createElement("div");cell.className="boot-cell";const c=document.createElement("canvas");c.width=64;c.height=96;c.getContext("2d").drawImage(scenes[i],0,0,64,96);cell.append(c);g.append(cell);i++;$("#bootNote").textContent=notes[Math.min(notes.length-1,Math.floor(i/SCENES*notes.length))];if(i<SCENES)requestAnimationFrame(step);else setTimeout(()=>{$("#boot").classList.remove("on");$("#front").classList.add("on");const q=new URLSearchParams(location.search);if(q.get("room")){showPage("joinPage");const d={room:q.get("room").toUpperCase(),seed:Number(q.get("seed")),n:Number(q.get("n")),host:q.get("host"),fp:q.get("fp")};$("#joinCode").value=d.room;connectJoin(d)}else showPage("doorPage")},350)}step()})();
+</script>
+</body>
+</html>
