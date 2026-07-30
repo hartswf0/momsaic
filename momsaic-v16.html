@@ -1,0 +1,1057 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#050505">
+<title>MOMSAIC v16 — Remote Invite</title>
+<style>
+:root{--ink:#050505;--paper:#f6f2e8;--teal:#20e0c2;--amber:#ffd33d;--red:#ff5147;--blue:#66a6ff;--line:#2b2b2b;--muted:#858585}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;overflow:hidden;background:var(--ink);color:#fff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+button{font:inherit}
+#app{position:fixed;inset:0;overflow:hidden;background:var(--ink)}
+.screen{position:absolute;inset:0;display:none}.screen.on{display:flex}
+#intro{align-items:center;justify-content:center;flex-direction:column;padding:max(18px,env(safe-area-inset-top)) 18px max(22px,env(safe-area-inset-bottom));gap:18px}
+#introDemo{position:absolute;inset:0;width:100%;height:100%;opacity:.82}
+.intro-copy{position:relative;z-index:2;margin-top:auto;text-align:center;display:grid;gap:8px;text-shadow:0 2px 18px #000}
+.brand{font-size:clamp(2.1rem,11vw,4.2rem);letter-spacing:.18em;font-weight:950}.tag{font-size:.7rem;letter-spacing:.22em;color:#a3a3a3}
+.intro-actions{position:relative;z-index:2;width:min(420px,100%);display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:auto}
+.primary{height:68px;border:0;background:#fff;color:#000;font-weight:1000;font-size:1.25rem;letter-spacing:.12em}.iconbtn{width:68px;height:68px;border:1px solid #444;background:#090909;color:#fff;font-size:1.35rem}.hidden{display:none!important}
+#game{flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+#hud{height:58px;flex:0 0 58px;display:grid;grid-template-columns:1fr auto;align-items:center;padding:6px 10px;border-bottom:1px solid #222;background:rgba(5,5,5,.94);z-index:4}
+#phaseDots{display:flex;align-items:center;gap:7px}.phase-dot{width:14px;height:14px;border:2px solid #444;border-radius:50%;position:relative}.phase-dot.now{border-color:var(--amber);box-shadow:0 0 0 4px rgba(255,211,61,.12)}.phase-dot.done{background:var(--teal);border-color:var(--teal)}.phase-line{width:28px;height:2px;background:#333}.phase-line.done{background:var(--teal)}
+#hudActions{display:flex;gap:6px}.hudbtn{width:46px;height:46px;border:1px solid #333;background:#090909;color:#fff;font-size:1.3rem}.hudbtn:active{transform:scale(.96)}
+#worldWrap{position:relative;flex:1;min-height:0;overflow:hidden}
+#world{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+#cue{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:5;min-width:150px;max-width:78vw;min-height:48px;border:2px solid var(--amber);background:rgba(0,0,0,.88);color:#fff;display:flex;align-items:center;justify-content:center;gap:9px;padding:7px 13px;font-weight:1000;font-size:.86rem;letter-spacing:.08em;text-align:center;pointer-events:none}
+#cue .gesture{font-size:1.55rem;color:var(--amber)}
+#settings,#complete{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.88);display:none;align-items:flex-end;justify-content:center}#settings.on,#complete.on{display:flex}
+.sheet{width:min(560px,100%);background:#080808;border-top:2px solid #444;padding:12px 12px max(14px,env(safe-area-inset-bottom));display:grid;gap:9px;max-height:100dvh}
+.sheet-head{display:flex;justify-content:space-between;align-items:center}.sheet-head b{font-size:1.05rem;letter-spacing:.12em}.close{width:46px;height:46px;background:#000;border:1px solid #444;color:#fff;font-size:1.25rem}
+.row{display:grid;grid-template-columns:72px minmax(0,1fr);gap:7px;align-items:center}.row>label{font-size:.7rem;color:#aaa;letter-spacing:.1em;font-weight:900}.choices{display:grid;gap:4px}.choices.four{grid-template-columns:repeat(4,1fr)}.choices.three{grid-template-columns:repeat(3,1fr)}
+.choice{height:44px;border:1px solid #333;background:#0c0c0c;color:#aaa;font-size:.72rem;font-weight:900}.choice.on{background:#fff;color:#000;border-color:#fff}.choice.source.on{background:var(--teal);border-color:var(--teal)}
+#sourceNote{font-size:.66rem;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:79px}
+.apply{height:58px;background:#fff;color:#000;border:0;font-size:1rem;font-weight:1000;letter-spacing:.1em}
+#fileInput,#cameraInput{display:none}
+.complete-card{width:min(430px,calc(100% - 24px));margin:auto;border:2px solid var(--teal);background:#050505;padding:18px;display:grid;gap:13px;text-align:center}.complete-card h2{font-size:2rem;letter-spacing:.1em}.complete-card canvas{width:min(250px,70vw);aspect-ratio:4/5;margin:auto;border:1px solid #333}.complete-actions{display:grid;grid-template-columns:1fr auto;gap:7px}.complete-actions button{height:60px}
+@media(max-height:690px){#hud{height:50px;flex-basis:50px}.hudbtn{width:40px;height:40px}.sheet{gap:6px;padding-top:8px}.choice{height:38px}.row{grid-template-columns:62px 1fr}.apply{height:50px}}
+@media(orientation:landscape){#hud{position:absolute;left:0;right:0;top:env(safe-area-inset-top);background:rgba(5,5,5,.75);border:0}#worldWrap{position:absolute;inset:0}.sheet{width:min(620px,72vw)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===== v10: source-first onboarding + live peer graph ===== */
+#intro{padding-left:14px;padding-right:14px}
+#intro .intro-copy{margin-top:auto}
+.quick-source{position:relative;z-index:3;width:min(430px,100%);display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:auto}
+.quick-source button{height:58px;border:1px solid #3a3a3a;background:rgba(5,5,5,.92);color:#ddd;font-weight:950;letter-spacing:.08em;font-size:.8rem}
+.quick-source button.on{background:var(--teal);border-color:var(--teal);color:#001a16}
+#quickNote{position:relative;z-index:3;width:min(430px,100%);font-size:.7rem;color:#aaa;min-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.intro-actions{grid-template-columns:1fr 1fr auto;margin-top:0}
+#togetherBtn{height:68px;border:2px solid var(--teal);background:#050505;color:var(--teal);font-weight:1000;font-size:1.03rem;letter-spacing:.08em}
+#scanHud{display:none}.room-live #scanHud{display:block}#liveTag{display:none;margin-left:5px;font-size:.58rem;line-height:1.2;color:#aaa;letter-spacing:.06em;white-space:nowrap}.room-live #liveTag{display:block}.ai-hide{display:none!important}
+#roomPanel,#peekPanel,#exchangePanel,#scanPanel{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.92);display:none;align-items:flex-end;justify-content:center}
+#roomPanel.on,#peekPanel.on,#exchangePanel.on,#scanPanel.on{display:flex}
+.v10sheet{width:min(560px,100%);max-height:100dvh;background:#080808;border-top:2px solid #444;padding:12px 12px max(14px,env(safe-area-inset-bottom));display:grid;gap:9px;overflow:hidden}
+.v10head{height:48px;display:flex;align-items:center;justify-content:space-between}.v10head b{font-size:1rem;letter-spacing:.1em}.v10close{width:46px;height:46px;background:#000;border:1px solid #444;color:#fff;font-size:1.2rem}
+.room-modes{display:grid;grid-template-columns:1fr 1fr;gap:7px}.room-modes button,.roomaction{height:54px;background:#0b0b0b;border:1px solid #3a3a3a;color:#ddd;font-weight:950;letter-spacing:.08em}.room-modes button.on{background:#fff;color:#000;border-color:#fff}
+.roomblock{display:none;gap:8px}.roomblock.on{display:grid}
+.roomcount{display:grid;grid-template-columns:1fr 54px 52px 54px;align-items:center;gap:6px;color:#aaa;font-size:.78rem}.roomcount button{height:48px;background:#050505;border:1px solid #444;color:#fff;font-size:1.2rem}.roomcount b{text-align:center;font-size:1.1rem;color:#fff}
+.roomcode{font-size:clamp(1.8rem,10vw,3.2rem);font-weight:1000;letter-spacing:.18em;text-align:center;color:var(--teal)}
+#roomQR{width:min(220px,52vw);height:min(220px,52vw);margin:auto;background:#fff;border:7px solid #fff;image-rendering:pixelated}
+.roomstatus{text-align:center;font-size:.72rem;color:#aaa;min-height:34px;line-height:1.45}.roomstatus.ok{color:var(--teal)}.roomstatus.bad{color:var(--red)}
+#roster{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}.seatdot{aspect-ratio:1;border:1px solid #333;background:#0a0a0a;display:flex;align-items:center;justify-content:center;color:#555;font-size:.68rem}.seatdot.on{background:var(--teal);border-color:var(--teal);color:#001a16}.seatdot.me{outline:3px solid #fff}
+.codeentry{height:56px;background:#000;border:2px solid #444;color:#fff;font:1000 1.35rem monospace;text-transform:uppercase;text-align:center;letter-spacing:.16em}
+.room-buttons{display:grid;grid-template-columns:1fr 1fr;gap:7px}.room-buttons button{height:58px;font-weight:1000;letter-spacing:.08em}.scanroom{background:#050505;border:2px solid var(--teal);color:var(--teal)}.joinroom,.startroom{background:#fff;border:0;color:#000}.startroom:disabled{background:#202020;color:#666}
+#peekCanvas{width:100%;height:min(58dvh,510px);background:#050505;border:1px solid #333;touch-action:none}
+.peekmeta{display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center}.peekmeta b{font-size:1rem}.peekmeta span{font-size:.7rem;color:#aaa}
+#peekSend{height:62px;border:0;background:var(--amber);color:#1b1400;font-size:1rem;font-weight:1000;letter-spacing:.08em}#peekSend:disabled{background:#1c1c1c;color:#666}
+.exchange-grid{display:grid;grid-template-columns:1fr 46px 1fr;align-items:center;gap:8px}.exchange-card{border:1px solid #444;background:#050505;padding:8px;display:grid;gap:6px;text-align:center}.exchange-card canvas{width:100%;aspect-ratio:1;background:#000}.exchange-card b{font-size:.72rem;letter-spacing:.08em}.exchange-arrow{font-size:2rem;text-align:center;color:var(--amber)}
+#exchangeQR{width:min(230px,58vw);height:min(230px,58vw);margin:auto;background:#fff;border:7px solid #fff}.txcode{text-align:center;color:var(--amber);font-size:1.15rem;letter-spacing:.22em;font-weight:1000}.exchangeState{text-align:center;min-height:38px;line-height:1.45;font-size:.78rem;color:#aaa}.exchangeState.ok{color:var(--teal)}.exchangeState.bad{color:var(--red)}
+#scanVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.72}.scanbox{position:relative;z-index:2;width:min(72vw,280px);aspect-ratio:1;border:4px solid var(--teal);margin:auto}.scancontent{position:relative;z-index:3;width:100%;display:grid;gap:10px;background:linear-gradient(transparent,rgba(0,0,0,.92));padding:20px 14px max(18px,env(safe-area-inset-bottom));align-self:flex-end}.scancontent p{text-align:center;color:#fff;font-size:.82rem}.scanmanual{display:grid;grid-template-columns:1fr auto;gap:7px}.scanmanual input{height:54px;background:#000;border:1px solid #555;color:#fff;text-align:center;text-transform:uppercase;font:1000 1.1rem monospace;letter-spacing:.12em}.scanmanual button,.scancontent>button{height:54px;background:#fff;border:0;color:#000;font-weight:1000;padding:0 16px}
+#toast{position:fixed;z-index:60;left:50%;top:max(12px,env(safe-area-inset-top));transform:translate(-50%,-120%);background:#fff;color:#000;border:2px solid #000;padding:11px 15px;font-weight:1000;letter-spacing:.06em;transition:transform .2s;max-width:90vw;text-align:center}#toast.on{transform:translate(-50%,0)}
+#settings .row:has(.islands){display:none}
+@media(max-height:690px){.quick-source button{height:48px}.intro-actions .primary,#togetherBtn{height:58px}.v10sheet{gap:6px}.roomaction,.room-modes button{height:46px}#peekCanvas{height:50dvh}#exchangeQR{width:160px;height:160px}}
+
+/* ===== v11: lossless ledger + inspect-before-offer ===== */
+#ledgerStatus{position:absolute;z-index:6;top:7px;left:50%;transform:translateX(-50%);height:30px;display:flex;align-items:center;justify-content:center;padding:0 10px;border:1px solid #315a53;background:rgba(2,17,14,.92);color:var(--teal);font-size:.63rem;font-weight:1000;letter-spacing:.07em;white-space:nowrap;pointer-events:none}
+#ledgerStatus.bad{border-color:var(--red);color:var(--red);background:rgba(25,4,3,.94)}
+.exchange-actions{display:grid;grid-template-columns:1fr auto;gap:7px}.exchange-confirm{height:62px;background:var(--amber);border:0;color:#181200;font-size:1rem}.exchange-confirm:disabled{background:#1c1c1c;color:#666}.exchange-cancel{min-width:92px;background:#050505!important;border:1px solid #444!important;color:#aaa!important}.exchange-card.reserved{outline:3px solid var(--amber)}
+#peekStatus.inspect{color:var(--amber)}
+@media(max-height:690px){#ledgerStatus{top:4px;height:26px;font-size:.57rem}.exchange-confirm{height:52px}.exchange-actions .roomaction{height:46px}}
+
+
+/* ===== v12: direct piece manipulation ===== */
+#peekPanel{align-items:stretch;background:#030303}
+#peekPanel .direct-sheet{width:100%;height:100%;display:grid;grid-template-rows:54px minmax(0,1fr) auto auto;background:#050505;padding:max(4px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom));gap:7px}
+.direct-head{display:grid;grid-template-columns:1fr auto;align-items:center;border-bottom:1px solid #292929;padding-left:4px}.direct-title{display:grid;gap:2px}.direct-title b{font-size:1rem;letter-spacing:.08em}.direct-title span{font-size:.66rem;color:#9b9b9b;letter-spacing:.06em}.direct-close{width:48px;height:48px;background:#050505;border:1px solid #444;color:#fff;font-size:1.35rem}
+#peerStage{position:relative;min-height:0;overflow:hidden;border:1px solid #2b2b2b;background:#020202}
+#peekCanvas{position:absolute;inset:0;width:100%;height:100%;border:0;background:#020202;touch-action:none}
+#peerDropNote{position:absolute;left:50%;bottom:7px;transform:translateX(-50%);padding:7px 10px;background:rgba(0,0,0,.86);border:1px solid #444;color:#ddd;font-size:.67rem;font-weight:950;letter-spacing:.06em;white-space:nowrap;pointer-events:none}
+#peerDropNote.good{border-color:var(--teal);color:var(--teal)}#peerDropNote.bad{border-color:var(--red);color:var(--red)}
+#peerTrayWrap{display:grid;gap:5px}.tray-label{display:flex;justify-content:space-between;align-items:center;font-size:.67rem;color:#aaa;letter-spacing:.08em}.tray-label b{color:#fff;font-size:.72rem}.tray-label span{color:var(--amber)}
+#peerTray{display:flex;gap:8px;min-height:82px;align-items:center;overflow-x:auto;overscroll-behavior-x:contain;padding:3px 1px 5px;scrollbar-width:none}#peerTray::-webkit-scrollbar{display:none}
+.peer-piece{position:relative;width:74px;height:74px;flex:0 0 74px;border:2px solid var(--amber);background:#050505;padding:3px;touch-action:none}.peer-piece canvas{width:100%;height:100%;display:block}.peer-piece.held{border-color:#ff9f2f;opacity:.72}.peer-piece.sent{border-color:var(--teal);opacity:.35}.peer-piece .round{position:absolute;right:2px;top:2px;min-width:20px;height:20px;padding:0 4px;background:#000;border:1px solid currentColor;color:var(--amber);display:flex;align-items:center;justify-content:center;font-size:.61rem;font-weight:1000}.peer-empty{width:100%;height:70px;border:1px dashed #333;display:flex;align-items:center;justify-content:center;color:#666;font-size:.73rem;font-weight:900;letter-spacing:.08em;text-align:center}
+.direct-footer{display:grid;grid-template-columns:1fr;gap:7px}.direct-help{min-height:50px;border:1px solid #333;background:#0a0a0a;color:#ddd;display:flex;align-items:center;padding:8px 10px;font-size:.72rem;font-weight:900;line-height:1.35}.direct-fallback{display:none}
+#directFloat{position:fixed;z-index:80;width:82px;height:82px;display:none;pointer-events:none;filter:drop-shadow(0 8px 14px rgba(0,0,0,.75));transform:translate(-50%,-50%)}#directFloat.on{display:block}
+#incomingDock{position:absolute;z-index:9;left:8px;right:8px;bottom:70px;min-height:88px;border:3px solid var(--teal);background:rgba(0,18,15,.96);display:none;grid-template-columns:80px 1fr auto;align-items:center;gap:9px;padding:5px 7px;box-shadow:0 0 0 5px rgba(32,224,194,.10)}#incomingDock.on{display:grid}#incomingPiece{width:76px;height:76px;background:#050505;touch-action:none;border:2px solid var(--teal)}#incomingText{display:grid;gap:3px}#incomingText b{font-size:.84rem;letter-spacing:.08em}#incomingText span{font-size:.66rem;color:#b8dcd5;line-height:1.35}#incomingCancel{width:42px;height:42px;border:1px solid #3b6a62;background:#07110f;color:#aaa;font-size:1.05rem}
+#incomingDock.dragging{border-color:#fff;box-shadow:0 0 0 6px rgba(32,224,194,.2)}
+body.direct-drag #cue{display:none!important}
+@media(max-height:690px){#peekPanel .direct-sheet{grid-template-rows:48px minmax(0,1fr) auto auto;gap:5px}.direct-head{height:48px}.direct-close{width:42px;height:42px}.peer-piece{width:62px;height:62px;flex-basis:62px}#peerTray{min-height:68px}.peer-empty{height:58px}#incomingDock{bottom:59px;min-height:76px;grid-template-columns:66px 1fr auto}#incomingPiece{width:62px;height:62px}.direct-help{min-height:44px;font-size:.66rem}}
+
+</style>
+
+<style id="v16-remote-invite-styles">
+/* ===== v16: remote invite first ===== */
+#roomPanel{align-items:stretch}
+#roomPanel .v10sheet{height:100dvh;max-height:100dvh;padding:max(12px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom));grid-template-rows:auto auto minmax(0,1fr);gap:10px}
+#hostBlock,#joinBlock{min-height:0;align-content:start}
+.host-setup,.host-live{display:grid;gap:10px;min-height:0}
+.room-step{display:flex;align-items:center;gap:9px;color:#fff;font-size:.78rem;letter-spacing:.12em;font-weight:950}
+.room-step b{width:28px;height:28px;display:grid;place-items:center;background:var(--teal);color:#001a16;font-size:.85rem}
+.create-room{height:68px!important;background:#fff!important;color:#000!important;font-size:1rem}
+.share-room{height:68px;border:0;background:var(--teal);color:#001a16;font:1000 1.02rem ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.09em}
+.invite-tools{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.copy-room,.new-room{height:48px;border:1px solid #444;background:#080808;color:#ddd;font-weight:950;letter-spacing:.08em}
+.invite-code{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:12px;border:1px solid #333;padding:7px 10px;min-height:58px}
+.invite-code span{font-size:.64rem;color:#999;letter-spacing:.1em;white-space:nowrap}
+.invite-code .roomcode{font-size:clamp(1.55rem,8vw,2.45rem);text-align:right;letter-spacing:.16em}
+.room-qr-wrap{display:grid;place-items:center;min-height:0}
+.room-qr-wrap #roomQR{width:min(180px,44vw);height:min(180px,44vw)}
+#hostStatus{min-height:38px;font-size:.83rem;font-weight:900;color:#ddd}
+#roster{grid-template-columns:repeat(8,minmax(0,1fr));max-width:440px;width:100%;margin:auto}
+.host-keep-open{text-align:center;color:var(--amber);font-size:.68rem;letter-spacing:.08em;font-weight:950}
+#startRoom{height:64px!important;font-size:.95rem;letter-spacing:.08em}
+#startRoom:not(:disabled){background:#fff;color:#000}
+#startRoom:disabled{background:#181818;color:#777;border:1px solid #333}
+.new-room{height:42px;color:#999}
+#hostBlock.live #hostSetup{display:none}
+#hostBlock:not(.live) #hostLive{display:none!important}
+#hostBlock.live #hostLive{display:grid!important}
+#joinBlock .roomaction{height:62px}
+#joinBlock:before{content:'OPEN THE LINK YOU WERE SENT — OR SCAN / TYPE THE CODE';display:block;color:#aaa;font-size:.7rem;line-height:1.45;letter-spacing:.08em}
+@media(max-height:720px){
+ #roomPanel .v10sheet{gap:7px;padding-top:max(8px,env(safe-area-inset-top))}
+ .room-step b{width:24px;height:24px}.share-room{height:56px}.invite-tools .copy-room{height:42px}
+ .invite-code{min-height:48px;padding:5px 8px}.host-keep-open{font-size:.61rem}#startRoom{height:54px!important}.new-room{height:36px}
+ .room-qr-wrap #roomQR{width:132px;height:132px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="intro" class="screen on">
+    <canvas id="introDemo"></canvas>
+    <div class="intro-copy"><div class="brand">MOMSAIC</div><div class="tag">MOVE ISLANDS · MAKE ONE PICTURE</div></div>
+
+    <div class="quick-source" aria-label="Choose a picture">
+      <button id="quickPhoto">PHOTO</button><button id="quickCamera">CAMERA</button><button id="quickDefault" class="on">DEFAULT</button>
+    </div>
+    <div id="quickNote">CHOOSE A PICTURE OR PLAY THE STARTER</div>
+    <div class="intro-actions"><button id="playBtn" class="primary">PLAY</button><button id="togetherBtn">TOGETHER</button><button id="introGear" class="iconbtn hidden" aria-label="Settings">⚙</button></div>
+  </section>
+
+  <section id="game" class="screen">
+    <div id="hud">
+      <div id="phaseDots" aria-label="Game progress">
+        <i class="phase-dot now"></i><i class="phase-line"></i><i class="phase-dot"></i><i class="phase-line"></i><i class="phase-dot"></i><span id="liveTag"></span>
+      </div>
+      <div id="hudActions"><button id="undoBtn" class="hudbtn" aria-label="Undo">↶</button><button id="hintBtn" class="hudbtn" aria-label="Hint">✦</button><button id="scanHud" class="hudbtn" aria-label="Scan QR">⌗</button><button id="gearBtn" class="hudbtn hidden" aria-label="Settings">⚙</button></div>
+    </div>
+    <div id="worldWrap"><div id="ledgerStatus">ALL PIECES SAFE</div><canvas id="world"></canvas>
+      <div id="incomingDock"><canvas id="incomingPiece" width="180" height="180"></canvas><div id="incomingText"><b>PIECE COMING IN</b><span>DRAG IT TO THE BLUE HOLE</span></div><button id="incomingCancel" aria-label="Reject incoming piece">×</button></div>
+      <div id="cue"><span class="gesture">☝</span><span id="cueText">MOVE THE GLOWING ISLAND</span></div></div>
+  </section>
+</div>
+
+<div id="settings">
+  <div class="sheet">
+    <div class="sheet-head"><b>CHANGE THE NEXT GAME</b><button id="settingsClose" class="close">×</button></div>
+    <div class="row"><label>PICTURE</label><div class="choices four"><button class="choice source" data-source="photo">PHOTO</button><button class="choice source" data-source="camera">CAMERA</button><button class="choice source" data-source="blank">BLANK</button><button class="choice source on" data-source="built">DEFAULT</button></div></div>
+    <div id="sourceNote">Bold starter picture</div>
+    <div class="row"><label>PIECES</label><div class="choices four"><button class="choice pieces" data-value="8">8</button><button class="choice pieces on" data-value="12">12</button><button class="choice pieces" data-value="16">16</button><button class="choice pieces" data-value="24">24</button></div></div>
+    <div class="row"><label>SHAPE</label><div class="choices three"><button class="choice shape" data-value="jigsaw">JIGSAW</button><button class="choice shape on" data-value="organic">ORGANIC</button><button class="choice shape" data-value="wild">WILD</button></div></div>
+    <div class="row"><label>ISLANDS</label><div class="choices three"><button class="choice islands" data-value="3">3</button><button class="choice islands on" data-value="4">4</button><button class="choice islands" data-value="6">6</button></div></div>
+    <div class="row"><label>SWAPPED</label><div class="choices three"><button class="choice swaps on" data-value="1">1</button><button class="choice swaps" data-value="2">2</button><button class="choice swaps" data-value="3">3</button></div></div>
+    <div class="row"><label>FRIENDS</label><div class="choices three"><button class="choice friends" data-value="3">3</button><button class="choice friends on" data-value="5">5</button><button class="choice friends" data-value="7">7</button></div></div>
+    <button id="applyBtn" class="apply">PLAY THIS</button>
+    <input id="fileInput" type="file" accept="image/*">
+    <input id="cameraInput" type="file" accept="image/*" capture="environment">
+  </div>
+</div>
+
+<div id="complete">
+  <div class="complete-card"><h2>ONE PICTURE</h2><canvas id="completeCanvas" width="400" height="500"></canvas><div class="complete-actions"><button id="againBtn" class="primary">AGAIN</button><button id="completeGear" class="iconbtn">⚙</button></div></div>
+</div>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const TAU=Math.PI*2, STORAGE="momsaic-v9-onboarded";
+function storeGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function storeSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+const cfg={pieces:12,shape:"organic",islands:4,friends:5,source:"built",dataURL:""};
+const game={started:false,phase:"build",tutorial:0,onboarded:storeGet(STORAGE)==="1",source:null,sourceCanvas:null,cols:3,rows:4,pieces:[],clusters:[],missing:0,foreign:null,friends:[],giveTarget:0,giver:1,selected:null,drag:null,undo:[],hint:null,exchange:null,complete:false,board:null,scale:1,viewW:0,viewH:0,dpr:1,animT:0};
+const COLORS=["#ff6b55","#20e0c2","#ffd33d","#66a6ff","#d482ff","#ff8ad8","#7ee36a"];
+function rng(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function vibrate(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+let AC=null;function audio(){if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();return AC}
+function tone(kind){const c=audio(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();const map={tap:[300,430,.08],snap:[520,980,.18],bad:[120,70,.18],win:[440,880,.5],give:[180,620,.34]};const m=map[kind]||map.tap;o.type=kind==="bad"?"square":"triangle";o.frequency.setValueAtTime(m[0],t);o.frequency.exponentialRampToValueAtTime(m[1],t+m[2]);g.gain.setValueAtTime(.09,t);g.gain.exponentialRampToValueAtTime(.001,t+m[2]);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+m[2]+.02)}
+function speak(text){if(!game.onboarded&&"speechSynthesis" in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=.88;u.pitch=1.05;u.volume=.72;speechSynthesis.speak(u)}}
+function showScreen(id){$$('.screen').forEach(s=>s.classList.toggle('on',s.id===id))}
+
+/* source art */
+let BUILT_CACHE=null,BLANK_CACHE=null;function builtImage(){if(BUILT_CACHE)return BUILT_CACHE;const c=document.createElement('canvas');c.width=600;c.height=750;const g=c.getContext('2d');g.fillStyle="#efe9dc";g.fillRect(0,0,600,750);g.fillStyle="#bde8dc";g.beginPath();g.moveTo(0,520);g.quadraticCurveTo(120,420,230,520);g.quadraticCurveTo(350,360,600,520);g.lineTo(600,750);g.lineTo(0,750);g.fill();g.fillStyle="#5f78bb";g.beginPath();g.arc(430,190,92,0,TAU);g.fill();g.fillStyle="#ffd33d";g.beginPath();g.arc(430,190,32,0,TAU);g.fill();g.fillStyle="#18233e";g.beginPath();g.moveTo(0,570);g.lineTo(150,330);g.lineTo(290,570);g.closePath();g.fill();g.fillStyle="#334e79";g.beginPath();g.moveTo(180,570);g.lineTo(360,285);g.lineTo(560,570);g.closePath();g.fill();g.fillStyle="#f6f2e8";g.beginPath();g.moveTo(300,382);g.lineTo(360,285);g.lineTo(425,384);g.lineTo(375,360);g.lineTo(344,400);g.fill();g.strokeStyle="#1a1a1a";g.lineWidth=7;for(let y=620;y<740;y+=30){g.beginPath();g.moveTo(30,y);g.bezierCurveTo(150,y-20,260,y+18,570,y-4);g.stroke()}BUILT_CACHE=c;return c}
+function blankImage(){if(BLANK_CACHE)return BLANK_CACHE;const c=document.createElement('canvas');c.width=600;c.height=750;const g=c.getContext('2d');g.fillStyle="#f6f2e8";g.fillRect(0,0,600,750);const rr=rng(44);for(let i=0;i<24;i++){g.fillStyle=["#20e0c2","#ffd33d","#66a6ff","#ff6b55"][i%4];const x=40+rr()*500,y=45+rr()*650,s=12+rr()*28;if(i%3===0){g.beginPath();g.arc(x,y,s,0,TAU);g.fill()}else g.fillRect(x-s,y-s,s*2,s*2)}g.strokeStyle="#202020";g.lineWidth=5;g.beginPath();g.moveTo(45,650);g.bezierCurveTo(180,530,300,710,555,555);g.stroke();BLANK_CACHE=c;return c}
+async function imageFromURL(url){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=url})}
+function fitSource(src){const c=document.createElement('canvas');c.width=600;c.height=750;const g=c.getContext('2d');g.fillStyle="#000";g.fillRect(0,0,600,750);const sw=src.width||src.videoWidth,sh=src.height||src.videoHeight,s=Math.max(600/sw,750/sh),w=sw*s,h=sh*s;g.drawImage(src,(600-w)/2,(750-h)/2,w,h);return c}
+
+/* exact shared edges */
+function layoutFor(n){return n===8?[2,4]:n===12?[3,4]:n===16?[4,4]:[4,6]}
+function makeEdge(kind,seed,amp){const r=rng(seed),sign=r()>.5?1:-1,phase=r()*TAU;return t=>{if(kind==="jigsaw"){const q=(t-.5)/.23;return Math.abs(q)<1?sign*amp*Math.pow(Math.cos(q*Math.PI/2),2):0}if(kind==="wild"){const a=Math.sin((t*2.2+phase)*Math.PI)*.55+Math.sin((t*5.1+phase*.4)*Math.PI)*.22;return sign*amp*a}return sign*amp*(Math.sin((t+phase)*TAU)*.42+Math.sin((t*2.7+phase*.7)*TAU)*.16)} }
+function sampleEdge(fn,n=12){const a=[];for(let i=0;i<=n;i++){const t=i/n;a.push([t,fn(t)])}return a}
+function buildPaths(){const W=600,H=750,cw=W/game.cols,ch=H/game.rows,amp=Math.min(cw,ch)*(cfg.shape==="wild"?.17:cfg.shape==="jigsaw"?.22:.11);const V=[],HH=[];for(let c=1;c<game.cols;c++){V[c]=[];for(let r=0;r<game.rows;r++)V[c][r]=sampleEdge(makeEdge(cfg.shape,hash(`v|${c}|${r}|${cfg.pieces}`),amp))}for(let r=1;r<game.rows;r++){HH[r]=[];for(let c=0;c<game.cols;c++)HH[r][c]=sampleEdge(makeEdge(cfg.shape,hash(`h|${r}|${c}|${cfg.pieces}`),amp))}
+ game.pieces=[];for(let r=0;r<game.rows;r++)for(let c=0;c<game.cols;c++){const id=r*game.cols+c,p=new Path2D(),x0=c*cw,x1=(c+1)*cw,y0=r*ch,y1=(r+1)*ch;p.moveTo(x0,y0);if(r===0)p.lineTo(x1,y0);else for(const [t,o] of HH[r][c])p.lineTo(x0+t*cw,y0+o);if(c===game.cols-1)p.lineTo(x1,y1);else for(const [t,o] of V[c+1][r])p.lineTo(x1+o,y0+t*ch);if(r===game.rows-1)p.lineTo(x0,y1);else{const arr=HH[r+1][c];for(let i=arr.length-1;i>=0;i--){const[t,o]=arr[i];p.lineTo(x0+t*cw,y1+o)}}if(c===0)p.lineTo(x0,y0);else{const arr=V[c][r];for(let i=arr.length-1;i>=0;i--){const[t,o]=arr[i];p.lineTo(x0+o,y0+t*ch)}}p.closePath();game.pieces.push({id,row:r,col:c,path:p,cx:x0+cw/2,cy:y0+ch/2})}}
+function neighbors(a,b){const A=game.pieces[a],B=game.pieces[b];return Math.abs(A.row-B.row)+Math.abs(A.col-B.col)===1}
+
+/* connected local islands */
+function partitionPieces(ids,count){const available=new Set(ids),groups=[];const rr=rng(hash(`${cfg.pieces}|${cfg.islands}|segments`));while(available.size&&groups.length<count){const arr=Array.from(available),seed=arr[Math.floor(rr()*arr.length)],g=[seed];available.delete(seed);while(g.length<Math.ceil(ids.length/count)&&available.size){const options=[];for(const a of g)for(const b of available)if(neighbors(a,b))options.push(b);if(!options.length)break;const b=options[Math.floor(rr()*options.length)];available.delete(b);g.push(b)}groups.push(g)}for(const id of available){let targets=groups.map((g,i)=>({i,adj:g.some(a=>neighbors(a,id)),len:g.length})).filter(x=>x.adj).sort((a,b)=>a.len-b.len);(targets[0]?groups[targets[0].i]:groups.sort((a,b)=>a.length-b.length)[0]).push(id)}return groups}
+function initialOffsets(n){const b=game.board,W=600,H=750;const points=[[-.58,-.16],[.55,-.20],[-.48,.42],[.50,.44],[0,-.48],[0,.52],[-.60,.12],[.60,.10]];return Array.from({length:n},(_,i)=>({dx:points[i%points.length][0]*W+(i%2?20:-15),dy:points[i%points.length][1]*H+(i%3-1)*18}))}
+function containClusters(){if(!game.board)return;const cw=600/game.cols,ch=750/game.rows,margin=7;for(const c of game.clusters){let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;for(const id of c.pieces){const p=game.pieces[id];minX=Math.min(minX,p.col*cw);maxX=Math.max(maxX,(p.col+1)*cw);minY=Math.min(minY,p.row*ch);maxY=Math.max(maxY,(p.row+1)*ch)}let sx=game.board.x+(minX+c.dx)*game.scale,ex=game.board.x+(maxX+c.dx)*game.scale,sy=game.board.y+(minY+c.dy)*game.scale,ey=game.board.y+(maxY+c.dy)*game.scale;if(sx<margin)c.dx+=(margin-sx)/game.scale;if(ex>game.viewW-margin)c.dx-=(ex-(game.viewW-margin))/game.scale;if(sy<58)c.dy+=(58-sy)/game.scale;if(ey>game.viewH-58)c.dy-=(ey-(game.viewH-58))/game.scale}}
+function createGame(){game.cols=layoutFor(cfg.pieces)[0];game.rows=layoutFor(cfg.pieces)[1];buildPaths();game.missing=Math.floor(rng(hash(`missing|${Date.now()}`))()*cfg.pieces);const own=game.pieces.map(p=>p.id).filter(i=>i!==game.missing),groups=partitionPieces(own,Math.min(cfg.islands,own.length)),offs=initialOffsets(groups.length);game.clusters=groups.map((pieces,i)=>({id:i+1,pieces,dx:offs[i].dx,dy:offs[i].dy,anchored:false}));game.foreign={owner:1,index:(game.missing+Math.max(1,Math.floor(cfg.pieces/3)))%cfg.pieces,x:0,y:0,visible:false,drag:false};game.friends=Array.from({length:cfg.friends},(_,i)=>({id:i,progress:.12+i*.04,done:false,color:COLORS[i%COLORS.length],x:0,y:0}));game.giveTarget=Math.floor(rng(hash(`friend|${cfg.pieces}|${Date.now()}`))()*cfg.friends);game.giver=(game.giveTarget+2)%cfg.friends;game.phase="build";game.selected=null;game.drag=null;game.undo=[];game.hint=null;game.exchange=null;game.complete=false;game.tutorial=game.onboarded?2:0;updateLiveTag();resizeWorld();containClusters();setCue();renderHUD()}
+function boardLayout(){const w=game.viewW,h=game.viewH;const margin=12,friendBand=Math.min(58,w*.12),availW=w-friendBand*1.05-margin*2,availH=h-margin*2;let bw=Math.min(availW,availH*(600/750)),bh=bw*(750/600);if(bh>availH){bh=availH;bw=bh*(600/750)}return{x:margin+friendBand*.18+(w-margin*2-friendBand*.35-bw)/2,y:margin+(h-bh)/2,w:bw,h:bh}}
+function placeFriends(){const b=game.board,w=game.viewW,h=game.viewH;const pts=[[b.x+b.w+34,b.y+28],[b.x+b.w+42,b.y+b.h*.28],[b.x+b.w+42,b.y+b.h*.54],[b.x+b.w+38,b.y+b.h*.78],[b.x+b.w+20,b.y+b.h-22],[b.x-22,b.y+b.h*.20],[b.x-24,b.y+b.h*.72]];game.friends.forEach((f,i)=>{const p=pts[i%pts.length];f.x=clamp(p[0],25,w-25);f.y=clamp(p[1],25,h-25)})}
+function resizeWorld(){const cv=$('#world'),r=cv.getBoundingClientRect();game.dpr=Math.min(2,devicePixelRatio||1);cv.width=Math.round(r.width*game.dpr);cv.height=Math.round(r.height*game.dpr);game.viewW=r.width;game.viewH=r.height;game.board=boardLayout();game.scale=game.board.w/600;placeFriends();if(game.foreign){game.foreign.x=game.board.x+game.board.w*.5;game.foreign.y=game.board.y+game.board.h+Math.min(32,(game.viewH-game.board.y-game.board.h)*.5)}}
+
+/* hit and state */
+const hitCanvas=document.createElement('canvas'),hitCtx=hitCanvas.getContext('2d');
+function pieceScreenPoint(p,c){return{x:game.board.x+(p.cx+c.dx)*game.scale,y:game.board.y+(p.cy+c.dy)*game.scale}}
+function clusterAt(x,y){for(let z=game.clusters.length-1;z>=0;z--){const c=game.clusters[z];if(c.anchored)continue;const lx=(x-game.board.x)/game.scale-c.dx,ly=(y-game.board.y)/game.scale-c.dy;for(const id of c.pieces)if(hitCtx.isPointInPath(game.pieces[id].path,lx,ly))return c}return null}
+function pushUndo(){game.undo.push(game.clusters.map(c=>({id:c.id,pieces:[...c.pieces],dx:c.dx,dy:c.dy,anchored:c.anchored})));if(game.undo.length>12)game.undo.shift()}
+function restoreUndo(){const s=game.undo.pop();if(!s)return;game.clusters=s.map(c=>({...c}));tone('tap');renderHUD();setCue()}
+function canMerge(a,b){return a.pieces.some(i=>b.pieces.some(j=>neighbors(i,j)))}
+function settleCluster(c){let merged=false;for(const other of [...game.clusters]){if(other===c||other.anchored)continue;const d=Math.hypot(c.dx-other.dx,c.dy-other.dy);if(d<48&&canMerge(c,other)){const total=c.pieces.length+other.pieces.length;c.dx=(c.dx*c.pieces.length+other.dx*other.pieces.length)/total;c.dy=(c.dy*c.pieces.length+other.dy*other.pieces.length)/total;c.pieces=[...new Set([...c.pieces,...other.pieces])];game.clusters=game.clusters.filter(x=>x!==other);merged=true;tone('snap');vibrate([10,18,10]);break}}
+ if(Math.hypot(c.dx,c.dy)<54){c.dx=0;c.dy=0;c.anchored=true;tone('snap');vibrate([12,20,12]);if(game.tutorial===0){game.tutorial=1;speak('Good. Move another island home.')}else if(game.tutorial===1){game.tutorial=2;speak('Now make the whole picture.')}}
+ if(merged&&Math.hypot(c.dx,c.dy)<54){c.dx=0;c.dy=0;c.anchored=true}
+ checkBuild();setCue();renderHUD()}
+function allOwnAnchored(){return game.clusters.every(c=>c.anchored)}
+function checkBuild(){if(game.phase!=="build"||!allOwnAnchored())return;game.phase="exchange";game.foreign.visible=true;game.hint=null;speak('Take the glowing piece to its friend.');tone('win');renderHUD();setCue()}
+function friendAt(x,y){return game.friends.find(f=>Math.hypot(x-f.x,y-f.y)<38)||null}
+function startExchange(){const f=game.friends[game.giveTarget];game.exchange={t:0,stage:"give",from:{x:game.foreign.x,y:game.foreign.y},to:{x:f.x,y:f.y},incoming:null};tone('give');vibrate([12,24,12])}
+function updateExchange(dt){const e=game.exchange;if(!e)return;e.t+=dt;if(e.stage==="give"&&e.t>=.52){const from=game.friends[game.giver];e.stage="return";e.t=0;e.from={x:from.x,y:from.y};const p=game.pieces[game.missing];e.to={x:game.board.x+p.cx*game.scale,y:game.board.y+p.cy*game.scale};e.incoming={owner:0,index:game.missing};game.foreign.visible=false}if(e.stage==="return"&&e.t>=.72){const p=game.pieces[game.missing];game.clusters.push({id:999,pieces:[game.missing],dx:0,dy:0,anchored:true});game.exchange=null;game.phase="complete";game.complete=true;game.friends.forEach(f=>{f.progress=1;f.done=true});tone('win');vibrate([20,30,20,30,40]);storeSet(STORAGE,"1");game.onboarded=true;$('#gearBtn').classList.remove('hidden');$('#introGear').classList.remove('hidden');setTimeout(showComplete,850);renderHUD();setCue()}}
+
+/* rendering */
+function sourceForOwner(owner){if(owner===0)return game.sourceCanvas;return friendScene(owner)}
+const friendCache=new Map();function friendScene(owner){const key=`${owner}|${cfg.dataURL?1:0}|${cfg.source}`;if(friendCache.has(key))return friendCache.get(key);const c=document.createElement('canvas');c.width=600;c.height=750;const g=c.getContext('2d');g.drawImage(game.sourceCanvas,0,0);g.globalCompositeOperation='screen';g.fillStyle=COLORS[(owner-1)%COLORS.length]+"44";g.fillRect(0,0,600,750);g.globalCompositeOperation='source-over';const z=1+owner*.018;g.drawImage(c,(600-600*z)/2,(750-750*z)/2,600*z,750*z);friendCache.set(key,c);return c}
+function drawPiece(ctx,id,cluster,owner=0,alpha=1){const p=game.pieces[id],s=game.scale;ctx.save();ctx.globalAlpha=alpha;ctx.translate(game.board.x+cluster.dx*s,game.board.y+cluster.dy*s);ctx.scale(s,s);ctx.clip(p.path);ctx.drawImage(sourceForOwner(owner),0,0,600,750);ctx.restore()}
+function strokePiece(ctx,id,cluster,col,width=2,alpha=1){ctx.save();ctx.globalAlpha=alpha;ctx.translate(game.board.x+cluster.dx*game.scale,game.board.y+cluster.dy*game.scale);ctx.scale(game.scale,game.scale);ctx.strokeStyle=col;ctx.lineWidth=width/game.scale;ctx.stroke(game.pieces[id].path);ctx.restore()}
+function clusterCenter(c){let x=0,y=0;c.pieces.forEach(id=>{x+=game.pieces[id].cx;y+=game.pieces[id].cy});x/=c.pieces.length;y/=c.pieces.length;return{x:game.board.x+(x+c.dx)*game.scale,y:game.board.y+(y+c.dy)*game.scale,tx:game.board.x+x*game.scale,ty:game.board.y+y*game.scale}}
+function drawFriend(ctx,f){const pulse=1+Math.sin(game.animT*3+f.id)*.05,hot=game.phase==="exchange"&&f.id===game.giveTarget;ctx.save();ctx.translate(f.x,f.y);ctx.beginPath();ctx.arc(0,0,(hot?29:23)*pulse,0,TAU);ctx.fillStyle="#090909";ctx.fill();ctx.lineWidth=hot?5:2;ctx.strokeStyle=hot?"#ffd33d":f.done?"#20e0c2":"#555";ctx.stroke();ctx.save();ctx.beginPath();ctx.arc(0,0,18,0,TAU);ctx.clip();ctx.drawImage(friendScene(f.id+1),-22,-28,44,55);ctx.restore();ctx.beginPath();ctx.arc(0,0,26,-Math.PI/2,-Math.PI/2+TAU*f.progress);ctx.strokeStyle=f.color;ctx.lineWidth=3;ctx.stroke();if(hot){ctx.fillStyle="#ffd33d";ctx.font="900 17px monospace";ctx.textAlign="center";ctx.fillText("★",0,-35)}ctx.restore()}
+function drawForeign(ctx){if(!game.foreign.visible)return;const p=game.pieces[game.foreign.index],r=40,src=friendScene(game.giveTarget+1);ctx.save();ctx.translate(game.foreign.x,game.foreign.y);ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.fillStyle="#050505";ctx.fill();ctx.lineWidth=4;ctx.strokeStyle="#ffd33d";ctx.stroke();ctx.save();ctx.beginPath();ctx.arc(0,0,r-5,0,TAU);ctx.clip();const sx=p.col*(600/game.cols),sy=p.row*(750/game.rows),sw=600/game.cols,sh=750/game.rows;ctx.drawImage(src,sx,sy,sw,sh,-r,-r,r*2,r*2);ctx.restore();ctx.fillStyle="#ffd33d";ctx.font="900 20px monospace";ctx.textAlign="center";ctx.fillText("✦",0,-48);ctx.restore()}
+function drawArrow(ctx,a,b,col="#ffd33d"){const dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L;ctx.save();ctx.strokeStyle=col;ctx.lineWidth=3;ctx.setLineDash([8,8]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x-12*ux,b.y-12*uy);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-16*ux-7*uy,b.y-16*uy+7*ux);ctx.lineTo(b.x-16*ux+7*uy,b.y-16*uy-7*ux);ctx.fill();ctx.restore()}
+function renderWorld(t){const cv=$('#world'),ctx=cv.getContext('2d');if(!game.started||!game.sourceCanvas||!game.board||game.viewW<20||game.viewH<20){requestAnimationFrame(renderWorld);return}ctx.setTransform(game.dpr,0,0,game.dpr,0,0);const dt=Math.min(.034,(t-(renderWorld.last||t))/1000);renderWorld.last=t;game.animT+=dt;ctx.clearRect(0,0,game.viewW,game.viewH);ctx.fillStyle="#050505";ctx.fillRect(0,0,game.viewW,game.viewH);
+ const b=game.board;ctx.save();ctx.globalAlpha=.17;ctx.drawImage(game.sourceCanvas,b.x,b.y,b.w,b.h);ctx.restore();ctx.strokeStyle="#333";ctx.lineWidth=1;ctx.strokeRect(b.x,b.y,b.w,b.h);
+ for(const f of game.friends){ctx.strokeStyle="rgba(255,255,255,.08)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(b.x+b.w/2,b.y+b.h/2);ctx.lineTo(f.x,f.y);ctx.stroke()}
+ for(const p of game.pieces){ctx.save();ctx.translate(b.x,b.y);ctx.scale(game.scale,game.scale);ctx.strokeStyle=p.id===game.missing&&game.phase!=="complete"?"rgba(102,166,255,.75)":"rgba(255,255,255,.12)";ctx.lineWidth=(p.id===game.missing?3:1)/game.scale;ctx.stroke(p.path);ctx.restore()}
+ const order=[...game.clusters].sort((a,c)=>a===game.selected?1:c===game.selected?-1:0);for(const c of order){for(const id of c.pieces)drawPiece(ctx,id,c,0,c.anchored?1:.98);const local=c.pieces.length>1&&!c.anchored;for(const id of c.pieces)strokePiece(ctx,id,c,c.anchored?"#20e0c2":local?"#7ee36a":"#ddd",c===game.selected?3:1.4,c.anchored?.7:.9);if(!c.anchored&&c.pieces.length>1){const cc=clusterCenter(c);ctx.beginPath();ctx.arc(cc.x,cc.y,7,0,TAU);ctx.fillStyle="#7ee36a";ctx.fill();ctx.strokeStyle="#ffd33d";ctx.lineWidth=2;ctx.beginPath();ctx.arc(cc.x,cc.y,12,0,TAU);ctx.stroke()}}
+ for(const f of game.friends)drawFriend(ctx,f);drawForeign(ctx);
+ if(game.exchange){const e=game.exchange,q=clamp(e.t/(e.stage==="give"?.52:.72),0,1),ease=1-Math.pow(1-q,3),x=e.from.x+(e.to.x-e.from.x)*ease,y=e.from.y+(e.to.y-e.from.y)*ease;drawArrow(ctx,e.from,e.to,e.stage==="give"?"#ffd33d":"#20e0c2");ctx.beginPath();ctx.arc(x,y,18+Math.sin(q*Math.PI)*8,0,TAU);ctx.fillStyle=e.stage==="give"?"#ffd33d":"#20e0c2";ctx.fill();updateExchange(dt)}
+ drawGuidance(ctx);game.friends.forEach(f=>{if(!f.done){f.progress=Math.min(.94,f.progress+dt*(.016+f.id*.002))}});requestAnimationFrame(renderWorld)}
+function drawGuidance(ctx){if(game.phase==="build"){let c=null;if(game.tutorial<2)c=game.clusters.find(x=>!x.anchored);else if(game.hint)c=game.clusters.find(x=>x.id===game.hint);if(c){const cc=clusterCenter(c),pulse=19+Math.sin(game.animT*5)*5;ctx.beginPath();ctx.arc(cc.x,cc.y,pulse,0,TAU);ctx.strokeStyle="#ffd33d";ctx.lineWidth=4;ctx.stroke();drawArrow(ctx,{x:cc.x,y:cc.y},{x:cc.tx,y:cc.ty})}}else if(game.phase==="exchange"&&game.foreign.visible){drawArrow(ctx,{x:game.foreign.x,y:game.foreign.y},game.friends[game.giveTarget])}}
+
+/* input */
+const world=$('#world');world.addEventListener('pointerdown',e=>{e.preventDefault();audio();const r=world.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;if(game.phase==="exchange"&&game.foreign.visible&&Math.hypot(x-game.foreign.x,y-game.foreign.y)<55){game.foreign.drag=true;game.drag={type:"foreign",ox:x-game.foreign.x,oy:y-game.foreign.y};world.setPointerCapture?.(e.pointerId);tone('tap');return}const c=clusterAt(x,y);if(!c)return;pushUndo();game.selected=c;game.clusters=game.clusters.filter(q=>q!==c).concat(c);game.drag={type:"cluster",cluster:c,startX:x,startY:y,dx:c.dx,dy:c.dy};world.setPointerCapture?.(e.pointerId);tone('tap')});
+world.addEventListener('pointermove',e=>{if(!game.drag)return;const r=world.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;if(game.drag.type==="foreign"){game.foreign.x=x-game.drag.ox;game.foreign.y=y-game.drag.oy}else{const d=game.drag,c=d.cluster;c.dx=d.dx+(x-d.startX)/game.scale;c.dy=d.dy+(y-d.startY)/game.scale}});
+function endPointer(e){if(!game.drag)return;if(game.drag.type==="foreign"){const f=friendAt(game.foreign.x,game.foreign.y);game.foreign.x=game.board.x+game.board.w*.5;game.foreign.y=game.board.y+game.board.h+Math.min(32,(game.viewH-game.board.y-game.board.h)*.5);game.drag=null;game.selected=null;if(f){openPeek(f);return}tone('bad');vibrate(20)}else{settleCluster(game.drag.cluster);game.drag=null;game.selected=null}}
+world.addEventListener('pointerup',endPointer);world.addEventListener('pointercancel',endPointer);
+
+/* cues and UI */
+function renderHUD(){const dots=$$('#phaseDots .phase-dot'),lines=$$('#phaseDots .phase-line'),idx=game.phase==="build"?0:game.phase==="exchange"?1:2;dots.forEach((d,i)=>{d.className="phase-dot"+(i<idx?" done":i===idx?" now":"")});lines.forEach((l,i)=>l.className="phase-line"+(i<idx?" done":""));$('#gearBtn').classList.toggle('hidden',!game.onboarded)}
+function setCue(){const cue=$('#cue'),text=$('#cueText'),gesture=cue.querySelector('.gesture');if(game.phase==="build"){const left=game.clusters.filter(c=>!c.anchored).length;if(game.tutorial===0){gesture.textContent="☝";text.textContent="MOVE THE GLOWING ISLAND"}else if(game.tutorial===1){gesture.textContent="↔";text.textContent="MOVE THE WHOLE ISLAND"}else{gesture.textContent="◉";text.textContent=left?"PUT THE ISLANDS IN THE BIG PICTURE":""}}else if(game.phase==="exchange"){gesture.textContent="✦";text.textContent="TAKE THE STAR TO ITS FRIEND"}else{gesture.textContent="♥";text.textContent="ONE PICTURE"}cue.style.display=game.phase==="complete"?"none":"flex"}
+function showHint(){if(game.phase==="build"){const c=game.clusters.find(x=>!x.anchored);if(c){game.hint=c.id;tone('snap');vibrate([8,15,8]);setTimeout(()=>game.hint=null,2600)}}else if(game.phase==="exchange"){tone('snap');vibrate([8,15,8])}}
+$('#undoBtn').onclick=restoreUndo;$('#hintBtn').onclick=showHint;$('#gearBtn').onclick=openSettings;$('#introGear').onclick=openSettings;$('#completeGear').onclick=openSettings;
+function openSettings(){syncSettings();$('#settings').classList.add('on')}function closeSettings(){$('#settings').classList.remove('on')}$('#settingsClose').onclick=closeSettings;
+function syncSettings(){$$('.choice').forEach(b=>{const k=b.classList.contains('pieces')?'pieces':b.classList.contains('shape')?'shape':b.classList.contains('islands')?'islands':b.classList.contains('friends')?'friends':b.classList.contains('source')?'source':'';if(k)b.classList.toggle('on',String(cfg[k])===b.dataset.value)})}
+$$('.choice').forEach(b=>b.onclick=()=>{const k=b.classList.contains('pieces')?'pieces':b.classList.contains('shape')?'shape':b.classList.contains('islands')?'islands':b.classList.contains('friends')?'friends':b.classList.contains('source')?'source':'';if(!k)return;if(k==='source'&&(b.dataset.value==='photo'||b.dataset.value==='camera')){(b.dataset.value==='photo'?$('#fileInput'):$('#cameraInput')).click();return}cfg[k]=k==='pieces'||k==='islands'||k==='friends'?+b.dataset.value:b.dataset.value;syncSettings();if(k==='source')$('#sourceNote').textContent=b.dataset.value==='blank'?'Simple marks on paper':'Bold starter picture'});
+async function handleFile(file){if(!file)return;const url=URL.createObjectURL(file);try{const im=await imageFromURL(url),c=fitSource(im);cfg.dataURL=c.toDataURL('image/jpeg',.84);cfg.source='photo';$('#sourceNote').textContent=file.name;syncSettings()}finally{URL.revokeObjectURL(url)}}
+$('#fileInput').onchange=e=>handleFile(e.target.files[0]);$('#cameraInput').onchange=e=>handleFile(e.target.files[0]);
+$('#applyBtn').onclick=async()=>{closeSettings();await prepareSource();startGame(true)};
+async function prepareSource(){friendCache.clear();if(cfg.dataURL){const im=await imageFromURL(cfg.dataURL);game.sourceCanvas=fitSource(im);return}game.sourceCanvas=cfg.source==='blank'?blankImage():builtImage()}
+async function startGame(fromSettings=false){await prepareSource();showScreen('game');await new Promise(r=>requestAnimationFrame(r));game.started=true;createGame();$('#complete').classList.remove('on');speak(game.onboarded?'Move the islands into the picture.':'Move the glowing island into its shadow.');setCue()}
+$('#playBtn').onclick=()=>{audio();if(!game.onboarded){cfg.pieces=8;cfg.shape='organic';cfg.islands=3;cfg.friends=3;cfg.source='built';cfg.dataURL=''}startGame()};
+function showComplete(){const c=$('#completeCanvas'),g=c.getContext('2d');g.drawImage(game.sourceCanvas,0,0,c.width,c.height);$('#complete').classList.add('on')}
+$('#againBtn').onclick=()=>{startGame()};
+window.addEventListener('resize',()=>{if(game.started)resizeWorld();resizeIntro()});
+
+/* intro animation */
+function resizeIntro(){const c=$('#introDemo'),r=c.getBoundingClientRect(),d=Math.min(2,devicePixelRatio||1);c.width=r.width*d;c.height=r.height*d;c._d=d}
+function introLoop(t){const c=$('#introDemo'),g=c.getContext('2d'),d=c._d||1,w=c.width/d,h=c.height/d;g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,w,h);g.fillStyle='#050505';g.fillRect(0,0,w,h);const bw=Math.min(w*.64,h*.5),bh=bw*1.15,bx=(w-bw)/2,by=h*.12;g.globalAlpha=.18;g.drawImage(builtImage(),bx,by,bw,bh);g.globalAlpha=1;const tt=(t/1800)%1,e=tt<.5?tt*2:(1-tt)*2,dx=(1-e)*(-bw*.27),dy=(1-e)*(bh*.18);g.save();g.beginPath();g.rect(bx+bw*.08+dx,by+bh*.2+dy,bw*.46,bh*.24);g.clip();g.drawImage(builtImage(),bx+dx,by+dy,bw,bh);g.restore();g.strokeStyle='#20e0c2';g.lineWidth=3;g.strokeRect(bx+bw*.08+dx,by+bh*.2+dy,bw*.46,bh*.24);requestAnimationFrame(introLoop)}
+resizeIntro();requestAnimationFrame(introLoop);requestAnimationFrame(renderWorld);if(game.onboarded)$('#introGear').classList.remove('hidden');
+</script>
+
+<div id="roomPanel">
+  <div class="v10sheet">
+    <div class="v10head"><b>PLAY TOGETHER</b><button id="roomClose" class="v10close">×</button></div>
+    <div class="room-modes"><button id="modeHost" class="on">MAKE ROOM</button><button id="modeJoin">JOIN ROOM</button></div>
+    <div id="hostBlock" class="roomblock on">
+      <div id="hostSetup" class="host-setup">
+        <div class="room-step"><b>1</b><span>HOW MANY PHONES</span></div>
+        <div class="roomcount"><span>PLAYERS</span><button id="nMinus" aria-label="Fewer players">−</button><b id="nValue">4</b><button id="nPlus" aria-label="More players">+</button></div>
+        <button id="createRoom" class="roomaction create-room">CREATE ROOM + INVITE</button>
+      </div>
+      <div id="hostLive" class="hidden host-live">
+        <div class="room-step"><b>1</b><span>SEND THE INVITE</span></div>
+        <button id="shareRoom" class="share-room">SHARE INVITE LINK</button>
+        <div class="invite-tools"><button id="copyRoom" class="copy-room">COPY LINK</button><button id="toggleRoomQR" class="copy-room">SHOW QR</button></div>
+        <div class="invite-code"><span>OR SEND CODE</span><strong id="hostCode" class="roomcode">------</strong></div>
+        <div id="roomQRWrap" class="room-qr-wrap hidden"><canvas id="roomQR" width="320" height="320"></canvas></div>
+        <div class="room-step"><b>2</b><span>WAIT FOR EVERYONE</span></div>
+        <div id="hostStatus" class="roomstatus">OPENING ROOM…</div><div id="roster"></div>
+        <div class="host-keep-open">KEEP THIS PAGE OPEN WHILE THEY JOIN</div>
+        <button id="startRoom" class="roomaction startroom" disabled>WAITING FOR PLAYERS</button>
+        <button id="newRoom" class="new-room">CANCEL ROOM</button>
+      </div>
+    </div>
+    <div id="joinBlock" class="roomblock">
+      <button id="scanRoom" class="roomaction scanroom">SCAN ROOM QR</button>
+      <input id="joinCode" class="codeentry" maxlength="6" autocomplete="off" placeholder="ROOM CODE">
+      <button id="joinRoom" class="roomaction joinroom">JOIN</button>
+      <div id="joinStatus" class="roomstatus">SCAN OR ENTER THE SIX LETTERS</div>
+    </div>
+  </div>
+</div>
+<div id="peekPanel">
+  <div class="direct-sheet">
+    <div class="direct-head"><div class="direct-title"><b id="peekTitle">PUZZLE</b><span><span id="peekPhase">BUILDING</span> · <span id="peekGame">GAME</span></span></div><button id="peekClose" class="direct-close" aria-label="Close">×</button></div>
+    <div id="peerStage"><canvas id="peekCanvas" width="720" height="900"></canvas><div id="peerDropNote">LOOK · THEN TRY A PIECE IN AN OPENING</div></div>
+    <div id="peerTrayWrap"><div class="tray-label"><b>YOUR LOOSE PIECES</b><span id="peerTrayStatus">DRAG TO FIT</span></div><div id="peerTray"></div></div>
+    <div class="direct-footer"><div id="peekStatus" class="direct-help">THEIR WHOLE PUZZLE IS LIVE HERE.</div><button id="peerFallback" class="direct-fallback">QR</button></div>
+    <button id="peekSend" class="hidden" disabled></button>
+  </div>
+</div>
+<div id="exchangePanel">
+  <div class="v10sheet">
+    <div class="v10head"><b>CHECK THE FIT</b><button id="exchangeClose" class="v10close">×</button></div>
+    <div class="exchange-grid"><div class="exchange-card"><canvas id="sendPiece" width="220" height="220"></canvas><b>YOUR PIECE</b></div><div class="exchange-arrow">→</div><div class="exchange-card"><canvas id="targetSlot" width="220" height="220"></canvas><b>THEIR OPENING</b></div></div>
+    <canvas id="exchangeQR" width="320" height="320"></canvas><div id="txCode" class="txcode">------</div><div id="exchangeState" class="exchangeState">THE OTHER PLAYER SCANS THIS</div>
+    <button id="exchangeConfirm" class="roomaction exchange-confirm" disabled>WAITING</button>
+    <div class="exchange-actions"><button id="exchangeScan" class="roomaction scanroom">SCAN A PIECE FOR ME</button><button id="exchangeCancel" class="roomaction exchange-cancel">CANCEL</button></div>
+  </div>
+</div>
+<div id="scanPanel">
+  <video id="scanVideo" playsinline muted></video><canvas id="scanWork" class="hidden"></canvas><div class="scanbox"></div>
+  <div class="scancontent"><p id="scanText">POINT AT A MOMSAIC QR</p><div class="scanmanual"><input id="scanCode" maxlength="8" placeholder="TYPE CODE"><button id="scanUse">USE</button></div><button id="scanCancel">CANCEL</button></div>
+</div>
+<canvas id="directFloat" width="180" height="180"></canvas>
+<div id="toast"></div>
+
+
+<script>
+"use strict";
+/* ===== MOMSAIC v10 live graph patch ===== */
+const V10={version:"10",soloSeed:(Math.random()*0xffffffff)>>>0,peerLib:false,qrLib:false,jsqrLib:false};
+const ROOMNET={mode:"solo",role:"",roomCode:"",gameId:"",seed:0,n:4,seat:0,peer:null,hostConn:null,conns:new Map(),states:{},roster:{},transactions:{},started:false,live:false,peekSeat:null,pendingExchange:null,lastPush:0,scanKind:"room",scanStream:null,scanRAF:null};
+function toast(msg){const e=$('#toast');e.textContent=msg;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),1800)}
+function vibrate2(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+function randomCode(n=6){const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";crypto.getRandomValues(new Uint32Array(n)).forEach(v=>s+=a[v%a.length]);return s}
+function shortId(s){return (hash(s).toString(36).toUpperCase()+"00000").slice(0,5)}
+function loadScriptOnce(url,check){return new Promise(resolve=>{if(check())return resolve(true);const old=[...document.scripts].find(s=>s.src===url);if(old){old.addEventListener('load',()=>resolve(check()),{once:true});setTimeout(()=>resolve(check()),5000);return}const sc=document.createElement('script');sc.src=url;sc.async=true;sc.onload=()=>resolve(check());sc.onerror=()=>resolve(false);document.head.appendChild(sc);setTimeout(()=>resolve(check()),7000)})}
+async function ensurePeer(){if(typeof Peer==='function')return true;V10.peerLib=await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js',()=>typeof Peer==='function');return V10.peerLib}
+async function ensureQR(){if(typeof qrcode==='function')return true;V10.qrLib=await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js',()=>typeof qrcode==='function');return V10.qrLib}
+async function ensureJsQR(){if(typeof jsQR==='function')return true;V10.jsqrLib=await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js',()=>typeof jsQR==='function');return V10.jsqrLib}
+function qrPayloadRoom(code){const base=(location.protocol==='http:'||location.protocol==='https:')?(location.origin+location.pathname+'#room='+code):'';return base||('M10R|'+code)}
+function drawQRCanvas(cv,text){const g=cv.getContext('2d');g.setTransform(1,0,0,1,0,0);g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);if(typeof qrcode!=='function'){g.fillStyle='#000';g.font='900 22px monospace';g.textAlign='center';g.fillText(text.slice(0,18),cv.width/2,cv.height/2);return false}try{const q=qrcode(0,'M');q.addData(text);q.make();const n=q.getModuleCount(),pad=4,cell=cv.width/(n+pad*2);g.fillStyle='#000';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(q.isDark(y,x))g.fillRect((x+pad)*cell,(y+pad)*cell,cell+.7,cell+.7);return true}catch(e){return false}}
+function sourceLabel(){return cfg.dataURL?'YOUR PHOTO':cfg.source==='blank'?'BLANK':'DEFAULT'}
+function updateQuickSource(){const map={photo:'#quickPhoto',camera:'#quickCamera',built:'#quickDefault',blank:'#quickDefault'};$$('.quick-source button').forEach(b=>b.classList.remove('on'));const sel=cfg.dataURL?(cfg.source==='camera'?'#quickCamera':'#quickPhoto'):'#quickDefault';$(sel)?.classList.add('on');$('#quickNote').textContent=sourceLabel()+' · TAP PLAY OR TOGETHER'}
+async function fileToCanvas(file){return new Promise((resolve,reject)=>{const rd=new FileReader();rd.onerror=reject;rd.onload=()=>{const im=new Image();im.onerror=reject;im.onload=()=>resolve(fitSource(im));im.src=rd.result};rd.readAsDataURL(file)})}
+handleFile=async function(file,kind='photo'){if(!file)return;try{const c=await fileToCanvas(file);cfg.dataURL=c.toDataURL('image/jpeg',.86);cfg.source=kind;game.sourceCanvas=c;$('#sourceNote').textContent=file.name||'Camera photo';updateQuickSource();toast('PICTURE READY');tone('snap')}catch(e){console.error(e);toast('COULD NOT OPEN PICTURE')}};
+$('#fileInput').onchange=e=>{handleFile(e.target.files&&e.target.files[0],'photo');e.target.value=''};
+$('#cameraInput').onchange=e=>{handleFile(e.target.files&&e.target.files[0],'camera');e.target.value=''};
+$('#quickPhoto').onclick=()=>$('#fileInput').click();$('#quickCamera').onclick=()=>$('#cameraInput').click();$('#quickDefault').onclick=()=>{cfg.dataURL='';cfg.source='built';game.sourceCanvas=builtImage();updateQuickSource();toast('STARTER PICTURE')};
+updateQuickSource();
+/* intro demo now previews the actual chosen source */
+introLoop=function(t){const c=$('#introDemo'),g=c.getContext('2d'),d=c._d||1,w=c.width/d,h=c.height/d;g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,w,h);g.fillStyle='#050505';g.fillRect(0,0,w,h);const src=game.sourceCanvas||(cfg.dataURL?null:builtImage());if(!src){requestAnimationFrame(introLoop);return}const bw=Math.min(w*.66,h*.50),bh=bw*1.25,bx=(w-bw)/2,by=h*.08;g.globalAlpha=.20;g.drawImage(src,bx,by,bw,bh);g.globalAlpha=1;const tt=(t/1900)%1,e=tt<.5?tt*2:(1-tt)*2,dx=(1-e)*(-bw*.25),dy=(1-e)*(bh*.16);g.save();g.beginPath();g.rect(bx+bw*.10+dx,by+bh*.22+dy,bw*.42,bh*.22);g.clip();g.drawImage(src,bx+dx,by+dy,bw,bh);g.restore();g.strokeStyle='#20e0c2';g.lineWidth=3;g.strokeRect(bx+bw*.10+dx,by+bh*.22+dy,bw*.42,bh*.22);requestAnimationFrame(introLoop)};
+/* fixed deterministic per-seat puzzle ecology */
+function missingForSeat(seat){const rr=rng(hash(`${ROOMNET.seed||V10.soloSeed}|missing|${seat}|${cfg.pieces}`));return Math.floor(rr()*cfg.pieces)}
+function deranged(ids,seed){const a=[...ids],r=rng(seed);for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}if(a.some((v,i)=>v===ids[i]))a.push(a.shift());return a}
+function chooseTutorialPair(own){for(const a of own)for(const b of own)if(neighbors(a,b))return[a,b];return own.slice(0,2)}
+createGame=function(){game.cols=layoutFor(cfg.pieces)[0];game.rows=layoutFor(cfg.pieces)[1];buildPaths();const seat=ROOMNET.mode==='room'?ROOMNET.seat:0;game.missing=missingForSeat(seat);const own=game.pieces.map(p=>p.id).filter(i=>i!==game.missing),perm=deranged(own,hash(`${ROOMNET.seed||V10.soloSeed}|scatter|${seat}`));game.clusters=own.map((id,i)=>{const here=game.pieces[id],there=game.pieces[perm[i]],spread=1.13,jx=((i%3)-1)*7,jy=((i%4)-1.5)*5,px=300+(there.cx-300)*spread+jx,py=375+(there.cy-375)*spread+jy;return{id:i+1,pieces:[id],dx:px-here.cx,dy:py-here.cy,anchored:false}});game.tutorialPair=chooseTutorialPair(own);if(!game.onboarded&&game.tutorialPair.length===2){const[a,b]=game.tutorialPair,A=game.clusters.find(c=>c.pieces[0]===a),B=game.clusters.find(c=>c.pieces[0]===b);A.dx=-150;A.dy=120;B.dx=-90;B.dy=120}
+ const total=ROOMNET.mode==='room'?ROOMNET.n:cfg.friends+1,targetSeat=ROOMNET.mode==='room'?(seat+1)%total:1,giverSeat=ROOMNET.mode==='room'?(seat-1+total)%total:2%(cfg.friends+1);game.foreign={owner:targetSeat,index:missingForSeat(targetSeat),x:0,y:0,visible:false,drag:false};
+ if(ROOMNET.mode==='room'){const seats=[];for(let s=0;s<ROOMNET.n;s++)if(s!==seat)seats.push(s);game.friends=seats.map((s,i)=>({id:i,seat:s,progress:0,done:false,color:COLORS[s%COLORS.length],x:0,y:0}));game.giveTarget=game.friends.findIndex(f=>f.seat===targetSeat);game.giver=game.friends.findIndex(f=>f.seat===giverSeat)}else{game.friends=Array.from({length:cfg.friends},(_,i)=>({id:i,seat:i+1,progress:.12+i*.04,done:false,color:COLORS[i%COLORS.length],x:0,y:0}));game.giveTarget=0;game.giver=Math.min(1,game.friends.length-1)}
+ game.phase='build';game.selected=null;game.drag=null;game.undo=[];game.hint=null;game.exchange=null;game.complete=false;game.delivered=false;game.received=false;game.tutorial=game.onboarded?2:0;updateLiveTag();resizeWorld();containClusters();setCue();renderHUD();pushPeerState(true)};
+/* local segment then global placement tutorial */
+settleCluster=function(c){let merged=false;for(const other of [...game.clusters]){if(other===c||other.anchored)continue;const d=Math.hypot(c.dx-other.dx,c.dy-other.dy);if(d<48&&canMerge(c,other)){const total=c.pieces.length+other.pieces.length;c.dx=(c.dx*c.pieces.length+other.dx*other.pieces.length)/total;c.dy=(c.dy*c.pieces.length+other.dy*other.pieces.length)/total;c.pieces=[...new Set([...c.pieces,...other.pieces])];game.clusters=game.clusters.filter(x=>x!==other);merged=true;tone('snap');vibrate2([10,18,10]);if(game.tutorial===0&&game.tutorialPair.every(id=>c.pieces.includes(id))){game.tutorial=1;speak('Good. Now move the green island into the big picture.')}}}
+ if(Math.hypot(c.dx,c.dy)<54){c.dx=0;c.dy=0;c.anchored=true;tone('snap');vibrate2([12,20,12]);if(game.tutorial===1&&game.tutorialPair.every(id=>c.pieces.includes(id))){game.tutorial=2;speak('Small parts can be right before the whole picture is right.')}}if(merged&&Math.hypot(c.dx,c.dy)<54){c.dx=0;c.dy=0;c.anchored=true}checkBuild();setCue();renderHUD();pushPeerState(true)};
+drawGuidance=function(ctx){if(game.phase==='build'){if(game.tutorial===0){const cs=game.tutorialPair.map(id=>game.clusters.find(c=>c.pieces.includes(id))).filter(Boolean);if(cs.length===2){const a=clusterCenter(cs[0]),b=clusterCenter(cs[1]);for(const q of[a,b]){ctx.beginPath();ctx.arc(q.x,q.y,18+Math.sin(game.animT*5)*4,0,TAU);ctx.strokeStyle='#ffd33d';ctx.lineWidth=4;ctx.stroke()}drawArrow(ctx,a,b)}}else{let c=game.tutorial===1?game.clusters.find(x=>game.tutorialPair.every(id=>x.pieces.includes(id))):game.hint?game.clusters.find(x=>x.id===game.hint):game.clusters.find(x=>!x.anchored);if(c){const cc=clusterCenter(c),pulse=19+Math.sin(game.animT*5)*5;ctx.beginPath();ctx.arc(cc.x,cc.y,pulse,0,TAU);ctx.strokeStyle='#ffd33d';ctx.lineWidth=4;ctx.stroke();drawArrow(ctx,{x:cc.x,y:cc.y},{x:cc.tx,y:cc.ty})}}}else if(game.phase==='exchange'&&game.foreign.visible&&game.giveTarget>=0){drawArrow(ctx,{x:game.foreign.x,y:game.foreign.y},game.friends[game.giveTarget])}};
+setCue=function(){const cue=$('#cue'),text=$('#cueText'),gesture=cue.querySelector('.gesture');if(game.phase==='build'){const left=game.clusters.filter(c=>!c.anchored).length;if(game.tutorial===0){gesture.textContent='↔';text.textContent='JOIN THE TWO GLOWING EDGES'}else if(game.tutorial===1){gesture.textContent='☝';text.textContent='MOVE THE WHOLE GREEN ISLAND HOME'}else{gesture.textContent='◉';text.textContent=left?'MAKE SMALL ISLANDS · MOVE THEM HOME':''}}else if(game.phase==='exchange'){gesture.textContent='✦';text.textContent=game.delivered?(game.received?'ONE PICTURE':'WAIT FOR YOUR PIECE'):'TAKE THE STAR TO ITS PUZZLE'}else{gesture.textContent='♥';text.textContent='ONE PICTURE'}cue.style.display=game.phase==='complete'?'none':'flex'};
+/* local seat gets its own document image in rooms */
+const oldSourceForOwner=sourceForOwner;sourceForOwner=function(owner){if(owner===0&&ROOMNET.mode==='room')return friendScene(ROOMNET.seat+1);return oldSourceForOwner(owner)};
+drawForeign=function(ctx){if(!game.foreign.visible)return;const p=game.pieces[game.foreign.index],r=40,src=ROOMNET.mode==='room'?friendScene(game.foreign.owner+1):friendScene((game.friends[game.giveTarget]?.seat||1)+1);ctx.save();ctx.translate(game.foreign.x,game.foreign.y);ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.fillStyle='#050505';ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#ffd33d';ctx.stroke();ctx.save();ctx.beginPath();ctx.arc(0,0,r-5,0,TAU);ctx.clip();const sx=p.col*(600/game.cols),sy=p.row*(750/game.rows),sw=600/game.cols,sh=750/game.rows;ctx.drawImage(src,sx,sy,sw,sh,-r,-r,r*2,r*2);ctx.restore();ctx.fillStyle='#ffd33d';ctx.font='900 20px monospace';ctx.textAlign='center';ctx.fillText('✦',0,-48);ctx.restore()};
+drawFriend=function(ctx,f){const seat=f.seat??f.id+1,st=ROOMNET.mode==='room'?ROOMNET.states[seat]:null,progress=st?st.progress:(f.progress||0),done=st?st.complete:f.done,online=ROOMNET.mode!=='room'||!!ROOMNET.roster[seat],hot=game.phase==='exchange'&&game.giveTarget>=0&&game.friends[game.giveTarget]===f,pulse=1+Math.sin(game.animT*3+seat)*.05;ctx.save();ctx.translate(f.x,f.y);ctx.beginPath();ctx.arc(0,0,(hot?30:24)*pulse,0,TAU);ctx.fillStyle='#090909';ctx.fill();ctx.lineWidth=hot?5:online?2:1;ctx.strokeStyle=hot?'#ffd33d':done?'#20e0c2':online?'#777':'#292929';ctx.stroke();ctx.save();ctx.beginPath();ctx.arc(0,0,19,0,TAU);ctx.clip();ctx.globalAlpha=online?1:.25;ctx.drawImage(friendScene(seat+1),-23,-29,46,58);ctx.restore();ctx.beginPath();ctx.arc(0,0,27,-Math.PI/2,-Math.PI/2+TAU*progress);ctx.strokeStyle=COLORS[seat%COLORS.length];ctx.lineWidth=3;ctx.stroke();ctx.fillStyle=online?'#fff':'#555';ctx.font='900 10px monospace';ctx.textAlign='center';ctx.fillText(String(seat+1),0,4);if(hot){ctx.fillStyle='#ffd33d';ctx.font='900 17px monospace';ctx.fillText('★',0,-36)}ctx.restore()};
+/* peer document snapshots */
+function localProgress(){return game.pieces.length?game.clusters.reduce((n,c)=>n+(c.anchored?c.pieces.length:0),0)/game.pieces.length:0}
+function localSnapshot(){return{seat:ROOMNET.seat,phase:game.phase,progress:localProgress(),complete:game.complete,delivered:!!game.delivered,received:!!game.received,missing:game.missing,clusters:game.clusters.map(c=>({pieces:[...c.pieces],dx:+c.dx.toFixed(2),dy:+c.dy.toFixed(2),anchored:!!c.anchored})),ts:Date.now()}}
+function sendConn(c,m){try{c&&c.open&&c.send(m)}catch(e){}}
+function broadcast(m){ROOMNET.conns.forEach(c=>sendConn(c,m))}
+function pushPeerState(force=false){if(ROOMNET.mode!=='room'||!ROOMNET.live||!game.started)return;const now=Date.now();if(!force&&now-ROOMNET.lastPush<500)return;ROOMNET.lastPush=now;const st=localSnapshot();ROOMNET.states[ROOMNET.seat]=st;if(ROOMNET.role==='host'){broadcast({t:'states',states:ROOMNET.states,roster:ROOMNET.roster});renderRoomRoster()}else sendConn(ROOMNET.hostConn,{t:'state',state:st})}
+setInterval(()=>pushPeerState(false),700);world.addEventListener('pointerup',()=>setTimeout(()=>pushPeerState(true),0));
+function updateLiveTag(){const e=$('#liveTag');if(e)e.textContent=ROOMNET.mode==='room'?`YOU ${ROOMNET.seat+1} · GAME ${ROOMNET.gameId}`:''}
+function applyRoomConfig(m){ROOMNET.seed=m.seed;ROOMNET.n=m.n;ROOMNET.seat=m.seat;ROOMNET.gameId=m.gameId;ROOMNET.roomCode=m.roomCode;cfg.pieces=m.cfg.pieces;cfg.shape=m.cfg.shape;cfg.friends=Math.max(1,m.n-1);cfg.dataURL=m.cfg.dataURL||'';cfg.source=m.cfg.source||'built';updateQuickSource();updateLiveTag()}
+function routeHost(m,c){if(!m)return;if(m.t==='hello'){const used=new Set([0,...[...ROOMNET.conns.values()].map(x=>x.__seat).filter(Number.isInteger)]);let seat=1;while(used.has(seat)&&seat<ROOMNET.n)seat++;if(seat>=ROOMNET.n){sendConn(c,{t:'full'});return}c.__seat=seat;ROOMNET.roster[seat]=true;sendConn(c,{t:'welcome',roomCode:ROOMNET.roomCode,gameId:ROOMNET.gameId,seed:ROOMNET.seed,n:ROOMNET.n,seat,cfg:{pieces:cfg.pieces,shape:cfg.shape,source:cfg.source,dataURL:cfg.dataURL}});broadcast({t:'roster',roster:ROOMNET.roster,states:ROOMNET.states});renderRoomRoster();return}if(m.t==='state'){ROOMNET.states[m.state.seat]=m.state;broadcast({t:'states',states:ROOMNET.states,roster:ROOMNET.roster});renderRoomRoster();renderPeek();return}if(m.t==='proposal'){ROOMNET.transactions[m.tx]=m;const target=[...ROOMNET.conns.values()].find(x=>x.__seat===m.to);sendConn(target,{t:'proposalNotice',proposal:m});return}if(m.t==='accept'){const p=ROOMNET.transactions[m.tx]||m.proposal;if(!p||p.to!==m.to||p.piece!==missingForSeat(p.to)||p.gameId!==ROOMNET.gameId){sendConn(c,{t:'exchangeError',tx:m.tx});return}ROOMNET.transactions[p.tx]=p;commitExchangeHost(p);return}}
+function commitExchangeHost(p){const sender=p.from===0?null:[...ROOMNET.conns.values()].find(c=>c.__seat===p.from),receiver=p.to===0?null:[...ROOMNET.conns.values()].find(c=>c.__seat===p.to);if(p.from===0)applyExchangeCommit({role:'sender',proposal:p});else sendConn(sender,{t:'commit',role:'sender',proposal:p});if(p.to===0)applyExchangeCommit({role:'receiver',proposal:p});else sendConn(receiver,{t:'commit',role:'receiver',proposal:p});broadcast({t:'exchangeDone',proposal:p});delete ROOMNET.transactions[p.tx]}
+function routeClient(m){if(!m)return;if(m.t==='welcome'){applyRoomConfig(m);ROOMNET.roster[ROOMNET.seat]=true;$('#joinStatus').textContent=`SEAT ${ROOMNET.seat+1} · GAME ${ROOMNET.gameId} · WAITING`;$('#joinStatus').className='roomstatus ok';renderRoomRoster();return}if(m.t==='full'){ROOMNET.live=false;$('#joinStatus').textContent='ROOM FULL';$('#joinStatus').className='roomstatus bad';return}if(m.t==='roster'||m.t==='states'){ROOMNET.roster=m.roster||ROOMNET.roster;ROOMNET.states=m.states||ROOMNET.states;renderRoomRoster();renderPeek();return}if(m.t==='start'){ROOMNET.started=true;$('#roomPanel').classList.remove('on');document.body.classList.add('room-live');startGame();return}if(m.t==='commit'){applyExchangeCommit(m);return}if(m.t==='exchangeError'){setExchangeState('PIECE DOES NOT MATCH THIS OPENING',false);return}}
+async function createLiveRoom(){if(!await ensurePeer()){setHostStatus('PEER NETWORK COULD NOT LOAD',false);return}ROOMNET.mode='room';ROOMNET.role='host';ROOMNET.seed=(Math.random()*0xffffffff)>>>0;ROOMNET.roomCode=randomCode();ROOMNET.gameId=shortId(`${ROOMNET.roomCode}|${ROOMNET.seed}|${cfg.pieces}|${cfg.shape}|${cfg.dataURL.slice(-80)}`);ROOMNET.seat=0;ROOMNET.roster={0:true};ROOMNET.states={};ROOMNET.transactions={};ROOMNET.live=false;$('#hostLive').classList.remove('hidden');$('#hostCode').textContent=ROOMNET.roomCode;setHostStatus('OPENING ROOM…');await ensureQR();drawQRCanvas($('#roomQR'),qrPayloadRoom(ROOMNET.roomCode));try{ROOMNET.peer=new Peer('momsaic-v10-'+ROOMNET.roomCode.toLowerCase())}catch(e){setHostStatus('ROOM COULD NOT OPEN',false);return}ROOMNET.peer.on('open',()=>{ROOMNET.live=true;setHostStatus(`ROOM LIVE · GAME ${ROOMNET.gameId}`,true);renderRoomRoster()});ROOMNET.peer.on('connection',c=>{ROOMNET.conns.set(c.peer,c);c.on('data',m=>routeHost(m,c));c.on('close',()=>{if(Number.isInteger(c.__seat)){delete ROOMNET.roster[c.__seat];delete ROOMNET.states[c.__seat]}ROOMNET.conns.delete(c.peer);broadcast({t:'roster',roster:ROOMNET.roster,states:ROOMNET.states});renderRoomRoster()})});ROOMNET.peer.on('error',e=>{console.error(e);setHostStatus('ROOM CONNECTION FAILED',false)})}
+async function joinLiveRoom(code){code=(code||'').trim().toUpperCase();if(!/^[A-Z2-9]{6}$/.test(code)){setJoinStatus('ENTER THE SIX LETTERS',false);return}if(!await ensurePeer()){setJoinStatus('PEER NETWORK COULD NOT LOAD',false);return}ROOMNET.mode='room';ROOMNET.role='join';ROOMNET.roomCode=code;ROOMNET.live=false;setJoinStatus('FINDING ROOM…');try{ROOMNET.peer=new Peer()}catch(e){setJoinStatus('COULD NOT START NETWORK',false);return}ROOMNET.peer.on('open',()=>{const c=ROOMNET.peer.connect('momsaic-v10-'+code.toLowerCase(),{reliable:true});ROOMNET.hostConn=c;c.on('open',()=>{ROOMNET.live=true;sendConn(c,{t:'hello'})});c.on('data',routeClient);c.on('close',()=>setJoinStatus('ROOM CLOSED',false));c.on('error',()=>setJoinStatus('ROOM NOT FOUND',false))});ROOMNET.peer.on('error',()=>setJoinStatus('ROOM NOT FOUND',false))}
+function setHostStatus(s,ok=null){const e=$('#hostStatus');e.textContent=s;e.className='roomstatus'+(ok===true?' ok':ok===false?' bad':'')}
+function setJoinStatus(s,ok=null){const e=$('#joinStatus');e.textContent=s;e.className='roomstatus'+(ok===true?' ok':ok===false?' bad':'')}
+function renderRoomRoster(){const r=$('#roster');if(!r)return;r.innerHTML='';for(let i=0;i<ROOMNET.n;i++){const d=document.createElement('div');d.className='seatdot'+(ROOMNET.roster[i]?' on':'')+(i===ROOMNET.seat?' me':'');d.textContent=i+1;r.append(d)}const count=Object.keys(ROOMNET.roster).filter(k=>ROOMNET.roster[k]).length;$('#startRoom').disabled=count!==ROOMNET.n||!ROOMNET.live;if(ROOMNET.role==='host'&&ROOMNET.live)setHostStatus(`${count} / ${ROOMNET.n} READY · GAME ${ROOMNET.gameId}`,true)}
+/* room panel */
+function openRoomPanel(){$('#roomPanel').classList.add('on');showRoomMode('host')}
+function showRoomMode(mode){$('#modeHost').classList.toggle('on',mode==='host');$('#modeJoin').classList.toggle('on',mode==='join');$('#hostBlock').classList.toggle('on',mode==='host');$('#joinBlock').classList.toggle('on',mode==='join')}
+$('#togetherBtn').onclick=openRoomPanel;$('#roomClose').onclick=()=>$('#roomPanel').classList.remove('on');$('#modeHost').onclick=()=>showRoomMode('host');$('#modeJoin').onclick=()=>showRoomMode('join');$('#nMinus').onclick=()=>{ROOMNET.n=Math.max(2,ROOMNET.n-1);$('#nValue').textContent=ROOMNET.n};$('#nPlus').onclick=()=>{ROOMNET.n=Math.min(8,ROOMNET.n+1);$('#nValue').textContent=ROOMNET.n};$('#createRoom').onclick=createLiveRoom;$('#joinRoom').onclick=()=>joinLiveRoom($('#joinCode').value);$('#scanRoom').onclick=()=>startScanPanel('room');$('#startRoom').onclick=()=>{if($('#startRoom').disabled)return;ROOMNET.started=true;broadcast({t:'start'});$('#roomPanel').classList.remove('on');document.body.classList.add('room-live');startGame()};
+/* hash room joins */
+const hashRoom=(location.hash.match(/room=([A-Z2-9]{6})/i)||[])[1];if(hashRoom){openRoomPanel();showRoomMode('join');$('#joinCode').value=hashRoom.toUpperCase();setTimeout(()=>joinLiveRoom(hashRoom),350)}
+/* starting solo resets network semantics */
+const oldPlay=$('#playBtn').onclick;$('#playBtn').onclick=()=>{ROOMNET.mode='solo';ROOMNET.role='';ROOMNET.seed=V10.soloSeed;ROOMNET.n=cfg.friends+1;ROOMNET.seat=0;document.body.classList.remove('room-live');oldPlay?oldPlay():startGame()};
+/* shared puzzle peeking */
+function friendSeat(f){return f?.seat??f?.id+1}
+function aiSnapshotForSeat(seat){const f=game.friends.find(x=>friendSeat(x)===seat),progress=f?.progress||.15,missing=missingForSeat(seat),ids=game.pieces.map(p=>p.id).filter(id=>id!==missing),count=Math.floor(ids.length*progress),perm=deranged(ids,hash(`${V10.soloSeed}|ai|${seat}`));return{seat,phase:progress>.96?'exchange':'build',progress,complete:progress>=1,delivered:false,received:false,missing,clusters:ids.map((id,i)=>{const here=game.pieces[id],there=game.pieces[perm[i]],anchored=i<count,spread=1.1,px=300+(there.cx-300)*spread,py=375+(there.cy-375)*spread;return{pieces:[id],dx:anchored?0:px-here.cx,dy:anchored?0:py-here.cy,anchored}})}}
+function stateForSeat(seat){return ROOMNET.states[seat]||(ROOMNET.mode==='solo'?aiSnapshotForSeat(seat):null)}
+function renderRemoteToCanvas(cv,seat){const g=cv.getContext('2d'),W=cv.width,H=cv.height;g.setTransform(1,0,0,1,0,0);g.fillStyle='#050505';g.fillRect(0,0,W,H);const pad=18,bw=Math.min(W-pad*2,(H-pad*2)*.8),bh=bw*1.25,bx=(W-bw)/2,by=(H-bh)/2,scale=bw/600,src=friendScene(seat+1),st=stateForSeat(seat);g.globalAlpha=.16;g.drawImage(src,bx,by,bw,bh);g.globalAlpha=1;g.strokeStyle='#444';g.strokeRect(bx,by,bw,bh);if(!st){g.fillStyle='#777';g.font='900 20px monospace';g.textAlign='center';g.fillText(ROOMNET.mode==='room'?'NOT CONNECTED':'AI PUZZLE',W/2,H/2);return}for(const c of st.clusters||[]){for(const id of c.pieces){const p=game.pieces[id];g.save();g.translate(bx+c.dx*scale,by+c.dy*scale);g.scale(scale,scale);g.clip(p.path);g.drawImage(src,0,0,600,750);g.restore();g.save();g.translate(bx+c.dx*scale,by+c.dy*scale);g.scale(scale,scale);g.strokeStyle=c.anchored?'#20e0c2':c.pieces.length>1?'#7ee36a':'#aaa';g.lineWidth=(c.pieces.length>1?3:1.3)/scale;g.stroke(p.path);g.restore()}}const mp=game.pieces[st.missing];if(mp&&!st.received){g.save();g.translate(bx,by);g.scale(scale,scale);g.strokeStyle='#66a6ff';g.lineWidth=4/scale;g.stroke(mp.path);g.restore()}}
+function openPeek(f){const seat=friendSeat(f);ROOMNET.peekSeat=seat;$('#peekTitle').textContent=`PUZZLE ${seat+1}`;$('#peekGame').textContent=ROOMNET.mode==='room'?`GAME ${ROOMNET.gameId}`:'AI';$('#peekPanel').classList.add('on');renderPeek()}
+function renderPeek(){if(ROOMNET.peekSeat==null||!$('#peekPanel').classList.contains('on'))return;const seat=ROOMNET.peekSeat,st=stateForSeat(seat);renderRemoteToCanvas($('#peekCanvas'),seat);$('#peekPhase').textContent=st?(st.complete?'COMPLETE':st.phase.toUpperCase()):(ROOMNET.mode==='room'?'NOT CONNECTED':'BUILDING');$('#peekStatus').textContent=ROOMNET.mode==='room'?'LIVE PEER DOCUMENT':'SIMULATED PUZZLE';const can=game.phase==='exchange'&&game.foreign?.visible&&game.foreign.owner===seat;$('#peekSend').disabled=!can;$('#peekSend').textContent=can?'SEND THIS PIECE':'THIS PIECE BELONGS ELSEWHERE'}
+$('#peekClose').onclick=()=>{$('#peekPanel').classList.remove('on');ROOMNET.peekSeat=null};$('#peekSend').onclick=()=>{const f=game.friends.find(f=>friendSeat(f)===ROOMNET.peekSeat);if(f)openExchangeForFriend(f)};
+let peerTap=null;world.addEventListener('pointerdown',e=>{const r=world.getBoundingClientRect();peerTap={x:e.clientX-r.left,y:e.clientY-r.top,t:performance.now()}},{capture:true});world.addEventListener('pointerup',e=>{if(!peerTap||game.drag)return;const r=world.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;if(Math.hypot(x-peerTap.x,y-peerTap.y)<12&&performance.now()-peerTap.t<450){const f=friendAt(x,y);if(f&&!(game.phase==='exchange'&&game.foreign?.drag))openPeek(f)}peerTap=null});
+/* exchange QR */
+function piecePreview(cv,seat,index,slotOnly=false){const g=cv.getContext('2d'),W=cv.width,H=cv.height,p=game.pieces[index],src=friendScene(seat+1);g.clearRect(0,0,W,H);g.fillStyle='#050505';g.fillRect(0,0,W,H);const scale=Math.min(W/((600/game.cols)*1.45),H/((750/game.rows)*1.45)),cx=W/2-p.cx*scale,cy=H/2-p.cy*scale;g.save();g.translate(cx,cy);g.scale(scale,scale);if(slotOnly){g.fillStyle='#111';g.fill(p.path);g.strokeStyle='#66a6ff';g.lineWidth=5/scale;g.stroke(p.path)}else{g.clip(p.path);g.drawImage(src,0,0,600,750);g.restore();g.save();g.translate(cx,cy);g.scale(scale,scale);g.strokeStyle='#ffd33d';g.lineWidth=5/scale;g.stroke(p.path)}g.restore()}
+function setExchangeState(s,ok=null){const e=$('#exchangeState');e.textContent=s;e.className='exchangeState'+(ok===true?' ok':ok===false?' bad':'')}
+async function openExchangeForFriend(f){const to=friendSeat(f),correct=to===game.foreign.owner;ROOMNET.peekSeat=null;$('#peekPanel').classList.remove('on');$('#exchangePanel').classList.add('on');piecePreview($('#sendPiece'),to,game.foreign.index,false);piecePreview($('#targetSlot'),to,missingForSeat(to),true);$('#exchangeScan').classList.toggle('hidden',ROOMNET.mode!=='room');$('#exchangeQR').classList.toggle('ai-hide',ROOMNET.mode!=='room');if(!correct){$('#exchangeQR').style.opacity='.16';$('#txCode').textContent='NO FIT';setExchangeState('THIS PIECE DOES NOT FIT THIS PUZZLE',false);tone('bad');return}if(ROOMNET.mode!=='room'){setExchangeState('THE AI CHECKED THE FIT',true);$('#txCode').textContent='READY';$('#exchangeQR').style.opacity='.2';setTimeout(()=>{startExchange();$('#exchangePanel').classList.remove('on')},650);return}const tx=randomCode(8),proposal={t:'proposal',tx,roomCode:ROOMNET.roomCode,gameId:ROOMNET.gameId,from:ROOMNET.seat,to,piece:game.foreign.index};ROOMNET.pendingExchange=proposal;if(ROOMNET.role==='host')routeHost(proposal,null);else sendConn(ROOMNET.hostConn,proposal);const payload=`M10X|${ROOMNET.roomCode}|${ROOMNET.gameId}|${tx}|${proposal.from}|${proposal.to}|${proposal.piece}`;await ensureQR();drawQRCanvas($('#exchangeQR'),payload);$('#exchangeQR').style.opacity='1';$('#txCode').textContent=tx;setExchangeState(`PUZZLE ${to+1} SCANS THIS · SAME GAME ${ROOMNET.gameId}`,true)}
+startExchange=function(){if(ROOMNET.mode==='room'){const f=game.friends[game.giveTarget];openExchangeForFriend(f);return}const f=game.friends[game.giveTarget];game.exchange={t:0,stage:'give',from:{x:game.foreign.x,y:game.foreign.y},to:{x:f.x,y:f.y},incoming:null};tone('give');vibrate2([12,24,12])};
+function applyExchangeCommit(m){const p=m.proposal;if(m.role==='sender'&&p.from===ROOMNET.seat){game.foreign.visible=false;game.delivered=true;ROOMNET.pendingExchange=null;$('#exchangePanel').classList.remove('on');toast('PIECE SENT');tone('give')}if(m.role==='receiver'&&p.to===ROOMNET.seat){if(!game.clusters.some(c=>c.pieces.includes(p.piece)))game.clusters.push({id:9000+p.piece,pieces:[p.piece],dx:0,dy:0,anchored:true});game.received=true;toast('YOUR PIECE ARRIVED');tone('take')}finishRoomIfReady();setCue();renderHUD();pushPeerState(true)}
+function finishRoomIfReady(){if(ROOMNET.mode!=='room')return;if(allOwnAnchored()&&game.delivered&&game.received&&!game.complete){game.phase='complete';game.complete=true;tone('win');vibrate2([20,30,20,30,40]);storeSet(STORAGE,'1');game.onboarded=true;setTimeout(showComplete,700)}}
+checkBuild=function(){if(game.phase!=='build'||!allOwnAnchored())return;game.phase='exchange';game.foreign.visible=!game.delivered;game.hint=null;speak('Your picture is locally complete. Find the puzzle that needs your glowing piece.');tone('win');renderHUD();setCue();pushPeerState(true);finishRoomIfReady()};
+$('#exchangeClose').onclick=()=>$('#exchangePanel').classList.remove('on');$('#exchangeScan').onclick=()=>startScanPanel('exchange');$('#scanHud').onclick=()=>startScanPanel('exchange');
+/* scanner with manual codes */
+async function startScanPanel(kind){ROOMNET.scanKind=kind;$('#scanPanel').classList.add('on');$('#scanText').textContent=kind==='room'?'POINT AT THE ROOM QR':'POINT AT THE PIECE QR';$('#scanCode').value='';const okNative='BarcodeDetector'in window;await ensureJsQR();if(!navigator.mediaDevices?.getUserMedia){$('#scanText').textContent='CAMERA UNAVAILABLE · TYPE THE CODE';return}try{ROOMNET.scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});const v=$('#scanVideo');v.srcObject=ROOMNET.scanStream;await v.play();ROOMNET.detector=okNative?new BarcodeDetector({formats:['qr_code']}):null;scanLoop()}catch(e){$('#scanText').textContent='CAMERA BLOCKED · TYPE THE CODE'}}
+async function scanLoop(){if(!$('#scanPanel').classList.contains('on'))return;const v=$('#scanVideo');let text='';try{if(ROOMNET.detector){const r=await ROOMNET.detector.detect(v);text=r[0]?.rawValue||''}else if(typeof jsQR==='function'&&v.videoWidth){const c=$('#scanWork'),w=Math.min(420,v.videoWidth),h=Math.round(w*v.videoHeight/v.videoWidth);c.width=w;c.height=h;const g=c.getContext('2d');g.drawImage(v,0,0,w,h);const im=g.getImageData(0,0,w,h),r=jsQR(im.data,w,h);text=r?.data||''}}catch(e){}if(text){handleScanValue(text);return}ROOMNET.scanRAF=requestAnimationFrame(scanLoop)}
+function stopScanPanel(){cancelAnimationFrame(ROOMNET.scanRAF);ROOMNET.scanStream?.getTracks().forEach(t=>t.stop());ROOMNET.scanStream=null;$('#scanVideo').srcObject=null;$('#scanPanel').classList.remove('on')}
+function handleScanValue(raw){const s=String(raw).trim();if(ROOMNET.scanKind==='room'){const m=s.match(/(?:room=|M10R\|)([A-Z2-9]{6})/i)||s.match(/^([A-Z2-9]{6})$/i);if(!m){$('#scanText').textContent='NOT A MOMSAIC ROOM';return}stopScanPanel();$('#joinCode').value=m[1].toUpperCase();showRoomMode('join');joinLiveRoom(m[1]);return}let p=null;const m=s.match(/^M10X\|([^|]+)\|([^|]+)\|([^|]+)\|(\d+)\|(\d+)\|(\d+)$/);if(m)p={t:'proposal',roomCode:m[1],gameId:m[2],tx:m[3],from:+m[4],to:+m[5],piece:+m[6]};if(!p){/* manual transaction id */const tx=s.toUpperCase();if(ROOMNET.role==='host')p=ROOMNET.transactions[tx];else{sendConn(ROOMNET.hostConn,{t:'accept',tx,to:ROOMNET.seat,proposal:null});stopScanPanel();toast('CHECKING PIECE');return}}if(!p||p.roomCode!==ROOMNET.roomCode||p.gameId!==ROOMNET.gameId||p.to!==ROOMNET.seat||p.piece!==missingForSeat(ROOMNET.seat)){stopScanPanel();setExchangeState('WRONG ROOM OR WRONG OPENING',false);$('#exchangePanel').classList.add('on');tone('bad');return}stopScanPanel();$('#exchangePanel').classList.add('on');piecePreview($('#sendPiece'),ROOMNET.seat,p.piece,false);piecePreview($('#targetSlot'),ROOMNET.seat,p.piece,true);$('#txCode').textContent=p.tx;setExchangeState('IT FITS · RECEIVING NOW',true);if(ROOMNET.role==='host')routeHost({t:'accept',tx:p.tx,to:ROOMNET.seat,proposal:p},null);else sendConn(ROOMNET.hostConn,{t:'accept',tx:p.tx,to:ROOMNET.seat,proposal:p})}
+$('#scanCancel').onclick=stopScanPanel;$('#scanUse').onclick=()=>handleScanValue($('#scanCode').value);$('#scanRoom').onclick=()=>startScanPanel('room');
+/* remote room start source preparation uses received photo */
+const oldPrepare=prepareSource;prepareSource=async function(){friendCache.clear();if(cfg.dataURL){try{const im=await imageFromURL(cfg.dataURL);game.sourceCanvas=fitSource(im);return}catch(e){console.error(e)}}game.sourceCanvas=cfg.source==='blank'?blankImage():builtImage()};
+/* state updates keep peeks alive */
+setInterval(renderPeek,700);
+</script>
+
+<script>
+"use strict";
+/* ===== MOMSAIC v11 lossless exchange patch ===== */
+(()=>{
+  cfg.swaps = Number(cfg.swaps || 1);
+  const V11={version:"11",applied:new Set(),txTimeout:60000};
+  ROOMNET.ledger=ROOMNET.ledger||{}; ROOMNET.inspections=ROOMNET.inspections||{}; ROOMNET.applied=ROOMNET.applied||{};
+
+  const oldSyncSettings=syncSettings;
+  syncSettings=function(){oldSyncSettings();$$('.choice.swaps').forEach(b=>b.classList.toggle('on',+b.dataset.value===+cfg.swaps));};
+  $$('.choice.swaps').forEach(b=>b.onclick=()=>{cfg.swaps=+b.dataset.value;syncSettings();toast(`${cfg.swaps} SWAPPED ${cfg.swaps===1?'PIECE':'PIECES'}`)});
+
+  function seatTotal(){return Math.max(2,ROOMNET.mode==='room'?ROOMNET.n:(cfg.friends+1));}
+  function swapCount(){return Math.max(1,Math.min(+cfg.swaps||1,3,seatTotal()-1,cfg.pieces-1));}
+  function missList(seat){const out=[],count=swapCount();for(let r=0;r<count;r++){let x=Math.floor(rng(hash(`${ROOMNET.seed||V10.soloSeed}|missing|${seat}|${r}|${cfg.pieces}`))()*cfg.pieces);while(out.includes(x))x=(x+1)%cfg.pieces;out.push(x)}return out;}
+  function targetSeat(from,round){const n=seatTotal();return (from+1+round)%n;}
+  function holderSeat(owner,round){const n=seatTotal();return (owner-1-round+n*4)%n;}
+  function pieceKey(owner,index,round){return `${owner}-${round}-${index}`;}
+  function puzzleSignature(seat){return shortId(`${ROOMNET.gameId||'AI'}|${seat}|${missList(seat).join(',')}|${cfg.pieces}|${cfg.shape}|${swapCount()}`);}
+  function stateDigest(st,seat){return puzzleSignature(seat)+(st?.receivedRounds||[]).join('');}
+  function outgoingFor(seat){return Array.from({length:swapCount()},(_,round)=>{const owner=targetSeat(seat,round),index=missList(owner)[round];return{round,owner,index,key:pieceKey(owner,index,round),status:'held',tx:null};});}
+  function incomingFor(seat){return missList(seat).map((index,round)=>({round,from:holderSeat(seat,round),index,key:pieceKey(seat,index,round),status:'missing',tx:null}));}
+  function buildLedger(){const ledger={};for(let holder=0;holder<seatTotal();holder++)for(const p of outgoingFor(holder))ledger[p.key]={...p,holder,status:'held',version:0,tx:null};return ledger;}
+  function saveLedger(){if(ROOMNET.role!=='host'||!ROOMNET.gameId)return;try{localStorage.setItem(`momsaic-v11-ledger-${ROOMNET.gameId}`,JSON.stringify(ROOMNET.ledger))}catch(e){}}
+  function auditLedger(){const expected=seatTotal()*swapCount(),vals=Object.values(ROOMNET.ledger||{}),keys=new Set(vals.map(x=>x.key));return vals.length===expected&&keys.size===expected&&vals.every(x=>Number.isInteger(x.holder)&&x.holder>=0&&x.holder<seatTotal()&&['held','reserved','delivered'].includes(x.status));}
+  function currentOutgoing(){return game.trade?.outgoing.find(x=>x.status==='held'||x.status==='reserved')||null;}
+  function unresolvedIncoming(){return game.trade?.incoming.filter(x=>x.status!=='received')||[];}
+  function localUniquePieces(){const ids=[];for(const c of game.clusters||[])ids.push(...c.pieces.map(i=>`own-${i}`));for(const p of game.trade?.outgoing||[])if(p.status!=='sent')ids.push(p.key);return new Set(ids).size===ids.length;}
+  function updateLedgerStatus(){const el=$('#ledgerStatus');if(!el)return;const safe=(ROOMNET.mode!=='room'||auditLedger())&&localUniquePieces();const done=(game.trade?.outgoing.filter(x=>x.status==='sent').length||0);const total=game.trade?.outgoing.length||swapCount();const pending=Object.values(ROOMNET.transactions||{}).filter(t=>t.status==='reserved'||t.status==='receiver-ready').length;el.textContent=safe?`ALL PIECES SAFE · TRADE ${Math.min(done+1,total)} / ${total}${pending?' · '+pending+' HELD':''}`:'PIECE LEDGER NEEDS REPAIR';el.classList.toggle('bad',!safe);}
+  setInterval(updateLedgerStatus,500);
+
+  function setCurrentTrade(){if(!game.trade)return;const cur=currentOutgoing();game.foreign=cur?{...cur,x:game.foreign?.x||0,y:game.foreign?.y||0,visible:game.phase==='exchange',drag:false}:null;game.missing=unresolvedIncoming()[0]?.index??game.missingList?.[0]??0;game.delivered=game.trade.outgoing.every(x=>x.status==='sent');game.received=game.trade.incoming.every(x=>x.status==='received');game.giveTarget=-1;game.giver=-1;resizeWorld();updateLedgerStatus();}
+
+  createGame=function(){
+    game.cols=layoutFor(cfg.pieces)[0];game.rows=layoutFor(cfg.pieces)[1];buildPaths();
+    const seat=ROOMNET.mode==='room'?ROOMNET.seat:0;game.missingList=missList(seat);const missingSet=new Set(game.missingList);
+    const own=game.pieces.map(p=>p.id).filter(i=>!missingSet.has(i)),perm=deranged(own,hash(`${ROOMNET.seed||V10.soloSeed}|scatter|${seat}|${swapCount()}`));
+    game.clusters=own.map((id,i)=>{const here=game.pieces[id],there=game.pieces[perm[i]],spread=1.13,jx=((i%3)-1)*7,jy=((i%4)-1.5)*5,px=300+(there.cx-300)*spread+jx,py=375+(there.cy-375)*spread+jy;return{id:i+1,pieces:[id],dx:px-here.cx,dy:py-here.cy,anchored:false}});
+    game.tutorialPair=chooseTutorialPair(own);if(!game.onboarded&&game.tutorialPair.length===2){const[a,b]=game.tutorialPair,A=game.clusters.find(c=>c.pieces[0]===a),B=game.clusters.find(c=>c.pieces[0]===b);if(A&&B){A.dx=-150;A.dy=120;B.dx=-90;B.dy=120}}
+    if(ROOMNET.mode==='room'){const seats=[];for(let s=0;s<ROOMNET.n;s++)if(s!==seat)seats.push(s);game.friends=seats.map((s,i)=>({id:i,seat:s,progress:0,done:false,color:COLORS[s%COLORS.length],x:0,y:0}));}
+    else game.friends=Array.from({length:cfg.friends},(_,i)=>({id:i,seat:i+1,progress:.12+i*.04,done:false,color:COLORS[i%COLORS.length],x:0,y:0}));
+    game.trade={outgoing:outgoingFor(seat),incoming:incomingFor(seat),inspected:{},applied:{}};game.missing=game.missingList[0];game.foreign=null;game.phase='build';game.selected=null;game.drag=null;game.undo=[];game.hint=null;game.exchange=null;game.complete=false;game.delivered=false;game.received=false;game.tutorial=game.onboarded?2:0;game.stateVersion=(game.stateVersion||0)+1;setCurrentTrade();updateLiveTag();resizeWorld();containClusters();setCue();renderHUD();pushPeerState(true);
+  };
+
+  localSnapshot=function(){return{seat:ROOMNET.seat,phase:game.phase,progress:localProgress(),complete:game.complete,deliveredRounds:game.trade?.outgoing.filter(x=>x.status==='sent').map(x=>x.round)||[],receivedRounds:game.trade?.incoming.filter(x=>x.status==='received').map(x=>x.round)||[],missingList:game.missingList||[game.missing],clusters:game.clusters.map(c=>({pieces:[...c.pieces],dx:+c.dx.toFixed(2),dy:+c.dy.toFixed(2),anchored:!!c.anchored})),version:game.stateVersion||0,ts:Date.now()};};
+
+  aiSnapshotForSeat=function(seat){const f=game.friends.find(x=>friendSeat(x)===seat),progress=f?.progress||.15,missingList=missList(seat),missingSet=new Set(missingList),ids=game.pieces.map(p=>p.id).filter(id=>!missingSet.has(id)),count=Math.floor(ids.length*progress),perm=deranged(ids,hash(`${V10.soloSeed}|ai|${seat}|${swapCount()}`));return{seat,phase:progress>.96?'exchange':'build',progress,complete:progress>=1,deliveredRounds:[],receivedRounds:[],missingList,clusters:ids.map((id,i)=>{const here=game.pieces[id],there=game.pieces[perm[i]],anchored=i<count,spread=1.1,px=300+(there.cx-300)*spread,py=375+(there.cy-375)*spread;return{pieces:[id],dx:anchored?0:px-here.cx,dy:anchored?0:py-here.cy,anchored}})};};
+
+  renderRemoteToCanvas=function(cv,seat){const g=cv.getContext('2d'),W=cv.width,H=cv.height;g.setTransform(1,0,0,1,0,0);g.fillStyle='#050505';g.fillRect(0,0,W,H);const pad=18,bw=Math.min(W-pad*2,(H-pad*2)*.8),bh=bw*1.25,bx=(W-bw)/2,by=(H-bh)/2,scale=bw/600,src=friendScene(seat+1),st=stateForSeat(seat);g.globalAlpha=.16;g.drawImage(src,bx,by,bw,bh);g.globalAlpha=1;g.strokeStyle='#444';g.strokeRect(bx,by,bw,bh);if(!st){g.fillStyle='#777';g.font='900 20px monospace';g.textAlign='center';g.fillText(ROOMNET.mode==='room'?'NOT CONNECTED':'AI PUZZLE',W/2,H/2);return}for(const c of st.clusters||[])for(const id of c.pieces){const p=game.pieces[id];g.save();g.translate(bx+c.dx*scale,by+c.dy*scale);g.scale(scale,scale);g.clip(p.path);g.drawImage(src,0,0,600,750);g.restore();g.save();g.translate(bx+c.dx*scale,by+c.dy*scale);g.scale(scale,scale);g.strokeStyle=c.anchored?'#20e0c2':c.pieces.length>1?'#7ee36a':'#aaa';g.lineWidth=(c.pieces.length>1?3:1.3)/scale;g.stroke(p.path);g.restore()}
+    const received=new Set(st.receivedRounds||[]);(st.missingList||[st.missing]).forEach((id,r)=>{if(received.has(r))return;const p=game.pieces[id];if(!p)return;g.save();g.translate(bx,by);g.scale(scale,scale);g.fillStyle='rgba(102,166,255,.055)';g.fill(p.path);g.strokeStyle='#66a6ff';g.lineWidth=3/scale;g.stroke(p.path);g.restore()});
+  };
+
+  openPeek=function(f){const seat=friendSeat(f),st=stateForSeat(seat),proof=puzzleSignature(seat);ROOMNET.peekSeat=seat;game.trade.inspected[seat]={at:Date.now(),proof,digest:stateDigest(st,seat)};if(ROOMNET.mode==='room'){const m={t:'inspect',from:ROOMNET.seat,to:seat,proof,at:Date.now()};if(ROOMNET.role==='host')routeHost(m,null);else sendConn(ROOMNET.hostConn,m)}$('#peekTitle').textContent=`PUZZLE ${seat+1}`;$('#peekGame').textContent=ROOMNET.mode==='room'?`GAME ${ROOMNET.gameId}`:'AI';$('#peekPanel').classList.add('on');renderPeek();};
+  renderPeek=function(){if(ROOMNET.peekSeat==null||!$('#peekPanel').classList.contains('on'))return;const seat=ROOMNET.peekSeat,st=stateForSeat(seat),cur=currentOutgoing();renderRemoteToCanvas($('#peekCanvas'),seat);$('#peekPhase').textContent=st?(st.complete?'COMPLETE':st.phase.toUpperCase()):(ROOMNET.mode==='room'?'NOT CONNECTED':'BUILDING');const can=game.phase==='exchange'&&cur&&cur.status==='held'&&cur.owner===seat;$('#peekStatus').textContent=can?'LOOK AT THE YELLOW PIECE AND BLUE OPENING':'THIS PUZZLE NEEDS A DIFFERENT PIECE';$('#peekStatus').classList.toggle('inspect',can);$('#peekSend').disabled=!can;$('#peekSend').textContent=can?'OFFER THIS PIECE':'KEEP LOOKING';};
+  $('#peekSend').onclick=()=>{const f=game.friends.find(f=>friendSeat(f)===ROOMNET.peekSeat);if(f)openExchangeForFriend(f)};
+
+  function inspectValid(seat){const i=game.trade?.inspected?.[seat];return !!i&&Date.now()-i.at<120000&&i.proof===puzzleSignature(seat);}
+  function configureExchangeButton(label,enabled,handler){const b=$('#exchangeConfirm');b.textContent=label;b.disabled=!enabled;b.onclick=enabled?handler:null;}
+  function markReserved(p,tx){const item=game.trade.outgoing.find(x=>x.key===p.key);if(item){item.status='reserved';item.tx=tx}setCurrentTrade();}
+  function unreserveLocal(tx){for(const p of game.trade?.outgoing||[])if(p.tx===tx&&p.status==='reserved'){p.status='held';p.tx=null}ROOMNET.pendingExchange=null;setCurrentTrade();}
+
+  openExchangeForFriend=async function(f){const cur=currentOutgoing(),to=friendSeat(f);if(!cur||cur.owner!==to){tone('bad');toast('THIS PIECE FITS ANOTHER PUZZLE');return}if(!inspectValid(to)){toast('LOOK AT THEIR PUZZLE FIRST');openPeek(f);return}ROOMNET.peekSeat=null;$('#peekPanel').classList.remove('on');$('#exchangePanel').classList.add('on');piecePreview($('#sendPiece'),to,cur.index,false);piecePreview($('#targetSlot'),to,cur.index,true);$('#exchangeScan').classList.toggle('hidden',ROOMNET.mode!=='room');$('#exchangeQR').classList.toggle('ai-hide',ROOMNET.mode!=='room');$('.exchange-card')?.classList.add('reserved');
+    if(ROOMNET.mode!=='room'){$('#exchangeQR').style.opacity='.15';$('#txCode').textContent=`${cur.round+1}/${swapCount()}`;setExchangeState('FIT VERIFIED · THE PIECE IS STILL IN YOUR HAND',true);configureExchangeButton('SEND PIECE',true,()=>commitAI(cur));return}
+    const tx=randomCode(8),proposal={t:'proposal',tx,roomCode:ROOMNET.roomCode,gameId:ROOMNET.gameId,from:ROOMNET.seat,to,round:cur.round,piece:cur.index,key:cur.key,proof:puzzleSignature(to),created:Date.now()};ROOMNET.pendingExchange=proposal;markReserved(proposal,tx);if(ROOMNET.role==='host')routeHost(proposal,null);else sendConn(ROOMNET.hostConn,proposal);const payload=`M11X|${ROOMNET.roomCode}|${ROOMNET.gameId}|${tx}|${proposal.from}|${proposal.to}|${proposal.round}|${proposal.piece}|${proposal.key}`;await ensureQR();drawQRCanvas($('#exchangeQR'),payload);$('#exchangeQR').style.opacity='1';$('#txCode').textContent=tx;setExchangeState(`PUZZLE ${to+1} SCANS · PIECE REMAINS SAFE HERE`,true);configureExchangeButton('WAITING FOR THEIR CHECK',false,null);
+  };
+
+  startExchange=function(){const cur=currentOutgoing();if(!cur)return;const f=game.friends.find(f=>friendSeat(f)===cur.owner);if(!f)return;if(!inspectValid(cur.owner)){game.foreign.x=game.board.x+game.board.w*.5;game.foreign.y=game.board.y+game.board.h+Math.min(32,(game.viewH-game.board.y-game.board.h)*.5);toast('OPEN THEIR PUZZLE FIRST');openPeek(f);return}openExchangeForFriend(f);};
+
+  function ensureIncoming(round,index){if(game.clusters.some(c=>c.pieces.includes(index)))return;game.clusters.push({id:9000+round*100+index,pieces:[index],dx:0,dy:0,anchored:true});}
+  function afterTrade(){game.stateVersion=(game.stateVersion||0)+1;setCurrentTrade();finishRoomIfReady();setCue();renderHUD();pushPeerState(true);updateLedgerStatus();}
+  function commitAI(cur){if(!cur||cur.status==='sent')return;cur.status='sent';cur.tx=null;const inc=game.trade.incoming.find(x=>x.round===cur.round);if(inc&&inc.status!=='received'){inc.status='received';ensureIncoming(inc.round,inc.index)}tone('give');vibrate2([12,20,12]);$('#exchangePanel').classList.remove('on');toast(`TRADE ${cur.round+1} SAFE`);afterTrade();}
+
+  applyExchangeCommit=function(m){const p=m.proposal;if(!p||V11.applied.has(p.tx))return;V11.applied.add(p.tx);if(m.role==='sender'&&p.from===ROOMNET.seat){const out=game.trade?.outgoing.find(x=>x.key===p.key||x.round===p.round);if(out){out.status='sent';out.tx=null}ROOMNET.pendingExchange=null;$('#exchangePanel').classList.remove('on');toast('PIECE SENT · LEDGER CONFIRMED');tone('give')}if(m.role==='receiver'&&p.to===ROOMNET.seat){const inc=game.trade?.incoming.find(x=>x.round===p.round&&x.index===p.piece);if(inc){inc.status='received';inc.tx=null;ensureIncoming(inc.round,inc.index)}toast('YOUR PIECE ARRIVED · LEDGER CONFIRMED');tone('take')}afterTrade();};
+
+  function reconcileLedger(ledger){ROOMNET.ledger=ledger||ROOMNET.ledger;for(const out of game.trade?.outgoing||[]){const l=ROOMNET.ledger[out.key];if(!l)continue;if(l.holder!==ROOMNET.seat||l.status==='delivered'){out.status='sent';out.tx=null}else if(l.status==='held'){out.status='held';out.tx=null}else if(l.status==='reserved'){out.status='reserved';out.tx=l.tx}}
+    for(const inc of game.trade?.incoming||[]){const l=ROOMNET.ledger[inc.key];if(l&&l.holder===ROOMNET.seat&&l.status==='delivered'){inc.status='received';ensureIncoming(inc.round,inc.index)}}afterTrade();}
+
+  function deliverSeat(seat,m){if(seat===0)handlePeerMessage(m);else{const c=[...ROOMNET.conns.values()].find(x=>x.__seat===seat);sendConn(c,m)}}
+  function txCancel(tx,reason='CANCELLED'){const t=ROOMNET.transactions[tx];if(!t)return;const l=ROOMNET.ledger[t.key];if(l&&l.tx===tx){l.status='held';l.tx=null;l.version++}deliverSeat(t.from,{t:'cancelled',tx,reason,ledger:ROOMNET.ledger});deliverSeat(t.to,{t:'cancelled',tx,reason,ledger:ROOMNET.ledger});delete ROOMNET.transactions[tx];saveLedger();broadcast({t:'ledger',ledger:ROOMNET.ledger});}
+  function txCommit(t){const l=ROOMNET.ledger[t.key];if(!l||l.tx!==t.tx||l.status!=='reserved')return txCancel(t.tx,'LEDGER CHANGED');l.holder=t.to;l.status='delivered';l.tx=null;l.version++;t.status='committed';deliverSeat(t.from,{t:'commit',role:'sender',proposal:t,ledger:ROOMNET.ledger});deliverSeat(t.to,{t:'commit',role:'receiver',proposal:t,ledger:ROOMNET.ledger});broadcast({t:'ledger',ledger:ROOMNET.ledger});delete ROOMNET.transactions[t.tx];saveLedger();}
+
+  const oldRouteHost=routeHost;
+  routeHost=function(m,c){if(!m)return;const senderSeat=c?.__seat??m.from??0;
+    if(m.t==='hello'){const used=new Set([0,...[...ROOMNET.conns.values()].map(x=>x.__seat).filter(Number.isInteger)]);let seat=1;while(used.has(seat)&&seat<ROOMNET.n)seat++;if(seat>=ROOMNET.n){sendConn(c,{t:'full'});return}c.__seat=seat;ROOMNET.roster[seat]=true;sendConn(c,{t:'welcome',roomCode:ROOMNET.roomCode,gameId:ROOMNET.gameId,seed:ROOMNET.seed,n:ROOMNET.n,seat,cfg:{pieces:cfg.pieces,shape:cfg.shape,source:cfg.source,dataURL:cfg.dataURL,swaps:cfg.swaps},ledger:ROOMNET.ledger});broadcast({t:'roster',roster:ROOMNET.roster,states:ROOMNET.states,ledger:ROOMNET.ledger});renderRoomRoster();return}
+    if(m.t==='state'){ROOMNET.states[m.state.seat]=m.state;broadcast({t:'states',states:ROOMNET.states,roster:ROOMNET.roster,ledger:ROOMNET.ledger});renderRoomRoster();renderPeek();return}
+    if(m.t==='inspect'){if(senderSeat!==m.from)return;ROOMNET.inspections[m.from]=ROOMNET.inspections[m.from]||{};ROOMNET.inspections[m.from][m.to]={proof:m.proof,at:Date.now()};return}
+    if(m.t==='proposal'){const expectedTo=targetSeat(m.from,m.round),expectedPiece=missList(m.to)[m.round],l=ROOMNET.ledger[m.key],ins=ROOMNET.inspections[m.from]?.[m.to];if(senderSeat!==m.from||m.gameId!==ROOMNET.gameId||m.to!==expectedTo||m.piece!==expectedPiece||m.key!==pieceKey(m.to,m.piece,m.round)||!l||l.holder!==m.from||l.status!=='held'||!ins||Date.now()-ins.at>120000||ins.proof!==m.proof){deliverSeat(m.from,{t:'exchangeError',tx:m.tx,message:'INSPECT AGAIN OR PIECE DOES NOT MATCH'});return}l.status='reserved';l.tx=m.tx;l.version++;ROOMNET.transactions[m.tx]={...m,status:'reserved',receiverConfirmed:false,senderConfirmed:false,created:Date.now()};deliverSeat(m.to,{t:'proposalNotice',proposal:ROOMNET.transactions[m.tx]});broadcast({t:'ledger',ledger:ROOMNET.ledger});saveLedger();return}
+    if(m.t==='receiverAccept'){const t=ROOMNET.transactions[m.tx];if(!t||senderSeat!==t.to||m.to!==t.to)return;const l=ROOMNET.ledger[t.key];if(!l||l.tx!==t.tx||l.status!=='reserved')return txCancel(t.tx,'PIECE NO LONGER RESERVED');t.receiverConfirmed=true;t.status='receiver-ready';deliverSeat(t.from,{t:'receiverReady',proposal:t});return}
+    if(m.t==='senderConfirm'){const t=ROOMNET.transactions[m.tx];if(!t||senderSeat!==t.from||!t.receiverConfirmed)return;t.senderConfirmed=true;txCommit(t);return}
+    if(m.t==='cancel'){const t=ROOMNET.transactions[m.tx];if(t&&(senderSeat===t.from||senderSeat===t.to))txCancel(m.tx,'TRADE CANCELLED');return}
+    return oldRouteHost(m,c);
+  };
+
+  const oldApplyRoomConfig=applyRoomConfig;
+  applyRoomConfig=function(m){oldApplyRoomConfig(m);cfg.swaps=+m.cfg.swaps||1;ROOMNET.ledger=m.ledger||ROOMNET.ledger;syncSettings();};
+
+  function handlePeerMessage(m){if(!m)return;if(m.t==='welcome'){applyRoomConfig(m);ROOMNET.roster[ROOMNET.seat]=true;$('#joinStatus').textContent=`SEAT ${ROOMNET.seat+1} · GAME ${ROOMNET.gameId} · ${cfg.swaps} SWAPPED`;$('#joinStatus').className='roomstatus ok';renderRoomRoster();return}if(m.t==='full'){ROOMNET.live=false;$('#joinStatus').textContent='ROOM FULL';$('#joinStatus').className='roomstatus bad';return}if(m.t==='roster'||m.t==='states'){ROOMNET.roster=m.roster||ROOMNET.roster;ROOMNET.states=m.states||ROOMNET.states;if(m.ledger)ROOMNET.ledger=m.ledger;renderRoomRoster();renderPeek();updateLedgerStatus();return}if(m.t==='ledger'){if(game.started)reconcileLedger(m.ledger);else ROOMNET.ledger=m.ledger;return}if(m.t==='start'){ROOMNET.started=true;if(m.ledger)ROOMNET.ledger=m.ledger;$('#roomPanel').classList.remove('on');document.body.classList.add('room-live');startGame();return}if(m.t==='proposalNotice'){toast(`PUZZLE ${m.proposal.from+1} HAS A PIECE · SCAN IT`);return}if(m.t==='receiverReady'){const p=m.proposal;if(ROOMNET.pendingExchange?.tx!==p.tx)return;setExchangeState(`PUZZLE ${p.to+1} VERIFIED THE FIT · PIECE STILL SAFE HERE`,true);configureExchangeButton('SEND NOW',true,()=>{if(ROOMNET.role==='host')routeHost({t:'senderConfirm',tx:p.tx,from:ROOMNET.seat},null);else sendConn(ROOMNET.hostConn,{t:'senderConfirm',tx:p.tx,from:ROOMNET.seat});configureExchangeButton('SENDING…',false,null)});return}if(m.t==='commit'){if(m.ledger)ROOMNET.ledger=m.ledger;applyExchangeCommit(m);return}if(m.t==='cancelled'){unreserveLocal(m.tx);if(m.ledger)ROOMNET.ledger=m.ledger;setExchangeState(m.reason||'TRADE CANCELLED',false);configureExchangeButton('TRY AGAIN',false,null);toast('PIECE RETURNED TO YOUR HAND');return}if(m.t==='exchangeError'){unreserveLocal(m.tx);setExchangeState(m.message||'PIECE DOES NOT MATCH',false);configureExchangeButton('INSPECT AGAIN',false,null);return}}
+  routeClient=handlePeerMessage;
+
+  createLiveRoom=async function(){if(!await ensurePeer()){setHostStatus('PEER NETWORK COULD NOT LOAD',false);return}ROOMNET.mode='room';ROOMNET.role='host';ROOMNET.seed=(Math.random()*0xffffffff)>>>0;ROOMNET.roomCode=randomCode();ROOMNET.gameId=shortId(`${ROOMNET.roomCode}|${ROOMNET.seed}|${cfg.pieces}|${cfg.shape}|${cfg.swaps}|${cfg.dataURL.slice(-80)}`);ROOMNET.seat=0;ROOMNET.roster={0:true};ROOMNET.states={};ROOMNET.transactions={};ROOMNET.inspections={};ROOMNET.ledger=buildLedger();ROOMNET.live=false;$('#hostLive').classList.remove('hidden');$('#hostCode').textContent=ROOMNET.roomCode;setHostStatus('OPENING ROOM…');await ensureQR();drawQRCanvas($('#roomQR'),qrPayloadRoom(ROOMNET.roomCode));try{ROOMNET.peer=new Peer('momsaic-v11-'+ROOMNET.roomCode.toLowerCase())}catch(e){setHostStatus('ROOM COULD NOT OPEN',false);return}ROOMNET.peer.on('open',()=>{ROOMNET.live=true;setHostStatus(`ROOM LIVE · GAME ${ROOMNET.gameId} · ${cfg.swaps} SWAPPED`,true);renderRoomRoster()});ROOMNET.peer.on('connection',c=>{ROOMNET.conns.set(c.peer,c);c.on('data',m=>routeHost(m,c));c.on('close',()=>{if(Number.isInteger(c.__seat)){delete ROOMNET.roster[c.__seat];delete ROOMNET.states[c.__seat];for(const [tx,t] of Object.entries(ROOMNET.transactions))if(t.from===c.__seat||t.to===c.__seat)txCancel(tx,'PLAYER DISCONNECTED')}ROOMNET.conns.delete(c.peer);broadcast({t:'roster',roster:ROOMNET.roster,states:ROOMNET.states,ledger:ROOMNET.ledger});renderRoomRoster()})});ROOMNET.peer.on('error',()=>setHostStatus('ROOM CONNECTION FAILED',false));};
+  joinLiveRoom=async function(code){code=(code||'').trim().toUpperCase();if(!/^[A-Z2-9]{6}$/.test(code)){setJoinStatus('ENTER THE SIX LETTERS',false);return}if(!await ensurePeer()){setJoinStatus('PEER NETWORK COULD NOT LOAD',false);return}ROOMNET.mode='room';ROOMNET.role='join';ROOMNET.roomCode=code;ROOMNET.live=false;setJoinStatus('FINDING ROOM…');try{ROOMNET.peer=new Peer()}catch(e){setJoinStatus('COULD NOT START NETWORK',false);return}ROOMNET.peer.on('open',()=>{const c=ROOMNET.peer.connect('momsaic-v11-'+code.toLowerCase(),{reliable:true});ROOMNET.hostConn=c;c.on('open',()=>{ROOMNET.live=true;sendConn(c,{t:'hello'})});c.on('data',routeClient);c.on('close',()=>setJoinStatus('ROOM CLOSED',false));c.on('error',()=>setJoinStatus('ROOM NOT FOUND',false))});ROOMNET.peer.on('error',()=>setJoinStatus('ROOM NOT FOUND',false));};
+  $('#createRoom').onclick=createLiveRoom;$('#joinRoom').onclick=()=>joinLiveRoom($('#joinCode').value);
+  $('#startRoom').onclick=()=>{if($('#startRoom').disabled)return;ROOMNET.started=true;broadcast({t:'start',ledger:ROOMNET.ledger});$('#roomPanel').classList.remove('on');document.body.classList.add('room-live');startGame()};
+
+  function receiverAccept(p){if(ROOMNET.role==='host')routeHost({t:'receiverAccept',tx:p.tx,to:ROOMNET.seat,from:ROOMNET.seat},null);else sendConn(ROOMNET.hostConn,{t:'receiverAccept',tx:p.tx,to:ROOMNET.seat,from:ROOMNET.seat});configureExchangeButton('WAITING FOR SENDER',false,null);setExchangeState('YOU VERIFIED THE FIT · SENDER STILL HOLDS THE PIECE',true);}
+  handleScanValue=function(raw){const s=String(raw).trim();if(ROOMNET.scanKind==='room'){const m=s.match(/(?:room=|M11R\|)([A-Z2-9]{6})/i)||s.match(/(?:room=|M10R\|)([A-Z2-9]{6})/i)||s.match(/^([A-Z2-9]{6})$/i);if(!m){$('#scanText').textContent='NOT A MOMSAIC ROOM';return}stopScanPanel();$('#joinCode').value=m[1].toUpperCase();showRoomMode('join');joinLiveRoom(m[1]);return}let p=null;const m=s.match(/^M11X\|([^|]+)\|([^|]+)\|([^|]+)\|(\d+)\|(\d+)\|(\d+)\|(\d+)\|([^|]+)$/);if(m)p={t:'proposal',roomCode:m[1],gameId:m[2],tx:m[3],from:+m[4],to:+m[5],round:+m[6],piece:+m[7],key:m[8]};if(!p){const tx=s.toUpperCase();p=ROOMNET.transactions[tx]||null;if(!p){$('#scanText').textContent='TRANSACTION NOT FOUND';return}}const expected=missList(ROOMNET.seat)[p.round];if(!p||p.roomCode!==ROOMNET.roomCode||p.gameId!==ROOMNET.gameId||p.to!==ROOMNET.seat||p.piece!==expected||p.key!==pieceKey(ROOMNET.seat,p.piece,p.round)){stopScanPanel();$('#exchangePanel').classList.add('on');setExchangeState('WRONG ROOM OR WRONG OPENING',false);configureExchangeButton('DO NOT ACCEPT',false,null);tone('bad');return}stopScanPanel();$('#exchangePanel').classList.add('on');piecePreview($('#sendPiece'),ROOMNET.seat,p.piece,false);piecePreview($('#targetSlot'),ROOMNET.seat,p.piece,true);$('#txCode').textContent=p.tx;$('#exchangeQR').style.opacity='.15';setExchangeState('THE SHAPE AND IMAGE FIT · PIECE IS STILL WITH SENDER',true);configureExchangeButton('ACCEPT THIS PIECE',true,()=>receiverAccept(p));};
+
+  $('#exchangeScan').onclick=()=>startScanPanel('exchange');
+  $('#exchangeCancel').onclick=()=>{const p=ROOMNET.pendingExchange;if(p&&ROOMNET.mode==='room'){if(ROOMNET.role==='host')routeHost({t:'cancel',tx:p.tx,from:ROOMNET.seat},null);else sendConn(ROOMNET.hostConn,{t:'cancel',tx:p.tx,from:ROOMNET.seat})}else if(p)unreserveLocal(p.tx);$('#exchangePanel').classList.remove('on');};
+  $('#exchangeClose').onclick=$('#exchangeCancel').onclick;
+
+  finishRoomIfReady=function(){const ready=allOwnAnchored()&&game.trade?.outgoing.every(x=>x.status==='sent')&&game.trade?.incoming.every(x=>x.status==='received');if(ready&&!game.complete){game.phase='complete';game.complete=true;tone('win');vibrate2([20,30,20,30,40]);storeSet(STORAGE,'1');game.onboarded=true;setTimeout(showComplete,700)}else if(game.phase==='exchange')setCurrentTrade();};
+  checkBuild=function(){if(game.phase!=='build'||!allOwnAnchored())return;game.phase='exchange';setCurrentTrade();if(game.foreign)game.foreign.visible=true;game.hint=null;speak('Look through the puzzles. Try your loose pieces where they seem to fit.');tone('win');renderHUD();setCue();pushPeerState(true);finishRoomIfReady();};
+
+  const oldDrawGuidance=drawGuidance;
+  drawGuidance=function(ctx){if(game.phase==='build'){oldDrawGuidance(ctx);return}if(game.phase==='exchange'){for(const inc of unresolvedIncoming()){const p=game.pieces[inc.index];if(!p)continue;ctx.save();ctx.translate(game.board.x,game.board.y);ctx.scale(game.scale,game.scale);ctx.fillStyle='rgba(102,166,255,.05)';ctx.fill(p.path);ctx.strokeStyle='rgba(102,166,255,.78)';ctx.lineWidth=2.5/game.scale;ctx.stroke(p.path);ctx.restore()}}};
+  drawForeign=function(ctx){const cur=currentOutgoing();if(!game.foreign?.visible||!cur)return;const p=game.pieces[cur.index],r=40,src=friendScene(cur.owner+1);ctx.save();ctx.translate(game.foreign.x,game.foreign.y);ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.fillStyle='#050505';ctx.fill();ctx.lineWidth=5;ctx.strokeStyle=cur.status==='reserved'?'#ff9f2f':'#ffd33d';ctx.stroke();ctx.save();ctx.beginPath();ctx.arc(0,0,r-5,0,TAU);ctx.clip();const sw=600/game.cols,sh=750/game.rows;ctx.drawImage(src,p.col*sw,p.row*sh,sw,sh,-r,-r,r*2,r*2);ctx.restore();ctx.fillStyle='#ffd33d';ctx.font='900 12px monospace';ctx.textAlign='center';ctx.fillText(`${cur.round+1}/${swapCount()}`,0,-49);if(cur.status==='reserved'){ctx.fillStyle='#ff9f2f';ctx.fillText('HELD',0,55)}ctx.restore();};
+  setCue=function(){const cue=$('#cue'),text=$('#cueText'),gesture=cue.querySelector('.gesture');if(game.phase==='build'){if(game.tutorial===0){gesture.textContent='↔';text.textContent='JOIN THE TWO GLOWING EDGES'}else if(game.tutorial===1){gesture.textContent='◉';text.textContent='MOVE THE GREEN ISLAND HOME'}else{gesture.textContent='◉';text.textContent='MAKE THE WHOLE PICTURE'}}else if(game.phase==='exchange'){const loose=(game.trade?.outgoing||[]).filter(x=>x.status==='held'||x.status==='reserved').length,wait=unresolvedIncoming().length;if(loose){gesture.textContent='◎';text.textContent='OPEN A PUZZLE · TRY A LOOSE PIECE'}else if(wait){gesture.textContent='⌗';text.textContent='KEEP BUILDING · PIECES CAN ARRIVE'}else{gesture.textContent='♥';text.textContent='ALL PIECES ACCOUNTED FOR'}}else{gesture.textContent='♥';text.textContent='ONE PICTURE'}cue.style.display=game.phase==='complete'?'none':'flex';updateLedgerStatus();};
+
+  const oldApply=$('#applyBtn').onclick;$('#applyBtn').onclick=()=>{cfg.swaps=Math.min(+cfg.swaps||1,Math.max(1,cfg.friends));oldApply()};
+  const oldPlay11=$('#playBtn').onclick;$('#playBtn').onclick=()=>{cfg.swaps=Math.min(+cfg.swaps||1,Math.max(1,cfg.friends));oldPlay11()};
+  setInterval(()=>{if(ROOMNET.role==='host')for(const [tx,t] of Object.entries(ROOMNET.transactions||{}))if(Date.now()-t.created>V11.txTimeout)txCancel(tx,'TRADE TIMED OUT · PIECE RETURNED')},4000);
+  window.MOMSAIC_V11_DIAGNOSTICS={auditLedger,buildLedger,missList,targetSeat,holderSeat,pieceKey,puzzleSignature,reconcileLedger,txCancel,txCommit,swapCount};
+  syncSettings();updateLedgerStatus();
+})();
+</script>
+
+<script>
+"use strict";
+/* ===== MOMSAIC v13 blind visual search ===== */
+(()=>{
+  const D=window.MOMSAIC_V11_DIAGNOSTICS;
+  const V12={peer:{seat:null,drag:null,slots:[],layout:null,hover:null},incoming:null,float:$('#directFloat'),version:'13'};
+  const prevRouteHost=routeHost,prevRouteClient=routeClient,prevRenderPeek=renderPeek,prevOpenPeek=openPeek,prevDrawGuidance=drawGuidance;
+
+  function seatCount(){return Math.max(2,ROOMNET.mode==='room'?ROOMNET.n:cfg.friends+1)}
+  function peerState(seat){return stateForSeat(seat)}
+  function heldForSeat(seat){return (game.trade?.outgoing||[]).filter(p=>p.status!=='sent')}
+  function receivedRounds(st){return new Set(st?.receivedRounds||[])}
+  function peerLayout(){const cv=$('#peekCanvas'),W=cv.width,H=cv.height,pad=Math.max(20,W*.035),bw=Math.min(W-pad*2,(H-pad*2)*.8),bh=bw*1.25,bx=(W-bw)/2,by=(H-bh)/2;return{W,H,bx,by,bw,bh,scale:bw/600}}
+  function peerSlotAt(x,y){let best=null,dist=1e9;for(const s of V12.peer.slots){const d=Math.hypot(x-s.x,y-s.y);if(d<s.r&&d<dist){best=s;dist=d}}return best}
+  function ownSlotAtWorld(x,y,index){const p=game.pieces[index];if(!p)return false;const tx=game.board.x+p.cx*game.scale,ty=game.board.y+p.cy*game.scale,r=Math.max(38,Math.min(600/game.cols,750/game.rows)*game.scale*.72);return Math.hypot(x-tx,y-ty)<=r}
+  function ownAnySlotAtWorld(x,y){let best=null,dist=1e9;for(const inc of unresolvedIncoming()){if(inc.status==='received')continue;const p=game.pieces[inc.index];if(!p)continue;const tx=game.board.x+p.cx*game.scale,ty=game.board.y+p.cy*game.scale,r=Math.max(38,Math.min(600/game.cols,750/game.rows)*game.scale*.72),d=Math.hypot(x-tx,y-ty);if(d<r&&d<dist){best={index:inc.index,round:inc.round,x:tx,y:ty,r};dist=d}}return best}
+
+  function drawLoosePiece(cv,owner,index,ring='#ffd33d'){
+    const g=cv.getContext('2d'),W=cv.width,H=cv.height,p=game.pieces[index],src=friendScene(owner+1);g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,W,H);g.fillStyle='#050505';g.fillRect(0,0,W,H);const sw=600/game.cols,sh=750/game.rows,sc=Math.min(W/(sw*1.24),H/(sh*1.24)),ox=W/2-p.cx*sc,oy=H/2-p.cy*sc;g.save();g.translate(ox,oy);g.scale(sc,sc);g.clip(p.path);g.drawImage(src,0,0,600,750);g.restore();g.save();g.translate(ox,oy);g.scale(sc,sc);g.strokeStyle=ring;g.lineWidth=6/sc;g.stroke(p.path);g.restore();
+  }
+  function showFloat(owner,index,x,y,ring){drawLoosePiece(V12.float,owner,index,ring);V12.float.classList.add('on');moveFloat(x,y)}
+  function moveFloat(x,y){V12.float.style.left=x+'px';V12.float.style.top=y+'px'}
+  function hideFloat(){V12.float.classList.remove('on');document.body.classList.remove('direct-drag');$('#incomingDock').classList.remove('dragging')}
+
+  function paintPeer(){
+    if(V12.peer.seat==null||!$('#peekPanel').classList.contains('on'))return;
+    const cv=$('#peekCanvas'),g=cv.getContext('2d'),seat=V12.peer.seat,st=peerState(seat),L=peerLayout(),src=friendScene(seat+1);V12.peer.layout=L;V12.peer.slots=[];
+    g.setTransform(1,0,0,1,0,0);g.fillStyle='#030303';g.fillRect(0,0,L.W,L.H);g.globalAlpha=.13;g.drawImage(src,L.bx,L.by,L.bw,L.bh);g.globalAlpha=1;g.strokeStyle='#333';g.lineWidth=2;g.strokeRect(L.bx,L.by,L.bw,L.bh);
+    if(!st){g.fillStyle='#777';g.font='900 24px monospace';g.textAlign='center';g.fillText(ROOMNET.mode==='room'?'NOT CONNECTED':'AI PUZZLE',L.W/2,L.H/2);return}
+    for(const c of st.clusters||[])for(const id of c.pieces){const p=game.pieces[id];if(!p)continue;g.save();g.translate(L.bx+c.dx*L.scale,L.by+c.dy*L.scale);g.scale(L.scale,L.scale);g.clip(p.path);g.drawImage(src,0,0,600,750);g.restore();g.save();g.translate(L.bx+c.dx*L.scale,L.by+c.dy*L.scale);g.scale(L.scale,L.scale);g.strokeStyle=c.anchored?'#20e0c2':c.pieces.length>1?'#7ee36a':'#b3b3b3';g.lineWidth=(c.pieces.length>1?4:1.5)/L.scale;g.stroke(p.path);g.restore()}
+    const rec=receivedRounds(st),missing=st.missingList||[];missing.forEach((id,round)=>{if(rec.has(round))return;const p=game.pieces[id];if(!p)return;const x=L.bx+p.cx*L.scale,y=L.by+p.cy*L.scale,r=Math.max(26,Math.min(600/game.cols,750/game.rows)*L.scale*.72);V12.peer.slots.push({id,round,x,y,r});g.save();g.translate(L.bx,L.by);g.scale(L.scale,L.scale);g.fillStyle='rgba(102,166,255,.08)';g.fill(p.path);g.strokeStyle=V12.peer.hover?.id===id?'#ffffff':'#66a6ff';g.lineWidth=(V12.peer.hover?.id===id?6:4)/L.scale;g.stroke(p.path);g.restore();g.fillStyle='#66a6ff';g.beginPath();g.arc(x,y,5,0,TAU);g.fill()});
+    if(V12.peer.drag){const slot=peerSlotAt(V12.peer.drag.canvasX,V12.peer.drag.canvasY);if(slot){V12.peer.hover={id:slot.id};g.beginPath();g.arc(slot.x,slot.y,slot.r+10,0,TAU);g.strokeStyle='#ffffff';g.lineWidth=4;g.stroke()}else V12.peer.hover=null}
+  }
+
+  function renderTray(){
+    const tray=$('#peerTray'),seat=V12.peer.seat,items=heldForSeat(seat);tray.innerHTML='';
+    if(!items.length){const e=document.createElement('div');e.className='peer-empty';e.textContent='NO LOOSE PIECES LEFT';tray.append(e);$('#peerTrayStatus').textContent='WAIT FOR THE PICTURE';return}
+    $('#peerTrayStatus').textContent='TRY ANY PIECE IN ANY OPENING';
+    items.forEach(item=>{const box=document.createElement('div');box.className='peer-piece '+(item.status==='reserved'?'held':'');box.dataset.key=item.key;const c=document.createElement('canvas');c.width=160;c.height=160;drawLoosePiece(c,seat,item.index,item.status==='reserved'?'#ff9f2f':'#ffd33d');const lab=document.createElement('span');lab.className='round';lab.textContent=(item.round+1)+'/'+(game.trade?.outgoing.length||1);box.append(c,lab);box.addEventListener('pointerdown',e=>beginPeerDrag(e,item,box));tray.append(box)})
+  }
+
+  function beginPeerDrag(e,item,box){
+    if(item.status!=='held'){tone('bad');toast('THAT PIECE IS ALREADY HELD FOR A TRADE');return}e.preventDefault();const cv=$('#peekCanvas'),r=cv.getBoundingClientRect();V12.peer.drag={item,box,pointer:e.pointerId,startX:e.clientX,startY:e.clientY,moved:false,canvasX:(e.clientX-r.left)*cv.width/r.width,canvasY:(e.clientY-r.top)*cv.height/r.height};document.body.classList.add('direct-drag');showFloat(V12.peer.seat,item.index,e.clientX,e.clientY,'#ffd33d');try{box.setPointerCapture(e.pointerId)}catch(_){}tone('tap');paintPeer();$('#peerDropNote').textContent='TRY IT IN AN OPENING'}
+  function movePeerDrag(e){if(!V12.peer.drag)return;const cv=$('#peekCanvas'),r=cv.getBoundingClientRect();V12.peer.drag.canvasX=(e.clientX-r.left)*cv.width/r.width;V12.peer.drag.canvasY=(e.clientY-r.top)*cv.height/r.height;if(Math.hypot(e.clientX-V12.peer.drag.startX,e.clientY-V12.peer.drag.startY)>8)V12.peer.drag.moved=true;moveFloat(e.clientX,e.clientY);const slot=peerSlotAt(V12.peer.drag.canvasX,V12.peer.drag.canvasY);$('#peerDropNote').className='';$('#peerDropNote').textContent=slot?'LET GO TO TEST THE FIT':'TRY AN OPENING';paintPeer()}
+  function endPeerDrag(e){if(!V12.peer.drag)return;const drag=V12.peer.drag,slot=peerSlotAt(drag.canvasX,drag.canvasY),ok=slot&&slot.id===drag.item.index&&drag.item.owner===V12.peer.seat;V12.peer.drag=null;V12.peer.hover=null;hideFloat();$('#peerDropNote').className='';if(ok){V12.peer.selected=null;$('#peerDropNote').textContent='IT FITS · PIECE HELD SAFELY';$('#peerDropNote').className='good';directOffer(drag.item,V12.peer.seat)}else if(!drag.moved){V12.peer.selected=drag.item;$('#peerDropNote').textContent='NOW TAP AN OPENING TO TEST IT';paintPeer()}else{V12.peer.selected=null;$('#peerDropNote').textContent=slot?'NO FIT · TRY ANOTHER PLACE':'THE PIECE STAYED WITH YOU';$('#peerDropNote').className=slot?'bad':'';tone('bad');vibrate2(28);paintPeer()}}
+  $('#peekCanvas').addEventListener('pointerdown',e=>{if(!V12.peer.selected)return;const cv=$('#peekCanvas'),r=cv.getBoundingClientRect(),x=(e.clientX-r.left)*cv.width/r.width,y=(e.clientY-r.top)*cv.height/r.height,slot=peerSlotAt(x,y),item=V12.peer.selected;if(slot&&slot.id===item.index&&item.owner===V12.peer.seat){e.preventDefault();V12.peer.selected=null;$('#peerDropNote').textContent='IT FITS · PIECE HELD SAFELY';$('#peerDropNote').className='good';directOffer(item,V12.peer.seat)}else{tone('bad');vibrate2(18);$('#peerDropNote').textContent=slot?'NO FIT · TRY ANOTHER PLACE':'TAP AN OPENING TO TEST IT';$('#peerDropNote').className=slot?'bad':''}});
+  window.addEventListener('pointermove',movePeerDrag,{passive:false});window.addEventListener('pointerup',endPeerDrag);window.addEventListener('pointercancel',endPeerDrag);
+
+  function recordInspection(seat){const st=peerState(seat),proof=D.puzzleSignature(seat);game.trade.inspected[seat]={at:Date.now(),proof,digest:''};if(ROOMNET.mode==='room'){const m={t:'inspect',from:ROOMNET.seat,to:seat,proof,at:Date.now()};if(ROOMNET.role==='host')routeHost(m,null);else sendConn(ROOMNET.hostConn,m)}}
+  openPeek=function(f){const seat=friendSeat(f);ROOMNET.peekSeat=seat;V12.peer.seat=seat;recordInspection(seat);$('#peekTitle').textContent=`PUZZLE ${seat+1}`;$('#peekGame').textContent=ROOMNET.mode==='room'?`GAME ${ROOMNET.gameId}`:'AI';$('#peekPanel').classList.add('on');renderPeek()};
+  renderPeek=function(){if(V12.peer.seat==null||!$('#peekPanel').classList.contains('on'))return;const st=peerState(V12.peer.seat);$('#peekPhase').textContent=st?(st.complete?'COMPLETE':String(st.phase||'BUILD').toUpperCase()):'OFFLINE';$('#peekStatus').textContent='LOOK AT THE IMAGE AND SHAPES. TRY A LOOSE PIECE. THE GAME ANSWERS ONLY AFTER YOU PLACE IT.';paintPeer();renderTray()};
+  $('#peekClose').onclick=()=>{$('#peekPanel').classList.remove('on');ROOMNET.peekSeat=null;V12.peer.seat=null;V12.peer.drag=null;hideFloat()};
+  $('#peerFallback').onclick=()=>toast('TRY THE PIECES DIRECTLY');
+
+  function itemProposal(item,to,tx){return{t:'directProposal',tx,roomCode:ROOMNET.roomCode,gameId:ROOMNET.gameId,from:ROOMNET.seat,to,round:item.round,piece:item.index,key:item.key,proof:D.puzzleSignature(to),created:Date.now(),direct:true}}
+  function directOffer(item,to){
+    if(item.status!=='held')return;
+    if(ROOMNET.mode!=='room'){
+      item.status='sent';item.tx=null;$('#peekPanel').classList.remove('on');ROOMNET.peekSeat=null;V12.peer.seat=null;renderTray();paintPeer();toast('PIECE FITS · FRIEND TOOK IT');tone('give');vibrate2([12,22,12]);setTimeout(()=>spawnAIIncoming(item.round),520);advanceLocalTrade();return
+    }
+    const tx=randomCode(8),p=itemProposal(item,to,tx);item.status='reserved';item.tx=tx;ROOMNET.pendingExchange=p;renderTray();paintPeer();if(ROOMNET.role==='host')routeHost(p,null);else sendConn(ROOMNET.hostConn,p);toast(`PIECE HELD SAFELY FOR PUZZLE ${to+1}`);tone('snap')
+  }
+  function advanceLocalTrade(){const cur=(game.trade?.outgoing||[]).find(x=>x.status==='held'||x.status==='reserved');game.foreign=cur?{...cur,x:game.foreign?.x||game.board.x+game.board.w*.5,y:game.foreign?.y||game.board.y+game.board.h+24,visible:game.phase==='exchange',drag:false}:{visible:false,x:0,y:0,drag:false};game.delivered=(game.trade?.outgoing||[]).every(x=>x.status==='sent');game.received=(game.trade?.incoming||[]).every(x=>x.status==='received');game.giveTarget=-1;game.giver=-1;setCue();renderHUD();finishRoomIfReady();if(!game.foreign)game.foreign={visible:false,x:0,y:0,drag:false};pushPeerState(true)}
+
+  function renderIncoming(){const dock=$('#incomingDock');if(!V12.incoming){dock.classList.remove('on');return}const p=V12.incoming.proposal;drawLoosePiece($('#incomingPiece'),ROOMNET.seat,p.piece,'#20e0c2');$('#incomingText b').textContent='A PIECE ARRIVED';$('#incomingText span').textContent='TRY IT IN ONE OF YOUR OPENINGS';dock.classList.add('on')}
+  function spawnAIIncoming(round){const inc=game.trade?.incoming.find(x=>x.round===round&&x.status!=='received');if(!inc){advanceLocalTrade();return}V12.incoming={proposal:{tx:'AI'+round,from:inc.from,to:0,round:inc.round,piece:inc.index,key:inc.key,ai:true}};renderIncoming();toast('A PIECE ARRIVED');tone('take')}
+  function beginIncomingDrag(e){if(!V12.incoming)return;e.preventDefault();const p=V12.incoming.proposal;V12.incoming.drag=true;V12.incoming.startX=e.clientX;V12.incoming.startY=e.clientY;V12.incoming.moved=false;try{$('#incomingPiece').setPointerCapture(e.pointerId)}catch(_){};document.body.classList.add('direct-drag');$('#incomingDock').classList.add('dragging');showFloat(ROOMNET.seat,p.piece,e.clientX,e.clientY,'#20e0c2');tone('tap')}
+  function moveIncoming(e){if(!V12.incoming?.drag)return;if(Math.hypot(e.clientX-V12.incoming.startX,e.clientY-V12.incoming.startY)>8)V12.incoming.moved=true;moveFloat(e.clientX,e.clientY)}
+  function endIncoming(e){if(!V12.incoming?.drag)return;const p=V12.incoming.proposal,r=world.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,slot=ownAnySlotAtWorld(x,y),ok=slot&&slot.index===p.piece,moved=V12.incoming.moved;V12.incoming.drag=false;hideFloat();if(ok){V12.incoming.selected=false;acceptDirectIncoming(p);return}if(!moved){V12.incoming.selected=true;$('#incomingText span').textContent='NOW TAP AN OPENING TO TEST IT';tone('snap');return}tone('bad');vibrate2(28);toast(slot?'NO FIT · TRY ANOTHER OPENING':'TRY ONE OF YOUR OPENINGS')}
+  world.addEventListener('pointerdown',e=>{if(!V12.incoming?.selected)return;const r=world.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,p=V12.incoming.proposal,slot=ownAnySlotAtWorld(x,y);if(slot&&slot.index===p.piece){e.preventDefault();e.stopImmediatePropagation();V12.incoming.selected=false;acceptDirectIncoming(p)}else{tone('bad');vibrate2(18);toast(slot?'NO FIT · TRY ANOTHER OPENING':'TAP AN OPENING TO TEST IT')}},{capture:true});
+  $('#incomingPiece').addEventListener('pointerdown',beginIncomingDrag);window.addEventListener('pointermove',moveIncoming,{passive:false});window.addEventListener('pointerup',endIncoming);window.addEventListener('pointercancel',endIncoming);
+  $('#incomingCancel').onclick=()=>{if(!V12.incoming)return;const p=V12.incoming.proposal;if(!p.ai){const m={t:'cancel',tx:p.tx,from:ROOMNET.seat};if(ROOMNET.role==='host')routeHost(m,null);else sendConn(ROOMNET.hostConn,m)}V12.incoming=null;renderIncoming();toast('PIECE RETURNED TO SENDER')};
+  function acceptDirectIncoming(p){
+    if(p.ai){const inc=game.trade?.incoming.find(x=>x.round===p.round&&x.index===p.piece);if(inc){inc.status='received';inc.tx=null;if(!game.clusters.some(c=>c.pieces.includes(inc.index)))game.clusters.push({id:9900+inc.round,pieces:[inc.index],dx:0,dy:0,anchored:true})}V12.incoming=null;renderIncoming();toast('PIECE LOCKED INTO YOUR PICTURE');tone('win');vibrate2([12,18,24]);advanceLocalTrade();return}
+    const m={t:'directAccept',tx:p.tx,to:ROOMNET.seat,from:ROOMNET.seat};if(ROOMNET.role==='host')routeHost(m,null);else sendConn(ROOMNET.hostConn,m);$('#incomingText span').textContent='FIT VERIFIED · COMMITTING';$('#incomingPiece').style.opacity='.55';
+  }
+
+  function deliverV12(seat,m){if(seat===0)routeClient(m);else{const c=[...ROOMNET.conns.values()].find(x=>x.__seat===seat);sendConn(c,m)}}
+  routeHost=function(m,c){
+    if(m?.t==='directProposal'){
+      const sender=c?.__seat??m.from??0,expectedTo=D.targetSeat(m.from,m.round),expectedPiece=D.missList(m.to)[m.round],expectedKey=D.pieceKey(m.to,m.piece,m.round),l=ROOMNET.ledger[m.key],ins=ROOMNET.inspections[m.from]?.[m.to];
+      if(sender!==m.from||m.gameId!==ROOMNET.gameId||m.to!==expectedTo||m.piece!==expectedPiece||m.key!==expectedKey||!l||l.holder!==m.from||l.status!=='held'||!ins||Date.now()-ins.at>120000||ins.proof!==m.proof){deliverV12(m.from,{t:'exchangeError',tx:m.tx,message:'LOOK AGAIN · THAT PIECE DOES NOT FIT'});return}
+      l.status='reserved';l.tx=m.tx;l.version++;ROOMNET.transactions[m.tx]={...m,status:'reserved',created:Date.now(),direct:true};deliverV12(m.to,{t:'directIncoming',proposal:ROOMNET.transactions[m.tx]});broadcast({t:'ledger',ledger:ROOMNET.ledger});return
+    }
+    if(m?.t==='directAccept'){
+      const receiver=c?.__seat??m.to??0,t=ROOMNET.transactions[m.tx];if(!t||!t.direct||receiver!==t.to)return;const l=ROOMNET.ledger[t.key];if(!l||l.status!=='reserved'||l.tx!==t.tx)return;
+      l.holder=t.to;l.status='delivered';l.tx=null;l.version++;deliverV12(t.from,{t:'commit',role:'sender',proposal:t,ledger:ROOMNET.ledger});deliverV12(t.to,{t:'commit',role:'receiver',proposal:t,ledger:ROOMNET.ledger});broadcast({t:'ledger',ledger:ROOMNET.ledger});delete ROOMNET.transactions[t.tx];return
+    }
+    return prevRouteHost(m,c)
+  };
+  routeClient=function(m){
+    if(m?.t==='directIncoming'){$('#peekPanel').classList.remove('on');ROOMNET.peekSeat=null;V12.peer.seat=null;V12.incoming={proposal:m.proposal};renderIncoming();toast('A PIECE ARRIVED');tone('take');return}
+    if(m?.t==='commit'&&V12.incoming?.proposal?.tx===m.proposal?.tx){V12.incoming=null;$('#incomingPiece').style.opacity='1';renderIncoming()}
+    if(m?.t==='cancelled'&&V12.incoming?.proposal?.tx===m.tx){V12.incoming=null;renderIncoming()}
+    prevRouteClient(m);
+    if($('#peekPanel').classList.contains('on'))renderPeek()
+  };
+
+  const oldApplyCommit=applyExchangeCommit;
+  applyExchangeCommit=function(m){oldApplyCommit(m);if(m.role==='sender'){const item=game.trade?.outgoing.find(x=>x.key===m.proposal.key);if(item){item.status='sent';item.tx=null}}if(m.role==='receiver'){V12.incoming=null;renderIncoming()}advanceLocalTrade();renderTray();paintPeer()};
+  drawGuidance=function(ctx){prevDrawGuidance(ctx);};
+  setInterval(()=>{if($('#peekPanel').classList.contains('on')){paintPeer();renderTray()}},500);
+  window.MOMSAIC_V12={state:V12,paintPeer,renderTray,renderIncoming,directOffer};
+})();
+</script>
+
+<style>
+/* ===== v14: two-board direct challenge ===== */
+#challengePanel{position:fixed;inset:0;z-index:44;display:none;background:#030303;color:#fff;overflow:hidden}
+#challengePanel.on{display:block}
+.challenge-shell{position:absolute;inset:0;padding:max(6px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom));display:grid;grid-template-rows:50px minmax(0,1fr) 52px;gap:7px;background:#030303}
+.challenge-head{display:grid;grid-template-columns:1fr auto;align-items:center;border-bottom:1px solid #292929;min-width:0}
+.challenge-title{display:flex;align-items:center;gap:8px;min-width:0}.challenge-title b{font-size:1rem;letter-spacing:.08em;white-space:nowrap}.challenge-title span{font-size:.66rem;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.challenge-close{width:44px;height:44px;border:1px solid #444;background:#080808;color:#fff;font-size:1.25rem}
+.challenge-boards{display:grid;grid-template-columns:1fr 1fr;gap:7px;min-height:0}
+.challenge-side{min-width:0;display:grid;grid-template-rows:29px minmax(0,1fr) 24px 78px;gap:4px;border:1px solid #2b2b2b;background:#070707;padding:5px}
+.challenge-side-head{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:.68rem;font-weight:1000;letter-spacing:.07em}.challenge-seat{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#fff;color:#000;font-size:.72rem}.challenge-seat.peer{background:var(--amber)}
+.challenge-board{width:100%;height:100%;min-height:0;background:#020202;border:1px solid #313131;touch-action:none;display:block}
+.challenge-hand-label{display:flex;align-items:center;justify-content:space-between;font-size:.58rem;font-weight:1000;letter-spacing:.06em;color:#aaa}.challenge-hand-label b{color:#fff}.challenge-arrow{color:var(--teal);font-size:.9rem}
+.challenge-hand{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;min-height:0}
+.challenge-piece{position:relative;min-width:0;height:74px;border:2px solid #444;background:#030303;padding:2px;touch-action:none}.challenge-piece canvas{display:block;width:100%;height:100%}.challenge-piece.selected{border-color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.14)}.challenge-piece.pending{border-color:#ff9f2f;opacity:.58}.challenge-piece.bad{animation:challengeNo .24s linear 2}.challenge-piece .challenge-round{position:absolute;right:1px;top:1px;min-width:18px;height:18px;padding:0 3px;background:#000;border:1px solid currentColor;color:#bbb;display:flex;align-items:center;justify-content:center;font-size:.56rem;font-weight:1000}
+.challenge-empty{grid-column:1/-1;border:1px dashed #333;display:flex;align-items:center;justify-content:center;color:#555;font-size:.62rem;font-weight:900;letter-spacing:.06em;text-align:center;padding:4px}
+.challenge-cue{height:52px;border:2px solid var(--amber);background:#080808;display:grid;grid-template-columns:44px 1fr;align-items:center;padding:0 8px;gap:7px}.challenge-cue .symbol{font-size:1.6rem;color:var(--amber);text-align:center}.challenge-cue b{font-size:.76rem;letter-spacing:.06em;line-height:1.25}.challenge-cue.good{border-color:var(--teal)}.challenge-cue.good .symbol{color:var(--teal)}.challenge-cue.bad{border-color:var(--red)}.challenge-cue.bad .symbol{color:var(--red)}
+#challengeFloat{position:fixed;z-index:60;width:86px;height:86px;display:none;transform:translate(-50%,-50%);pointer-events:none;filter:drop-shadow(0 8px 14px #000)}#challengeFloat.on{display:block}
+#incomingDock{display:none!important}
+@keyframes challengeNo{0%,100%{transform:translateX(0)}33%{transform:translateX(-5px)}66%{transform:translateX(5px)}}
+@media(max-height:690px){.challenge-shell{grid-template-rows:44px minmax(0,1fr) 46px;gap:5px}.challenge-side{grid-template-rows:25px minmax(0,1fr) 20px 62px;padding:4px;gap:3px}.challenge-piece{height:58px}.challenge-cue{height:46px}.challenge-cue b{font-size:.68rem}.challenge-side-head{font-size:.6rem}.challenge-seat{width:21px;height:21px}.challenge-hand-label{font-size:.52rem}}
+@media(orientation:landscape){.challenge-shell{grid-template-rows:44px minmax(0,1fr) 44px}.challenge-side{grid-template-columns:26px minmax(0,1fr) 25px 82px;grid-template-rows:1fr}.challenge-side-head{writing-mode:vertical-rl;justify-content:flex-start}.challenge-hand-label{writing-mode:vertical-rl;justify-content:center}.challenge-hand{grid-template-columns:1fr;grid-template-rows:repeat(3,minmax(0,1fr))}.challenge-piece{height:auto}.challenge-cue{height:44px}}
+</style>
+<div id="challengePanel" aria-label="Two puzzle challenge">
+  <div class="challenge-shell">
+    <div class="challenge-head"><div class="challenge-title"><b id="challengeTitle">YOU ↔ PUZZLE</b><span id="challengeMeta">TEST PIECES BOTH WAYS</span></div><button id="challengeClose" class="challenge-close" aria-label="Close">×</button></div>
+    <div class="challenge-boards">
+      <section class="challenge-side">
+        <div class="challenge-side-head"><span><span id="mineSeat" class="challenge-seat">1</span> MY PUZZLE</span><span id="mineOpen">0 OPEN</span></div>
+        <canvas id="mineChallenge" class="challenge-board" width="360" height="450"></canvas>
+        <div class="challenge-hand-label"><b id="theirHandLabel">THEIR HAND</b><span class="challenge-arrow">↓ TEST HERE</span></div>
+        <div id="theirHand" class="challenge-hand"></div>
+      </section>
+      <section class="challenge-side">
+        <div class="challenge-side-head"><span><span id="peerSeat" class="challenge-seat peer">2</span> THEIR PUZZLE</span><span id="peerOpen">0 OPEN</span></div>
+        <canvas id="peerChallenge" class="challenge-board" width="360" height="450"></canvas>
+        <div class="challenge-hand-label"><b>MY HAND</b><span class="challenge-arrow">↓ TEST HERE</span></div>
+        <div id="myHand" class="challenge-hand"></div>
+      </section>
+    </div>
+    <div id="challengeCue" class="challenge-cue"><span class="symbol">↕</span><b>TAP A PIECE · THEN TAP A HOLE<br>OR DRAG IT STRAIGHT IN</b></div>
+  </div>
+</div>
+<canvas id="challengeFloat" width="180" height="180"></canvas>
+<script>
+"use strict";
+/* ===== MOMSAIC v14 two-board challenge ===== */
+(()=>{
+  const D=window.MOMSAIC_V11_DIAGNOSTICS;
+  const C={seat:null,selected:null,drag:null,slots:{mine:[],peer:[]},pending:new Set(),soloLedger:null,aiReceived:{},float:document.querySelector('#challengeFloat'),version:'14'};
+  const previousRouteHost=routeHost,previousRouteClient=routeClient,previousSetCue=setCue;
+
+  function localSeat(){return ROOMNET.mode==='room'?ROOMNET.seat:0}
+  function totalSeats(){return Math.max(2,ROOMNET.mode==='room'?ROOMNET.n:cfg.friends+1)}
+  function ledger(){
+    if(ROOMNET.mode==='room')return ROOMNET.ledger||{};
+    if(!C.soloLedger||Object.keys(C.soloLedger).length!==totalSeats()*D.swapCount())C.soloLedger=D.buildLedger();
+    return C.soloLedger;
+  }
+  function heldBy(seat){return Object.values(ledger()).filter(x=>x.holder===seat&&x.status!=='delivered').sort((a,b)=>a.round-b.round||a.owner-b.owner)}
+  function receivedSet(seat,st){
+    const s=new Set(st?.receivedRounds||[]);
+    if(seat===localSeat())for(const i of game.trade?.incoming||[])if(i.status==='received')s.add(i.round);
+    for(const r of C.aiReceived[seat]||[])s.add(r);
+    return s;
+  }
+  function boardState(seat){
+    if(seat===localSeat())return{clusters:game.clusters||[],missingList:game.missingList||D.missList(seat),receivedRounds:(game.trade?.incoming||[]).filter(x=>x.status==='received').map(x=>x.round),phase:game.phase,complete:game.complete};
+    return stateForSeat(seat)||{clusters:[],missingList:D.missList(seat),receivedRounds:[],phase:'build',complete:false};
+  }
+  function sourceForSeat(seat){return friendScene(seat+1)}
+  function drawBoard(cv,seat,slotKey){
+    const g=cv.getContext('2d'),W=cv.width,H=cv.height,st=boardState(seat),src=sourceForSeat(seat),pad=10,bw=Math.min(W-pad*2,(H-pad*2)*.8),bh=bw*1.25,bx=(W-bw)/2,by=(H-bh)/2,sc=bw/600;
+    C.slots[slotKey]=[];g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,W,H);g.fillStyle='#020202';g.fillRect(0,0,W,H);g.globalAlpha=.16;g.drawImage(src,bx,by,bw,bh);g.globalAlpha=1;g.strokeStyle='#3b3b3b';g.lineWidth=2;g.strokeRect(bx,by,bw,bh);
+    const present=new Set();
+    for(const cl of st.clusters||[])for(const id of cl.pieces||[]){const p=game.pieces[id];if(!p)continue;present.add(id);g.save();g.translate(bx+(cl.dx||0)*sc,by+(cl.dy||0)*sc);g.scale(sc,sc);g.clip(p.path);g.drawImage(src,0,0,600,750);g.restore();g.save();g.translate(bx+(cl.dx||0)*sc,by+(cl.dy||0)*sc);g.scale(sc,sc);g.strokeStyle=cl.anchored?'#20e0c2':(cl.pieces?.length>1?'#7ee36a':'#aaa');g.lineWidth=(cl.anchored?3:1.3)/sc;g.stroke(p.path);g.restore()}
+    const rec=receivedSet(seat,st),missing=st.missingList||D.missList(seat);
+    missing.forEach((id,round)=>{const p=game.pieces[id];if(!p)return;if(rec.has(round)){if(!present.has(id)){g.save();g.translate(bx,by);g.scale(sc,sc);g.clip(p.path);g.drawImage(src,0,0,600,750);g.restore();g.save();g.translate(bx,by);g.scale(sc,sc);g.strokeStyle='#20e0c2';g.lineWidth=3/sc;g.stroke(p.path);g.restore()}return}const x=bx+p.cx*sc,y=by+p.cy*sc,r=Math.max(24,Math.min(600/game.cols,750/game.rows)*sc*.72);C.slots[slotKey].push({id,round,x,y,r});g.save();g.translate(bx,by);g.scale(sc,sc);g.fillStyle='rgba(102,166,255,.08)';g.fill(p.path);g.strokeStyle='#66a6ff';g.lineWidth=4/sc;g.stroke(p.path);g.restore()});
+    return C.slots[slotKey].length;
+  }
+  function drawPiece(cv,item,ring){
+    const g=cv.getContext('2d'),W=cv.width,H=cv.height,p=game.pieces[item.index],src=sourceForSeat(item.owner),sw=600/game.cols,sh=750/game.rows,sc=Math.min(W/(sw*1.25),H/(sh*1.25)),ox=W/2-p.cx*sc,oy=H/2-p.cy*sc;g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,W,H);g.fillStyle='#030303';g.fillRect(0,0,W,H);g.save();g.translate(ox,oy);g.scale(sc,sc);g.clip(p.path);g.drawImage(src,0,0,600,750);g.restore();g.save();g.translate(ox,oy);g.scale(sc,sc);g.strokeStyle=ring;g.lineWidth=6/sc;g.stroke(p.path);g.restore();
+  }
+  function slotAt(kind,x,y){let best=null,dist=Infinity;for(const s of C.slots[kind]||[]){const d=Math.hypot(x-s.x,y-s.y);if(d<s.r&&d<dist){best=s;dist=d}}return best}
+  function canvasPoint(cv,e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*cv.width/r.width,y:(e.clientY-r.top)*cv.height/r.height}}
+  function cue(text,state=''){const e=document.querySelector('#challengeCue');e.className='challenge-cue'+(state?' '+state:'');e.querySelector('.symbol').textContent=state==='good'?'✓':state==='bad'?'×':'↕';e.querySelector('b').innerHTML=text}
+  function showFloat(item,e){drawPiece(C.float,item,'#fff');C.float.classList.add('on');moveFloat(e)}
+  function moveFloat(e){C.float.style.left=e.clientX+'px';C.float.style.top=e.clientY+'px'}
+  function hideFloat(){C.float.classList.remove('on')}
+
+  function renderHand(el,seat,targetSeat,kind){
+    el.innerHTML='';const items=heldBy(seat);
+    if(!items.length){const z=document.createElement('div');z.className='challenge-empty';z.textContent='NO LOOSE PIECES';el.append(z);return}
+    for(const item of items){const box=document.createElement('div');box.className='challenge-piece'+(C.pending.has(item.key)?' pending':'')+(C.selected?.item.key===item.key?' selected':'');box.dataset.key=item.key;const cv=document.createElement('canvas');cv.width=150;cv.height=150;drawPiece(cv,item,seat===localSeat()?'#ffd33d':'#20e0c2');const round=document.createElement('span');round.className='challenge-round';round.textContent=(item.round+1)+'/'+D.swapCount();box.append(cv,round);box.addEventListener('pointerdown',e=>beginPiece(e,item,targetSeat,kind,box));el.append(box)}
+  }
+  function renderChallenge(){
+    if(C.seat==null||!document.querySelector('#challengePanel').classList.contains('on'))return;
+    const me=localSeat(),peer=C.seat,mineOpen=drawBoard(document.querySelector('#mineChallenge'),me,'mine'),peerOpen=drawBoard(document.querySelector('#peerChallenge'),peer,'peer');
+    document.querySelector('#mineSeat').textContent=me+1;document.querySelector('#peerSeat').textContent=peer+1;document.querySelector('#mineOpen').textContent=mineOpen+' OPEN';document.querySelector('#peerOpen').textContent=peerOpen+' OPEN';document.querySelector('#challengeTitle').textContent=`${me+1} ↔ ${peer+1}`;document.querySelector('#challengeMeta').textContent=ROOMNET.mode==='room'?`GAME ${ROOMNET.gameId}`:'BLIND PIECE CHALLENGE';document.querySelector('#theirHandLabel').textContent=`PUZZLE ${peer+1} HAND`;
+    renderHand(document.querySelector('#theirHand'),peer,me,'mine');renderHand(document.querySelector('#myHand'),me,peer,'peer');
+  }
+  function openChallenge(seat){C.seat=seat;C.selected=null;C.drag=null;document.querySelector('#peekPanel').classList.remove('on');document.querySelector('#challengePanel').classList.add('on');cue('THEIR PIECES SIT BESIDE YOUR PUZZLE<br>YOUR PIECES SIT BESIDE THEIRS');renderChallenge();tone('tap')}
+  function closeChallenge(){document.querySelector('#challengePanel').classList.remove('on');C.seat=null;C.selected=null;C.drag=null;hideFloat()}
+
+  function beginPiece(e,item,targetSeat,kind,box){
+    if(C.pending.has(item.key)){tone('bad');return}e.preventDefault();C.selected={item,targetSeat,kind,box};C.drag={item,targetSeat,kind,box,startX:e.clientX,startY:e.clientY,moved:false};showFloat(item,e);try{box.setPointerCapture(e.pointerId)}catch(_){}cue('MOVE THE PIECE INTO ANY BLUE HOLE<br>THE GAME ANSWERS ONLY AFTER THE TEST');renderChallenge();tone('tap')
+  }
+  function movePiece(e){if(!C.drag)return;if(Math.hypot(e.clientX-C.drag.startX,e.clientY-C.drag.startY)>7)C.drag.moved=true;moveFloat(e)}
+  function endPiece(e){if(!C.drag)return;const d=C.drag,cv=d.kind==='mine'?document.querySelector('#mineChallenge'):document.querySelector('#peerChallenge'),pt=canvasPoint(cv,e),slot=slotAt(d.kind,pt.x,pt.y);C.drag=null;hideFloat();if(!d.moved){C.selected={item:d.item,targetSeat:d.targetSeat,kind:d.kind,box:d.box};cue('PIECE PICKED UP<br>NOW TAP A BLUE HOLE');renderChallenge();return}testFit(d.item,d.targetSeat,d.kind,slot,d.box)}
+  function testFit(item,targetSeat,kind,slot,box){
+    const ok=slot&&item.owner===targetSeat&&item.index===slot.id;
+    if(!ok){C.selected=null;box?.classList.add('bad');setTimeout(()=>box?.classList.remove('bad'),520);cue(slot?'NO FIT · THE PIECE STAYS IN THE HAND':'DROP IT INTO A BLUE HOLE','bad');tone('bad');vibrate2(24);renderChallenge();return}
+    C.selected=null;cue('IT FITS · MOVING ONE SHARED PIECE','good');tone('snap');vibrate2([10,16,10]);commitPiece(item,targetSeat)
+  }
+  function canvasTap(kind,e){if(!C.selected||C.selected.kind!==kind)return;const cv=e.currentTarget,pt=canvasPoint(cv,e),slot=slotAt(kind,pt.x,pt.y),s=C.selected;testFit(s.item,s.targetSeat,s.kind,slot,s.box)}
+
+  function syncLocalAfterCommit(proposal){
+    const me=localSeat();
+    if(proposal.from===me){const out=game.trade?.outgoing.find(x=>x.key===proposal.key);if(out){out.status='sent';out.tx=null}}
+    if(proposal.to===me){const inc=game.trade?.incoming.find(x=>x.key===proposal.key||x.round===proposal.round&&x.index===proposal.piece);if(inc){inc.status='received';inc.tx=null}if(!game.clusters.some(c=>c.pieces.includes(proposal.piece)))game.clusters.push({id:14000+proposal.round,pieces:[proposal.piece],dx:0,dy:0,anchored:true})}
+    if(proposal.to!==me){C.aiReceived[proposal.to]=C.aiReceived[proposal.to]||new Set();C.aiReceived[proposal.to].add(proposal.round)}
+    const cur=(game.trade?.outgoing||[]).find(x=>x.status==='held'||x.status==='reserved');const old=game.foreign||{};game.foreign=cur?{...cur,x:old.x||game.board.x+game.board.w*.5,y:old.y||game.board.y+game.board.h+24,visible:game.phase==='exchange',drag:false}:{visible:false,x:0,y:0,drag:false};game.delivered=(game.trade?.outgoing||[]).every(x=>x.status==='sent');game.received=(game.trade?.incoming||[]).every(x=>x.status==='received');game.missing=(game.trade?.incoming||[]).find(x=>x.status!=='received')?.index??game.missing;game.stateVersion=(game.stateVersion||0)+1;finishRoomIfReady();setCue();renderHUD();pushPeerState(true)
+  }
+  function commitPiece(item,targetSeat){
+    const l=ledger()[item.key];if(!l||l.status!=='held'){cue('THAT PIECE MOVED ALREADY · REFRESHING','bad');renderChallenge();return}
+    if(ROOMNET.mode!=='room'){
+      const proposal={tx:'AI'+Date.now().toString(36),from:l.holder,to:targetSeat,round:l.round,piece:l.index,key:l.key};l.holder=targetSeat;l.status='delivered';l.version=(l.version||0)+1;syncLocalAfterCommit(proposal);cue('FIT · THE SHARED PIECE MOVED','good');setTimeout(renderChallenge,120);return
+    }
+    const tx=randomCode(8),m={t:'challengePlace',tx,gameId:ROOMNET.gameId,roomCode:ROOMNET.roomCode,actor:localSeat(),from:l.holder,to:targetSeat,round:l.round,piece:l.index,key:l.key};C.pending.add(l.key);renderChallenge();if(ROOMNET.role==='host')routeHost(m,null);else sendConn(ROOMNET.hostConn,m)
+  }
+
+  function deliver(seat,msg){if(seat===0&&ROOMNET.role==='host')routeClient(msg);else{const c=[...ROOMNET.conns.values()].find(x=>x.__seat===seat);sendConn(c,msg)}}
+  routeHost=function(m,c){
+    if(m?.t==='challengePlace'){
+      const actor=c?.__seat??m.actor??0,l=ROOMNET.ledger?.[m.key],expectedPiece=D.missList(m.to)?.[m.round],expectedKey=D.pieceKey(m.to,m.piece,m.round),allowed=actor===m.from||actor===m.to;
+      if(!allowed||m.gameId!==ROOMNET.gameId||!l||l.status!=='held'||l.holder!==m.from||l.owner!==m.to||l.index!==m.piece||l.round!==m.round||expectedPiece!==m.piece||expectedKey!==m.key){deliver(actor,{t:'challengeError',tx:m.tx,key:m.key,message:'NO FIT · PIECE STAYED SAFE'});return}
+      if(ROOMNET.applied?.[m.tx])return;ROOMNET.applied=ROOMNET.applied||{};ROOMNET.applied[m.tx]=true;l.holder=m.to;l.status='delivered';l.tx=null;l.version=(l.version||0)+1;const p={tx:m.tx,from:m.from,to:m.to,round:m.round,piece:m.piece,key:m.key,direct:true,challenge:true};deliver(m.from,{t:'commit',role:'sender',proposal:p,ledger:ROOMNET.ledger});deliver(m.to,{t:'commit',role:'receiver',proposal:p,ledger:ROOMNET.ledger});broadcast({t:'ledger',ledger:ROOMNET.ledger});return
+    }
+    return previousRouteHost(m,c)
+  };
+  routeClient=function(m){
+    if(m?.t==='challengeError'){C.pending.delete(m.key);cue(m.message||'NO FIT · PIECE STAYED SAFE','bad');renderChallenge();tone('bad');return}
+    if(m?.t==='commit'&&m.proposal?.challenge){C.pending.delete(m.proposal.key);previousRouteClient(m);cue('FIT · BOTH PUZZLES UPDATED','good');setTimeout(renderChallenge,80);return}
+    previousRouteClient(m);if(document.querySelector('#challengePanel').classList.contains('on'))renderChallenge()
+  };
+
+  openPeek=function(f){openChallenge(friendSeat(f))};
+  renderPeek=function(){};
+  setCue=function(){previousSetCue();if(game.phase==='exchange'){const cueEl=document.querySelector('#cue'),text=document.querySelector('#cueText'),gesture=cueEl?.querySelector('.gesture');if(gesture)gesture.textContent='↔';if(text)text.textContent='TAP A FRIEND · TEST PIECES BOTH WAYS'}};
+  document.querySelector('#challengeClose').onclick=closeChallenge;
+  document.querySelector('#mineChallenge').addEventListener('pointerdown',e=>canvasTap('mine',e));
+  document.querySelector('#peerChallenge').addEventListener('pointerdown',e=>canvasTap('peer',e));
+  window.addEventListener('pointermove',movePiece,{passive:false});window.addEventListener('pointerup',endPiece);window.addEventListener('pointercancel',endPiece);
+  const oldCreate=createGame;createGame=function(){C.soloLedger=null;C.aiReceived={};C.pending.clear();oldCreate();};
+  setInterval(()=>{if(document.querySelector('#challengePanel').classList.contains('on'))renderChallenge()},650);
+  document.title='MOMSAIC v14 — Two-Board Challenge';
+  window.MOMSAIC_V14={state:C,openChallenge,renderChallenge,heldBy,ledger};
+})();
+</script>
+
+
+<style>
+/* ===== v15: one board + neighboring hand ===== */
+#challengePanel{display:none!important}
+#focusPanel{position:fixed;inset:0;z-index:66;display:none;background:#020202;color:#fff;overflow:hidden}
+#focusPanel.on{display:block}
+.focus-shell{position:absolute;inset:0;padding:max(6px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom));display:grid;grid-template-rows:54px minmax(0,1fr) 112px 48px;gap:6px;background:#020202}
+.focus-head{display:grid;grid-template-columns:44px 1fr 44px 44px;gap:5px;align-items:center;min-width:0}
+.focus-nav,.focus-close,.focus-flip{height:44px;border:1px solid #424242;background:#080808;color:#fff;font:1000 1.1rem/1 monospace;touch-action:manipulation}
+.focus-close{font-size:1.35rem}
+.focus-peer{height:50px;display:grid;grid-template-columns:46px minmax(0,1fr) 42px;align-items:center;gap:7px;border:1px solid #313131;background:#070707;padding:3px 5px;min-width:0}
+#focusPeerMini{width:42px;height:42px;border:1px solid #555;background:#000;display:block}
+.focus-peer-copy{min-width:0;display:grid;gap:1px}.focus-peer-copy b{font-size:.82rem;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.focus-peer-copy span{font-size:.61rem;color:#aaa;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.focus-peer .focus-flip{height:38px;width:38px;border-color:var(--amber);color:var(--amber);font-size:1.15rem}
+.focus-board-wrap{position:relative;min-height:0;border:1px solid #313131;background:#000;overflow:hidden}
+#focusBoard{width:100%;height:100%;display:block;touch-action:none;background:#020202}
+.focus-board-badge{position:absolute;left:7px;top:7px;z-index:2;display:flex;align-items:center;gap:5px;padding:5px 7px;border:1px solid #4a4a4a;background:rgba(0,0,0,.88);font-size:.66rem;font-weight:1000;letter-spacing:.08em;pointer-events:none}.focus-board-badge strong{color:var(--teal)}
+#focusOpenCount{color:#66a6ff}
+.focus-hand-wrap{display:grid;grid-template-rows:24px minmax(0,1fr);gap:3px;min-height:0;border-top:1px solid #262626;padding-top:3px}
+.focus-hand-head{display:flex;align-items:center;justify-content:space-between;gap:7px;font-size:.65rem;font-weight:1000;letter-spacing:.07em;color:#aaa;min-width:0}.focus-hand-head b{color:#fff;white-space:nowrap}.focus-hand-head span{color:var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#focusHand{display:flex;gap:7px;align-items:stretch;min-height:0;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;padding:1px 0 3px}#focusHand::-webkit-scrollbar{display:none}
+.focus-piece{position:relative;flex:0 0 92px;height:82px;border:2px solid #555;background:#050505;padding:2px;touch-action:none}.focus-piece canvas{width:100%;height:100%;display:block}.focus-piece.selected{border-color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.13)}.focus-piece.pending{border-color:#ff9f2f;opacity:.58}.focus-piece.bad{animation:focusNo .24s linear 2}.focus-piece .round{position:absolute;right:1px;top:1px;min-width:19px;height:19px;padding:0 3px;display:flex;align-items:center;justify-content:center;background:#000;border:1px solid currentColor;color:#bbb;font-size:.56rem;font-weight:1000}
+.focus-empty{width:100%;border:1px dashed #333;display:flex;align-items:center;justify-content:center;color:#666;font-size:.69rem;font-weight:950;letter-spacing:.07em;text-align:center}
+#focusCue{height:48px;border:2px solid var(--amber);background:#070707;display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:7px;padding:0 8px;min-width:0}.focus-cue-symbol{font-size:1.45rem;color:var(--amber);text-align:center}.focus-cue-text{font-size:.72rem;font-weight:1000;letter-spacing:.055em;line-height:1.2;white-space:normal}.focus-cue.good{border-color:var(--teal)}.focus-cue.good .focus-cue-symbol{color:var(--teal)}.focus-cue.bad{border-color:var(--red)}.focus-cue.bad .focus-cue-symbol{color:var(--red)}
+#focusFloat{position:fixed;z-index:80;width:92px;height:92px;display:none;transform:translate(-50%,-50%);pointer-events:none;filter:drop-shadow(0 8px 15px #000)}#focusFloat.on{display:block}
+@keyframes focusNo{0%,100%{transform:translateX(0)}33%{transform:translateX(-5px)}66%{transform:translateX(5px)}}
+@media(max-height:690px){.focus-shell{grid-template-rows:48px minmax(0,1fr) 94px 44px;gap:4px}.focus-head{grid-template-columns:40px 1fr 40px 40px}.focus-nav,.focus-close{height:40px}.focus-peer{height:44px;grid-template-columns:38px minmax(0,1fr) 36px}.focus-peer .focus-flip{height:34px;width:34px}#focusPeerMini{width:36px;height:36px}.focus-piece{flex-basis:76px;height:66px}.focus-hand-wrap{grid-template-rows:20px minmax(0,1fr)}#focusCue{height:44px}.focus-cue-text{font-size:.66rem}}
+@media(orientation:landscape){.focus-shell{grid-template-columns:minmax(0,1fr) 150px;grid-template-rows:48px minmax(0,1fr) 44px}.focus-head{grid-column:1/-1}.focus-board-wrap{grid-column:1;grid-row:2}.focus-hand-wrap{grid-column:2;grid-row:2;grid-template-rows:34px minmax(0,1fr);border-top:0;border-left:1px solid #262626;padding:0 0 0 5px}.focus-hand-head{align-items:flex-start;flex-direction:column;justify-content:center}.focus-hand-head span{white-space:normal}#focusHand{flex-direction:column;overflow-y:auto;overflow-x:hidden}.focus-piece{flex:0 0 78px;width:100%;height:78px}#focusCue{grid-column:1/-1;grid-row:3}}
+</style>
+
+<div id="focusPanel" aria-label="Try neighboring pieces on one puzzle">
+  <div class="focus-shell">
+    <div class="focus-head">
+      <button id="focusPrev" class="focus-nav" aria-label="Previous puzzle">‹</button>
+      <div class="focus-peer">
+        <canvas id="focusPeerMini" width="100" height="100"></canvas>
+        <div class="focus-peer-copy"><b id="focusPeerName">PUZZLE 2</b><span id="focusPeerState">LOOK THROUGH THEIR PIECES</span></div>
+        <button id="focusFlip" class="focus-flip" aria-label="Switch which puzzle is large">⇄</button>
+      </div>
+      <button id="focusNext" class="focus-nav" aria-label="Next puzzle">›</button>
+      <button id="focusClose" class="focus-close" aria-label="Close">×</button>
+    </div>
+    <div class="focus-board-wrap">
+      <canvas id="focusBoard" width="600" height="750"></canvas>
+      <div class="focus-board-badge"><strong id="focusBoardName">MY PUZZLE</strong><span id="focusOpenCount">0 OPEN</span></div>
+    </div>
+    <div class="focus-hand-wrap">
+      <div class="focus-hand-head"><b id="focusHandName">PUZZLE 2 PIECES</b><span id="focusHandHint">TRY ANY ONE HERE</span></div>
+      <div id="focusHand"></div>
+    </div>
+    <div id="focusCue" class="focus-cue"><span class="focus-cue-symbol">↓</span><span class="focus-cue-text">TRY ANY PIECE IN ANY BLUE OPENING</span></div>
+  </div>
+</div>
+<canvas id="focusFloat" width="180" height="180"></canvas>
+
+<script>
+"use strict";
+/* ===== MOMSAIC v15 one board + neighboring hand ===== */
+(()=>{
+  const D=window.MOMSAIC_V11_DIAGNOSTICS,V14=window.MOMSAIC_V14;
+  if(!D||!V14)return;
+  const F={peer:null,focus:'mine',selected:null,drag:null,slots:[],pending:new Set(),float:document.querySelector('#focusFloat'),version:'15'};
+  const previousRouteClient=routeClient,previousSetCue=setCue;
+
+  function me(){return ROOMNET.mode==='room'?ROOMNET.seat:0}
+  function peers(){return (game.friends||[]).map(friendSeat).filter(s=>s!==me())}
+  function normalizePeer(seat){const list=peers();if(!list.length)return null;return list.includes(seat)?seat:list[0]}
+  function mainSeat(){return F.focus==='mine'?me():F.peer}
+  function handSeat(){return F.focus==='mine'?F.peer:me()}
+  function stateOf(seat){if(seat===me())return{clusters:game.clusters||[],missingList:game.missingList||D.missList(seat),receivedRounds:(game.trade?.incoming||[]).filter(x=>x.status==='received').map(x=>x.round),phase:game.phase,complete:game.complete};return stateForSeat(seat)||{clusters:[],missingList:D.missList(seat),receivedRounds:[],phase:'build',complete:false}}
+  function received(seat,st){const set=new Set(st?.receivedRounds||[]);if(seat===me())for(const x of game.trade?.incoming||[])if(x.status==='received')set.add(x.round);for(const r of V14.state.aiReceived?.[seat]||[])set.add(r);return set}
+  function source(seat){return friendScene(seat+1)}
+  function ledger(){return V14.ledger()}
+  function held(seat){return V14.heldBy(seat)}
+
+  function drawPiece(cv,item,ring='#fff'){
+    const g=cv.getContext('2d'),W=cv.width,H=cv.height,p=game.pieces[item.index],src=source(item.owner),sw=600/game.cols,sh=750/game.rows,sc=Math.min(W/(sw*1.24),H/(sh*1.24)),ox=W/2-p.cx*sc,oy=H/2-p.cy*sc;
+    g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,W,H);g.fillStyle='#030303';g.fillRect(0,0,W,H);g.save();g.translate(ox,oy);g.scale(sc,sc);g.clip(p.path);g.drawImage(src,0,0,600,750);g.restore();g.save();g.translate(ox,oy);g.scale(sc,sc);g.strokeStyle=ring;g.lineWidth=6/sc;g.stroke(p.path);g.restore();
+  }
+  function drawBoard(cv,seat,makeSlots=true){
+    const g=cv.getContext('2d'),W=cv.width,H=cv.height,st=stateOf(seat),src=source(seat),pad=Math.max(8,Math.min(W,H)*.018),bw=Math.min(W-pad*2,(H-pad*2)*.8),bh=bw*1.25,bx=(W-bw)/2,by=(H-bh)/2,sc=bw/600,present=new Set();
+    if(makeSlots)F.slots=[];g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,W,H);g.fillStyle='#020202';g.fillRect(0,0,W,H);g.globalAlpha=.17;g.drawImage(src,bx,by,bw,bh);g.globalAlpha=1;g.strokeStyle='#3a3a3a';g.lineWidth=2;g.strokeRect(bx,by,bw,bh);
+    for(const cl of st.clusters||[])for(const id of cl.pieces||[]){const p=game.pieces[id];if(!p)continue;present.add(id);g.save();g.translate(bx+(cl.dx||0)*sc,by+(cl.dy||0)*sc);g.scale(sc,sc);g.clip(p.path);g.drawImage(src,0,0,600,750);g.restore();g.save();g.translate(bx+(cl.dx||0)*sc,by+(cl.dy||0)*sc);g.scale(sc,sc);g.strokeStyle=cl.anchored?'#20e0c2':(cl.pieces?.length>1?'#7ee36a':'#aaa');g.lineWidth=(cl.anchored?3:1.2)/sc;g.stroke(p.path);g.restore()}
+    const rec=received(seat,st),missing=st.missingList||D.missList(seat);let open=0;
+    missing.forEach((id,round)=>{const p=game.pieces[id];if(!p)return;if(rec.has(round)){if(!present.has(id)){g.save();g.translate(bx,by);g.scale(sc,sc);g.clip(p.path);g.drawImage(src,0,0,600,750);g.restore();g.save();g.translate(bx,by);g.scale(sc,sc);g.strokeStyle='#20e0c2';g.lineWidth=3/sc;g.stroke(p.path);g.restore()}return}open++;const x=bx+p.cx*sc,y=by+p.cy*sc,r=Math.max(25,Math.min(600/game.cols,750/game.rows)*sc*.74);if(makeSlots)F.slots.push({id,round,x,y,r});g.save();g.translate(bx,by);g.scale(sc,sc);g.fillStyle='rgba(102,166,255,.09)';g.fill(p.path);g.strokeStyle='#66a6ff';g.lineWidth=4/sc;g.stroke(p.path);g.restore()});
+    return open;
+  }
+  function drawMini(){const cv=document.querySelector('#focusPeerMini');drawBoard(cv,F.peer,false)}
+  function cue(text,state='') {const e=document.querySelector('#focusCue');e.className='focus-cue'+(state?' '+state:'');e.querySelector('.focus-cue-symbol').textContent=state==='good'?'✓':state==='bad'?'×':'↓';e.querySelector('.focus-cue-text').textContent=text}
+  function slotAt(x,y){let best=null,d=Infinity;for(const s of F.slots){const q=Math.hypot(x-s.x,y-s.y);if(q<s.r&&q<d){best=s;d=q}}return best}
+  function point(cv,e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*cv.width/r.width,y:(e.clientY-r.top)*cv.height/r.height}}
+  function showFloat(item,e){drawPiece(F.float,item,'#fff');F.float.classList.add('on');moveFloat(e)}
+  function moveFloat(e){F.float.style.left=e.clientX+'px';F.float.style.top=e.clientY+'px'}
+  function hideFloat(){F.float.classList.remove('on')}
+
+  function renderHand(){
+    const wrap=document.querySelector('#focusHand'),items=held(handSeat());wrap.innerHTML='';
+    document.querySelector('#focusHandName').textContent=F.focus==='mine'?`PUZZLE ${F.peer+1} PIECES`:'MY LOOSE PIECES';
+    document.querySelector('#focusHandHint').textContent=F.focus==='mine'?'TRY ANY ONE ON MY PUZZLE':`TRY ANY ONE ON PUZZLE ${F.peer+1}`;
+    if(!items.length){const z=document.createElement('div');z.className='focus-empty';z.textContent='NO LOOSE PIECES IN THIS HAND';wrap.append(z);return}
+    for(const item of items){const box=document.createElement('div');box.className='focus-piece'+(F.pending.has(item.key)?' pending':'')+(F.selected?.item.key===item.key?' selected':'');const cv=document.createElement('canvas');cv.width=160;cv.height=150;drawPiece(cv,item,handSeat()===me()?'#ffd33d':'#20e0c2');const r=document.createElement('span');r.className='round';r.textContent=(item.round+1)+'/'+D.swapCount();box.append(cv,r);box.addEventListener('pointerdown',e=>beginDrag(e,item,box));wrap.append(box)}
+  }
+  function render(){
+    if(F.peer==null||!document.querySelector('#focusPanel').classList.contains('on'))return;F.peer=normalizePeer(F.peer);if(F.peer==null){close();return}
+    const seat=mainSeat(),st=stateOf(F.peer),open=drawBoard(document.querySelector('#focusBoard'),seat,true);drawMini();
+    document.querySelector('#focusPeerName').textContent=`PUZZLE ${F.peer+1}`;document.querySelector('#focusPeerState').textContent=ROOMNET.mode==='room'?(st?String(st.phase||'BUILD').toUpperCase():'OFFLINE'):'AI · LIVE HAND';
+    document.querySelector('#focusBoardName').textContent=F.focus==='mine'?'MY PUZZLE':`PUZZLE ${F.peer+1}`;document.querySelector('#focusOpenCount').textContent=open+' OPEN';
+    document.querySelector('#focusFlip').title=F.focus==='mine'?'Show their puzzle with my loose pieces':'Return to my puzzle with their loose pieces';renderHand();
+  }
+  function open(seat){F.peer=normalizePeer(seat);if(F.peer==null)return;F.focus='mine';F.selected=null;F.drag=null;document.querySelector('#peekPanel').classList.remove('on');document.querySelector('#challengePanel').classList.remove('on');document.querySelector('#focusPanel').classList.add('on');cue('TRY ANY OF THEIR PIECES ON YOUR BLUE OPENINGS');render();tone('tap')}
+  function close(){document.querySelector('#focusPanel').classList.remove('on');F.peer=null;F.selected=null;F.drag=null;hideFloat()}
+  function stepPeer(dir){const list=peers();if(!list.length)return;let i=Math.max(0,list.indexOf(F.peer));F.peer=list[(i+dir+list.length)%list.length];F.focus='mine';F.selected=null;cue('NEW HAND · TRY ANY PIECE ON YOUR PUZZLE');render();tone('tap')}
+  function flip(){F.focus=F.focus==='mine'?'peer':'mine';F.selected=null;F.drag=null;cue(F.focus==='mine'?'TRY THEIR PIECES ON YOUR PUZZLE':'TRY YOUR LOOSE PIECES ON THEIR PUZZLE');render();tone('tap')}
+
+  function beginDrag(e,item,box){if(F.pending.has(item.key)){tone('bad');return}e.preventDefault();F.selected={item,box};F.drag={item,box,startX:e.clientX,startY:e.clientY,moved:false};showFloat(item,e);try{box.setPointerCapture(e.pointerId)}catch(_){}cue('DROP IT INTO ANY BLUE OPENING');render();tone('tap')}
+  function moveDrag(e){if(!F.drag)return;if(Math.hypot(e.clientX-F.drag.startX,e.clientY-F.drag.startY)>7)F.drag.moved=true;moveFloat(e)}
+  function endDrag(e){if(!F.drag)return;const d=F.drag,cv=document.querySelector('#focusBoard'),pt=point(cv,e),slot=slotAt(pt.x,pt.y);F.drag=null;hideFloat();if(!d.moved){F.selected={item:d.item,box:d.box};cue('PIECE PICKED UP · TAP A BLUE OPENING');render();return}test(d.item,slot,d.box)}
+  function test(item,slot,box){const target=mainSeat(),ok=slot&&item.owner===target&&item.index===slot.id;if(!ok){F.selected=null;box?.classList.add('bad');setTimeout(()=>box?.classList.remove('bad'),460);cue(slot?'NO FIT · THE PIECE STAYS IN THE HAND':'DROP IT INTO A BLUE OPENING','bad');tone('bad');vibrate2(22);render();return}F.selected=null;cue('IT FITS · MOVING ONE SHARED PIECE','good');tone('snap');vibrate2([10,16,10]);commit(item,target)}
+  function boardTap(e){if(!F.selected)return;const cv=e.currentTarget,p=point(cv,e),slot=slotAt(p.x,p.y),s=F.selected;test(s.item,slot,s.box)}
+
+  function syncSolo(proposal){
+    const local=me();if(proposal.from===local){const out=game.trade?.outgoing.find(x=>x.key===proposal.key);if(out){out.status='sent';out.tx=null}}
+    if(proposal.to===local){const inc=game.trade?.incoming.find(x=>x.key===proposal.key||(x.round===proposal.round&&x.index===proposal.piece));if(inc){inc.status='received';inc.tx=null}if(!game.clusters.some(c=>c.pieces.includes(proposal.piece)))game.clusters.push({id:15000+proposal.round,pieces:[proposal.piece],dx:0,dy:0,anchored:true})}
+    if(proposal.to!==local){V14.state.aiReceived[proposal.to]=V14.state.aiReceived[proposal.to]||new Set();V14.state.aiReceived[proposal.to].add(proposal.round)}
+    const cur=(game.trade?.outgoing||[]).find(x=>x.status==='held'||x.status==='reserved'),old=game.foreign||{};game.foreign=cur?{...cur,x:old.x||game.board.x+game.board.w*.5,y:old.y||game.board.y+game.board.h+24,visible:game.phase==='exchange',drag:false}:{visible:false,x:0,y:0,drag:false};game.delivered=(game.trade?.outgoing||[]).every(x=>x.status==='sent');game.received=(game.trade?.incoming||[]).every(x=>x.status==='received');game.missing=(game.trade?.incoming||[]).find(x=>x.status!=='received')?.index??game.missing;game.stateVersion=(game.stateVersion||0)+1;finishRoomIfReady();setCue();renderHUD();pushPeerState(true)
+  }
+  function commit(item,target){
+    const l=ledger()[item.key];if(!l||l.status!=='held'){cue('THAT PIECE MOVED ALREADY · REFRESHING','bad');render();return}
+    if(ROOMNET.mode!=='room'){const p={tx:'AI'+Date.now().toString(36),from:l.holder,to:target,round:l.round,piece:l.index,key:l.key};l.holder=target;l.status='delivered';l.version=(l.version||0)+1;syncSolo(p);cue('FIT · THE PIECE MOVED INTO THE PUZZLE','good');setTimeout(render,100);return}
+    const tx=randomCode(8),m={t:'challengePlace',tx,gameId:ROOMNET.gameId,roomCode:ROOMNET.roomCode,actor:me(),from:l.holder,to:target,round:l.round,piece:l.index,key:l.key};F.pending.add(l.key);render();if(ROOMNET.role==='host')routeHost(m,null);else sendConn(ROOMNET.hostConn,m)
+  }
+
+  routeClient=function(m){
+    if(m?.t==='challengeError')F.pending.delete(m.key);
+    if(m?.t==='commit'&&m.proposal?.challenge)F.pending.delete(m.proposal.key);
+    previousRouteClient(m);
+    if(document.querySelector('#focusPanel').classList.contains('on'))setTimeout(render,40)
+  };
+  openPeek=function(f){open(friendSeat(f))};
+  renderPeek=function(){};
+  setCue=function(){previousSetCue();if(game.phase==='exchange'){const c=document.querySelector('#cue'),t=document.querySelector('#cueText'),g=c?.querySelector('.gesture');if(g)g.textContent='◎';if(t)t.textContent='TAP A FRIEND · TRY THEIR PIECES ON YOUR PUZZLE'}};
+
+  document.querySelector('#focusClose').onclick=close;document.querySelector('#focusPrev').onclick=()=>stepPeer(-1);document.querySelector('#focusNext').onclick=()=>stepPeer(1);document.querySelector('#focusFlip').onclick=flip;document.querySelector('#focusBoard').addEventListener('pointerdown',boardTap);window.addEventListener('pointermove',moveDrag,{passive:false});window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);
+  const oldCreate=createGame;createGame=function(){close();oldCreate()};
+  setInterval(()=>{if(document.querySelector('#focusPanel').classList.contains('on'))render()},650);
+  document.title='MOMSAIC v15 — One Board Hands';
+  window.MOMSAIC_V15={state:F,open,render,held,ledger};
+})();
+</script>
+
+\n<script id="v16-remote-invite-script">
+(()=>{
+  const $v=s=>document.querySelector(s);
+  function inviteURL(code=ROOMNET.roomCode){
+    try{const u=new URL(location.href);u.hash='room='+String(code||'').toUpperCase();return u.toString()}
+    catch(_){return location.href.split('#')[0]+'#room='+String(code||'').toUpperCase()}
+  }
+  function legacyCopy(text){
+    const t=document.createElement('textarea');t.value=text;t.setAttribute('readonly','');t.style.position='fixed';t.style.opacity='0';document.body.append(t);t.select();let ok=false;try{ok=document.execCommand('copy')}catch(_){}t.remove();return ok
+  }
+  async function copyInvite(){
+    const url=inviteURL();let ok=false;
+    try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(url);ok=true}else ok=legacyCopy(url)}catch(_){ok=legacyCopy(url)}
+    toast(ok?'INVITE LINK COPIED':'COPY THIS CODE: '+ROOMNET.roomCode);tone(ok?'snap':'tap')
+  }
+  async function shareInvite(){
+    const url=inviteURL(),text=`Join my MOMSAIC room ${ROOMNET.roomCode}`;
+    try{
+      if(navigator.share){await navigator.share({title:'Join MOMSAIC',text,url});toast('INVITE READY')}
+      else await copyInvite();
+    }catch(e){if(e?.name!=='AbortError')await copyInvite()}
+  }
+  function enterHostLive(){
+    $v('#hostBlock')?.classList.add('live');
+    $v('#roomQRWrap')?.classList.add('hidden');
+    if($v('#toggleRoomQR'))$v('#toggleRoomQR').textContent='SHOW QR';
+  }
+  function leaveHostLive(){
+    try{ROOMNET.peer?.destroy?.()}catch(_){}
+    ROOMNET.live=false;ROOMNET.started=false;ROOMNET.role='';ROOMNET.roomCode='';ROOMNET.roster={};ROOMNET.states={};ROOMNET.conns?.clear?.();
+    $v('#hostBlock')?.classList.remove('live');$v('#hostLive')?.classList.add('hidden');
+    if($v('#hostCode'))$v('#hostCode').textContent='------';
+    if($v('#startRoom')){$v('#startRoom').disabled=true;$v('#startRoom').textContent='WAITING FOR PLAYERS'}
+  }
+  const priorCreate=createLiveRoom;
+  createLiveRoom=async function(){
+    enterHostLive();
+    if($v('#hostLive'))$v('#hostLive').classList.remove('hidden');
+    await priorCreate();
+    if(ROOMNET.roomCode){
+      const url=inviteURL();
+      try{await ensureQR();drawQRCanvas($v('#roomQR'),url)}catch(_){}
+    }
+  };
+  if($v('#createRoom'))$v('#createRoom').onclick=createLiveRoom;
+  if($v('#shareRoom'))$v('#shareRoom').onclick=shareInvite;
+  if($v('#copyRoom'))$v('#copyRoom').onclick=copyInvite;
+  if($v('#toggleRoomQR'))$v('#toggleRoomQR').onclick=()=>{const w=$v('#roomQRWrap'),show=w.classList.contains('hidden');w.classList.toggle('hidden',!show);$v('#toggleRoomQR').textContent=show?'HIDE QR':'SHOW QR'};
+  if($v('#newRoom'))$v('#newRoom').onclick=leaveHostLive;
+  const priorRender=renderRoomRoster;
+  renderRoomRoster=function(){
+    priorRender();
+    const ready=Object.keys(ROOMNET.roster||{}).filter(k=>ROOMNET.roster[k]).length,total=ROOMNET.n||2,b=$v('#startRoom');
+    if(!b)return;
+    if(!ROOMNET.live){b.disabled=true;b.textContent='OPENING ROOM…'}
+    else if(ready<total){b.disabled=true;b.textContent=`WAITING · ${ready} / ${total} JOINED`}
+    else{b.disabled=false;b.textContent='START FOR EVERYONE'}
+  };
+  const priorShow=showRoomMode;
+  showRoomMode=function(mode){priorShow(mode);if(mode==='host'&&ROOMNET.live)enterHostLive()};
+  // Accept both share-link forms. Hash links auto-join without another decision.
+  const q=new URLSearchParams(location.search),shared=(location.hash.match(/room=([A-Z2-9]{6})/i)||[])[1]||q.get('room');
+  if(shared&&!ROOMNET.live){setTimeout(()=>{openRoomPanel();showRoomMode('join');$v('#joinCode').value=shared.toUpperCase();setJoinStatus('JOINING SHARED ROOM…');joinLiveRoom(shared)},450)}
+  document.title='MOMSAIC v16 — Remote Invite';
+  window.MOMSAIC_V16={inviteURL,shareInvite,copyInvite};
+})();
+</script>\n</body>
+</html>
