@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#050505">
+<title>MOMSAIC v18 — Strangers On The Table</title>
+<style>
+:root{--ink:#050505;--teal:#19e6c8;--amber:#ffd23f;--red:#ff2e2e;--blue:#3b82f6;--green:#7ee36a}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;overflow:hidden;background:var(--ink);color:#fff;font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+button{font:inherit;color:inherit}
+.screen{position:fixed;inset:0;display:none}.screen.on{display:flex}
+.hidden{display:none!important}
+
+/* ── INTRO ─────────────────────────────────────────── */
+#intro{flex-direction:column;align-items:center;justify-content:flex-end;gap:14px;padding:max(16px,env(safe-area-inset-top)) 16px max(20px,env(safe-area-inset-bottom))}
+#introDemo{position:absolute;inset:0;width:100%;height:100%}
+.brandwrap{position:relative;z-index:2;text-align:center;display:grid;gap:6px;margin-bottom:auto;margin-top:12vh;text-shadow:0 2px 20px #000}
+.brand{font-size:clamp(2.2rem,11vw,4.4rem);letter-spacing:.16em;font-weight:900}
+.tag{font-size:.68rem;letter-spacing:.22em;color:#9a9a9a}
+.srcrow{position:relative;z-index:2;width:min(430px,100%);display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.srcrow button{height:54px;border:1px solid #3a3a3a;background:rgba(5,5,5,.92);color:#ccc;font-weight:900;letter-spacing:.08em;font-size:.76rem}
+.srcrow button.on{background:var(--teal);border-color:var(--teal);color:#001a16}
+#srcNote{position:relative;z-index:2;font-size:.64rem;color:#999;letter-spacing:.07em;min-height:16px;text-align:center;max-width:min(430px,92vw)}
+.introrow{position:relative;z-index:2;width:min(430px,100%);display:grid;grid-template-columns:1fr 1fr auto;gap:8px}
+#playBtn{height:66px;border:0;background:#fff;color:#000;font-weight:900;font-size:1.2rem;letter-spacing:.12em}
+#togetherBtn{height:66px;border:2px solid var(--teal);background:#050505;color:var(--teal);font-weight:900;font-size:1rem;letter-spacing:.08em}
+#introGear{width:66px;height:66px;border:1px solid #444;background:#090909;font-weight:900;font-size:.68rem;letter-spacing:.06em;line-height:1.3}
+
+/* ── GAME: one table, nothing else ─────────────────── */
+#game{flex-direction:column}
+#tableWrap{position:relative;flex:1;min-height:0}
+#hud{position:absolute;z-index:8;top:max(8px,env(safe-area-inset-top));left:8px;right:8px;display:flex;gap:6px;align-items:center;pointer-events:none}
+#hud .hbtn{pointer-events:auto;height:46px;min-width:46px;padding:0 12px;border:1px solid #3a3a3a;background:rgba(5,5,5,.9);font-weight:900;font-size:.7rem;letter-spacing:.07em}
+#hud .hbtn:active{transform:scale(.96)}
+#liveTag{margin-left:auto;pointer-events:none;font-size:.58rem;color:#9a9a9a;letter-spacing:.07em;background:rgba(5,5,5,.85);border:1px solid #262626;padding:6px 9px;text-align:right;line-height:1.4}
+#world{position:absolute;inset:0;width:100%;height:100%;touch-action:none;background:var(--ink)}
+#cue{position:absolute;z-index:8;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));max-width:90vw;min-height:46px;border:2px solid var(--amber);background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;gap:9px;padding:8px 14px;font-weight:900;font-size:.78rem;letter-spacing:.05em;text-align:center;pointer-events:none;transition:border-color .25s}
+#cue.good{border-color:var(--teal)}#cue.bad{border-color:var(--red)}
+body.dragging #cue{opacity:.25}
+
+/* ── SHEETS (pre-game) ─────────────────────────────── */
+.veil{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.9);display:none;align-items:flex-end;justify-content:center}
+.veil.on{display:flex}
+.sheet{width:min(560px,100%);max-height:100dvh;background:#080808;border-top:2px solid #3a3a3a;padding:12px 14px max(14px,env(safe-area-inset-bottom));display:grid;gap:9px;overflow-y:auto}
+.sheet-head{display:flex;justify-content:space-between;align-items:center}
+.sheet-head b{font-size:1rem;letter-spacing:.12em}
+.xbtn{width:46px;height:46px;background:#000;border:1px solid #444;font-size:1.2rem}
+.row{display:grid;grid-template-columns:76px minmax(0,1fr);gap:7px;align-items:center}
+.row>label{font-size:.64rem;color:#9a9a9a;letter-spacing:.1em;font-weight:900}
+.ch{display:grid;gap:4px}.ch.c4{grid-template-columns:repeat(4,1fr)}.ch.c3{grid-template-columns:repeat(3,1fr)}
+.opt{height:44px;border:1px solid #333;background:#0c0c0c;color:#9a9a9a;font-size:.7rem;font-weight:900}
+.opt.on{background:#fff;color:#000;border-color:#fff}
+#poolStrip{display:flex;gap:6px;align-items:center;min-height:52px;overflow-x:auto;scrollbar-width:none;padding:2px 0}
+#poolStrip::-webkit-scrollbar{display:none}
+.pool-thumb{position:relative;width:44px;height:55px;flex:0 0 44px;border:2px solid #444;background:#000}
+.pool-thumb canvas{width:100%;height:100%;display:block}
+.pool-thumb button{position:absolute;right:-6px;top:-6px;width:20px;height:20px;background:#000;border:1px solid var(--red);color:var(--red);font-size:.7rem;line-height:1}
+.pool-note{font-size:.62rem;color:#999;letter-spacing:.05em}
+.apply{height:56px;background:#fff;color:#000;border:0;font-size:.95rem;font-weight:900;letter-spacing:.1em}
+#fileInput,#cameraInput{display:none}
+
+/* room sheet */
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.modes button{height:52px;background:#0b0b0b;border:1px solid #3a3a3a;color:#ccc;font-weight:900;letter-spacing:.08em}
+.modes button.on{background:#fff;color:#000;border-color:#fff}
+.blk{display:none;gap:9px}.blk.on{display:grid}
+.count{display:grid;grid-template-columns:1fr 52px 50px 52px;align-items:center;gap:6px;color:#9a9a9a;font-size:.74rem}
+.count button{height:46px;background:#050505;border:1px solid #444;font-size:1.2rem}
+.count b{text-align:center;font-size:1.1rem;color:#fff}
+.bigact{height:60px;background:#fff;color:#000;border:0;font-weight:900;letter-spacing:.08em;font-size:.92rem}
+.bigact:disabled{background:#181818;color:#777;border:1px solid #333}
+.share{height:60px;border:0;background:var(--teal);color:#001a16;font-weight:900;font-size:.95rem;letter-spacing:.08em}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.tools button{height:44px;border:1px solid #444;background:#080808;color:#ccc;font-weight:900;letter-spacing:.07em;font-size:.7rem}
+.codebox{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:12px;border:1px solid #333;padding:7px 10px;min-height:54px}
+.codebox span{font-size:.6rem;color:#999;letter-spacing:.1em;white-space:nowrap}
+.codebox strong{font-size:clamp(1.5rem,8vw,2.3rem);letter-spacing:.16em;text-align:right;color:var(--teal);font-weight:900}
+#roomQRWrap{display:grid;place-items:center}
+#roomQR{width:min(180px,44vw);height:min(180px,44vw);background:#fff;border:7px solid #fff;image-rendering:pixelated}
+.status{text-align:center;font-size:.7rem;color:#9a9a9a;min-height:30px;line-height:1.45;font-weight:900;letter-spacing:.05em}
+.status.ok{color:var(--teal)}.status.bad{color:var(--red)}
+#roster{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px}
+.seat{aspect-ratio:1;border:1px solid #333;background:#0a0a0a;display:flex;align-items:center;justify-content:center;color:#555;font-size:.66rem;font-weight:900}
+.seat.on{background:var(--teal);border-color:var(--teal);color:#001a16}
+.seat.me{outline:3px solid #fff}
+.keep{text-align:center;color:var(--amber);font-size:.6rem;letter-spacing:.08em;font-weight:900}
+.entry{height:54px;background:#000;border:2px solid #444;color:#fff;font:900 1.3rem monospace;text-transform:uppercase;text-align:center;letter-spacing:.16em;width:100%}
+.ghost{height:40px;background:#050505;border:1px solid #333;color:#999;font-weight:900;letter-spacing:.07em;font-size:.7rem}
+.joinpic{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.joinpic button{height:48px;border:1px solid #3a3a3a;background:#0b0b0b;color:#ccc;font-weight:900;font-size:.72rem;letter-spacing:.06em}
+.joinpic button.on{background:var(--teal);border-color:var(--teal);color:#001a16}
+
+/* complete */
+#complete .card{width:min(430px,calc(100% - 28px));margin:auto;border:2px solid var(--teal);background:#050505;padding:18px;display:grid;gap:12px;text-align:center;position:relative}
+#complete .card h2{font-size:1.8rem;letter-spacing:.12em}
+#completeCanvas{width:min(240px,66vw);aspect-ratio:4/5;margin:auto;border:1px solid #333}
+#completeNote{font-size:.68rem;color:#9a9a9a;letter-spacing:.06em;line-height:1.5;min-height:16px}
+#complete .acts{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+#againBtn{height:56px;background:#fff;color:#000;border:0;font-weight:900;font-size:1rem;letter-spacing:.1em}
+#backToTable{height:56px;background:#050505;border:2px solid var(--teal);color:var(--teal);font-weight:900;font-size:.85rem;letter-spacing:.07em}
+
+#toast{position:fixed;z-index:60;left:50%;top:max(64px,calc(env(safe-area-inset-top) + 60px));transform:translate(-50%,-140%);background:#fff;color:#000;border:2px solid #000;padding:10px 15px;font-weight:900;letter-spacing:.05em;font-size:.78rem;transition:transform .2s;max-width:88vw;text-align:center}
+#toast.on{transform:translate(-50%,0)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<section id="intro" class="screen on">
+  <canvas id="introDemo"></canvas>
+  <div class="brandwrap"><div class="brand">MOMSAIC</div><div class="tag">SOME OF YOUR PIECES ARE ON OTHER TABLES</div></div>
+  <div class="srcrow"><button id="srcPhoto">ADD PHOTO</button><button id="srcCamera">CAMERA</button><button id="srcDefault" class="on">DEFAULT</button></div>
+  <div id="srcNote">ADD A PHOTO PER PUZZLE — EVERY TABLE GETS ITS OWN PICTURE</div>
+  <div class="introrow"><button id="playBtn">PLAY</button><button id="togetherBtn">TOGETHER</button><button id="introGear">SET<br>UP</button></div>
+</section>
+
+<section id="game" class="screen">
+  <div id="tableWrap">
+    <canvas id="world"></canvas>
+    <div id="hud">
+      <button id="homeBtn" class="hbtn">MY PUZZLE</button>
+      <button id="undoBtn" class="hbtn">UNDO</button>
+      <button id="hintBtn" class="hbtn">GUIDE</button>
+      <span id="liveTag"></span>
+    </div>
+    <div id="cue"><span id="cueText">PUT YOUR PICTURE TOGETHER</span></div>
+  </div>
+</section>
+
+<div id="settings" class="veil">
+  <div class="sheet">
+    <div class="sheet-head"><b>SET UP THE NEXT GAME</b><button id="settingsClose" class="xbtn">×</button></div>
+    <div class="row"><label>PICTURES</label><div class="ch c3"><button class="opt srcadd" data-v="photo">ADD PHOTO</button><button class="opt srcadd" data-v="camera">CAMERA</button><button class="opt srcadd" data-v="clear">CLEAR</button></div></div>
+    <div id="poolStrip"><span class="pool-note" id="poolNote">NO PHOTOS · EACH PUZZLE GETS A TINTED STARTER</span></div>
+    <div class="row"><label>PIECES</label><div class="ch c4"><button class="opt pieces" data-v="8">8</button><button class="opt pieces on" data-v="12">12</button><button class="opt pieces" data-v="16">16</button><button class="opt pieces" data-v="24">24</button></div></div>
+    <div class="row"><label>STRANGERS</label><div class="ch c3"><button class="opt swaps on" data-v="1">1</button><button class="opt swaps" data-v="2">2</button><button class="opt swaps" data-v="3">3</button></div></div>
+    <div class="row"><label>PUZZLES</label><div class="ch c3"><button class="opt friends" data-v="2">3</button><button class="opt friends on" data-v="3">4</button><button class="opt friends" data-v="5">6</button></div></div>
+    <button id="applyBtn" class="apply">PLAY THIS</button>
+    <input id="fileInput" type="file" accept="image/*">
+    <input id="cameraInput" type="file" accept="image/*" capture="environment">
+  </div>
+</div>
+
+<div id="roomPanel" class="veil">
+  <div class="sheet">
+    <div class="sheet-head"><b>PLAY TOGETHER</b><button id="roomClose" class="xbtn">×</button></div>
+    <div class="modes"><button id="modeHost" class="on">MAKE ROOM</button><button id="modeJoin">JOIN ROOM</button></div>
+    <div id="hostBlock" class="blk on">
+      <div id="hostSetup" style="display:grid;gap:9px">
+        <div class="count"><span>PHONES AT THE TABLE</span><button id="nMinus">−</button><b id="nValue">4</b><button id="nPlus">+</button></div>
+        <div class="status">YOUR FIRST ADDED PHOTO BECOMES YOUR PUZZLE — EVERYONE ELSE PICKS THEIR OWN WHEN THEY JOIN</div>
+        <button id="createRoom" class="bigact">CREATE ROOM + INVITE</button>
+      </div>
+      <div id="hostLive" class="hidden" style="display:grid;gap:9px">
+        <button id="shareRoom" class="share">SHARE INVITE LINK</button>
+        <div class="tools"><button id="copyRoom">COPY LINK</button><button id="toggleQR">SHOW QR</button></div>
+        <div class="codebox"><span>OR SEND CODE</span><strong id="hostCode">------</strong></div>
+        <div id="roomQRWrap" class="hidden"><canvas id="roomQR" width="320" height="320"></canvas></div>
+        <div id="hostStatus" class="status">OPENING ROOM…</div>
+        <div id="roster"></div>
+        <div class="keep">KEEP THIS PAGE OPEN WHILE THEY JOIN</div>
+        <button id="startRoom" class="bigact" disabled>WAITING FOR PLAYERS</button>
+        <button id="newRoom" class="ghost">CANCEL ROOM</button>
+      </div>
+    </div>
+    <div id="joinBlock" class="blk">
+      <div class="status">OPEN THE LINK YOU WERE SENT — OR TYPE THE CODE</div>
+      <input id="joinCode" class="entry" maxlength="6" autocomplete="off" placeholder="ROOM CODE">
+      <div class="joinpic"><button id="joinPickPhoto">MY PICTURE: PHOTO</button><button id="joinPickDefault" class="on">MY PICTURE: STARTER</button></div>
+      <button id="joinRoom" class="bigact">JOIN</button>
+      <div id="joinStatus" class="status">SIX LETTERS</div>
+    </div>
+  </div>
+</div>
+
+<div id="complete" class="veil">
+  <div class="card"><h2>ONE PICTURE</h2><canvas id="completeCanvas" width="400" height="500"></canvas>
+  <div id="completeNote"></div>
+  <div class="acts"><button id="againBtn">AGAIN</button><button id="backToTable">BACK TO TABLE</button></div></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ═══════════════════════════════════════════════════════════════
+   MOMSAIC v18 — STRANGERS ON THE TABLE
+
+   The swap is hidden, not handed to you:
+   · Your scatter secretly contains STRANGER pieces — pieces cut
+     from a NEIGHBOR'S picture. They look like yours until you
+     try them in an opening and they refuse. That is the moment
+     you figure out why your puzzle will not close.
+   · Your missing pieces are lying loose on a neighbor's table.
+     Nobody brings them. You slide over, spot your picture in
+     their scatter, and TAKE it home yourself.
+   · Every puzzle has its own picture (add one photo per puzzle,
+     or per player in a room), so the search is visual: whose
+     image is this piece from?
+   · Everything is a physical piece on one shared table. You can
+     pick a loose piece up anywhere and put it down anywhere —
+     only its true opening will accept it.
+   ═══════════════════════════════════════════════════════════════ */
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const TAU=Math.PI*2;
+const COLORS=["#ff6b55","#19e6c8","#ffd23f","#3b82f6","#d482ff","#ff8ad8","#7ee36a","#66a6ff"];
+function rng(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function vib(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+let AC=null;function audio(){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();return AC}
+function tone(kind){try{const c=audio(),t=c.currentTime,o=c.createOscillator(),g=c.createGain();const map={tap:[300,430,.08],snap:[520,980,.18],bad:[120,70,.18],win:[440,880,.5],give:[180,620,.34],take:[620,340,.3],huh:[240,180,.22]};const m=map[kind]||map.tap;o.type=(kind==="bad"||kind==="huh")?"square":"triangle";o.frequency.setValueAtTime(m[0],t);o.frequency.exponentialRampToValueAtTime(m[1],t+m[2]);g.gain.setValueAtTime(.09,t);g.gain.exponentialRampToValueAtTime(.001,t+m[2]);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+m[2]+.02)}catch(e){}}
+function toast(msg){const e=$('#toast');e.textContent=msg;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),1900)}
+function randomCode(n=6){const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";crypto.getRandomValues(new Uint32Array(n)).forEach(v=>s+=a[v%a.length]);return s}
+function loadScriptOnce(url,check){return new Promise(res=>{if(check())return res(true);const sc=document.createElement('script');sc.src=url;sc.async=true;sc.onload=()=>res(check());sc.onerror=()=>res(false);document.head.appendChild(sc);setTimeout(()=>res(check()),7000)})}
+async function ensurePeer(){return typeof Peer==='function'||loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js',()=>typeof Peer==='function')}
+async function ensureQR(){return typeof qrcode==='function'||loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js',()=>typeof qrcode==='function')}
+function drawQR(cv,text){const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);if(typeof qrcode!=='function'){g.fillStyle='#000';g.font='900 20px monospace';g.textAlign='center';g.fillText(text.slice(-10),cv.width/2,cv.height/2);return}try{const q=qrcode(0,'M');q.addData(text);q.make();const n=q.getModuleCount(),pad=4,cell=cv.width/(n+pad*2);g.fillStyle='#000';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(q.isDark(y,x))g.fillRect((x+pad)*cell,(y+pad)*cell,cell+.7,cell+.7)}catch(e){}}
+
+/* ── config + state ─────────────────────────────────── */
+const cfg={pieces:12,swaps:1,friends:3,myImage:""};   // myImage = this player's own picture (dataURL)
+const POOL=[];                                         // solo: one picture per puzzle, in seat order
+const NET={mode:"solo",role:"",code:"",seed:(Math.random()*0xffffffff)>>>0,n:4,seat:0,peer:null,hostConn:null,conns:new Map(),roster:{},states:{},ledger:{},images:{},applied:{},live:false,started:false,lastPush:0};
+const game={started:false,phase:"build",clusters:[],held:[],trade:null,undo:[],complete:false,foundStranger:false,ai:{},aiReceived:{},pendingKeys:new Set(),appliedTx:{},anim:0};
+const cam={x:300,y:375,z:1,tx:300,ty:375,tz:1};
+const view={w:0,h:0,dpr:1};
+
+/* ── pictures: one per puzzle ───────────────────────── */
+let BUILT_BASE=null;
+function builtBase(){if(BUILT_BASE)return BUILT_BASE;const c=document.createElement('canvas');c.width=600;c.height=750;const g=c.getContext('2d');g.fillStyle="#efe9dc";g.fillRect(0,0,600,750);g.fillStyle="#bde8dc";g.beginPath();g.moveTo(0,520);g.quadraticCurveTo(120,420,230,520);g.quadraticCurveTo(350,360,600,520);g.lineTo(600,750);g.lineTo(0,750);g.fill();g.fillStyle="#5f78bb";g.beginPath();g.arc(430,190,92,0,TAU);g.fill();g.fillStyle="#ffd23f";g.beginPath();g.arc(430,190,32,0,TAU);g.fill();g.fillStyle="#18233e";g.beginPath();g.moveTo(0,570);g.lineTo(150,330);g.lineTo(290,570);g.closePath();g.fill();g.fillStyle="#334e79";g.beginPath();g.moveTo(180,570);g.lineTo(360,285);g.lineTo(560,570);g.closePath();g.fill();g.fillStyle="#f6f2e8";g.beginPath();g.moveTo(300,382);g.lineTo(360,285);g.lineTo(425,384);g.lineTo(375,360);g.lineTo(344,400);g.fill();g.strokeStyle="#1a1a1a";g.lineWidth=7;for(let y=620;y<740;y+=30){g.beginPath();g.moveTo(30,y);g.bezierCurveTo(150,y-20,260,y+18,570,y-4);g.stroke()}BUILT_BASE=c;return c}
+function fitSource(src){const c=document.createElement('canvas');c.width=600;c.height=750;const g=c.getContext('2d');g.fillStyle="#000";g.fillRect(0,0,600,750);const sw=src.width,sh=src.height,s=Math.max(600/sw,750/sh);g.drawImage(src,(600-sw*s)/2,(750-sh*s)/2,sw*s,sh*s);return c}
+function imageFromURL(url){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=url})}
+const seatCache=new Map();   // seat -> tinted 600x750 canvas
+const rawRoom=new Map();     // seat -> untinted canvas decoded from NET.images
+function tint(base,seat,strength){const c=document.createElement('canvas');c.width=600;c.height=750;const g=c.getContext('2d');g.drawImage(base,0,0);g.globalCompositeOperation='screen';g.fillStyle=COLORS[seat%COLORS.length]+strength;g.fillRect(0,0,600,750);g.globalCompositeOperation='source-over';return c}
+function seatImage(seat){
+ if(seatCache.has(seat))return seatCache.get(seat);
+ let base=null,unique=false;
+ if(NET.mode==='room'){base=rawRoom.get(seat)||null;unique=!!base}
+ else{base=POOL[seat]||null;unique=!!base}
+ if(!base)base=builtBase();
+ /* unique photo → whisper of tint (identity color, search still visual);
+    shared/starter picture → strong tint so puzzles differ at a glance */
+ const out=tint(base,seat,unique?'1c':'44');
+ seatCache.set(seat,out);return out;
+}
+function preloadRoomImages(map){const jobs=[];for(const[seat,url]of Object.entries(map||{})){if(!url||rawRoom.has(+seat))continue;jobs.push(imageFromURL(url).then(im=>{rawRoom.set(+seat,fitSource(im));seatCache.delete(+seat)}).catch(()=>{}))}return Promise.all(jobs)}
+
+/* ── shared-edge piece geometry ─────────────────────── */
+let PIECES=[],COLS=3,ROWS=4;
+function layoutFor(n){return n===8?[2,4]:n===12?[3,4]:n===16?[4,4]:[4,6]}
+function makeEdge(seed,amp){const r=rng(seed),sign=r()>.5?1:-1,phase=r()*TAU;return t=>sign*amp*(Math.sin((t+phase)*TAU)*.42+Math.sin((t*2.7+phase*.7)*TAU)*.16)}
+function sampleEdge(fn,n=12){const a=[];for(let i=0;i<=n;i++)a.push([i/n,fn(i/n)]);return a}
+function buildPaths(){[COLS,ROWS]=layoutFor(cfg.pieces);const W=600,H=750,cw=W/COLS,ch=H/ROWS,amp=Math.min(cw,ch)*.11,V=[],HH=[];
+ for(let c=1;c<COLS;c++){V[c]=[];for(let r=0;r<ROWS;r++)V[c][r]=sampleEdge(makeEdge(hash(`v|${c}|${r}|${cfg.pieces}`),amp))}
+ for(let r=1;r<ROWS;r++){HH[r]=[];for(let c=0;c<COLS;c++)HH[r][c]=sampleEdge(makeEdge(hash(`h|${r}|${c}|${cfg.pieces}`),amp))}
+ PIECES=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const id=r*COLS+c,p=new Path2D(),x0=c*cw,x1=(c+1)*cw,y0=r*ch,y1=(r+1)*ch;p.moveTo(x0,y0);if(r===0)p.lineTo(x1,y0);else for(const[t,o]of HH[r][c])p.lineTo(x0+t*cw,y0+o);if(c===COLS-1)p.lineTo(x1,y1);else for(const[t,o]of V[c+1][r])p.lineTo(x1+o,y0+t*ch);if(r===ROWS-1)p.lineTo(x0,y1);else{const a=HH[r+1][c];for(let i=a.length-1;i>=0;i--)p.lineTo(x0+a[i][0]*cw,y1+a[i][1])}if(c===0)p.lineTo(x0,y0);else{const a=V[c][r];for(let i=a.length-1;i>=0;i--)p.lineTo(x0+a[i][1],y0+a[i][0]*ch)}p.closePath();PIECES.push({id,row:r,col:c,path:p,cx:x0+cw/2,cy:y0+ch/2})}}
+function neighbors(a,b){const A=PIECES[a],B=PIECES[b];return Math.abs(A.row-B.row)+Math.abs(A.col-B.col)===1}
+function cellR(){return Math.max(34,Math.min(600/COLS,750/ROWS)*.72)}
+
+/* ── deterministic trade topology (unchanged, verified) ─ */
+function seatTotal(){return Math.max(2,NET.mode==='room'?NET.n:cfg.friends+1)}
+function swapCount(){return Math.max(1,Math.min(+cfg.swaps||1,3,seatTotal()-1,cfg.pieces-1))}
+function missList(seat){const out=[];for(let r=0;r<swapCount();r++){let x=Math.floor(rng(hash(`${NET.seed}|missing|${seat}|${r}|${cfg.pieces}`))()*cfg.pieces);while(out.includes(x))x=(x+1)%cfg.pieces;out.push(x)}return out}
+function targetSeat(from,round){return (from+1+round)%seatTotal()}
+function holderSeat(owner,round){const n=seatTotal();return (owner-1-round+n*4)%n}
+function pieceKey(owner,index,round){return `${owner}-${round}-${index}`}
+function buildLedger(){const L={};for(let holder=0;holder<seatTotal();holder++)for(let round=0;round<swapCount();round++){const owner=targetSeat(holder,round),index=missList(owner)[round];L[pieceKey(owner,index,round)]={key:pieceKey(owner,index,round),holder,owner,index,round,status:'held'}}return L}
+function ledger(){if(NET.mode==='room')return NET.ledger;if(!game.soloLedger||Object.keys(game.soloLedger).length!==seatTotal()*swapCount())game.soloLedger=buildLedger();return game.soloLedger}
+function heldByLedger(seat){return Object.values(ledger()).filter(x=>x.holder===seat&&x.status!=='delivered').sort((a,b)=>a.round-b.round)}
+function deranged(ids,seed){const a=[...ids],r=rng(seed);for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}if(a.some((v,i)=>v===ids[i]))a.push(a.shift());return a}
+
+/* ── table layout ───────────────────────────────────── */
+const BW=600,BH=750,GAP=260;
+function boardPos(seat){return{x:seat*(BW+GAP),y:0}}
+function boardCenter(seat){const b=boardPos(seat);return{x:b.x+BW/2,y:b.y+BH/2}}
+function mySeat(){return NET.mode==='room'?NET.seat:0}
+function boardAtWorld(wx,wy){for(let s=0;s<seatTotal();s++){const b=boardPos(s);if(wx>=b.x-80&&wx<=b.x+BW+80&&wy>=b.y-120&&wy<=b.y+BH+120)return s}return null}
+
+/* ── camera ─────────────────────────────────────────── */
+function fitZoomFor(){return Math.min((view.w-64)/BW,(view.h-190)/BH)}
+function glideTo(seat,zoomOut=false){const c=boardCenter(seat),z=fitZoomFor();cam.tx=c.x;cam.ty=c.y+16/z;cam.tz=zoomOut?z*.6:z}
+function worldFromScreen(sx,sy){return{x:(sx-view.w/2)/cam.z+cam.x,y:(sy-view.h/2)/cam.z+cam.y}}
+function focusedSeat(){let best=0,d=Infinity;for(let s=0;s<seatTotal();s++){const q=Math.abs(boardCenter(s).x-cam.x);if(q<d){d=q;best=s}}return best}
+
+/* ── create game: strangers hide in your scatter ─────── */
+function scatterSpot(seat,salt,i){
+ const b=boardPos(seat),r=rng(hash(`${NET.seed}|spot|${seat}|${salt}|${i}`));
+ return{wx:b.x+BW*.5+(r()-.5)*BW*.92,wy:b.y+BH*.5+(r()-.5)*BH*.86};
+}
+function createGame(){
+ buildPaths();seatCache.clear();game.soloLedger=null;game.aiReceived={};game.ai={};game.appliedTx={};game.pendingKeys=new Set();
+ const seat=mySeat();game.missingList=missList(seat);const missSet=new Set(game.missingList);
+ const own=PIECES.map(p=>p.id).filter(i=>!missSet.has(i)),perm=deranged(own,hash(`${NET.seed}|scatter|${seat}|${swapCount()}`));
+ game.clusters=own.map((id,i)=>{const here=PIECES[id],there=PIECES[perm[i]],jx=((i%3)-1)*8,jy=((i%4)-1.5)*6;
+   return{id:i+1,pieces:[id],dx:clamp(300+(there.cx-300)*1.1+jx-here.cx,-BW*.44,BW*.44),dy:clamp(375+(there.cy-375)*1.1+jy-here.cy,-BH*.36,BH*.36),anchored:false}});
+ /* stranger pieces: physically mixed into YOUR scatter, wearing their owner's picture */
+ game.held=heldByLedger(seat).map((l,i)=>{const s=scatterSpot(seat,'held',i);return{...l,wx:s.wx,wy:s.wy}});
+ game.trade={incoming:game.missingList.map((index,round)=>({round,index,from:holderSeat(seat,round),key:pieceKey(seat,index,round),status:'missing'}))};
+ for(let s=0;s<seatTotal();s++)if(s!==seat)game.ai[s]={progress:.08+((s*37)%22)/100,perm:null};
+ game.phase='build';game.undo=[];game.complete=false;game.foundStranger=false;
+ const c=boardCenter(seat);cam.x=c.x;cam.y=c.y;cam.z=fitZoomFor();glideTo(seat);
+ updateLiveTag();setCue();pushState(true);
+}
+function updateLiveTag(){
+ const strangers=game.held?game.held.filter(x=>x.status!=='delivered').length:0;
+ const missing=game.trade?game.trade.incoming.filter(x=>x.status!=='received').length:0;
+ $('#liveTag').innerHTML=(NET.mode==='room'?`YOU ARE PUZZLE ${NET.seat+1}`:`${seatTotal()} TABLES`)+`<br>MISSING ${missing} · STRANGERS ${strangers}`;
+}
+function pushUndo(){game.undo.push(game.clusters.map(c=>({...c,pieces:[...c.pieces]})));if(game.undo.length>12)game.undo.shift()}
+function restoreUndo(){const s=game.undo.pop();if(!s)return;game.clusters=s.map(c=>({...c}));tone('tap');pushState(true)}
+function canMerge(a,b){return a.pieces.some(i=>b.pieces.some(j=>neighbors(i,j)))}
+function allOwnAnchored(){return game.clusters.every(c=>c.anchored)}
+function settleCluster(c){
+ for(const other of [...game.clusters]){if(other===c||other.anchored)continue;if(Math.hypot(c.dx-other.dx,c.dy-other.dy)<48&&canMerge(c,other)){const t=c.pieces.length+other.pieces.length;c.dx=(c.dx*c.pieces.length+other.dx*other.pieces.length)/t;c.dy=(c.dy*c.pieces.length+other.dy*other.pieces.length)/t;c.pieces=[...new Set([...c.pieces,...other.pieces])];game.clusters=game.clusters.filter(x=>x!==other);tone('snap');vib([10,18,10]);break}}
+ if(Math.hypot(c.dx,c.dy)<54){c.dx=0;c.dy=0;c.anchored=true;tone('snap');vib([12,20,12])}
+ checkBuild();setCue();pushState(true);
+}
+function checkBuild(){
+ if(game.phase!=='build'||!allOwnAnchored())return;
+ game.phase='hunt';tone('win');
+ glideTo(mySeat(),true);
+ cueSay('YOUR OPENINGS GLOW BLUE · THE PIECES ARE OUT THERE');
+ setCue();finishIfReady();pushState(true);
+}
+function finishIfReady(){
+ const whole=allOwnAnchored()&&game.trade.incoming.every(x=>x.status==='received');
+ if(whole&&!game.complete){
+   game.complete=true;game.phase='whole';tone('win');vib([20,30,20,30,40]);
+   glideTo(mySeat());setTimeout(showComplete,900);setCue();pushState(true);
+ }
+ updateLiveTag();
+}
+function showComplete(){
+ const c=$('#completeCanvas');c.getContext('2d').drawImage(seatImage(mySeat()),0,0,c.width,c.height);
+ const strangers=game.held.filter(x=>x.status!=='delivered').length;
+ $('#completeNote').textContent=strangers?`YOU STILL HOLD ${strangers} STRANGER ${strangers===1?'PIECE':'PIECES'} — THEIR TABLES ARE WAITING`:'EVERY PIECE FOUND ITS TABLE';
+ $('#complete').classList.add('on');
+}
+$('#againBtn').onclick=()=>{$('#complete').classList.remove('on');NET.seed=(Math.random()*0xffffffff)>>>0;startGame()};
+$('#backToTable').onclick=()=>$('#complete').classList.remove('on');
+
+/* ── board state: mine, live peer, or AI ────────────── */
+function aiSnapshot(seat){
+ const a=game.ai[seat]||{progress:.2},ml=missList(seat),mset=new Set(ml),ids=PIECES.map(p=>p.id).filter(id=>!mset.has(id));
+ if(!a.perm)a.perm=deranged(ids,hash(`${NET.seed}|ai|${seat}|${swapCount()}`));
+ const count=Math.floor(ids.length*Math.min(1,a.progress));
+ return{seat,progress:a.progress,missingList:ml,receivedRounds:[...(game.aiReceived[seat]||[])],online:true,
+   held:heldByLedger(seat).map((l,i)=>{const s=scatterSpot(seat,'held',i);return{...l,wx:s.wx,wy:s.wy}}),
+   clusters:ids.map((id,i)=>{const here=PIECES[id],there=PIECES[a.perm[i]],anchored=i<count;return{pieces:[id],dx:anchored?0:clamp(300+(there.cx-300)*1.08-here.cx,-BW*.42,BW*.42),dy:anchored?0:clamp(375+(there.cy-375)*1.08-here.cy,-BH*.34,BH*.34),anchored}})};
+}
+function boardState(seat){
+ if(seat===mySeat())return{clusters:game.clusters,missingList:game.missingList,receivedRounds:game.trade.incoming.filter(x=>x.status==='received').map(x=>x.round),held:game.held.filter(x=>x.status!=='delivered'),progress:localProgress(),online:true,complete:game.complete};
+ if(NET.mode==='room'){const st=NET.states[seat];return st?{...st,online:!!NET.roster[seat]}:{clusters:[],missingList:missList(seat),receivedRounds:[],held:[],progress:0,online:!!NET.roster[seat]}}
+ return aiSnapshot(seat);
+}
+function localProgress(){return PIECES.length?game.clusters.reduce((n,c)=>n+(c.anchored?c.pieces.length:0),0)/PIECES.length:0}
+function localSnapshot(){return{seat:NET.seat,progress:localProgress(),complete:game.complete,missingList:game.missingList,receivedRounds:game.trade.incoming.filter(x=>x.status==='received').map(x=>x.round),held:game.held.filter(x=>x.status!=='delivered').map(h=>({key:h.key,owner:h.owner,index:h.index,round:h.round,holder:h.holder,wx:+h.wx.toFixed(1),wy:+h.wy.toFixed(1)})),clusters:game.clusters.map(c=>({pieces:[...c.pieces],dx:+c.dx.toFixed(1),dy:+c.dy.toFixed(1),anchored:!!c.anchored})),ts:Date.now()}}
+
+/* ── openings + placement ───────────────────────────── */
+function openSlotsFor(seat){
+ const st=boardState(seat),rec=new Set(st.receivedRounds||[]),ml=st.missingList||missList(seat),b=boardPos(seat),out=[];
+ ml.forEach((id,round)=>{if(rec.has(round))return;const p=PIECES[id];if(!p)return;out.push({seat,id,round,wx:b.x+p.cx,wy:b.y+p.cy,r:cellR()})});
+ return out;
+}
+function slotUnder(wx,wy){
+ const seat=boardAtWorld(wx,wy);if(seat==null)return null;
+ let best=null,d=Infinity;for(const s of openSlotsFor(seat)){const q=Math.hypot(wx-s.wx,wy-s.wy);if(q<s.r&&q<d){best=s;d=q}}
+ return best;
+}
+/* place a piece into a validated opening. actor must be holder or owner (steal or deliver). */
+function commitLocal(piece,slot){
+ const l=ledger()[piece.key];if(!l||l.status!=='delivered'){if(l){l.holder=slot.seat;l.status='delivered'}}
+ if(slot.seat===mySeat()){
+   const inc=game.trade.incoming.find(x=>x.round===piece.round&&x.index===piece.index);
+   if(inc&&inc.status!=='received'){inc.status='received';if(!game.clusters.some(c=>c.pieces.includes(piece.index)))game.clusters.push({id:18000+piece.round,pieces:[piece.index],dx:0,dy:0,anchored:true})}
+   flashPiece(mySeat(),piece.index);tone('take');vib([10,16,24]);toast('YOURS · TAKEN HOME');
+ } else {
+   (game.aiReceived[slot.seat]=game.aiReceived[slot.seat]||new Set()).add(piece.round);
+   const mine=game.held.find(x=>x.key===piece.key);if(mine)mine.status='delivered';
+   flashPiece(slot.seat,piece.index);tone('give');vib([12,20,12]);toast(`DELIVERED · PUZZLE ${slot.seat+1} IS CLOSER`);
+ }
+ finishIfReady();setCue();updateLiveTag();
+}
+function commitRoom(piece,slot){
+ const tx=randomCode(8);
+ game.pendingKeys.add(piece.key);
+ const m={t:'place',tx,gameId:NET.code,actor:NET.seat,from:piece.holder,to:slot.seat,round:piece.round,piece:piece.index,key:piece.key};
+ if(NET.role==='host')routeHost(m,null);else send(NET.hostConn,m);
+ cueSay('PLACING…');
+}
+const flashes=[];
+function flashPiece(seat,index){flashes.push({seat,index,t:0})}
+
+/* ── networking ─────────────────────────────────────── */
+function send(c,m){try{c&&c.open&&c.send(m)}catch(e){}}
+function broadcast(m){NET.conns.forEach(c=>send(c,m))}
+function pushState(force=false){if(NET.mode!=='room'||!NET.live||!game.started)return;const now=Date.now();if(!force&&now-NET.lastPush<500)return;NET.lastPush=now;const st=localSnapshot();NET.states[NET.seat]=st;if(NET.role==='host')broadcast({t:'states',states:NET.states,roster:NET.roster,ledger:NET.ledger});else send(NET.hostConn,{t:'state',state:st})}
+setInterval(()=>pushState(false),700);
+
+function routeHost(m,c){
+ if(!m)return;const senderSeat=c?c.__seat:(m.actor??0);
+ if(m.t==='hello'){const used=new Set([0,...[...NET.conns.values()].map(x=>x.__seat).filter(Number.isInteger)]);let seat=1;while(used.has(seat)&&seat<NET.n)seat++;if(seat>=NET.n){send(c,{t:'full'});return}
+   c.__seat=seat;NET.roster[seat]=true;
+   send(c,{t:'welcome',code:NET.code,seed:NET.seed,n:NET.n,seat,cfg:{pieces:cfg.pieces,swaps:cfg.swaps},ledger:NET.ledger,images:NET.images});
+   broadcast({t:'roster',roster:NET.roster,states:NET.states,ledger:NET.ledger});renderRoster();return}
+ if(m.t==='img'){if(senderSeat!==m.seat)return;NET.images[m.seat]=m.dataURL;preloadRoomImages({[m.seat]:m.dataURL});broadcast({t:'imgmap',images:NET.images});return}
+ if(m.t==='state'){NET.states[m.state.seat]=m.state;broadcast({t:'states',states:NET.states,roster:NET.roster,ledger:NET.ledger});renderRoster();return}
+ if(m.t==='place'){
+   const l=NET.ledger[m.key],expectedPiece=missList(m.to)[m.round],expectedKey=pieceKey(m.to,m.piece,m.round);
+   const allowed=senderSeat===m.from||senderSeat===m.to;   // holder delivers, or owner steals
+   if(!allowed||m.gameId!==NET.code||!l||l.status!=='held'||l.holder!==m.from||l.owner!==m.to||l.index!==m.piece||expectedPiece!==m.piece||expectedKey!==m.key){deliver(senderSeat,{t:'placeError',tx:m.tx,key:m.key,message:'NO FIT · THE PIECE STAYED WHERE IT WAS'});return}
+   if(NET.applied[m.tx])return;NET.applied[m.tx]=true;
+   l.holder=m.to;l.status='delivered';
+   const p={tx:m.tx,actor:senderSeat,from:m.from,to:m.to,round:m.round,piece:m.piece,key:m.key};
+   deliver(p.from,{t:'commit',role:'sender',proposal:p,ledger:NET.ledger});
+   if(p.to!==p.from)deliver(p.to,{t:'commit',role:'receiver',proposal:p,ledger:NET.ledger});
+   broadcast({t:'ledger',ledger:NET.ledger});return}
+}
+function deliver(seat,m){if(seat===NET.seat)routeClient(m);else{const c=[...NET.conns.values()].find(x=>x.__seat===seat);send(c,m)}}
+function routeClient(m){
+ if(!m)return;
+ if(m.t==='welcome'){NET.seat=m.seat;NET.n=m.n;NET.seed=m.seed;NET.code=m.code;NET.ledger=m.ledger||{};cfg.pieces=m.cfg.pieces;cfg.swaps=+m.cfg.swaps||1;cfg.friends=Math.max(1,m.n-1);NET.roster[NET.seat]=true;preloadRoomImages(m.images);if(cfg.myImage)send(NET.hostConn,{t:'img',seat:NET.seat,dataURL:cfg.myImage});$('#joinStatus').textContent=`YOU ARE PUZZLE ${NET.seat+1} · WAITING FOR START`;$('#joinStatus').className='status ok';renderRoster();return}
+ if(m.t==='full'){$('#joinStatus').textContent='ROOM FULL';$('#joinStatus').className='status bad';return}
+ if(m.t==='imgmap'){NET.images=m.images||{};preloadRoomImages(NET.images);return}
+ if(m.t==='roster'||m.t==='states'){NET.roster=m.roster||NET.roster;NET.states=m.states||NET.states;if(m.ledger)NET.ledger=m.ledger;renderRoster();return}
+ if(m.t==='ledger'){NET.ledger=m.ledger;reconcile();return}
+ if(m.t==='start'){NET.started=true;if(m.ledger)NET.ledger=m.ledger;if(m.images){NET.images=m.images;preloadRoomImages(m.images)}$('#roomPanel').classList.remove('on');startGame();return}
+ if(m.t==='commit'){applyCommit(m);return}
+ if(m.t==='placeError'){game.pendingKeys.delete(m.key);cueSay(m.message||'NO FIT','bad');tone('bad');return}
+}
+function applyCommit(m){
+ const p=m.proposal;if(!p||game.appliedTx[p.tx])return;game.appliedTx[p.tx]=true;
+ if(m.ledger)NET.ledger=m.ledger;
+ game.pendingKeys.delete(p.key);
+ if(m.role==='sender'&&p.from===NET.seat){
+   const mine=game.held.find(x=>x.key===p.key);if(mine)mine.status='delivered';
+   if(p.actor===NET.seat){toast(`DELIVERED · PUZZLE ${p.to+1} IS CLOSER`);tone('give')}
+   else{toast(`PUZZLE ${p.to+1} TOOK THEIR PIECE OFF YOUR TABLE`);tone('huh')}
+ }
+ if(m.role==='receiver'&&p.to===NET.seat){
+   const inc=game.trade.incoming.find(x=>x.round===p.round&&x.index===p.piece);
+   if(inc&&inc.status!=='received'){inc.status='received';if(!game.clusters.some(c=>c.pieces.includes(p.piece)))game.clusters.push({id:18000+p.round,pieces:[p.piece],dx:0,dy:0,anchored:true});flashPiece(NET.seat,p.piece);
+     if(p.actor===NET.seat){toast('YOURS · TAKEN HOME');tone('take')}
+     else{toast(`PUZZLE ${p.from+1} BROUGHT YOUR PIECE`);tone('take')}
+     vib([10,16,24])}
+ }
+ finishIfReady();setCue();updateLiveTag();pushState(true);
+}
+function reconcile(){
+ for(const h of game.held){const l=NET.ledger[h.key];if(l&&(l.holder!==NET.seat||l.status==='delivered')&&h.status!=='delivered'){h.status='delivered';game.pendingKeys.delete(h.key)}}
+ for(const inc of game.trade?.incoming||[]){const l=NET.ledger[inc.key];if(l&&l.holder===NET.seat&&l.status==='delivered'&&inc.status!=='received'){inc.status='received';if(!game.clusters.some(c=>c.pieces.includes(inc.index)))game.clusters.push({id:18000+inc.round,pieces:[inc.index],dx:0,dy:0,anchored:true})}}
+ finishIfReady();setCue();updateLiveTag();
+}
+
+/* room UI */
+function inviteURL(){try{const u=new URL(location.href);u.hash='room='+NET.code;return u.toString()}catch(e){return location.href.split('#')[0]+'#room='+NET.code}}
+function legacyCopy(text){const t=document.createElement('textarea');t.value=text;t.style.position='fixed';t.style.opacity='0';document.body.append(t);t.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}t.remove();return ok}
+async function copyInvite(){const url=inviteURL();let ok=false;try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(url);ok=true}else ok=legacyCopy(url)}catch(e){ok=legacyCopy(url)}toast(ok?'INVITE LINK COPIED':'SEND THIS CODE: '+NET.code)}
+async function shareInvite(){try{if(navigator.share){await navigator.share({title:'Join MOMSAIC',text:`Join my MOMSAIC table · room ${NET.code}`,url:inviteURL()})}else await copyInvite()}catch(e){if(e?.name!=='AbortError')await copyInvite()}}
+function setHostStatus(s,ok=null){const e=$('#hostStatus');e.textContent=s;e.className='status'+(ok===true?' ok':ok===false?' bad':'')}
+function renderRoster(){const r=$('#roster');if(!r)return;r.innerHTML='';for(let i=0;i<NET.n;i++){const d=document.createElement('div');d.className='seat'+(NET.roster[i]?' on':'')+(i===NET.seat?' me':'');d.textContent=i+1;r.append(d)}
+ const count=Object.keys(NET.roster).filter(k=>NET.roster[k]).length,b=$('#startRoom');
+ if(!NET.live){b.disabled=true;b.textContent='OPENING ROOM…'}
+ else if(count<NET.n){b.disabled=true;b.textContent=`WAITING · ${count} / ${NET.n} AT THE TABLE`}
+ else{b.disabled=false;b.textContent='START FOR EVERYONE'}
+ if(NET.role==='host'&&NET.live)setHostStatus(`${count} / ${NET.n} AT THE TABLE · ROOM ${NET.code}`,true)}
+async function createRoom(){
+ if(!await ensurePeer()){setHostStatus('PEER NETWORK COULD NOT LOAD',false);return}
+ NET.mode='room';NET.role='host';NET.seed=(Math.random()*0xffffffff)>>>0;NET.code=randomCode();NET.seat=0;NET.roster={0:true};NET.states={};NET.applied={};NET.ledger=buildLedger();NET.images={};NET.live=false;
+ if(cfg.myImage){NET.images[0]=cfg.myImage;preloadRoomImages({0:cfg.myImage})}
+ $('#hostSetup').classList.add('hidden');$('#hostLive').classList.remove('hidden');$('#hostCode').textContent=NET.code;setHostStatus('OPENING ROOM…');
+ await ensureQR();drawQR($('#roomQR'),inviteURL());
+ try{NET.peer=new Peer('momsaic-v18-'+NET.code.toLowerCase())}catch(e){setHostStatus('ROOM COULD NOT OPEN',false);return}
+ NET.peer.on('open',()=>{NET.live=true;renderRoster()});
+ NET.peer.on('connection',c=>{NET.conns.set(c.peer,c);c.on('data',m=>routeHost(m,c));c.on('close',()=>{if(Number.isInteger(c.__seat)){delete NET.roster[c.__seat];delete NET.states[c.__seat]}NET.conns.delete(c.peer);broadcast({t:'roster',roster:NET.roster,states:NET.states,ledger:NET.ledger});renderRoster()})});
+ NET.peer.on('error',e=>{console.error(e);setHostStatus('ROOM CONNECTION FAILED',false)});
+}
+async function joinRoom(code){
+ code=(code||'').trim().toUpperCase();
+ if(!/^[A-Z2-9]{6}$/.test(code)){$('#joinStatus').textContent='ENTER THE SIX LETTERS';$('#joinStatus').className='status bad';return}
+ if(!await ensurePeer()){$('#joinStatus').textContent='PEER NETWORK COULD NOT LOAD';$('#joinStatus').className='status bad';return}
+ NET.mode='room';NET.role='join';NET.code=code;NET.live=false;
+ $('#joinStatus').textContent='FINDING THE TABLE…';$('#joinStatus').className='status';
+ try{NET.peer=new Peer()}catch(e){$('#joinStatus').textContent='COULD NOT START NETWORK';$('#joinStatus').className='status bad';return}
+ NET.peer.on('open',()=>{const c=NET.peer.connect('momsaic-v18-'+code.toLowerCase(),{reliable:true});NET.hostConn=c;
+   c.on('open',()=>{NET.live=true;send(c,{t:'hello'})});c.on('data',routeClient);
+   c.on('close',()=>{$('#joinStatus').textContent='ROOM CLOSED';$('#joinStatus').className='status bad'});
+   c.on('error',()=>{$('#joinStatus').textContent='ROOM NOT FOUND';$('#joinStatus').className='status bad'})});
+ NET.peer.on('error',()=>{$('#joinStatus').textContent='ROOM NOT FOUND';$('#joinStatus').className='status bad'});
+}
+function leaveRoom(){try{NET.peer?.destroy?.()}catch(e){}NET.live=false;NET.started=false;NET.role='';NET.code='';NET.roster={};NET.states={};NET.conns.clear();$('#hostSetup').classList.remove('hidden');$('#hostLive').classList.add('hidden');$('#hostCode').textContent='------'}
+$('#togetherBtn').onclick=()=>{audio();$('#roomPanel').classList.add('on');showMode('host')};
+$('#roomClose').onclick=()=>$('#roomPanel').classList.remove('on');
+function showMode(mode){$('#modeHost').classList.toggle('on',mode==='host');$('#modeJoin').classList.toggle('on',mode==='join');$('#hostBlock').classList.toggle('on',mode==='host');$('#joinBlock').classList.toggle('on',mode==='join')}
+$('#modeHost').onclick=()=>showMode('host');$('#modeJoin').onclick=()=>showMode('join');
+$('#nMinus').onclick=()=>{NET.n=Math.max(2,NET.n-1);$('#nValue').textContent=NET.n};
+$('#nPlus').onclick=()=>{NET.n=Math.min(8,NET.n+1);$('#nValue').textContent=NET.n};
+$('#createRoom').onclick=createRoom;$('#shareRoom').onclick=shareInvite;$('#copyRoom').onclick=copyInvite;
+$('#toggleQR').onclick=()=>{const w=$('#roomQRWrap'),show=w.classList.contains('hidden');w.classList.toggle('hidden',!show);$('#toggleQR').textContent=show?'HIDE QR':'SHOW QR'};
+$('#newRoom').onclick=leaveRoom;
+$('#joinRoom').onclick=()=>joinRoom($('#joinCode').value);
+$('#joinPickPhoto').onclick=()=>{joinPick='photo';$('#fileInput').click()};
+$('#joinPickDefault').onclick=()=>{joinPick=null;cfg.myImage='';$('#joinPickDefault').classList.add('on');$('#joinPickPhoto').classList.remove('on');$('#joinPickPhoto').textContent='MY PICTURE: PHOTO'};
+$('#startRoom').onclick=()=>{if($('#startRoom').disabled)return;NET.started=true;broadcast({t:'start',ledger:NET.ledger,images:NET.images});$('#roomPanel').classList.remove('on');startGame()};
+const sharedRoom=(location.hash.match(/room=([A-Z2-9]{6})/i)||[])[1]||new URLSearchParams(location.search).get('room');
+if(sharedRoom){setTimeout(()=>{$('#roomPanel').classList.add('on');showMode('join');$('#joinCode').value=sharedRoom.toUpperCase();joinRoom(sharedRoom)},450)}
+
+/* ── cue ────────────────────────────────────────────── */
+function cueSay(text,state=''){const c=$('#cue');c.className=state;$('#cueText').textContent=text;clearTimeout(cueSay.t);cueSay.t=setTimeout(()=>setCue(),2200)}
+function setCue(){
+ const c=$('#cue');c.className='';
+ if(!game.trade){$('#cueText').textContent='';return}
+ const strangers=game.held.filter(x=>x.status!=='delivered').length;
+ const missing=game.trade.incoming.filter(x=>x.status!=='received').length;
+ if(game.phase==='build'){
+   $('#cueText').textContent=game.foundStranger?'SOME PIECES HERE ARE NOT YOURS · BUILD AROUND THEM':'PUT YOUR PICTURE TOGETHER';
+ } else if(game.phase==='hunt'){
+   if(missing&&strangers)$('#cueText').textContent='FIND YOUR PIECES OUT THERE · DELIVER THE STRANGERS';
+   else if(missing)$('#cueText').textContent='YOUR PIECES ARE ON SOMEONE\'S TABLE · GO TAKE THEM';
+   else if(strangers)$('#cueText').textContent='YOUR PICTURE IS WHOLE · THE STRANGERS STILL WANT HOME';
+   else $('#cueText').textContent='EVERY PIECE IS HOME';
+ } else {$('#cueText').textContent='ONE PICTURE'}
+ c.style.display='flex';
+}
+
+/* ── HUD ────────────────────────────────────────────── */
+$('#homeBtn').onclick=()=>{glideTo(mySeat());tone('tap')};
+$('#undoBtn').onclick=restoreUndo;
+let guideStep=0;
+$('#hintBtn').onclick=()=>{
+ tone('snap');
+ if(game.phase==='build'){const c=game.clusters.find(x=>!x.anchored);if(c){game.hintCluster=c.id;setTimeout(()=>game.hintCluster=null,2600)}return}
+ /* alternate: where your next missing piece lies ↔ where your next stranger belongs */
+ const missing=game.trade.incoming.filter(x=>x.status!=='received');
+ const strangers=game.held.filter(x=>x.status!=='delivered');
+ const goSteal=missing.length&&(guideStep%2===0||!strangers.length);
+ guideStep++;
+ if(goSteal){const inc=missing[0];glideTo(inc.from);cueSay(`ONE OF YOUR PIECES IS ON TABLE ${inc.from+1} · LOOK FOR YOUR PICTURE`);game.hintSteal={seat:inc.from,key:inc.key,until:performance.now()+2600}}
+ else if(strangers.length){const h=strangers[0];glideTo(h.owner);cueSay(`THE STRANGER PIECE BELONGS TO TABLE ${h.owner+1}`)}
+ else{glideTo(mySeat())}
+};
+
+/* ── input: grab pieces anywhere, drag clusters, pan ── */
+const world=$('#world');
+const ptrs=new Map();
+let worldDrag=null, pinch=null, carrying=null;
+const hitCanvas=document.createElement('canvas'),hitCtx=hitCanvas.getContext('2d');
+function clusterAtWorld(wx,wy){
+ const b=boardPos(mySeat()),lx0=wx-b.x,ly0=wy-b.y;
+ for(let z=game.clusters.length-1;z>=0;z--){const c=game.clusters[z];if(c.anchored)continue;
+   const lx=lx0-c.dx,ly=ly0-c.dy;
+   for(const id of c.pieces)if(hitCtx.isPointInPath(PIECES[id].path,lx,ly))return c}
+ return null;
+}
+function heldPieceAtWorld(wx,wy){
+ /* my strangers first (they live wherever I left them) */
+ for(let i=game.held.length-1;i>=0;i--){const h=game.held[i];if(h.status==='delivered'||game.pendingKeys.has(h.key))continue;
+   if(Math.hypot(wx-h.wx,wy-h.wy)<cellR())return{piece:h,src:'mine'}}
+ /* loose pieces on other tables — grab any in solo; in a room only what is YOURS (a steal) */
+ for(let s=0;s<seatTotal();s++){if(s===mySeat())continue;const st=boardState(s);
+   for(const h of st.held||[]){if(game.pendingKeys.has(h.key))continue;
+     if(NET.mode==='room'&&h.owner!==mySeat())continue;
+     if(Math.hypot(wx-h.wx,wy-h.wy)<cellR())return{piece:{...h},src:'table',fromSeat:s}}}
+ return null;
+}
+world.addEventListener('pointerdown',e=>{
+ e.preventDefault();audio();
+ ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(ptrs.size===2){const a=[...ptrs.values()];pinch={d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),z:cam.z};worldDrag=null;carrying=null;document.body.classList.remove('dragging');return}
+ const r=world.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top,w=worldFromScreen(sx,sy);
+ const grab=heldPieceAtWorld(w.x,w.y);
+ if(grab){carrying={...grab,wx:w.x,wy:w.y,startWX:w.x,startWY:w.y,moved:false};document.body.classList.add('dragging');tone('tap');try{world.setPointerCapture(e.pointerId)}catch(_){}return}
+ const c=clusterAtWorld(w.x,w.y);
+ if(c){pushUndo();game.clusters=game.clusters.filter(q=>q!==c).concat(c);worldDrag={type:'cluster',c,startW:w,dx:c.dx,dy:c.dy};tone('tap')}
+ else worldDrag={type:'pan',startS:{x:sx,y:sy},camX:cam.x,camY:cam.y,moved:false,t:performance.now(),startW:w};
+ try{world.setPointerCapture(e.pointerId)}catch(_){}
+});
+world.addEventListener('pointermove',e=>{
+ if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pinch&&ptrs.size===2){const a=[...ptrs.values()],d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);cam.z=cam.tz=clamp(pinch.z*d/pinch.d,fitZoomFor()*.28,fitZoomFor()*2.4);cam.tx=cam.x;cam.ty=cam.y;return}
+ const r=world.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top,w=worldFromScreen(sx,sy);
+ if(carrying){carrying.wx=w.x;carrying.wy=w.y;if(Math.hypot(w.x-carrying.startWX,w.y-carrying.startWY)>10/cam.z)carrying.moved=true;
+   /* carry past the screen edge → the table slides with you */
+   const edge=54;
+   if(sx<edge)cam.tx=cam.x-=(edge-sx)*.9/cam.z;
+   if(sx>view.w-edge)cam.tx=cam.x+=(sx-(view.w-edge))*.9/cam.z;
+   return}
+ if(!worldDrag)return;
+ if(worldDrag.type==='cluster'){const c=worldDrag.c;c.dx=clamp(worldDrag.dx+(w.x-worldDrag.startW.x),-BW*.5,BW*.5);c.dy=clamp(worldDrag.dy+(w.y-worldDrag.startW.y),-BH*.44,BH*.44)}
+ else{const dx=(sx-worldDrag.startS.x),dy=(sy-worldDrag.startS.y);if(Math.hypot(dx,dy)>7)worldDrag.moved=true;cam.x=cam.tx=worldDrag.camX-dx/cam.z;cam.y=cam.ty=worldDrag.camY-dy/cam.z}
+});
+function endWorldPointer(e){
+ ptrs.delete(e.pointerId);
+ if(ptrs.size<2)pinch=null;
+ if(carrying){const c=carrying;carrying=null;document.body.classList.remove('dragging');dropCarried(c);return}
+ if(!worldDrag)return;
+ const d=worldDrag;worldDrag=null;
+ if(d.type==='cluster'){settleCluster(d.c);return}
+ if(!d.moved&&performance.now()-d.t<420){
+   const seat=boardAtWorld(d.startW.x,d.startW.y);
+   if(seat!=null&&seat!==focusedSeat()){glideTo(seat);tone('tap')}
+ } else {cam.tx=cam.x;cam.ty=cam.y}
+}
+world.addEventListener('pointerup',endWorldPointer);
+world.addEventListener('pointercancel',endWorldPointer);
+world.addEventListener('wheel',e=>{e.preventDefault();const f=Math.exp(-e.deltaY*.0012);cam.z=cam.tz=clamp(cam.z*f,fitZoomFor()*.28,fitZoomFor()*2.4);cam.tx=cam.x;cam.ty=cam.y},{passive:false});
+
+function dropCarried(c){
+ const slot=slotUnder(c.wx,c.wy);
+ if(slot){
+   if(c.piece.owner===slot.seat&&c.piece.index===slot.id){
+     /* the true opening — commit */
+     if(c.src==='mine'){const mine=game.held.find(x=>x.key===c.piece.key);if(mine){mine.wx=c.wx;mine.wy=c.wy}}
+     if(NET.mode==='room')commitRoom(c.piece,slot);else commitLocal(c.piece,slot);
+     cueSay('IT FITS','good');
+     return;
+   }
+   /* an opening, wrong piece — the discovery moment */
+   tone('bad');vib(24);
+   if(slot.seat===mySeat()&&c.piece.owner!==mySeat()){
+     if(!game.foundStranger){game.foundStranger=true;cueSay('NOT FROM YOUR PICTURE · ITS TABLE IS OUT THERE','bad')}
+     else cueSay('STILL NOT YOURS · CARRY IT TO ITS TABLE','bad');
+   } else cueSay('NO FIT · WRONG OPENING','bad');
+ }
+ /* no commit: the piece stays wherever you set it down (mine), or slides back (someone else's table) */
+ if(c.src==='mine'){const mine=game.held.find(x=>x.key===c.piece.key);if(mine){mine.wx=c.wx;mine.wy=c.wy}pushState(true)}
+ else if(!slot){cueSay('THAT ONE STAYS ON THEIR TABLE UNLESS IT COMES HOME','bad');tone('huh')}
+}
+
+/* ── rendering ──────────────────────────────────────── */
+function resize(){const r=world.getBoundingClientRect();view.dpr=Math.min(2,devicePixelRatio||1);world.width=Math.round(r.width*view.dpr);world.height=Math.round(r.height*view.dpr);view.w=r.width;view.h=r.height;if(game.started)glideTo(focusedSeat())}
+window.addEventListener('resize',resize);
+
+function drawLoosePieceWorld(ctx,piece,wx,wy,scale=1,ring='#bcbcbc'){
+ const p=PIECES[piece.index],src=seatImage(piece.owner);
+ ctx.save();ctx.translate(wx-p.cx*scale,wy-p.cy*scale);ctx.scale(scale,scale);
+ ctx.save();ctx.clip(p.path);ctx.drawImage(src,0,0,BW,BH);ctx.restore();
+ ctx.strokeStyle=ring;ctx.lineWidth=1.6/Math.max(.5,cam.z)/scale;ctx.stroke(p.path);
+ ctx.restore();
+}
+function drawBoard(ctx,seat){
+ const b=boardPos(seat),st=boardState(seat),src=seatImage(seat),meHere=seat===mySeat();
+ ctx.save();ctx.translate(b.x,b.y);
+ ctx.globalAlpha=.14;ctx.drawImage(src,0,0,BW,BH);ctx.globalAlpha=1;
+ ctx.strokeStyle=meHere?'#4a4a4a':'#333';ctx.lineWidth=2/cam.z;ctx.strokeRect(0,0,BW,BH);
+ ctx.fillStyle='rgba(0,0,0,.85)';ctx.fillRect(0,-64,BW,48);
+ ctx.strokeStyle=st.online?COLORS[seat%COLORS.length]:'#2a2a2a';ctx.strokeRect(0,-64,BW,48);
+ ctx.fillStyle=st.online?'#fff':'#555';ctx.font='900 26px ui-monospace,monospace';ctx.textAlign='left';ctx.textBaseline='middle';
+ ctx.fillText(meHere?'YOUR PUZZLE':'PUZZLE '+(seat+1),14,-40);
+ const pw=200,px=BW-pw-14;
+ ctx.fillStyle='#151515';ctx.fillRect(px,-46,pw,12);
+ ctx.fillStyle=st.complete?'#19e6c8':COLORS[seat%COLORS.length];ctx.fillRect(px,-46,pw*clamp(st.progress||0,0,1),12);
+ for(const c of st.clusters||[]){for(const id of c.pieces||[]){const p=PIECES[id];if(!p)continue;
+   ctx.save();ctx.translate(c.dx||0,c.dy||0);ctx.clip(p.path);ctx.drawImage(src,0,0,BW,BH);ctx.restore();
+   ctx.save();ctx.translate(c.dx||0,c.dy||0);ctx.strokeStyle=c.anchored?'#19e6c8':(c.pieces.length>1?'#7ee36a':'#bcbcbc');ctx.lineWidth=(c.anchored?2.4:(c.pieces.length>1?3:1.4))/Math.max(.5,cam.z);ctx.stroke(p.path);ctx.restore()}}
+ const rec=new Set(st.receivedRounds||[]);(st.missingList||missList(seat)).forEach((id,round)=>{
+   if(rec.has(round))return;const p=PIECES[id];if(!p)return;
+   const pulse=.05+Math.abs(Math.sin(game.anim*2.2+id))*.07;
+   ctx.fillStyle=`rgba(59,130,246,${pulse})`;ctx.fill(p.path);
+   ctx.strokeStyle='#3b82f6';ctx.lineWidth=3.2/Math.max(.5,cam.z);ctx.stroke(p.path);
+ });
+ ctx.restore();
+ /* loose pieces on this table (world coords) — strangers wear their owner's picture */
+ for(const h of st.held||[]){
+   if(carrying&&carrying.piece.key===h.key)continue;
+   const pending=game.pendingKeys.has(h.key);
+   /* the piece just LOOKS different — no marker gives it away, the search is visual */
+   drawLoosePieceWorld(ctx,h,h.wx,h.wy,1,pending?'#ff9f2f':'#bcbcbc');
+   if(game.hintSteal&&game.hintSteal.key===h.key&&performance.now()<game.hintSteal.until){
+     ctx.beginPath();ctx.arc(h.wx,h.wy,cellR()+10+Math.sin(game.anim*5)*6,0,TAU);ctx.strokeStyle='#fff';ctx.lineWidth=4/cam.z;ctx.stroke()}
+ }
+}
+function render(t){
+ requestAnimationFrame(render);
+ const ctx=world.getContext('2d');
+ if(!game.started||view.w<20)return;
+ const dt=Math.min(.034,(t-(render.last||t))/1000);render.last=t;game.anim+=dt;
+ if(!carrying){cam.x+=(cam.tx-cam.x)*Math.min(1,dt*6);cam.y+=(cam.ty-cam.y)*Math.min(1,dt*6)}
+ cam.z+=(cam.tz-cam.z)*Math.min(1,dt*6);
+ ctx.setTransform(view.dpr,0,0,view.dpr,0,0);
+ ctx.fillStyle='#050505';ctx.fillRect(0,0,view.w,view.h);
+ ctx.save();
+ ctx.translate(view.w/2,view.h/2);ctx.scale(cam.z,cam.z);ctx.translate(-cam.x,-cam.y);
+ ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=2/cam.z;
+ ctx.beginPath();ctx.moveTo(-GAP,BH/2);ctx.lineTo(seatTotal()*(BW+GAP),BH/2);ctx.stroke();
+ for(let s=0;s<seatTotal();s++)drawBoard(ctx,s);
+ if(game.phase==='build'&&game.hintCluster){const c=game.clusters.find(x=>x.id===game.hintCluster);if(c){const b=boardPos(mySeat());let cx=0,cy=0;c.pieces.forEach(id=>{cx+=PIECES[id].cx;cy+=PIECES[id].cy});cx=b.x+cx/c.pieces.length+c.dx;cy=b.y+cy/c.pieces.length+c.dy;ctx.beginPath();ctx.arc(cx,cy,26+Math.sin(game.anim*5)*7,0,TAU);ctx.strokeStyle='#ffd23f';ctx.lineWidth=5/cam.z;ctx.stroke()}}
+ for(let i=flashes.length-1;i>=0;i--){const f=flashes[i];f.t+=dt;if(f.t>1.2){flashes.splice(i,1);continue}const b=boardPos(f.seat),p=PIECES[f.index];ctx.save();ctx.translate(b.x,b.y);ctx.strokeStyle=`rgba(25,230,200,${1-f.t/1.2})`;ctx.lineWidth=(8*(1-f.t/1.2)+2)/cam.z;ctx.stroke(p.path);ctx.restore()}
+ /* the piece in your hand, drawn last, slightly lifted */
+ if(carrying){ctx.save();ctx.shadowColor='rgba(0,0,0,.7)';ctx.shadowBlur=24/cam.z;ctx.shadowOffsetY=10/cam.z;
+   drawLoosePieceWorld(ctx,carrying.piece,carrying.wx,carrying.wy,1.06,'#ffffff');ctx.restore();
+   /* whisper of guidance while held: its true opening breathes a little brighter */
+   const home=boardPos(carrying.piece.owner),hp=PIECES[carrying.piece.index];
+   ctx.save();ctx.translate(home.x,home.y);ctx.strokeStyle=`rgba(255,255,255,${.25+Math.abs(Math.sin(game.anim*3))*.3})`;ctx.lineWidth=2.4/cam.z;ctx.stroke(hp.path);ctx.restore()}
+ ctx.restore();
+ if(NET.mode==='solo')for(const s in game.ai)game.ai[s].progress=Math.min(.94,game.ai[s].progress+dt*(.012+(+s)*.002));
+}
+requestAnimationFrame(render);
+
+/* ── flow ───────────────────────────────────────────── */
+function showScreen(id){$$('.screen').forEach(s=>s.classList.toggle('on',s.id===id))}
+async function startGame(){
+ showScreen('game');resize();
+ await new Promise(r=>requestAnimationFrame(r));
+ resize();game.started=true;createGame();
+ $('#complete').classList.remove('on');
+}
+$('#playBtn').onclick=()=>{audio();NET.mode='solo';NET.role='';NET.seat=0;NET.seed=(Math.random()*0xffffffff)>>>0;startGame()};
+
+/* picture pool */
+let joinPick=null;
+async function fileToCanvas(file){const rd=new FileReader();const url=await new Promise((res,rej)=>{rd.onload=()=>res(rd.result);rd.onerror=rej;rd.readAsDataURL(file)});return fitSource(await imageFromURL(url))}
+async function handleFile(file){
+ if(!file)return;
+ try{
+   const c=await fileToCanvas(file);
+   const url=c.toDataURL('image/jpeg',.72);
+   if(joinPick==='photo'){cfg.myImage=url;joinPick=null;$('#joinPickPhoto').classList.add('on');$('#joinPickDefault').classList.remove('on');$('#joinPickPhoto').textContent='MY PICTURE: READY';toast('YOUR PICTURE IS SET');tone('snap');return}
+   POOL.push(c);if(!cfg.myImage)cfg.myImage=url;
+   seatCache.clear();markSrc();renderPool();toast(`PICTURE ${POOL.length} ADDED`);tone('snap');
+ }catch(e){toast('COULD NOT OPEN PICTURE')}
+}
+$('#fileInput').onchange=e=>{handleFile(e.target.files[0]);e.target.value=''};
+$('#cameraInput').onchange=e=>{handleFile(e.target.files[0]);e.target.value=''};
+function markSrc(){
+ $('#srcPhoto').classList.toggle('on',POOL.length>0);
+ $('#srcDefault').classList.toggle('on',POOL.length===0);
+ $('#srcNote').textContent=POOL.length===0?'ADD A PHOTO PER PUZZLE — EVERY TABLE GETS ITS OWN PICTURE'
+   :POOL.length===1?'1 PICTURE — ADD MORE SO EACH TABLE DIFFERS · OTHERS GET TINTED STARTERS'
+   :`${POOL.length} PICTURES — TABLES 1–${Math.min(POOL.length,seatTotal())} EACH GET THEIR OWN`;
+}
+function renderPool(){
+ const strip=$('#poolStrip');strip.innerHTML='';
+ if(!POOL.length){const s=document.createElement('span');s.className='pool-note';s.id='poolNote';s.textContent='NO PHOTOS · EACH PUZZLE GETS A TINTED STARTER';strip.append(s);return}
+ POOL.forEach((c,i)=>{const t=document.createElement('div');t.className='pool-thumb';const cv=document.createElement('canvas');cv.width=88;cv.height=110;cv.getContext('2d').drawImage(c,0,0,88,110);const x=document.createElement('button');x.textContent='×';x.onclick=()=>{POOL.splice(i,1);cfg.myImage=POOL[0]?POOL[0].toDataURL('image/jpeg',.72):'';seatCache.clear();markSrc();renderPool()};t.append(cv,x);strip.append(t)});
+ const s=document.createElement('span');s.className='pool-note';s.textContent=`SEAT ORDER: FIRST PHOTO = YOUR PUZZLE`;strip.append(s);
+}
+$('#srcPhoto').onclick=()=>$('#fileInput').click();
+$('#srcCamera').onclick=()=>$('#cameraInput').click();
+$('#srcDefault').onclick=()=>{POOL.length=0;cfg.myImage='';seatCache.clear();markSrc();renderPool();toast('TINTED STARTERS')};
+
+/* settings */
+$('#introGear').onclick=()=>{sync();$('#settings').classList.add('on')};
+$('#settingsClose').onclick=()=>$('#settings').classList.remove('on');
+function sync(){$$('.opt').forEach(b=>{const k=b.classList.contains('pieces')?'pieces':b.classList.contains('swaps')?'swaps':b.classList.contains('friends')?'friends':'';if(k)b.classList.toggle('on',String(cfg[k])===b.dataset.v)});markSrc();renderPool()}
+$$('.opt').forEach(b=>b.onclick=()=>{
+ if(b.classList.contains('srcadd')){if(b.dataset.v==='photo'){$('#fileInput').click()}else if(b.dataset.v==='camera'){$('#cameraInput').click()}else{POOL.length=0;cfg.myImage='';seatCache.clear();markSrc();renderPool()}return}
+ const k=b.classList.contains('pieces')?'pieces':b.classList.contains('swaps')?'swaps':b.classList.contains('friends')?'friends':'';
+ if(!k)return;cfg[k]=+b.dataset.v;sync();
+});
+$('#applyBtn').onclick=()=>{$('#settings').classList.remove('on');NET.mode='solo';NET.seed=(Math.random()*0xffffffff)>>>0;startGame()};
+
+/* intro demo: a hand lifts a stranger from one table to its home */
+function resizeIntro(){const c=$('#introDemo'),r=c.getBoundingClientRect(),d=Math.min(2,devicePixelRatio||1);c.width=r.width*d;c.height=r.height*d;c._d=d}
+function introLoop(t){
+ const c=$('#introDemo');if(!c)return;const g=c.getContext('2d'),d=c._d||1,w=c.width/d,h=c.height/d;
+ g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,w,h);g.fillStyle='#050505';g.fillRect(0,0,w,h);
+ const a=POOL[0]||builtBase(),b2=POOL[1]||tint(builtBase(),1,'44');
+ const bw=Math.min(w*.46,h*.4),bh=bw*1.25,gap=bw*.3,x0=w/2-bw-gap/2,x1=w/2+gap/2,y=h*.15;
+ for(const[x,src,tinted]of[[x0,a,false],[x1,b2,true]]){
+   g.globalAlpha=.16;g.drawImage(src,x,y,bw,bh);g.globalAlpha=1;
+   g.strokeStyle='#3a3a3a';g.lineWidth=2;g.strokeRect(x,y,bw,bh);
+ }
+ g.strokeStyle='#3b82f6';g.lineWidth=3;g.strokeRect(x1+bw*.3,y+bh*.42,bw*.32,bh*.2);
+ g.fillStyle='rgba(59,130,246,.12)';g.fillRect(x1+bw*.3,y+bh*.42,bw*.32,bh*.2);
+ const tt=(t/4200)%1,e=.5-.5*Math.cos(clamp(tt<.55?tt/.55:1,0,1)*Math.PI);
+ const px=(x0+bw*.5)+((x1+bw*.46)-(x0+bw*.5))*e,py=(y+bh*.62)-Math.sin(e*Math.PI)*bh*.2+(tt>.55?0:0);
+ g.save();g.translate(px,py);
+ g.fillStyle='#050505';g.fillRect(-bw*.16,-bh*.1,bw*.32,bh*.2);
+ g.save();g.beginPath();g.rect(-bw*.16,-bh*.1,bw*.32,bh*.2);g.clip();g.globalAlpha=tt>.55?1:.95;g.drawImage(b2,-bw*.46,-bh*.52,bw,bh);g.restore();
+ g.strokeStyle=tt>.55&&tt<.7?'#19e6c8':'#ffd23f';g.lineWidth=3;g.strokeRect(-bw*.16,-bh*.1,bw*.32,bh*.2);
+ g.restore();
+ requestAnimationFrame(introLoop);
+}
+resizeIntro();window.addEventListener('resize',resizeIntro);requestAnimationFrame(introLoop);
+markSrc();
+</script>
+</body>
+</html>
