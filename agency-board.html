@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<title>AGENCY BOARD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#000; --paper:#fff;
+  --red:#ff2e2e; --blue:#3b82f6; --green:#19e6c8; --amber:#ffd23f;
+  --hair:1.5px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--paper);color:var(--ink)}
+body{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:13px; letter-spacing:.04em;
+  display:flex; flex-direction:column;
+  height:100dvh; width:100vw;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  user-select:none; -webkit-user-select:none; touch-action:manipulation;
+}
+
+/* ---------- HEADER ---------- */
+#head{
+  display:flex; align-items:stretch; justify-content:space-between;
+  border-bottom:2px solid var(--ink); height:34px; flex:0 0 auto;
+}
+#who{display:flex;align-items:center;gap:10px;padding:0 8px;font-weight:700}
+#homecount{display:flex;gap:3px;align-items:center}
+.pip{width:9px;height:9px;border:2px solid var(--ink);display:block}
+.pip.on{background:var(--ink)}
+#lenses{display:flex}
+.lens{
+  border:0;border-left:2px solid var(--ink);background:var(--paper);color:var(--ink);
+  font:inherit;font-weight:600;letter-spacing:.12em;padding:0 12px;height:100%;
+}
+.lens[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+
+/* ---------- BOARD ---------- */
+#stage{flex:1 1 auto;position:relative;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+svg#board{width:100%;height:100%;display:block;touch-action:none}
+text{font-family:"IBM Plex Mono",monospace;dominant-baseline:middle}
+
+/* ---------- READOUT ---------- */
+#readout{
+  flex:0 0 auto;border-top:2px solid var(--ink);
+  height:26px;display:flex;align-items:center;overflow:hidden;
+  font-size:11px;letter-spacing:.1em;padding:0 8px;white-space:nowrap;
+}
+#readout b{font-weight:700}
+#readout .sep{padding:0 6px}
+
+/* ---------- HISTORY SCRUB ---------- */
+#scrub{
+  flex:0 0 auto;height:28px;border-top:2px solid var(--ink);
+  display:flex;align-items:center;gap:8px;padding:0 8px;touch-action:none;
+}
+#scrub .end{font-size:10px;font-weight:700;letter-spacing:.14em}
+#track{flex:1;height:100%;position:relative}
+#track .rail{position:absolute;left:0;right:0;top:50%;height:2px;background:var(--ink)}
+#track .tick{position:absolute;top:calc(50% - 5px);width:2px;height:10px;background:var(--ink)}
+#track .head{position:absolute;top:calc(50% - 9px);width:10px;height:18px;background:var(--ink)}
+#scrub.past #track .head{background:var(--paper);border:2px solid var(--ink)}
+
+/* ---------- TRAY ---------- */
+#tray{
+  flex:0 0 auto;border-top:2px solid var(--ink);
+  display:flex;align-items:center;justify-content:center;gap:18px;
+  padding:10px 8px;min-height:96px;
+}
+.die{
+  width:74px;height:74px;border:3px solid var(--ink);background:var(--paper);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:34px;font-weight:600;line-height:1;position:relative;touch-action:none;
+}
+.die .tag{font-size:9px;font-weight:700;letter-spacing:.12em;margin-top:5px;height:11px}
+.die.blank{font-size:11px;letter-spacing:.16em;font-weight:700}
+.die.dragging{position:fixed;z-index:50;pointer-events:none;box-shadow:0 0 0 3px var(--paper)}
+.die.picked{background:var(--ink);color:var(--paper)}
+.die.dead{border-style:dashed}
+.die.assigned{border-width:6px}
+.die.hidden{visibility:hidden}
+#trayhint{font-size:10px;letter-spacing:.14em;font-weight:700;max-width:120px;line-height:1.5}
+
+/* ---------- COMMIT ---------- */
+#bar{
+  flex:0 0 auto;border:0;width:100%;height:56px;
+  background:var(--paper);color:var(--ink);border-top:2px solid var(--ink);
+  font:inherit;font-size:14px;font-weight:700;letter-spacing:.18em;
+}
+#bar.go{background:var(--ink);color:var(--paper)}
+#bar:disabled{opacity:1}
+
+/* ---------- END OVERLAY ---------- */
+#end{
+  position:fixed;inset:0;background:var(--paper);z-index:80;
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:24px;
+}
+#end.show{display:flex}
+#end h1{font-size:30px;letter-spacing:.06em;font-weight:700;line-height:1.2}
+#end p{font-size:12px;letter-spacing:.1em;line-height:1.9}
+#end button{border:3px solid var(--ink);background:var(--paper);color:var(--ink);font:inherit;font-weight:700;letter-spacing:.18em;padding:14px 26px}
+
+@media (max-height:680px){
+  .die{width:62px;height:62px;font-size:28px}
+  #tray{min-height:82px;padding:8px}
+  #bar{height:48px}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<div id="head">
+  <div id="who"><span>HOME</span><span id="homecount"></span></div>
+  <div id="lenses">
+    <button class="lens" id="btnThink" aria-pressed="false">THINK</button>
+    <button class="lens" id="btnMap" aria-pressed="false">MAP</button>
+  </div>
+</div>
+
+<div id="stage"><svg id="board" viewBox="0 0 1000 1120" preserveAspectRatio="xMidYMid meet"></svg></div>
+
+<div id="readout"></div>
+
+<div id="scrub">
+  <span class="end">START</span>
+  <div id="track"><div class="rail"></div><div class="head"></div></div>
+  <span class="end">NOW</span>
+</div>
+
+<div id="tray"></div>
+<button id="bar"></button>
+
+<div id="end">
+  <h1 id="endTitle"></h1>
+  <p id="endBody"></p>
+  <button id="again">PLAY AGAIN</button>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   AGENCY BOARD
+   random conditions -> perceive possibilities -> manipulate futures -> choose consequence
+   ============================================================ */
+
+const SVGNS="http://www.w3.org/2000/svg";
+const S=100, GRID=1000, START_Y=1062;
+const COL={red:"#ff2e2e",blue:"#3b82f6",green:"#19e6c8",amber:"#ffd23f",ink:"#000",paper:"#fff"};
+const NAMES=["RED","BLUE","GREEN"];
+const KEYS=["red","blue","green"];
+
+const JUMPS={1:38,4:14,9:31,21:42,28:84,36:44,51:67,71:91,80:100,
+             16:6,47:26,49:11,56:53,62:19,64:60,87:24,93:73,95:75,98:78};
+const isLadder=n=>JUMPS[n]!==undefined&&JUMPS[n]>n;
+const isChute =n=>JUMPS[n]!==undefined&&JUMPS[n]<n;
+const resolve =n=>JUMPS[n]!==undefined?JUMPS[n]:n;
+
+const REDUCED=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sleep=ms=>new Promise(r=>setTimeout(r,REDUCED?Math.min(ms,16):ms));
+
+/* ---------- geometry ---------- */
+function center(n){
+  if(n<=0) return {x:150,y:START_Y};
+  const i=n-1, row=Math.floor(i/10);
+  let col=i%10; if(row%2===1) col=9-col;
+  return {x:col*S+S/2, y:(9-row)*S+S/2};
+}
+function ribbonX(n){return 60+(Math.max(0,n)/100)*880;}
+
+/* ---------- state ---------- */
+let G;
+function newGame(){
+  G={
+    you:[{pos:0,home:false},{pos:0,home:false},{pos:0,home:false}],
+    opp:[{pos:0,home:false},{pos:0,home:false},{pos:0,home:false}],
+    dice:[null,null],                 // {v, to:tokenIndex|null, dead:bool}
+    phase:"roll",                     // roll | assign | resolving | opp | over
+    turnNo:0,
+    log:[],                           // history snapshots
+    trails:{0:[0],1:[0],2:[0]},
+    scrubAt:null,                     // null = NOW
+    think:false, map:false,
+    picked:null,                      // die index picked by tap
+    dragDie:null, dragXY:null, hoverToken:null,
+    consequence:null,                 // {from,die} long-press readout
+    lastChoice:null,                  // abandoned alternatives after a chosen risk
+    anim:null                         // {side,i,x,y}
+  };
+  snapshot("START");
+}
+
+function snapshot(label){
+  G.log.push({
+    label,
+    you:G.you.map(t=>({...t})),
+    opp:G.opp.map(t=>({...t})),
+    trails:{0:[...G.trails[0]],1:[...G.trails[1]],2:[...G.trails[2]]}
+  });
+}
+
+/* ---------- rules ---------- */
+function destOf(pos,v){const p=pos+v; return p>100?null:p;}
+
+// which tokens can legally take die d, given current assignments
+function eligible(dieIdx){
+  const die=G.dice[dieIdx]; if(!die||die.dead) return [];
+  const other=G.dice[1-dieIdx];
+  const live=G.you.map((t,i)=>i).filter(i=>!G.you[i].home);
+  const soloMode=live.length<=1;
+  const out=[];
+  for(const i of live){
+    if(!soloMode && other && other.to===i) continue;         // one die per token unless solo
+    const start=startPosFor(i,dieIdx);
+    if(destOf(start,die.v)!==null) out.push(i);
+  }
+  return out;
+}
+// if both dice land on the same token, the second applies after the first
+function startPosFor(tokenIdx,dieIdx){
+  const other=G.dice[1-dieIdx];
+  if(other && other.to===tokenIdx && dieIdx===1){
+    const d=destOf(G.you[tokenIdx].pos,other.v);
+    if(d!==null) return resolve(d);
+  }
+  return G.you[tokenIdx].pos;
+}
+function previewFor(dieIdx,tokenIdx){
+  const die=G.dice[dieIdx]; if(!die) return null;
+  const from=startPosFor(tokenIdx,dieIdx);
+  const land=destOf(from,die.v); if(land===null) return null;
+  return {from,land,rest:resolve(land),ladder:isLadder(land),chute:isChute(land),home:resolve(land)===100};
+}
+function assignedCount(){return G.dice.filter(d=>d&&(d.to!==null||d.dead)).length;}
+function readyToCommit(){return G.phase==="assign" && G.dice.every(d=>d&&(d.to!==null||d.dead));}
+
+function markDead(){
+  G.dice.forEach(d=>{ if(d && d.to===null) d.dead=false; });
+  G.dice.forEach((d,i)=>{ if(d && d.to===null) d.dead = eligible(i).length===0; });
+}
+
+/* ============================================================
+   BOARD RENDER
+   ============================================================ */
+const svg=document.getElementById("board");
+const el=(t,a={})=>{const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+function txt(x,y,s,o={}){
+  const t=el("text",{x,y,"font-size":o.size||26,"font-weight":o.weight||400,
+    fill:o.fill||COL.ink,"text-anchor":o.anchor||"start","letter-spacing":o.ls||"0.06em"});
+  t.textContent=s; return t;
+}
+let LAYER_STATIC,LAYER_DYN;
+
+function buildStatic(){
+  const g=el("g");
+  // cells
+  for(let n=1;n<=100;n++){
+    const c=center(n);
+    g.appendChild(el("rect",{x:c.x-S/2,y:c.y-S/2,width:S,height:S,
+      fill:COL.paper,stroke:COL.ink,"stroke-width":1.5}));
+    const t=txt(c.x-S/2+8,c.y-S/2+20,String(n),{size:22,fill:COL.ink});
+    t.setAttribute("class","cellnum"); g.appendChild(t);
+  }
+  // 100 emphasised
+  const h=center(100);
+  g.appendChild(el("rect",{x:h.x-S/2+7,y:h.y-S/2+7,width:S-14,height:S-14,
+    fill:"none",stroke:COL.ink,"stroke-width":4}));
+  // ladders + chutes
+  for(const k in JUMPS){
+    const a=center(+k), b=center(JUMPS[k]);
+    g.appendChild(isLadder(+k)?ladderShape(a,b):chuteShape(a,b));
+    g.appendChild(mouthMark(a,isLadder(+k)));
+  }
+  // start bar
+  g.appendChild(el("rect",{x:0,y:GRID+18,width:GRID,height:82,fill:COL.paper,stroke:COL.ink,"stroke-width":3}));
+  g.appendChild(txt(GRID-16,GRID+59,"START",{size:26,weight:700,anchor:"end"}));
+  return g;
+}
+function ladderShape(a,b){
+  const g=el("g"); const dx=b.x-a.x, dy=b.y-a.y, L=Math.hypot(dx,dy);
+  const px=-dy/L*13, py=dx/L*13;
+  g.appendChild(el("line",{x1:a.x+px,y1:a.y+py,x2:b.x+px,y2:b.y+py,stroke:COL.ink,"stroke-width":3.5}));
+  g.appendChild(el("line",{x1:a.x-px,y1:a.y-py,x2:b.x-px,y2:b.y-py,stroke:COL.ink,"stroke-width":3.5}));
+  const rungs=Math.max(2,Math.round(L/52));
+  for(let i=1;i<rungs;i++){
+    const t=i/rungs, x=a.x+dx*t, y=a.y+dy*t;
+    g.appendChild(el("line",{x1:x+px,y1:y+py,x2:x-px,y2:y-py,stroke:COL.ink,"stroke-width":2.5}));
+  }
+  return g;
+}
+function chuteShape(a,b){
+  const g=el("g"); const dx=b.x-a.x, dy=b.y-a.y, L=Math.hypot(dx,dy);
+  const px=-dy/L, py=dx/L;
+  const mx=(a.x+b.x)/2+px*70, my=(a.y+b.y)/2+py*70;
+  const p1=`M ${a.x+px*16} ${a.y+py*16} Q ${mx+px*10} ${my+py*10} ${b.x+px*7} ${b.y+py*7}`;
+  const p2=`M ${a.x-px*16} ${a.y-py*16} Q ${mx-px*10} ${my-py*10} ${b.x-px*7} ${b.y-py*7}`;
+  g.appendChild(el("path",{d:p1,fill:"none",stroke:COL.ink,"stroke-width":3}));
+  g.appendChild(el("path",{d:p2,fill:"none",stroke:COL.ink,"stroke-width":3,"stroke-dasharray":"9 7"}));
+  for(let i=1;i<=3;i++){
+    const t=i/4;
+    const q=quad({x:a.x,y:a.y},{x:mx,y:my},{x:b.x,y:b.y},t);
+    const dir=Math.atan2(b.y-a.y,b.x-a.x);
+    g.appendChild(chevron(q.x,q.y,dir));
+  }
+  return g;
+}
+function quad(a,c,b,t){
+  const u=1-t;
+  return {x:u*u*a.x+2*u*t*c.x+t*t*b.x, y:u*u*a.y+2*u*t*c.y+t*t*b.y};
+}
+function chevron(x,y,dir){
+  const g=el("g",{transform:`translate(${x} ${y}) rotate(${dir*180/Math.PI})`});
+  g.appendChild(el("path",{d:"M -11 -11 L 4 0 L -11 11",fill:"none",stroke:COL.ink,"stroke-width":3.5}));
+  return g;
+}
+function mouthMark(c,ladder){
+  // solid triangle = ladder foot, hollow square = chute mouth
+  return ladder
+    ? el("path",{d:`M ${c.x+30} ${c.y+38} L ${c.x+44} ${c.y+16} L ${c.x+16} ${c.y+16} Z`,fill:COL.ink})
+    : el("rect",{x:c.x+18,y:c.y+18,width:24,height:24,fill:"none",stroke:COL.ink,"stroke-width":4});
+}
+
+/* ---------- dynamic layer ---------- */
+function view(){ // which positions to draw (NOW or a past frame)
+  if(G.scrubAt===null) return {you:G.you,opp:G.opp,trails:G.trails,past:false};
+  const f=G.log[G.scrubAt];
+  return {you:f.you,opp:f.opp,trails:f.trails,past:true};
+}
+function seats(positions){
+  // fan out tokens sharing a square
+  const bag={};
+  positions.forEach(p=>{bag[p.pos]=(bag[p.pos]||0)+1;});
+  const used={};
+  return positions.map(p=>{
+    const n=bag[p.pos], k=(used[p.pos]=(used[p.pos]||0));
+    used[p.pos]++;
+    const c=center(p.pos);
+    if(n===1) return {...c};
+    const ang=(-Math.PI/2)+(k/n)*Math.PI*2, r=n===2?20:24;
+    return {x:c.x+Math.cos(ang)*r, y:c.y+Math.sin(ang)*r};
+  });
+}
+
+function drawDyn(){
+  const g=el("g");
+  const v=view();
+  const anim=G.anim;
+
+  const youPts=seats(v.you.map((t,i)=>({pos:animPos("you",i,t.pos)})));
+  const oppPts=seats(v.opp.map((t,i)=>({pos:animPos("opp",i,t.pos)})));
+  if(anim){ const P=anim.side==="you"?youPts:oppPts; P[anim.i]={x:anim.x,y:anim.y}; }
+
+  // trails (history scrub)
+  if(v.past||G.map){
+    for(let i=0;i<3;i++){
+      const pts=v.trails[i].filter(p=>p>0).map(p=>center(p));
+      if(pts.length>1){
+        g.appendChild(el("polyline",{points:pts.map(p=>`${p.x},${p.y}`).join(" "),
+          fill:"none",stroke:COL[KEYS[i]],"stroke-width":3,"stroke-dasharray":"6 8"}));
+      }
+    }
+  }
+
+  if(!v.past){
+    if(G.map) g.appendChild(formationLayer(youPts));
+    g.appendChild(ghostLayer());
+  }
+  if(G.consequence) g.appendChild(consequenceLayer());
+  if(G.lastChoice) g.appendChild(abandonLayer());
+
+  // opponent tokens — squares
+  oppPts.forEach((p,i)=>{
+    if(v.opp[i].home) return;
+    g.appendChild(el("rect",{x:p.x-17,y:p.y-17,width:34,height:34,
+      fill:COL.amber,stroke:COL.ink,"stroke-width":3}));
+  });
+  // your tokens — discs
+  youPts.forEach((p,i)=>{
+    if(v.you[i].home) return;
+    const on=G.picked!==null && eligible(G.picked).includes(i);
+    const hov=G.hoverToken===i;
+    const gg=el("g");
+    if(on) gg.appendChild(el("circle",{cx:p.x,cy:p.y,r:hov?44:36,fill:"none",
+      stroke:COL.ink,"stroke-width":hov?6:3,"stroke-dasharray":hov?"none":"7 7"}));
+    gg.appendChild(el("circle",{cx:p.x,cy:p.y,r:25,fill:COL[KEYS[i]],stroke:COL.ink,"stroke-width":3.5}));
+    const t=txt(p.x,p.y+1,NAMES[i][0],{size:26,weight:700,fill:COL.ink,anchor:"middle"});
+    gg.appendChild(t);
+    gg.dataset&&(gg.dataset.token=i);
+    g.appendChild(gg);
+  });
+
+  // home rack
+  g.appendChild(homeRack(v));
+  if(G.map) g.appendChild(ribbonLayer(v));
+  return g;
+}
+function animPos(side,i,fallback){
+  return (G.anim&&G.anim.side===side&&G.anim.i===i)?G.anim.n:fallback;
+}
+function homeRack(v){
+  const g=el("g");
+  let x=24;
+  v.you.forEach((t,i)=>{ if(t.home){
+    g.appendChild(el("circle",{cx:x+18,cy:GRID+59,r:20,fill:COL[KEYS[i]],stroke:COL.ink,"stroke-width":3.5}));
+    g.appendChild(txt(x+18,GRID+60,NAMES[i][0],{size:22,weight:700,anchor:"middle"}));
+    x+=54;
+  }});
+  v.opp.forEach(t=>{ if(t.home){
+    g.appendChild(el("rect",{x:x,y:GRID+41,width:36,height:36,fill:COL.amber,stroke:COL.ink,"stroke-width":3}));
+    x+=48;
+  }});
+  return g;
+}
+
+/* ---------- ghosts: the possibility space ---------- */
+function ghostLayer(){
+  const g=el("g");
+  if(G.phase!=="assign"&&G.phase!=="opp") return g;
+
+  const showAll=G.think;
+  for(let d=0;d<2;d++){
+    const die=G.dice[d]; if(!die||die.dead) continue;
+    if(die.to!==null){
+      const pv=previewFor(d,die.to);
+      if(pv) g.appendChild(ghostPath(die.to,d,pv,"committed"));
+      continue;
+    }
+    const active = G.picked===d || G.dragDie===d;
+    if(!active && !showAll) continue;
+    for(const i of eligible(d)){
+      const pv=previewFor(d,i); if(!pv) continue;
+      const kind = (G.hoverToken===i && active) ? "focus" : (showAll&&!active ? "faint" : "open");
+      g.appendChild(ghostPath(i,d,pv,kind));
+    }
+  }
+  return g;
+}
+
+function ghostPath(tokenIdx,dieIdx,pv,kind){
+  const g=el("g");
+  const c=COL[KEYS[tokenIdx]];
+  const a=center(pv.from), b=center(pv.land);
+  const w = kind==="committed"?7 : kind==="focus"?6 : kind==="faint"?2 : 4;
+  const dash = kind==="committed"?"none" : kind==="faint"?"3 12":"10 8";
+  const lift = 34;
+  const mx=(a.x+b.x)/2, my=(a.y+b.y)/2-lift;
+  g.appendChild(el("path",{d:`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`,
+    fill:"none",stroke:c,"stroke-width":w,"stroke-dasharray":dash,"stroke-linecap":"square"}));
+  // landing ring
+  g.appendChild(el("circle",{cx:b.x,cy:b.y,r:26,fill:"none",stroke:c,
+    "stroke-width":kind==="faint"?2:4,"stroke-dasharray":kind==="committed"?"none":"9 7"}));
+  if(pv.home) g.appendChild(el("circle",{cx:b.x,cy:b.y,r:36,fill:"none",stroke:COL.ink,"stroke-width":4}));
+
+  if(kind!=="faint"){
+    const q=quad(a,{x:mx,y:my},b,.5);
+    g.appendChild(chip(q.x,q.y,"+"+G.dice[dieIdx].v,c));
+  }
+  // continuation through a chute or ladder
+  if(pv.rest!==pv.land){
+    const r=center(pv.rest);
+    g.appendChild(el("line",{x1:b.x,y1:b.y,x2:r.x,y2:r.y,stroke:c,
+      "stroke-width":kind==="faint"?2:4,"stroke-dasharray":"14 9"}));
+    g.appendChild(el("circle",{cx:r.x,cy:r.y,r:20,fill:"none",stroke:c,"stroke-width":4}));
+    const dir=Math.atan2(r.y-b.y,r.x-b.x);
+    const hx=b.x+(r.x-b.x)*.62, hy=b.y+(r.y-b.y)*.62;
+    const head=el("g",{transform:`translate(${hx} ${hy}) rotate(${dir*180/Math.PI})`});
+    head.appendChild(el("path",{d:"M -14 -13 L 8 0 L -14 13 Z",fill:c,stroke:COL.ink,"stroke-width":2}));
+    g.appendChild(head);
+    if(kind!=="faint"){
+      const mid={x:(b.x+r.x)/2,y:(b.y+r.y)/2};
+      g.appendChild(chip(mid.x,mid.y+34,pv.ladder?"LADDER":"CHUTE",c));
+    }
+  }
+  if(pv.home&&kind!=="faint") g.appendChild(chip(b.x,b.y+52,"HOME",c));
+  return g;
+}
+function chip(x,y,label,c){
+  const g=el("g");
+  const w=label.length*15+16, h=30;
+  g.appendChild(el("rect",{x:x-w/2,y:y-h/2,width:w,height:h,fill:COL.paper,stroke:c,"stroke-width":3}));
+  g.appendChild(txt(x,y+1,label,{size:20,weight:700,anchor:"middle",fill:COL.ink}));
+  return g;
+}
+
+/* ---------- consequence lens ---------- */
+function consequenceLayer(){
+  const g=el("g");
+  const n=G.consequence;
+  const c=center(n);
+  g.appendChild(el("rect",{x:c.x-S/2,y:c.y-S/2,width:S,height:S,fill:"none",stroke:COL.ink,"stroke-width":7}));
+  const chain=[];
+  let cur=n, guard=0;
+  while(JUMPS[cur]!==undefined&&guard++<4){ chain.push([cur,JUMPS[cur]]); cur=JUMPS[cur]; }
+  chain.forEach(([from,to])=>{
+    const A=center(from),B=center(to);
+    g.appendChild(el("line",{x1:A.x,y1:A.y,x2:B.x,y2:B.y,stroke:COL.ink,"stroke-width":6,"stroke-dasharray":"16 10"}));
+    g.appendChild(el("circle",{cx:B.x,cy:B.y,r:30,fill:"none",stroke:COL.ink,"stroke-width":6}));
+  });
+  // hazards within reach of one die from here
+  for(let v=1;v<=6;v++){
+    const t=cur+v; if(t>100) break;
+    if(JUMPS[t]!==undefined){
+      const T=center(t);
+      g.appendChild(el("rect",{x:T.x-S/2+6,y:T.y-S/2+6,width:S-12,height:S-12,
+        fill:"none",stroke:COL.ink,"stroke-width":3,"stroke-dasharray":"8 8"}));
+      g.appendChild(chip(T.x,T.y-S/2-4,(isLadder(t)?"+":"−")+v,COL.ink));
+    }
+  }
+  return g;
+}
+function abandonLayer(){
+  const g=el("g");
+  G.lastChoice.forEach(alt=>{
+    const a=center(alt.from),b=center(alt.land);
+    const mx=(a.x+b.x)/2,my=(a.y+b.y)/2-34;
+    g.appendChild(el("path",{d:`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`,
+      fill:"none",stroke:COL[KEYS[alt.token]],"stroke-width":3,"stroke-dasharray":"2 14"}));
+    g.appendChild(el("circle",{cx:b.x,cy:b.y,r:22,fill:"none",stroke:COL[KEYS[alt.token]],
+      "stroke-width":3,"stroke-dasharray":"2 12"}));
+  });
+  return g;
+}
+
+/* ---------- map lens ---------- */
+function formationLayer(pts){
+  const g=el("g");
+  const live=[0,1,2].filter(i=>!G.you[i].home);
+  if(live.length>=2){
+    const p=live.map(i=>pts[i]);
+    g.appendChild(el("polygon",{points:p.map(q=>`${q.x},${q.y}`).join(" "),
+      fill:"none",stroke:COL.ink,"stroke-width":3,"stroke-dasharray":"12 10"}));
+  }
+  return g;
+}
+function formationName(){
+  const live=[0,1,2].filter(i=>!G.you[i].home).map(i=>G.you[i].pos);
+  if(live.length<2) return "SINGLE";
+  const s=[...live].sort((a,b)=>a-b);
+  const spread=s[s.length-1]-s[0];
+  const gapTop=s[s.length-1]-s[s.length-2];
+  if(spread<=12) return "PACK";
+  if(gapTop>=28) return "SPEAR";
+  if(s[0]<=20&&spread>=40) return "SACRIFICE";
+  const hasGate=s.some(p=>[...Array(9).keys()].some(k=>isLadder(p+k+1)));
+  if(hasGate) return "GATE";
+  return "STRUNG";
+}
+function ribbonLayer(v){
+  const g=el("g");
+  const y=GRID+60;
+  g.appendChild(el("line",{x1:60,y1:y,x2:940,y2:y,stroke:COL.ink,"stroke-width":3}));
+  for(const k in JUMPS){
+    const x=ribbonX(+k), up=isLadder(+k);
+    g.appendChild(el("line",{x1:x,y1:y,x2:ribbonX(JUMPS[k]),y2:y+(up?-26:26),
+      stroke:COL.ink,"stroke-width":up?3:2,"stroke-dasharray":up?"none":"6 5"}));
+  }
+  v.you.forEach((t,i)=>{
+    if(t.home) return;
+    g.appendChild(el("circle",{cx:ribbonX(t.pos),cy:y,r:13,fill:COL[KEYS[i]],stroke:COL.ink,"stroke-width":3}));
+  });
+  v.opp.forEach(t=>{ if(t.home) return;
+    g.appendChild(el("rect",{x:ribbonX(t.pos)-9,y:y-9,width:18,height:18,fill:COL.amber,stroke:COL.ink,"stroke-width":2.5}));
+  });
+  g.appendChild(txt(60,GRID+22,"FORMATION "+formationName(),{size:26,weight:700}));
+  return g;
+}
+
+/* ---------- render ---------- */
+function render(){
+  if(!LAYER_STATIC){ LAYER_STATIC=buildStatic(); svg.appendChild(LAYER_STATIC); }
+  svg.querySelectorAll(".cellnum").forEach(t=>t.style.display=G.map?"none":"");
+  if(LAYER_DYN) LAYER_DYN.remove();
+  LAYER_DYN=drawDyn(); svg.appendChild(LAYER_DYN);
+  renderHead(); renderTray(); renderBar(); renderReadout(); renderScrub();
+}
+
+function renderHead(){
+  const box=document.getElementById("homecount");
+  box.innerHTML="";
+  for(let i=0;i<3;i++){
+    const s=document.createElement("span");
+    s.className="pip"+(G.you[i].home?" on":"");
+    s.style.borderColor=COL[KEYS[i]];
+    if(G.you[i].home) s.style.background=COL[KEYS[i]];
+    box.appendChild(s);
+  }
+  document.getElementById("btnThink").setAttribute("aria-pressed",G.think?"true":"false");
+  document.getElementById("btnMap").setAttribute("aria-pressed",G.map?"true":"false");
+}
+
+const tray=document.getElementById("tray");
+function renderTray(){
+  tray.innerHTML="";
+  if(G.phase==="roll"){
+    for(let i=0;i<2;i++){
+      const d=document.createElement("div");
+      d.className="die blank"; d.textContent="ROLL";
+      d.addEventListener("pointerdown",e=>{e.preventDefault();roll();});
+      tray.appendChild(d);
+    }
+    return;
+  }
+  if(G.phase==="opp"||G.phase==="resolving"){
+    const h=document.createElement("div");
+    h.id="trayhint";
+    h.textContent = G.phase==="opp" ? "AMBER IS CHOOSING" : "RESOLVING";
+    tray.appendChild(h);
+    if(G.phase==="opp"&&G.dice[0]) G.dice.forEach(dd=>{
+      const d=document.createElement("div"); d.className="die"; d.textContent=dd.v;
+      tray.appendChild(d);
+    });
+    return;
+  }
+  G.dice.forEach((die,i)=>{
+    const d=document.createElement("div");
+    d.className="die"+(die.dead?" dead":"")+(die.to!==null?" assigned":"")+(G.picked===i?" picked":"");
+    if(die.to!==null) d.style.borderColor=COL[KEYS[die.to]];
+    d.innerHTML="";
+    const n=document.createElement("span"); n.textContent=die.dead?"—":die.v; d.appendChild(n);
+    const tag=document.createElement("span"); tag.className="tag";
+    tag.textContent=die.dead?"NO MOVE":(die.to!==null?NAMES[die.to]:"");
+    d.appendChild(tag);
+    d.dataset.die=i;
+    if(!die.dead) attachDrag(d,i);
+    tray.appendChild(d);
+  });
+}
+
+const bar=document.getElementById("bar");
+function renderBar(){
+  bar.className=""; bar.disabled=true;
+  if(G.phase==="roll"){ bar.textContent="TAP A DIE TO ROLL"; return; }
+  if(G.phase==="resolving"){ bar.textContent="—"; return; }
+  if(G.phase==="opp"){ bar.textContent="OPPONENT TURN"; return; }
+  if(G.scrubAt!==null){ bar.textContent="RELEASE HISTORY TO PLAY"; return; }
+  if(readyToCommit()){ bar.textContent="COMMIT"; bar.className="go"; bar.disabled=false; return; }
+  const open=G.dice.map((d,i)=>({d,i})).filter(x=>x.d.to===null&&!x.d.dead);
+  bar.textContent = open.length===2 ? "DRAG A DIE ONTO A TOKEN" : "PLACE THE "+open[0].d.v;
+}
+
+function renderReadout(){
+  const r=document.getElementById("readout");
+  if(G.consequence!==null){
+    const n=G.consequence; let cur=n, parts=[String(n)];
+    let guard=0;
+    while(JUMPS[cur]!==undefined&&guard++<4){ parts.push((isLadder(cur)?"↑ ":"↓ ")+JUMPS[cur]); cur=JUMPS[cur]; }
+    const ahead=[];
+    for(let v=1;v<=6;v++){const t=cur+v; if(t<=100&&JUMPS[t]!==undefined) ahead.push("+"+v+"→"+t+(isLadder(t)?"↑":"↓"));}
+    r.innerHTML="<b>CONSEQUENCE</b><span class='sep'>│</span>"+parts.join(" ")+
+      (ahead.length?"<span class='sep'>│</span>AHEAD "+ahead.join("  "):"");
+    return;
+  }
+  if(G.scrubAt!==null){
+    const f=G.log[G.scrubAt];
+    r.innerHTML="<b>HISTORY</b><span class='sep'>│</span>"+f.label+
+      "<span class='sep'>│</span>"+f.you.map((t,i)=>NAMES[i][0]+" "+(t.home?"HOME":t.pos)).join("  ");
+    return;
+  }
+  if(G.think){ r.innerHTML="<b>THINK</b><span class='sep'>│</span>ALL POSSIBLE ASSIGNMENTS SHOWN — NOTHING COMMITS"; return; }
+  if(G.map){ r.innerHTML="<b>MAP</b><span class='sep'>│</span>FORMATION "+formationName()+
+    "<span class='sep'>│</span>"+G.you.map((t,i)=>NAMES[i][0]+" "+(t.home?"HOME":t.pos)).join("  "); return; }
+  r.innerHTML="TURN "+G.turnNo+"<span class='sep'>│</span>"+
+    G.you.map((t,i)=>NAMES[i][0]+" "+(t.home?"HOME":t.pos)).join("  ")+
+    "<span class='sep'>│</span>AMBER "+G.opp.map(t=>t.home?"H":t.pos).join(" ");
+}
+
+const scrub=document.getElementById("scrub"), track=document.getElementById("track");
+function renderScrub(){
+  const head=track.querySelector(".head");
+  track.querySelectorAll(".tick").forEach(t=>t.remove());
+  const n=G.log.length;
+  const w=track.clientWidth||1;
+  for(let i=0;i<n;i++){
+    const t=document.createElement("div"); t.className="tick";
+    t.style.left=(i/(Math.max(1,n-1)))*(w-2)+"px"; track.appendChild(t);
+  }
+  const idx=G.scrubAt===null?n-1:G.scrubAt;
+  head.style.left=Math.max(0,(idx/Math.max(1,n-1))*(w-10))+"px";
+  scrub.classList.toggle("past",G.scrubAt!==null);
+}
+
+/* ============================================================
+   INPUT
+   ============================================================ */
+function svgPoint(clientX,clientY){
+  const ctm=svg.getScreenCTM(); if(!ctm) return {x:0,y:0};
+  const inv=ctm.inverse();
+  const p=new DOMPoint(clientX,clientY).matrixTransform(inv);
+  return {x:p.x,y:p.y};
+}
+function screenOf(x,y){
+  const ctm=svg.getScreenCTM();
+  const p=new DOMPoint(x,y).matrixTransform(ctm);
+  return {x:p.x,y:p.y};
+}
+function tokenScreenPts(){
+  const pts=seats(G.you.map((t,i)=>({pos:startPosDisplay(i)})));
+  return pts.map((p,i)=>({i,...screenOf(p.x,p.y),home:G.you[i].home}));
+}
+function startPosDisplay(i){
+  // if the other die already sits on this token, its ghost end is the pick-up point
+  const other=G.dice.find(d=>d&&d.to===i);
+  return G.you[i].pos;
+}
+function nearestToken(cx,cy,allowed){
+  let best=null,bd=1e9;
+  tokenScreenPts().forEach(p=>{
+    if(p.home) return;
+    if(allowed&&!allowed.includes(p.i)) return;
+    const d=Math.hypot(p.x-cx,p.y-cy);
+    if(d<bd){bd=d;best=p;}
+  });
+  return (best&&bd<Math.max(46,window.innerWidth*0.14))?best.i:null;
+}
+
+function attachDrag(node,idx){
+  let sx=0,sy=0,moved=false,ghost=null;
+  node.addEventListener("pointerdown",e=>{
+    if(G.phase!=="assign"||G.scrubAt!==null) return;
+    e.preventDefault(); node.setPointerCapture(e.pointerId);
+    sx=e.clientX; sy=e.clientY; moved=false;
+    if(G.dice[idx].to!==null){ G.dice[idx].to=null; markDead(); }
+    G.picked=idx; G.dragDie=idx; G.hoverToken=null;
+    const r=node.getBoundingClientRect();
+    ghost=node.cloneNode(true); ghost.className="die dragging";
+    ghost.style.width=r.width+"px"; ghost.style.height=r.height+"px";
+    ghost.style.left=r.left+"px"; ghost.style.top=r.top+"px";
+    document.body.appendChild(ghost);
+    node.classList.add("hidden");
+    render();
+  });
+  node.addEventListener("pointermove",e=>{
+    if(G.dragDie!==idx||!ghost) return;
+    const dx=e.clientX-sx, dy=e.clientY-sy;
+    if(Math.hypot(dx,dy)>6) moved=true;
+    ghost.style.transform=`translate(${dx}px,${dy}px)`;
+    const t=nearestToken(e.clientX,e.clientY,eligible(idx));
+    if(t!==G.hoverToken){ G.hoverToken=t; render(); }
+  });
+  const up=e=>{
+    if(G.dragDie!==idx) return;
+    if(ghost){ghost.remove();ghost=null;}
+    node.classList.remove("hidden");
+    const t=moved?nearestToken(e.clientX,e.clientY,eligible(idx)):null;
+    G.dragDie=null; G.hoverToken=null;
+    if(t!==null){ place(idx,t); G.picked=null; }
+    else if(!moved){
+      // tap: unassign if assigned, otherwise keep picked for tap-to-token
+      if(G.dice[idx].to!==null){ G.dice[idx].to=null; markDead(); G.picked=idx; }
+    } else { G.picked=null; }
+    render();
+  };
+  node.addEventListener("pointerup",up);
+  node.addEventListener("pointercancel",up);
+}
+
+function place(dieIdx,tokenIdx){
+  if(!eligible(dieIdx).includes(tokenIdx)) return;
+  G.dice[dieIdx].to=tokenIdx;
+  markDead();
+}
+
+/* board gestures: tap-to-assign, long-press THINK / CONSEQUENCE, pinch MAP */
+let press=null, pinch=null;
+svg.addEventListener("pointerdown",e=>{
+  if(e.isPrimary===false){ return; }
+  const p=svgPoint(e.clientX,e.clientY);
+  press={x:e.clientX,y:e.clientY,moved:false,cell:cellAt(p),
+    timer:setTimeout(()=>{
+      if(!press||press.moved) return;
+      const hot=activeGhostCells().concat(G.you.filter(t=>!t.home).map(t=>t.pos));
+      if(press.cell&&(hot.includes(press.cell)||JUMPS[press.cell]!==undefined)) G.consequence=press.cell;
+      else G.think=true;
+      if(navigator.vibrate) navigator.vibrate(8);
+      render();
+    },420)};
+});
+svg.addEventListener("pointermove",e=>{
+  if(press&&Math.hypot(e.clientX-press.x,e.clientY-press.y)>10) press.moved=true;
+});
+function endPress(e){
+  if(!press) return;
+  clearTimeout(press.timer);
+  const wasHold=G.consequence!==null||G.think;
+  if(!press.moved&&!wasHold&&G.picked!==null&&G.phase==="assign"){
+    const t=nearestToken(e.clientX,e.clientY,eligible(G.picked));
+    if(t!==null){ place(G.picked,t); G.picked=null; }
+  }
+  G.consequence=null;
+  press=null;
+  render();
+}
+svg.addEventListener("pointerup",endPress);
+svg.addEventListener("pointercancel",endPress);
+function cellAt(p){
+  if(p.x<0||p.x>GRID||p.y<0||p.y>GRID) return null;
+  const col=Math.floor(p.x/S), rowFromTop=Math.floor(p.y/S), row=9-rowFromTop;
+  const c=(row%2===1)?9-col:col;
+  return row*10+c+1;
+}
+function activeGhostCells(){
+  const out=[];
+  G.dice.forEach((d,i)=>{ if(!d||d.dead) return;
+    const targets = d.to!==null?[d.to]:eligible(i);
+    targets.forEach(t=>{const pv=previewFor(i,t); if(pv){out.push(pv.land);out.push(pv.rest);}});
+  });
+  return out;
+}
+// pinch → MAP
+const stage=document.getElementById("stage");
+const active=new Map();
+stage.addEventListener("pointerdown",e=>active.set(e.pointerId,{x:e.clientX,y:e.clientY}));
+stage.addEventListener("pointermove",e=>{
+  if(!active.has(e.pointerId)) return;
+  active.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(active.size===2){
+    const [a,b]=[...active.values()];
+    const d=Math.hypot(a.x-b.x,a.y-b.y);
+    if(pinch===null) pinch=d;
+    else{
+      if(d/pinch>1.25&&!G.map){G.map=true;pinch=d;render();}
+      if(d/pinch<0.8&&G.map){G.map=false;pinch=d;render();}
+    }
+  }
+});
+["pointerup","pointercancel","pointerleave"].forEach(t=>stage.addEventListener(t,e=>{
+  active.delete(e.pointerId); if(active.size<2) pinch=null;
+}));
+
+// THINK release
+addEventListener("pointerup",()=>{ if(G.think&&press===null&&!thinkLatched){G.think=false;render();} });
+let thinkLatched=false;
+document.getElementById("btnThink").addEventListener("click",()=>{
+  thinkLatched=!thinkLatched; G.think=thinkLatched; render();
+});
+document.getElementById("btnMap").addEventListener("click",()=>{ G.map=!G.map; render(); });
+
+// history scrub
+let scrubbing=false;
+function scrubTo(clientX){
+  const r=track.getBoundingClientRect();
+  const t=Math.min(1,Math.max(0,(clientX-r.left)/r.width));
+  const idx=Math.round(t*(G.log.length-1));
+  G.scrubAt = idx>=G.log.length-1 ? null : idx;
+  render();
+}
+track.addEventListener("pointerdown",e=>{scrubbing=true;track.setPointerCapture(e.pointerId);scrubTo(e.clientX);});
+track.addEventListener("pointermove",e=>{if(scrubbing)scrubTo(e.clientX);});
+["pointerup","pointercancel"].forEach(t=>track.addEventListener(t,()=>{scrubbing=false;}));
+
+bar.addEventListener("click",()=>{ if(readyToCommit()) commit(); });
+document.getElementById("again").addEventListener("click",()=>{
+  document.getElementById("end").classList.remove("show"); newGame(); render();
+});
+addEventListener("resize",()=>render());
+
+/* ============================================================
+   TURN CYCLE
+   ============================================================ */
+function d6(){return 1+Math.floor(Math.random()*6);}
+
+function roll(){
+  if(G.phase!=="roll") return;
+  G.turnNo++;
+  G.lastChoice=null;
+  G.dice=[{v:d6(),to:null,dead:false},{v:d6(),to:null,dead:false}];
+  G.phase="assign";
+  markDead();
+  render();
+}
+
+async function commit(){
+  G.phase="resolving";
+  const plan=G.dice.map((d,i)=>({i,d})).filter(x=>x.d.to!==null);
+  // record the roads not taken, for chosen-risk feedback
+  const alternatives=[];
+  plan.forEach(({i,d})=>{
+    eligible(i).forEach(t=>{ if(t!==d.to){const pv=previewFor(i,t); if(pv) alternatives.push({token:t,from:pv.from,land:pv.land,chute:pv.chute});}});
+  });
+  render();
+
+  let tookChute=false;
+  for(const {i,d} of plan){
+    const t=d.to;
+    const from=G.you[t].pos;
+    const land=destOf(from,d.v);
+    if(land===null) continue;
+    await walk("you",t,from,land);
+    G.you[t].pos=land;
+    G.trails[t].push(land);
+    render();
+    if(JUMPS[land]!==undefined){
+      await sleep(180);
+      const to=JUMPS[land];
+      if(isChute(land)) tookChute=true;
+      await glide("you",t,land,to);
+      G.you[t].pos=to; G.trails[t].push(to);
+      render();
+    }
+    if(G.you[t].pos===100){ G.you[t].home=true; render(); await sleep(160); }
+  }
+  // chosen risk: you had another road
+  if(tookChute&&alternatives.some(a=>!a.chute)) {
+    G.lastChoice=alternatives.filter(a=>!a.chute).slice(0,3);
+    render(); await sleep(1100); G.lastChoice=null; render();
+  }
+  snapshot("TURN "+G.turnNo+" YOU");
+  G.dice=[null,null];
+  if(G.you.every(t=>t.home)) return finish(true);
+  G.phase="opp"; render(); await sleep(420);
+  await opponentTurn();
+}
+
+async function walk(side,i,from,to){
+  for(let n=from+1;n<=to;n++){
+    const c=center(n);
+    G.anim={side,i,n,x:c.x,y:c.y};
+    render();
+    await sleep(Math.max(38,150-(to-from)*10));
+  }
+  G.anim=null;
+}
+async function glide(side,i,from,to){
+  const a=center(from), b=center(to);
+  const up=to>from;
+  const px=-(b.y-a.y), py=(b.x-a.x);
+  const L=Math.hypot(px,py)||1;
+  const cx=(a.x+b.x)/2+(up?0:px/L*70), cy=(a.y+b.y)/2+(up?0:py/L*70);
+  const steps=REDUCED?2:16;
+  for(let s=1;s<=steps;s++){
+    const q=quad(a,{x:cx,y:cy},b,s/steps);
+    G.anim={side,i,n:to,x:q.x,y:q.y};
+    render(); await sleep(28);
+  }
+  G.anim=null;
+}
+
+/* ---------- opponent ---------- */
+async function opponentTurn(){
+  const dice=[d6(),d6()];
+  const live=[0,1,2].filter(i=>!G.opp[i].home);
+  if(live.length===0) return finish(false);
+  let best=null;
+  const solo=live.length<=1;
+  for(const a of live) for(const b of live){
+    if(a===b&&!solo) continue;
+    let sim=G.opp.map(t=>t.pos);
+    let ok=true, score=0;
+    [[dice[0],a],[dice[1],b]].forEach(([v,t])=>{
+      const land=sim[t]+v;
+      if(land>100){ score-=4; return; }
+      const rest=resolve(land);
+      score+=(rest-sim[t]);
+      if(isChute(land)) score-=14;
+      if(rest===100) score+=40;
+      sim[t]=rest;
+    });
+    if(ok&&(best===null||score>best.score)) best={a,b,score};
+  }
+  const pairs=[[dice[0],best.a],[dice[1],best.b]];
+  for(const [v,t] of pairs){
+    if(G.opp[t].home) continue;
+    const from=G.opp[t].pos, land=from+v;
+    if(land>100) continue;
+    await walk("opp",t,from,land);
+    G.opp[t].pos=land; render();
+    if(JUMPS[land]!==undefined){
+      await sleep(140);
+      await glide("opp",t,land,JUMPS[land]);
+      G.opp[t].pos=JUMPS[land]; render();
+    }
+    if(G.opp[t].pos===100){ G.opp[t].home=true; render(); await sleep(140); }
+  }
+  snapshot("TURN "+G.turnNo+" AMBER");
+  if(G.opp.every(t=>t.home)) return finish(false);
+  G.phase="roll"; render();
+}
+
+function finish(youWin){
+  G.phase="over"; render();
+  document.getElementById("endTitle").textContent = youWin?"ALL THREE HOME":"AMBER GOT ALL THREE HOME";
+  document.getElementById("endBody").innerHTML =
+    "TURNS "+G.turnNo+"<br>FINAL FORMATION "+formationName()+
+    "<br>"+(youWin?"YOU AUTHORED EVERY RISK.":"THE NUMBERS WERE THE SAME. THE ASSIGNMENTS WERE NOT.");
+  document.getElementById("end").classList.add("show");
+}
+
+/* ---------- go ---------- */
+newGame();
+render();
+requestAnimationFrame(()=>render());
+</script>
+</body>
+</html>

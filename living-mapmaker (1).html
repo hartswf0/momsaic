@@ -1,0 +1,2999 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#efeadd">
+<meta name="description" content="Common Ground: a living map woven by the people who move through a place.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Common Ground · Living Mapmaker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23efeadd'/%3E%3Cpath d='M4 20c6 0 6-10 12-10s6 10 12 10' fill='none' stroke='%23bf4526' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='15' r='3.2' fill='none' stroke='%231d201d' stroke-width='1.6'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --paper:#efeadd;
+    --paper-lit:#f6f2e8;
+    --ink:#1d201d;
+    --ink-soft:rgba(29,32,29,.55);
+    --signal:#bf4526;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--paper);color:var(--ink)}
+  body{
+    font-family:Georgia,"Times New Roman",serif;
+    overscroll-behavior:none;
+    touch-action:none;
+    -webkit-user-select:none;user-select:none;
+  }
+  #stage{position:fixed;inset:0;touch-action:none}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+
+  .pip{
+    position:absolute;pointer-events:auto;display:grid;place-items:center;
+    background:var(--paper-lit);border-radius:50%;
+    box-shadow:inset 0 0 0 1px rgba(29,32,29,.34),0 1px 2px rgba(29,32,29,.10);
+    transition:transform .16s cubic-bezier(.2,.8,.3,1),opacity .22s ease;
+    cursor:pointer;
+  }
+  .pip svg{display:block;overflow:visible}
+  .pip:active{transform:scale(.94)}
+
+  #thread{
+    width:72px;height:72px;left:50%;transform:translateX(-50%);
+    bottom:calc(22px + env(safe-area-inset-bottom));
+  }
+  #thread:active{transform:translateX(-50%) scale(.94)}
+  #thread.beat{animation:beat 1.5s ease-in-out infinite}
+  #thread.beat:active{animation:none;transform:translateX(-50%) scale(.94)}
+  @keyframes beat{0%,100%{transform:translateX(-50%) scale(1)}45%{transform:translateX(-50%) scale(1.07)}}
+  @media (prefers-reduced-motion:reduce){#thread.beat{animation:none}}
+  #thread .ring{fill:none;stroke:var(--ink);stroke-width:1.4;opacity:.85}
+  #thread.on .ring{stroke:var(--paper-lit);stroke-width:1.8;opacity:.9}
+  #thread .glyph{fill:none;stroke:var(--ink);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+  #thread .knob{fill:var(--ink);stroke:none}
+
+  #people{
+    width:46px;height:46px;right:calc(16px + env(safe-area-inset-right));bottom:calc(35px + env(safe-area-inset-bottom));
+    opacity:0;pointer-events:none;
+  }
+  #people.show{opacity:1;pointer-events:auto}
+  #back{
+    width:46px;height:46px;left:calc(16px + env(safe-area-inset-left));bottom:calc(35px + env(safe-area-inset-bottom));
+    opacity:0;pointer-events:none;
+  }
+  #back.show{opacity:1;pointer-events:auto}
+  #undo{
+    width:46px;height:46px;left:50%;
+    bottom:calc(35px + env(safe-area-inset-bottom));
+    transform:translateX(-96px);opacity:0;pointer-events:none;
+  }
+  #undo.show{opacity:1;pointer-events:auto}
+  #undo:active{transform:translateX(-96px) scale(.94)}
+
+  /* place-anchored word input */
+  #say{
+    position:absolute;display:none;pointer-events:auto;z-index:7;
+    transform:translate(-2px,-50%);
+  }
+  #say input{
+    font:italic 17px/1.2 Georgia,"Times New Roman",serif;
+    max-width:calc(100vw - 96px);
+    color:var(--ink);background:transparent;border:0;border-bottom:1.5px solid var(--ink);
+    outline:none;padding:2px 2px 4px;width:min(58vw,230px);caret-color:var(--signal);
+  }
+  #say input::placeholder{color:rgba(29,32,29,.32);font-style:italic}
+  #say.flip{transform:translate(calc(-100% + 2px),-50%)}
+  #say.flip #mic{right:auto;left:-30px}
+  #mic{
+    display:none;position:absolute;right:-30px;top:-2px;width:24px;height:24px;
+    border-radius:50%;background:var(--paper-lit);box-shadow:0 1px 0 rgba(29,32,29,.3);
+    place-items:center;cursor:pointer
+  }
+  #mic.on{background:var(--signal)}
+  #mic.avail{display:grid}
+
+  /* the ground key (share) */
+  #key{
+    position:fixed;inset:0;z-index:9;display:none;place-items:center;
+    background:rgba(239,234,221,.94);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);
+    pointer-events:auto;
+  }
+  #key.show{display:grid}
+  #keyInner{
+    display:grid;justify-items:center;gap:14px;padding:20px;max-width:92vw;max-height:100dvh;
+    overflow:auto;align-content:center;
+  }
+  #qr{
+    width:min(62vw,52dvh,262px);height:min(62vw,52dvh,262px);
+    position:static;image-rendering:pixelated;flex:0 0 auto;
+  }
+  #keyUrl{
+    font:italic 13px/1.5 Georgia,"Times New Roman",serif;letter-spacing:.01em;
+    color:var(--ink-soft);text-align:center;max-width:30ch;
+    overflow-wrap:anywhere;cursor:pointer;
+  }
+  #keyNote{font:italic 14px/1.4 Georgia,serif;color:var(--ink-soft);text-align:center;max-width:26ch}
+
+  #attrib{
+    position:fixed;left:50%;transform:translateX(-50%);
+    bottom:calc(3px + env(safe-area-inset-bottom));
+    font:9px/1 -apple-system,system-ui,sans-serif;letter-spacing:.06em;
+    color:rgba(29,32,29,.26);pointer-events:none;z-index:6;white-space:nowrap;display:none;
+  }
+  @media (prefers-reduced-motion:reduce){.pip{transition:none}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv"></canvas>
+</div>
+
+<div id="hud">
+  <div id="say"><input id="sayIn" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="…"><div id="mic"><svg width="11" height="14" viewBox="0 0 11 14"><path id="micVoice" d="M5.5 1.2a2 2 0 0 1 2 2v3.4a2 2 0 1 1-4 0V3.2a2 2 0 0 1 2-2Zm-4 5.6a4 4 0 0 0 8 0M5.5 10.8v2" fill="none" stroke="#1d201d" stroke-width="1.3" stroke-linecap="round"/><path id="micDrop" d="M2 3l7 8M9 3l-7 8" fill="none" stroke="#1d201d" stroke-width="1.4" stroke-linecap="round" style="display:none"/></svg></div></div>
+
+  <div class="pip" id="back" role="button" aria-label="Unweave">
+    <svg width="24" height="24" viewBox="0 0 24 24">
+      <path id="backGlyph" d="M17.5 12a5.5 5.5 0 1 1-2.6-4.67" fill="none" stroke="#1d201d" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M15.2 4.4 15.3 7.9 11.9 7.6" fill="none" stroke="#1d201d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
+  <div class="pip" id="undo" role="button" aria-label="Unpick last thread">
+    <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+      <path d="M3.4 16.6c3.4 0 3.4-7.2 6.8-7.2 1.6 0 2.3 1.6 3 3.2" fill="none" stroke="#1d201d" stroke-width="1.7" stroke-linecap="round"/>
+      <path d="M15.8 15.6c.7 1.5 1.4 3 3 3 3.4 0 3.4-7.2 3.8-7.2" fill="none" stroke="#1d201d" stroke-width="1.7" stroke-linecap="round" stroke-dasharray="2.6 3"/>
+      <path d="M11.6 9.6l3.2 7.4M14.8 9.6l-3.2 7.4" fill="none" stroke="#bf4526" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  </div>
+
+  <div class="pip" id="thread" role="button" aria-label="Leave a thread">
+    <svg width="72" height="72" viewBox="0 0 72 72">
+      <circle class="ring" cx="36" cy="36" r="27.5"/>
+      <path class="glyph" id="threadGlyph" d="M21 44c5.5 0 5.5-16 11-16s5.5 16 11 16 5.5-16 8-16"/>
+      <circle class="knob" id="threadKnob" cx="21" cy="44" r="2.6"/>
+    </svg>
+  </div>
+
+  <div class="pip" id="people" role="button" aria-label="Who is on this ground">
+    <svg width="30" height="30" viewBox="0 0 30 30" id="peopleGlyph"></svg>
+  </div>
+</div>
+
+<div id="key"><div id="keyInner">
+  <canvas id="qr"></canvas>
+  <div id="keyUrl"></div>
+  <div id="keyNote"></div>
+</div></div>
+
+<div id="attrib">© OpenStreetMap contributors · ODbL</div>
+
+<script id="ground-data" type="application/json">{"bbox":[-84.55,33.62,-84.2,33.9],"layers":{"boundary":"tk`cOiqzlE`M?o@zq@}k@@NqKiY@kBaSbBiJkHGuD~AvAxAwCjAcAfGgA`l@uAZdB~C}@bDzDHuGxS\\lf@pFAkAgQjy@gAmCfSnAxS`GxHiGcBFbH`B\\aBnNvLKTnWsLJx@loAa}@VBlm@e|@PKbw@hPnHlClMiCRPpEqPp@JpLaXF[zE}Ni@qUtCEsEoy@dKbBojAczAb@Bgp@wa@gAM}`BeZ}ECcImc@NTa_@qaBPg[oImg@tFo@}m@wg@OTv[c_@P@zEuy@UlAvNisA~@V`^fGFNpbAiJDA`OpAzFzOvBRvVaaCd@DrXoO~n@WfZhKxU~NqB`Bl`@ouHtAj~@Ok~@NuD}zEj@qsF}xBvVhKeM`Rcq@|^qYF~Dts@]f@l}@lCKm~CsMtShJzFhI|CvO~B?kh@ysDz_@I`@~OgId]hMFwC|ChBv@oBdE|CCAfk@qSjFo_@fS~QtI_GmmCbC?imEbt@l^uBd@rD~MEcFz@BbBfI_@C_C|KKGoBrRMI{Bh@zBh}@s@GhGqFClEtHnJsC?wLzn@SEgGqNqB_@_XaCrDoOKEgJhb@_DmeEuUQrWyFvMxGK}FhOjBj@sApD~ApLd~CsbDmSkAe@h~@uJ?eCbGhNhMeE?AoC}g@HcCiFkH?GqFqhA`If@lLxhJyfEkHO\\pPaMtDwg@LmE|CrByCi`@}A|AxE}ElBqAkFcJ??~h@nGnDcOBd@vEwBuDIlU{H?CkJ_WFErJoRl@oC|G_L??dGsFm@jmE_oBe@cfCwaA?r@jL[cBaWeC}AeAfGgFuIqKsQgA`DgLiFiBoM`h@yN|@GyQmRbCjErMWpT`D[tBjCzPwHfExBkIQmRxMeDiEuHlF{J`AwEgEhAqCfNlDj@mSlIYiEeWoOtA{FdDeQA?vD{QVhHV@~OqN`BiI}CyOtPdBfHbItFzq@x@pB~GcPbHrPpG`@_C_EgAdHyCl@fHsB|AfCxAfVxGfQp@lVcO_BwEhAeHtJcAzA{Mz^_]mAqEnI|AnA_DlBZAzIlTjZ{D?xAdJ_LdC?fCzLq@dN_ICcGxDAvAjXvDpAy@fC`CBAgCd@fC`F@s@cFtEGOcqA}Bf@|BCuAo`NjmQlQcNRcEkDsFhC}IkEPbJyg@BoDePgFnCh@vKmR@w@mCsGnCeeBX\\kXuJDEcQyNoHaHfDUbX}B`C_F_@?fKyKL@vE}t@?IqC`CTdJgHp@wAqDkAjDeFrYyWqC_BiXdOgTxRLdPqyBnAAoFgHmEmLDqIdPeO~@AgEm[LnCaEeC?AqH{GiHy`@cAj`SneAq\\iY{QqJqCcLp`Hv}Keb@wJ_jA_eAcQkHc`@z@ka@fOgJcGiCyQj_@k~@b@oLiKym@~H_S{@wG_b@sb@?cLbIqMNqGc]of@brGneKu@pA{d@qZhcAdv@w[e]znAhpA_`@gWcQ{Yb`BzoF^ev@mEA{Oc[a]{]nt@^Wsi@cq@a_@vBy@~l@v|DBxOpz@SNh]d~@UIbh@vEJxKjKfHExChEaQvJLvJuLBl@`d@mt@f@_IzBlAbZ{HtEv@xImAz@s@qFW|GoMAM|Em@uNaUNy@lImQdS{CcOm\\gRx@i_@qCoMePt@Xro@wUBpAn`@oApMmGCk@{EmYGNlTbXuG~_@Uh@~d@eDoBmHfChAtBbHwAbBvALrSxf@a@OwBxWOqH{Tyg@bAaAoMve@mBk@qLbVI~EfHpBeByAg@|@wCnV@MkVd@~HnF?EcIfRaAoAwd@`DgARyJf@~Ilo@qKt`@|FyF|^tu@EaiXzqNLql@rN}GiGsHli@]ElGxH@yz@pw@ny@Mh@av@CbDo_Hwbj@","water":"~edaOc~tmE_C_ByNjKxRkH|dffbOc~flEuCvLlBhE{J~DlGrIg@`C}DtHeE`BuFjMqMzHZfEvFbCWjAeKpAwD`GiEBsA|ExCnEc@dF||{pbOyhwmE{F_EmFxHwITmAhDjHbC|J}AaE{DrD_ErCfB~AkA|dh}bOu}emEyBYaDtGpCz@nCkEdI{BkIN|ln|bOubwlEdJVw@uIdCaEqEcGhAyFpFS_BaAdC}EcB}BeLvHSnHgIrBI`C`M{CpAxAgFrS|rluaOykymEjGkFnDh@nAiBsFsCwG~L|n}sbOo~qlEdSiC\\yBiJ{ErA|FmK`F|f_acOu`lmEiD_M{Im@i@hBdDhDhKxE|z~xbOodmlESfCfWzL`Ek@uVuP_E\\|pqwbOk|mmEhIx@~BdDfCgBmNqFgMAbJzB|ff~bOgdplEhJyKuFl@iAeDuGfMjFhA|b|~bOqbtlEdG_AxEuFiJoAiTtIlEzCdJkB|ndzaOivumEcCcAcFbEaOPwA|C{FaBaAbHhKaAdDcDvC`CvNaC~@kG||hebOuxfmEpE\\jK}FvB{DwCwE_FS_DrB~@pCyDbBcA|G|ta`cOwaxlEvDmHtBuPeHj@GvX|flybOodrmEyFJ{EtEuCs@lJlPvHkAeEgHjCgJ|hr_cOofwlE|QaOEwEwHcA{DhA]|BzDdAsGvIPvD|xweaOscwmEHsAePeIOpEzFpFnHi@|njfaOazrmElGq@cA}KjDiFgI_HuCnHjEnLcBxF|`hwaO_zymEJ}BsBcA}IfAuCyAa@pLaVn@lKdH`FcCbDlBjQ}O|rxwbOeygmEjCk@uOyJhKdL|x__cOg_xlEgFzEjHcCnOl@`BoCuBkBqFZmCuDq@bEmCjA||fnbOwtomEkDpDgDe@nBbC_@xDpFbA~CmFpHS|A}D}DsC_JdA|~tlaOidrmEYvApF_ElNqCm@wBlF{Ax@gCsQtBiC`FqHdDnAvA|rsraO{uhmEClCyKdDiB|DfVAwAoB`GAuHiDsAsE|l_tbO{pjlErL}Gz@kGkHzDFlGsDKWjB|xc{bOklrlExIfG~Cc@@}EuGoIcDAaAjI|~tfbOetfmEwA_K}JaCoEjDzDvEcLtD[zGhReA~HmG|~evbOaejmErEnFxBe@uQcT_@zCfH|H|n`~`OakmlEvKoOhAuOkCsDoMoC_BgC\\wCzFsBx@mC{AeIsKaG_A}FgHw@aDge@cPpLdGwQ_OsEeBqDvIeEvAqFwN_IvK_BwF{LoHyCrHjEvDhIIrAiJd@I`BrNvH_MtL|RnI{G~KFxEfCGhLuLfDve@rGh@j@|EfM`IdAxH}H|EBzElKhCzGjG}AjO}EhDkC|I|lnpaO_`}lE|BiBwBh@`@_B`DiAsCoBcGJgAiIkEf@^vWzGAdDeD|voabOmmulEcDMcClCjK~Dq@kE`H{CsIf@|fu~`OugvmEq@yQsFZ~B`NzCUHpB|d}`aOgiplEpCpEbK~@kDfG`EdArCeC~DF{EwGqKeBcDuCmBp@|lpoaOybolErD~DXjJ`JbA_IcC|@gLmHcA|ptjaOmaqlEjEe@iPsHYrBvJdF|`nraOmomlEwM~JF|GzCnBm@yG`JsN|dk}`Oo{fmEpN_@~@_DoPw@iEfDfEnA|hmaaOqlimEj@}@sKcO~@~NzBhBjDg@|rbtaOe{|lEeFWoPcJxB{@zSvL|xb`bOafnnEqd@vPqI|IsDdKbClb@bLfh@tFlGtWtAvJfICjHmIzP`AdPnm@|m@zq@v`@z\\``@vuA`pAlpAhm@df@dM|Oha@ff@tZdGdIt@xRya@ho@nKz_@mMv\\nBpEzJzFvBxFqJlPtCxKFzNbYzOpYlYm@jI`BtEpNvMhHfNP~EqJxQAvH~c@bg@}Hz[j@jNvHxUUnQs`@bbArE~LlIdGpE?bg@gQtYtA~\\rUnY~UnIrLzXzRjh@lKjt@zq@pNzXdn@tf@tiCpkAxj@xeA~q@rXdw@fc@zvBzcBrRfCpLdOlVdf@EpGfLvXzEzA~Q_B|bzibOo{dmEwEZm@rCfIjAjArG|GCdVyGaCaFo_@O|fj_cOcwolEuN`\\wAqL{D|Bb@wCqCaAaWxWmT`AyJqD_CwEiKdFrDoHiAoD_FyBfI_AZmEnHqC`DoKtEnAjBxJ{KjIzAhFxCJlDhGZqD`CNfJ}KqB}G|Eh@xGoOKlHuAYnAvIzCsEdI|AlA}AfD^f@vE~ETvEuHnBC|zo}`OwxwmEtAcFhHzAjDbG~B_BnDnBs@hFqCjAuAqG[fDmFeIuHQ|p_abOa}vmE~I~KlAtLq@gL{JmL|p~taOomqlEoKxAmRcBagA|OyK}CkRyPgGj@yCcCcGdBcbBaFkp@}IgaAxMcG_LwRg@cSkHyIi@yS`XgIfF{Et@{IyEoAfO{LnCyQgAyO`IXrCxIbCjIfMyFjEsA}EsC{@oLlBkArDpElH|ONl@jEeRjBaRbRqErKThGiKHkFgHsI}Bgh@bHyKgK_Fm@eC`Cj@~OkCdB_Qz@iQkGyMhBzAvRuFdG{KpAgGaMo`@|LoBtDj@`GxInQaD`HyFy@iG{J{OeEok@{E_Dj@_@dGhJtLiNhMwCcB}EoO}QeByIxIeLRaA~JeKrJiWiHeEaI_Xd_@~LnKiChJxFjGgSjIat@lGg@gIyE_DuFwMx@sIeKScKiGoCdAgRdi@wM@y_@tM}NaHsP^~AhHrL`HnBnIw@jEmSxG{X}Dg\\j@wD|YsY|GAlHuExD_XxDuBpJ}O~HzHjIiGnOyX~BqLtHgOrT}ChT{KJyNfFcE|KwNbBgH`Hqd@zPyZ`f@aKlAmJpKf@vAjJU`OzD^jFsG~HrItAbXoAbCtDyQv]aS|BaOcDqE|IaJ`GDxLjJaBhRtAnCp@M|Bya@~V{ChHkM~AmInL~@tUbc@b[aFbM|jzkbOa`xmEuA|ErBrExd@zXnKfM|tembOkzzlEiJq@mJxIdKmJwDcBhOhD","motorway":"pgtbOypclEh@iTqB}MiIeLsLaGcMqB}T}@ag@Hsg@lBiLiByG{DiR}YmD}KOyJtF{b@iAsJ{DyHmt@uu@im@qY}r@ak@{`@_Sip@kSeIaGyCoFs]wzAsHmFsg@sJsEmCyBiDw@eFf@aF`NmVaUh[cFzL_@vX{E|k@Rfe@gNnj@wAxMCjNjAbLv`@j~AvC|P{HjuAiHpd@|hauaO}}nlEcHhPmAxH|Arl@cA`JmDxKuG|JujCziCsD`HoCdKaHvt@|jrjaOsp|mEk{Bt}AqKnM}ExN}@rK_@`cAsQfsAk@rRnJfvAvFpRzKhUxBfK`B~]SnPyRt{CgLli@yKps@wCtGiEzEmo@ta@uJhMmF~Py@rnA}JrxApDncAhEpRr^xj@xPl_@z\\|[nj@|v@pLtInKjD`NxAfeBWz[xBxPpD~}Bts@zJ`FpvAj`AzM`HpxFniBlOvMnw@phAd\\n`@lHlEx[zL|]~ZfKnCtKXzh@eJrTgA`Sr@hVnDlZ|I|s@h`@d|@na@|fq{aOel|mExWhj@jCzJC|`CdCpJxNhRjCjH~EhnA{AdKaN|XkGnG{XxOiIrNmAz]zD`h@aAbOsCpOFfH`Rr]fUfSlPbHdu@rTtu@hg@ne@fUxDlGj@tJwAxFoIbNoAjIIuOpAaHpCgDlPsI`JoNzE}DnHyBfh@_Gte@qM~U}KtNeN`JuQlIiVbKkq@`I_^`[a|@`AuKe@eWpEyXj@oThJq^|t@m~@zRi_@nz@c|@tz@aiAjh@m\\|LmK|`goaOuydlEjHgw@jC{JjEiI|kCakC`FoIxEkScBym@lHm^MqK|td{aOmbsmErJbC~ElJtJpKlTrDbH~GxFjLd_@jR}^mSgEkJmIqIqKiAiHwBySkXi[aCsYkHcQmJiXf@gOiDcOoVcKgVy`@wk@oHwFkg@cWyOqPqPkJkUa^yE_Fsk@sa@_c@kb@|zf|aOctkmEcVs_@}IqGcIgBgXyBcMuC_Y_LmU_Ou{Aah@ij@aUqNiC_l@kDqOeFgI{IgPk]eFmH{o@wg@uQa^gLoL}b@g^id@uWsF_FyfAowAedDweB|jjdaOwu|mEtyCd`BnhAlyAnf@lYvm@fh@xW`e@|p@ni@`Vle@fG~FdN|E|n@zDzKxBdk@lU~zAng@rVnO~YpLjObDpa@hEhK~GfIvPqN_a@pCw]uDef@v@q[|B}H~EyG`ZyPzGwHbMcWpAqMaFcmAsCwHyNgR}B_JBaaCqCgKab@k|@mGiY|fp{aOimcmEuBfVeCrFAzB`DaJd@cJdBoFOaDafAGgPsCo[oBwQjFm]a@gSrBaQlG}I|Agk@hAcCgBiF}KwPy@yHmDms@s|@u`ConAe[m]kZ}VwOwIyWcIwc@kFuLmDksG}iCcOcBuzAmAyZvC|xoibOuhelEoz@{`@sn@w]o^aLuWsDyQe@aTlAmf@xI_MQoKkCeGyDeVkUs\\iM{IgGqXm\\gz@ukAoN{LsKuEikFibBsMyGkyAibAiKyE{{Bsr@oQsDm\\oBwdBRaKgAaMyDiLaIgi@yu@e`@w_@oSoc@kYub@oCaHkBaLqDeeAxJixA`@skAlEqP~G_LdM}J~c@{XxJiMfLet@xLuk@vIivAm@i`@tGiZ`AyKQuXyA_TwB{H_NeYmDwO}IutATuNbRguAVm{@x@uSjEqN~JsMbpB}vA|h_acOmfcmE_k@hHqnCte@mUh@_qBeG{VhA_ShF{_@tS}MfE{yAvN}KpEsS~NkNbF}s@tMyICkZ_DyLh@qIdC}QdLiLnEwNjBoXLaNzAat@bYiL`Cq{@jByM[qLyBsg@yQoXsBoWp@kZvHwQx@qtCC{Ny@_b@qGeQqAujAr@wOfDgJfFqt@bv@yApFChFbHdg@y@xHoElI{JtGajAla@kbArAqe@nMaXhB{~@eAwqBmUwb@a@ebGd`@oWpF}z@xY|lcrbOeb}mEuGzN}IhL}HzG{c@fX{GzGke@lr@mnAjqA_R~]yr@d{@mD~HkFxUcAhYyDlS\\pYeAnKyZp{@qJ~b@_Hvf@yKn]sHnOeGpHmKvHyOjHaPbGsThFgn@lHgGdCgD`DuUpd@wGvXoApaAcDv\\l@bYs@bEcEvEmYrNkW|TgGdHcEpKo@|StAlGtC~ErSlPhUjIbMhInKlIrChFt@nHhAr}@zFnXnBvWzBxFzQxXbI|UfLbQfMze@rAh]zCjZy@fGsElI|hh{aOqjbmEIhLdF`Ivq@zT~UxC~c@oA|thdbOavbmE\\aB_@rBcP]wVsFc{AN]aFqHOTrFxHA|ngtbOkadlEu@_N}DcJyH_HsKaEmb@iCo^Fym@pBeJqA_IaEiSkZqDuKUgLhFic@iAaJkEiImq@{r@qIwFa[kMwKmGy^a\\{PuLu^sQcv@wV}E_FgCwFsYwrAmBmE_JiFqj@_K}EgC{BuCiAmG|@wF|Ua\\dCaHyCs]o@wV}AsKuJo]gMyRcJoWeT_^yB}X{F{WaAyr@yBgU_EoGuOwKmGsDyRyGwRmOkEcHaBqJv@eTfDkJhc@{^~TaLpF}I\\{]zCs[CwgA|`ccbO{eelEzC}Q|BkY|Dk`A_A}Imb@cgBoAuZ`B_P|Mwi@Sad@|Emm@j@gYrC{HjZ{b@~B{F|nolbOab|mErn@jf@jj@tUxj@lZrOhLlGpId}AdfFf@dPqGj`AlAzNjHlN|a@f`@lUfe@j@rLoBxJat@~gA_D~KU|JjApIdD|Hfe@|m@fFxNXvw@yMlq@_AdPRhOtBlNzWn_AjUjkA|BxTdAv[@jd@eAzNgC`KqRzd@qDlWl@rUdL`l@R`b@e@ln@iLn|Aa@bsBaApNyCnOsInT_T|[}G|OoC`NuFvr@sArEoFpFmFhBuGh@iq@eGaa@Fkc@bCkN?|~zbbOkttlEhYf@x_@nGb\\Ufc@eFdWElZfAlXaC`_@IbXsH|Is@zIv@tO`FdMzA|t@_HlOtAhSpGfI~@l\\}Cfl@dAnb@MdOpDhv@pg@bLbAzgAP}kATiHiAoGwCwn@kc@cNaD{pAy@}TzCoH@_\\{I_MiAkv@|GgMcBoQqFuF]qIh@eOfFaIjAeb@XuT|Bq[mAwXH}[pEqKZ_UC_^}FeRc@|b{~aOgv`mEqi@m@iFs@az@wX_FgIJmLc]kBkUoF_F?|@~o@Odi@Bej@|l`|`OqbvlEtbAk\\dSiDhcGq`@d^b@prBnUr}@jAdX_Bjh@aNrw@[rHs@piAka@tI}FfEcIt@_HaHmg@rAuMpFqHjo@{n@`KeFvMuCplAw@fPjAva@pGxRdArvCJnKm@vXaI`Ws@x[zBdh@|Q|KlB|L\\j{@eB~JkB|t@qYnNaBbZStLaBxK}D~R}LnIeCpNg@hY|CrIBfq@_MpM{DjWkQ~KgEtkAkLf`A{]fNgD~WuAbmBtFlWWfQkBjbCwc@lf@gG|hvwaOusnlE`CmX`O}Uj[{x@pD}MpAmLn@{m@}AgpJ|d_|aOsclmEnGxLfPrMtN~Fbs@jSty@ji@fc@hT`ExGx@rIwIn\\mAfL|~zzaOwsamEgRgXaPkFyHW[kW|pyzaOogmmEfQpQ|QvYbRpPjYlMt_@|I~VlRhWrJjYnTf`@vOfExHg@jEkE|BiJR|vbacOg~olEsFlKk|AljAuGpCis@hAie@zN_Vr@{z@rLyLcAk[_K_IcAaJf@|b{{`OqlomEh_BrAbSjDtrGjjCjJpBnn@pG~W`KpDzC|FfKtOdM`]n_@|rjabOmvgmErKInEuCYuF{E{Fa]kM}\\}VgUkIaVuQud@iL_U{KkPqNeQeX{SwT|ppabOmehmEoEiDp@e@|CnErImIlCyTpDgO}@}LmGkT`@yIcDaJmHkGgGyJiGk\\Kug@iZ_ZqLmZoIsIjC`B|t_ebO}pcmEnBvE_D~ChBuBDoC{I{KjByPCcs@~AoTU}LiBfd@Npk@oGhMl@|ChChC|by_bOcecmEeg@^g`@mHy[jByF]fHP|jbtbOkkelE`HoDdDyGbGos@pDwObF_LtXad@vDoKvDqSt@oNX_qBpKusAjAikAaAsRmK_g@o@mPlC{X~T}j@lCuNf@qJo@qv@wC{\\gUckAq\\ijAuB{NC}KjA}KhK_YbE}SOov@cG_Qye@un@qCaI}@gIj@uL`DsJds@ofAnBeI?cI_CuJcRy]wa@{_@yHgN{AyPvGadAyAoQ{oA_fEyKyZmJaLoKoHaj@cZec@yPyNuI}c@g^sTiI|jnccOq{qlEsw@dL{I`DqEpHwAx_@oCtHydBlpAyHvAim@f@_c@`NqWz@ey@jLiKk@i^wKiQ]||twaOetnlEdAgRvAgGfOcUz^abAvBePj@ec@|x{dbOwgimEBdOCoO|vgobOojelE`SoCdZiAhw@Pb_@hD|~h_bOmjpmEiN_CcOoG|zgdbOoubmEgS_@}MuE|d~dbOeecmEqS`K|j|dbOscgmEK_j@@pH|~{dbOsnhmEA}G|hasbOkpelEnUvC|~}qbOys|mEoJxLqSnReSpGaOrK|ns_bOy_pmEjB`F|th}bOyhelExq@qDdXtA|`k|aOckcmEkFcAmQA|`t_cOsjelEaXqAck@vC","primary":"n{yaOsielEzRi_@bMkh@hk@krA|Tgs@||}lbOwfjlEj~@uZhv@w@vm@gMvo@k@bc@aEzImB|VqMzJsBcc@rR_HvA}c@`Eio@f@wp@nM_t@n@w_Az\\|zqpbOyxglErInGylBuvAgG{GsBoMoCsi@aw@mtC|@}^jD`H`AxRbFvXsCnI|zgdbOoubmE\\hWsKvSR`cAlA~EtMlT|PhS{@`K{@|{BhAhaFkBh]`DjXR|qApKrWa}@~b@s`@vHwRpNoX~w@OtMzKtNVhGgCxFk[p[mCz^}DhW|hvwaOusnlE_z@vpBsi@pe@_dArxA_JfRaNza@|f|~bOah|mEi|@x`D}EpKkqCnxCyc@f\\bt@b^xLvBpMOhLkCv`@kShk@}Ct]oOpdAxB`MaAbk@yXpMcNpLqG|bv`cOq`kmE{u@eCiLvA{QdHkWjSa[~QsLfDgVlC_ZvMqZ~IkS|PmW~JcYnBqInBeKvFkLhNx_@~HlGxCxn@tm@bRb^~K|Lvf@lWfeAp^vo@|\\r}@jt@||rpaOoremE~McKbB_G_Gi^b@qWpYc^dCeK}BaVqR{i@sPu\\YiF`A{BlJeGfNqj@`GqM~@{Jx[c_AhC_XQwOoHySaG_HoCgPs{AyqA_JaK_lAghCaHqI}XcT|`_taOm_cmE_[vXiJbBgO^aCrDwBxK|J@`C}@Z_Co]uBcbDsw@e`AmDg^aEy~@rPkXzPcIpKcUia@kOcK}b@qPyd@ap@wr@yw@{NuKkKiDok@yJut@}Aoh@|D|ne|`Oy~qlEtRkQ`AwDCkTzZso@`TeUnT_GxOoJbI_C|rdkaO{oimEeLwKyCqQ_Zq_@qHgPgOgLsNgR}~@cYaLuFyMyLgQ}JoPgNq]uRoLyKoRsWac@eXgUgHq`@}@gi@iJuDeVwBwDsT}EmPmHmIuF_SsVob@eO|bt{aO_ommEoZ|FeDsCcNwDaPH}FqAueAu}@a[mR_wB}iB`vBdjBr^dU|x`fbOuh{lEfEbG_IwNeAo`@{EqNuLcIgYaHwf@wa@oJ}CsJBgd@nSEjA_yEjAe_@wEidJpB}l@o@}S{BuXyGiz@ya@cTiMaoAkfAo@lVkHjLaJzD}d@fJe\\jYclBz}@sEdI{Gbf@sFlIkGrE{g@rLe|@dB|j}_aOckvlEgGkc@wGqM{B_UpA~ThG|M~H~b@}YnOyT`GyUnW}CrJeSn_@}@rG^fOmE|G|~ydbO_{emEo_AHg[gBm]@Co{@lAmB~Bs@b@|@`@uArGwC|`gfbOq`{lEhP~Tn_@b\\bHtK~DzK~Lvp@nKbeAxF?|j|`bOm}bmEBhH~G\\pA~RzOzO|n|`cOoy~lEo`Akv@sn@g\\}hAq`@id@sV}IkJsSi`@ms@wp@_c@gKcMhOyXnJ_IzFzGyFdOgEzLqG|n|pbOipglEtj@~a@lMxE~`DzNlOrCtJlE|vgebOiicmEaEEpyAKn]tGwFEwNoEmJy@|~}dbOqg}lEr@mL`HbEEnC|nbibO_|tlEz@vMbGC|thbcO_~rmEyKxFkOrOaj@`XkLfAoeAwBq]nOik@zCs`@dSoLlCuKZcM}Aqv@e_@_H~ErHuF|dwvbOg{pmEg]hZeCfIyH`p@aH`NuJvH|n`ubOctmmEiH~G|b|qbOq{ymEiW`X_[nRo^|FqV~L}E|LxA`U}@pIcYv]tRgU~D}Hf@uHaBeUtEoL~WwMb^cGt]iUb^y^}GvI|ffabOo}gmEp@r~@|l`kaOurimEmGcH|dxzaOsgmmEcTmHcSU|th|`OygomE`E_WIeaBmA}GyCeD|l`}aOwzklEeM|_@|zeacOeevlEsSnKaRpPuK|WsT|NeMP}PkGqHu@gt@vBkj@dK}^pOib@nDgJW|txeaOqknmExRtL~k@pQ|dhkbOk_rlEiBqFgWw^}`@mUkCiF}@yG|jm_bOkgpmEcEcR`CyIvL}MnCoGnB}PgAsYCxB|t`raOonflEpEuM|eAm{Ajl@ci@ve@unA`NkVpBkH|nh_aOatxlEgPK_]uCqHmEi_@u_@mT{I|x{dbOahimEoA}kEpBiJ~GuFnIsBjd@h@zKwAty@mf@jGwIpJwp@|Xaa@bEcDxKoCj`AiE~HmB`FiD|vzhbOeacmEtLInY~B~^_BnYaLxRiDnOkKvBUnl@l@z`@mCrXlG|RfCbFQhd@gOv]iSzVeEtKwK|jxcbOikelEbAkNi@sJlAtFaAdS|rs{`OmthmErM`Aze@aEtv@jBbq@lMfPvJjo@hs@jPtRpYbc@|a@`P`LdI|lhraOqepmEjGkP|daebOaepmExF_D`HgAnb@p@bIu@|s@aa@|pyzaOogmmEzYqG|~`bbOi}emEea@Q|dx_bOmtymEH`BiBya@hAw^uCkJmJuM|x~_bOiismEk@wGiIwMqByUdDq[E_d@{@qL{DeL@kZjBuLfFwK^sF|~nibOijsmE{AbM|pu`bOqmglEtPyPrD_Hm@iGmKeM?yLdAsGbJkRfFyThEgH|`_tbO}d|mE_y@r}@|xt`bOge~lE{X?|fg|`OafzlEzKnGta@fa@dJtBrf@nB|z}jaOe{~lEq[mP|jpiaOaw_mE_RwJ}jAwaA|bi}`Oui|mEiEtH}ZbM|lcxaOsvnmEmXkU|luxaOwfnmEcI_H|fb|`Oyp{mEf^qNzDsF|d_caOaq_mEu`@~Q|ppraOwpsmEgK_J","secondary":"b|naO}ahlE{k@j@y_@rTl_@oUzs@QjWoBvt@vPxX~P|jhebOa}dlE]mMwFeOlJmt@gFqLkXcDaG_DiDqG|MnL~c@fDfWfOsDpHfY`M||pbbO}zilEAnOlm@oDwMc^zAiGxPoCxM{QpgAch@xsAMlVtP|tewaOgvmlEuCfNlChKza@vj@~rA~mAxIvY|nzlbOe`lmEgp@fTn^eJrcA_f@|DgFdRol@|H{IxoA{[`Vm@~XoFbRiUn_@kW`JoOzZnGlG`MzI|G|dz`cOoocmE{]Hg\\uIuL{Hcg@kh@{lAol@ue@is@qEgPoJyGeG_M{PkN_b@eh@qI_QuLac@uKuP?}FnQ`CfVsEf_@xB`XqOlXaE~NuXsO`XeX|D_YvO}]aC{WnEqd@oG|z}zbO{xomEwPpI|padcOkmmmEkv@y]cn@cSaX{Qge@kSmHkJ{CuY|nzwbOykwmEiNrF~]oL|_@{SlVKpElBfKlRpNjC~To@fLrDgKwCcV^sNeCaPwUkn@c@co@iRyxB`@npByAtO~AfO~F|p{|bOc_wmEkRmG|npnbOah|mErW`Zv[`RzUpHvGvLv[nJm\\}I_GkLkVsHo\\yRyS}V|rivbO_s_mEyRjGxb@oNd_@sU~R_QhVw\\rKiJbL_FtRi@xH{Bze@k\\b`CcnApPqM~SsF|bdvbO_rfmEwj@kn@oL}XiSoJoXmb@_LgHgFo@pBuRhCwFneAuy@|p{obO}kxmE`AzRye@`MeQsGmNgZ|~ulbOqb|mEaH`B}RsG|h~obOq|wmEJhCt^s@`R}HsFdCdOvUlBj\\pJfQf@lNeEOdF[WuKcJmPoAyT|zzubOa{{mE|[pPlYtG~hBj@i|ATmQkAcWgHio@{\\|rr{bOsj|mEkUdj@n_Es@|jglaOqkhmErHf\\fj@jo@pNjHzJ~KbAl`@aRb@_AlVkSdB}CrQqg@xZwZtb@iy@bc@y[|d@gJtR_XvNuQlF_JdUcqC`DrW]|xoiaOceulEbAw@cv@h|@qm@`^sHvHhHiI~j@i\\zJgJ{IoAsWxBwOmIqCe[dFm]o@_fA|lvqaOq{ymE`GgJcP|UgMxEebCVeQbMmb@~JkQdMp[rd@|eAhr@~PlR|Tra@ro@bh@j\\xl@pP`Gfy@`Hh|@~\\xd@lMmK`FaOqKodA{`@uo@aFoZwGoIeIaV{e@}r@ok@{Vec@}j@ef@ok@}]kZu^~EwCoPxGuE@eM{JoYeDkLqM}PwDkQuJtPnK|PpDdKzLt[jEnKhJ|FLbIuD|xmyaOo{|lEwhDlBuQ_CkkCxBsPjCkb@l@|@wCmCnGnAwB}`FhDV`u@eDrS`FzbA|reraOs_bmEbBzEaOu@w_@wI|AnC|luraOeocmE{UnEmVt@uTuPk]HWmIqEaC{F@LjMgj@Day@qDHsF}NaSeHeR`AaQwBg\\~BqRzMyMxIyS|~|saOqwfmE@kCEtOcn@yTcr@`Lab@kDiZyKePoCmu@vJii@uJcxAt@siAzYel@hU}k@A_OcEjIvB|nkraOs|ymEsQjVsBlIEt_CnBtKvJtP|d{qaOc`xlEw_@rC~CoE`MBtLyD|lzpaOo{wlE{IjZcXxWum@fCoz@_@}]xCme@KoInN|C}C|~kyaOomcmECyFcYc\\qZgh@cMa\\cf@jM|v}`bO_l_mEzQtTnFaC{PmUod@`XuTTqa@gDwt@yNms@cJwi@g\\sO}E}iAkJum@rLiR?}r@iZiXgC|didaOor`mEaTiAiViOa@gH}gA?a\\fF}Rh@se@iGic@V}MbC|zknaOe|bmEBr{@}GvQbEfe@H`ZqVhs@|f{daOie|mEcLhZ{oAbZkZ~`@gYvNeJ`^qBl\\}FhNjOpdAoKnc@c_@{KaJk@cIlB|zykaOqscmEbDgIyRyHw^md@gKiEoZgDoD{CYi]}IeUlDmJfImG~R}|@xEyEnSgEmWvH|nteaOsgymEvOmd@pAyl@iN_@qYuP|vguaOahwmEt@sEmE_p@uKgNu@iEbGoYgC~I|bsnaOejmmEzBXsRkCkZz@oRqC{K_OiPkJoUcHmTwPs`@~NcIdYKnReKvI|``vaO_j|mELfG{Ubg@oQrJm^zHmMnPmNzF|nw{`OufwlEpL?bm@xJvRcHlFcV~\\}A|xjgaOaicmEyq@yLoFjB||wpaOeebmEk`@oIoB}L?wYwMA|vh`aOi~xmEyXyZif@uVeA{C|@_Q_Yka@|`ngaOgcrmEgVdN|PoKj`@aOxFaTrEsEnIc@~TpDz^F``@cFpHlDpFjKtHta@dGzHvn@vNbr@j[|wAxHr}@fn@p[vL}[tDaaApa@mGdN_FfExSn@lGbHrHjCfRh@j[_HjQo@lTXrN|DbBeSyBu[{KqP}PyFzZ_W|jyuaOo`nmE|a@_[jWmEpFmDzHyLbJm_@bVaVjDgK|a@_IbRuOX_\\M|ZfFsClJoQ|f__aOax{lE|@zaArFnRIrL||h~`OcurmEaK\\eUlNg]d@|~vnaOkimmExc@~LfNhKnh@R~OtMcYz]gkAh@u[tL}F\\gc@yLuLk@ev@fN|j|iaOcpulEab@tc@|la{aO}plmEjSe@kSd@iu@xQoO|Auk@|PgH[ePaHoBlEr@eB|hvkbO_gplEqMLsOiF{EuLuCgBsY[}F{AfbA_]|_@qErShC~I}AmIfAsSmC_d@tF}pAxd@cHd]bBdTbJlJAnUpF`MVjVeoAf@oRyPb\\iNnBkPaEkpJfAsB|rc`bOq}bmEtBxFV|o@yK@PzVsIUaUuG||c}aOki}lEAcAvAbtDz[E`a@oRbZcEt_@iXnN~EtOqFk@e[sCmMrFkTs@qjA`]E||o~aOqd~lEE_Ctk@A`^{J{JeL_BfA||qhbOigvmEOuc@gGwHoEyMnAsLbIoLbA{]~Uw\\gDiHiRcNxDyS|tpcbOyp_mEcPb@a_@fPsD_Fp^kNhf@`C`SK`EwCv|@APvvAfDA|ro`bOua_mEgRuQq^Lp^MQoW|l_qbOu|_mEiF?cEzFi@pOnn@wL~_@gAxUbA`]~PzGCdHsCaA\\|vtjbOsj_mEuLwCxv@hOBzFpHwDuHcAhcAfFjq@oNbZ`B|flyaOg|bmEzkEq@bA`x@sTbDmh@B_Ay~@{Zw{Ay@wa@xAwRzHgK|v@`y@z@lGnWI`Ar\\iuAA|hbcbOuoamE`ZfBsj@sFw~@RkAyPzCH|ffabOyp_mEpEyB{b@@|XxZkFfCtA|GNvd@~h@I|xwbbOue~lEqNFcO}SjFaCnPfTzq@|W|i@jLpE|G~AzIvm@z@hpAwErKjBfRxb@bTxTzdAjn@nH~Abt@mG`[dHth@nGta@wBz|@fAr_@_Ele@iL|d@[xb@aFjc@yNdOqJvNsDvQoMzUaIvd@oFf[xFbd@cAbZtC|zlybOuhbmEbLi_@|dckbOafumEbArGkFqOe[uLy]hEgOwPmo@_GqFeEkIkAiDaHyFsDm@wFcKuGeCgKmF}EaIcAwCyKoI_KcH_@cIwGaKi@uMwHga@kKqDmDmAmMuBqCcWD{EwBoFgNqKuBeIb@|bh}aOislmEhBKgJiBmAs^zDo[Ewb@xd@ahA_RiQuc@kGfIA~YjFlRzQrXqJxYmW|`w}aOssjmEcP[aQdQqdAm\\uJsSyFgUlAgTrE{O||xabOinamEF`Hc[D`@x[`OrWtJdI_VtKjNlRoI@|`|dbOerxlEtqBj@pj@`Str@~Pj_@xDjkA~^rbArSz[QhVlDrmAxx@iG~He@pGwSDuMwCmk@mCwm@FwqAfLoXxS|lt{aOapmmE|g@iAgh@jB|~hibOqbqlEqYqHmdGrAwx@fBwZ_FeSrGeKoOyGy_@`@yKn}@_gAvQwIdI}J|KiS`YcaA|dbzaOmmcmEh@zf@bRdSt_@vPzcABLtm@mKhYgGvFfGwF|twtbOa_slErLfSj_@^hN|KbTl@zIpEvMA|z|`bO}_mmEmy@LiW`IoXVnCzJoOpIyFe@rBsQqYIbLCjKoC_Dbf@h@pVeExKpD}Ki@uVnAkN|tfbbO{n`mEeC|C~Sq\\vBiUtHoVfSiP|VoIlVk[nHaRlBqKX}f@xSa]tCyJy@sVsMmWnD~H|j_fbO_oimEcD{PG_RjNaUhCwTrFyGkFwP|DwWyDsQ`Tw^hE_Tfj@sRpIwZqEqF|ff~aOwd|lE|wAo@jH{BhHtBxKA|dqqbOebglE[|@XaElDDzDzDk@ze@eErL|bxpbOu|_mEpG}o@jiAkC`R~Gf\\mQfNyPjJzCjO@r[{EtPpEdUuCfKkFd[u@|hgyaOwlqmExFoNr_@cG`Q_OpGqBzKkS|`i`bOs}emEkFNb\\W|ds`bOe}dmEtJIi`@o@bDjy@pa@?@jF|j}cbOmlamE|yAIHxu@`_@KfW~Fbu@a@|z}`bO}ngmE_GvKlJzChH{@~UbDng@QxR`IfEw@lIeJlMtA|lghbOmfcmE|EuGMeMpBuHdRySe@gImIcM~AcVtm@ylAdUofAhGiI|jm_bOkgpmErUiHh]gRtQcAh\\z@lU_Gr]aAbPgIvWkHhj@iJrb@qBte@~K|`}abOkh|lEO{`@bK?|dyfbO_i}lERpZ|t~`bOye}lEtAh{B|dlzaOag`mEpF|C|}@nMbiAI|by_bOcecmEiC}j@sDeRgGyIoCcM|py`bOs}emEfDJ@v^lG@Nm_@|pfbbOoqtlEcP{K}[uGge@eU{BmO|`}abOagylElDcBpX@oY\\ZnkAlDtE|X`NlApUbx@yC|x|abO}b|lEBgBp{@a@tQtApPgIrYG|jhabOwq~lEfGqCjL|OfIA^|}@vo@g@`PvAtQyH|lkpbOucklEE`_@hFrNj@dk@iLxFgMpSuIbEueA{CbeAtDdJ}DpK}QdN}H`AfKiAfC|lykbOa{qlEuOvD|xhrbO_ujmEcEtdA}G~i@~NpZDfn@gPtWcBxe@eRlUu@|T}w@XyNiGcJfFePDkRkF{JjFqLMkHoCcJbD_aDVu@gwB|nifaOwielErHcF|LuTpH}E|Je@rYpEwYwDsKl@_\\r`@|zaubOwcrmEnN^ua@i@kUvBoH_CmD_GpEzFlGlBfUyBfR`@|x`wbO}bqmEsIqGyGkMyY{GcKnQ{]bVcN`Q|fkubOkenmEvSfD|feabOsdcmE`Ayw@jhCM||{abOcx}lEl@jHdC{Eq@aL_AuAwJ@tHdL|hh{aOqjbmEpWjGnXnQrvBwB`JjM_TFZfo@qKD|`}saO}{fmED{HKpYnRxBnMsAvKmKAmKdAgDlEuBTuI|dyabOgeamEpO@fG|D|lk}aOuslmEdD_@eOrAoB{e@zDgYDoc@|Sci@|`znaOmxcmEGuL`IUJ}E|EwIvf@_Y|fmubOodumEnFaQiIjX~@qFiDM_T`OuPzByJiAki@gUfBjNgAwO`m@xW|pylbOudmlEmRjB}`Br@_@fHqeAKghAnh@}KvPqQrCkAtH|zfjaOs_vlEzCiOeBqSfAgLnYug@rXus@pm@q~@|zc}aOok}lEIa^jCeC||}~aO_{`mEv\\bE|xkuaO}bfmEbFW}Az@wTgF{Ip@oQwB|b~saOopgmE[tIbBaPxO{RhOmI~X_CtJmGtRyTbHtFfC~IgM~\\]vQfC|KvIhM|tvfaOcsqmEsj@Ojp@`@`WdPpLpMz\\hBrNjFtLtLbLvR|lrhaO_rgmEgx@}k@au@yJaKoEut@ciAaHuFkMwCkLKygAbGiQ_@gQmEo{@{d@qb@oD|hagaOegymEq\\Sr\\K|j|`bOm}bmE]iu@lBwH|vgtbOw~lmElMaL|p_rbOcc|mEmPfP{_@fQiJxLw@`FtRjQjo@~[uD~LcLpH|jvmbOgnxmE~MtYrNrGvg@aMn_@s@pJ_D|d{qbOciflE^lNyDfM|zzvaOmwimE_IkQxAuIuEgL~A_J|hu|`OclrlEtz@|J~d@dXpPdE~OBbj@qIkSky@_O{Qs@aMuLsc@oSm^|jswaOobomEqTtE|`}dbOczfmE{LuAcJtJeIp@sSeIwb@DiSyCqMF|`k|aO}kelEri@{JrYlFbYI`WdD|d}abOed`mEkOpNtTiT|fambOa_elEdLgDn@aKcGiEqUyAqDaDw@kFdFgXzHcG~J{A|xskbOkvhmE`OiWbOaG|OeMhOcBlTeW~EmKf]gZ|vhxaOicpmEqGgSgPqNyAs]vBsa@jHqV|rd{aOsqsmEUyeArCuK{CsZSiS`BoIcHiPwLgMaIoc@v@yHqGkJrC{QYiLbDcN|r{_bOwkelEyOeCcZBcXgF_m@vK|rf}aOkvwlE_SvEiWtMqh@b`@mKvB}SN|r|ibOur|lE|CeHl|@iz@|v_}aO}zklE|c@uv@rA{NwAcXeFkV{Ocb@eLoM|vcfaOygymE_Q`@oLvK{E`A_c@}JgXnBiL~G_H`JuPdEgv@eD|b}cbOkqhlEdAq]lqAB|rjfbOaoilEcjACaBxR|`keaOssqmEa~@mNao@cV}]cIeg@}A|b`eaOic|mE`d@pVnAmM|pg`bOsebmE`GJiHaaBkDqGVgLeEN|bkebOcqglEpWhKaFtC_S?|ljubOe}tmE{A~SpJjn@w@`Uz@}H|br|aOmyrmE}S~KjSeMeJiNiL_B|xx{aOqmsmE|MxBjJdO|l|baO}}emE}_@[eVpEe|@wFcb@F}RdCso@wA|vbyaOkj|mEmOrXgJtFis@dPii@U|zx}aOksjmEzRrFhDzKkWpi@oOnTgGoScBuOl@mM}GuN}BS|xrybO}{ylEaLvD}_@|Dql@xA|nmrbOmztmEjIlOxHjGlAlRxFhIqClL~@bI|`drbOijumEiJd@{o@uE|j}_aOckvlEpSt^vKzc@|fbrbOcwymEhGtN}DlJde@jA||l~bOw_{mEapB^yG~MkQdRqJpa@_IlRhRcr@pIkL|dkwbOedwmEek@hZ|HsF|bxubOm~umEpA_D}DzK|xrbbOwsamEgYE|tlqbOakymE~XvObXT|||abOef|lEhKIBfMeEdM|nscbO}hjlE|IvXc]tDe_Aa@|dymbOaqlmEjVuO`Rmh@|l}jbOgrjmEaPhv@mm@flAyCbQ|zu`bOebgmEkOdZ|rbfaOw`rlEsInFoX`F_Le@cSgFoYPe]xMat@jI{SaDkh@{Ykq@qG|`|bbOcjylE`_AO|nffbOmpglEbKfBfHvLbQbJ|~idaOojelE}WoEsJnE|lnlaO}jglEeVnOwH`BwKE}Z_HiIZoKrDqQtMgIfB|~_ebOu|elEdG~OTnH|f`abOokilEto@x@|fobaOmpqlEfTqI~WKj[rGrP}A||{aaOah|lEmiAdA|jdoaO{ubmEdQdE|`hjbOefllEcRgOmOC|brxbOivwmEfRcJ||eqaO{jymEsIrA}iBI|pambOciglEoOlKwDzWjFtHtSbAjG~CjAzIqGrG|necaO}kelErJyDfXpE|hmebOaemlEdReJ","rail":"t_taOmvilEaLbFgTpA||bmbO}mjlEcG}C_H~@oDvRh@eMzK{UbBqb@sq@wcCtApD|nnlbOq{hlEeAq`@|tlmbOmdjlEqQyRVwS|refbOs{dmEpCwR{L}HlR`E~TmAiIfDsr@xo@yPnW}a@xHeL~IcHxi@q@j_AfJvXhL~Mdq@fS|KxHpE|L`Dfh@pUj\\xg@lg@~Tn`AbNp|AbJ~Ld]dRdXnb@mKlkAsQvQonBhc@ceBzy@c\\pGaOlHwJnLsHvZfAru@aBfJav@zbAcRzE_u@LizB|e@|lxobOoanmEbFsF`\\eDjFlAzAdHyJpJA|EjgAj}@|lnaaOusbmExaBsEdtA{OjXgHx[gWzXaCzr@`Ljs@nRl{Ae@xStKzLvZ`JdHnv@lJdo@jYjVr@rq@_MpbAnIrTlGjg@~ZrmBr[aCi@|rd{aOqf}mEti@lpAE~`ClWbg@|EhkAaAdMaOvZea@bXoIvOr@v_@rPpQyKaJoD}JjIgb@wEgPwq@a\\_Ygc@qn@yTwXqp@wd@go@{u@o`@{ZaV{u@eWdE`B|tf~aOy{~lEujBwZwf@yZaVqGscA_Iin@dMeWq@mo@kY{u@wJkJoHuMw[sT}JwvAjAgNeCrZvA|tdpaOcgzmEjTzNcf@i^i~@cYea@uU|z|fbOqtemEnHuIiRok@_~@_b@qp@yv@uQ_MgMmCsr@uAo|@sT_kApGq]vOun@pGef@`Pyu@|Lu`@nk@ua@jMq}AhCoLoEeDwJ|Fxj@de@h_A|Idk@]pn@pN|L|p_taO}rqlEd_@?d^cErThFbJqD|dduaO_tqlEad@r@|rxkaOk||mEjp@vb@|nzkaOi{|mEdi@~\\|j}taOmtmlExUHfE|E|h_oaOs`{mE}l@gR_}@uj@|fhmaOc{{mEmb@yX|vflaO{s|mEd_@fV|f}naOua{mEwl@qStj@nR|~bmaOy~{mEse@qZ|dfmaO}{{mEyo@ga@||{kaOex|mEpbAnj@|zbnaOqk{mEeS{Gwz@oi@|fauaOqjrlEGpMoEkFsV_D|`hmaOiz{mEep@_b@|fwiaOeqdmEfW?bg@tSe_@yKjTfG|x{eaOcbpmErd@hOnVb@|~_x`OqikmEhVgI|p@_n@xh@qLd^dCd{@ne@hSxEtiBsEjRxJfu@diAbaAzP|t@`i@lKvVbAts@tFfKzKlGz}F~vAtj@fE~w@v[fS?bl@_MldA`IrSnFnk@|\\~mCfc@d\\eCbp@o_@jMoBrHbDrLtY|d}xaOcz`mEl]tMiXuL{aAoJ}P\\}i@tLgP}@_PmG|vm`aOglrmEjnElwA|b@nA|tcbaOkwqmEdn@bT|~f~`Ow_smEwj@_KzeCvd@p}DvrAfj@XlK`CpxAlaBxyC|nA|MlPzE`e@||_dbO{c|lEwqAhsAsp@|QcYd_@|~jkbOojplEkEqSZyb@}Xia@m[mPkHwIkPkaBkRcz@m{@wbA}E}n@aKsHqa@_Eod@aOgt@}_AmUgTq@goAmGoh@pI{yA[ez@kIuM_r@gd@ul@q}@uNuq@y^cY|xaibO}ucmEsC~_@eTrYoHtf@wKjNy`Cp@q`@fDgjAfj@m\\o@_ZyF|juqaOejymEno@jTpYdU~u@l`@`e@zn@vYvq@bp@~U|Wfb@dq@~[xEdOkIh[nBhPnm@|f@fOrq@|k@h}@py@zl@tCvLSzr@qIvyAjGrh@l@~nA~UxTlt@``Arc@nNfa@xDxJvG|Fnp@tP~U|a@v^bHlOnQpx@`P`_BfHpInYpNlZ`c@Mfb@pElT|ng|bOqk}mEkXjc@_Y~q@aSfSkOhe@maAlh@kRnCs^_FmZnDwT_Js_@Oga@iLw|@|S{NtTDdKlb@fe@^`\\pSr\\nj@nV~HfIbBtNsFnSyMjMes@dUo\\va@mOfy@nC`ZoCbPyUfa@_t@fz@eM~GwX`Au`@fKqG`IkIbe@_MrKccA`JeLuAsHuH|A`D|~sobOoommE_A|KrCtV{C~OsSf^sh@dp@_XtSci@nEcU|IiEfHuHdc@qJ|J}u@vGkw@~Q_H`Pm]x[yPtWc`@hHwKdGiE~JwEpa@qTxh@qIjF|dbqbOsximEeaA_Age@`RmRxR|t_dbOkc|lEke@pq@yr@df@|fxnbOqvimEgr@vj@|xambOqshmEe{@zb@qCxF~DmMz^mRrTyDnd@c_@|fskaOk_}mEjz@fi@tbA|[`a@xZroAtg@d^|Wls@h_@hc@zm@`Xjp@jp@dVlXjb@ps@z_@`D`MiG~XtA~MlbAly@fFhNfCza@tb@zo@bqCflBjgAhd@|hclbO}phmExX{Bd]oV|^wPzh@j@}c@oAq`@vPil@rl@iqA`x@anAlMj~@eFpQ{D|fAms@bg@eVf^q\\|`wmbO_nhmE{^rJ|j_nbOejimE_UzQsI~N|tuabOcrllE}@xL_K`KiB`J~N`Kc@jI|fpabOidklEyJmEhBoLgDvId@zY||inbO_oimEec@`b@|r}kbOwmhmE~Wo@hIqF||fmbOkjhmEtLcEfXmW|thmbO{ohmEtX}YrZ{Nv}@x@|lukbOedgmEd_@uK|\\qR~WiVrKwStKcGlgCdClOeFfKaP|dzhbOw~emEjh@oHh`B{aAzj@uf@||ogbOixemEgS`Gsr@vo@mRvX_c@xHsLdOcErd@[x}@xRtb@he@rW~@nIoEzL_cBlbBmr@fSoRpUkOr\\cl@dU_PtXkf@rc@}zA`l@zzAil@pe@wb@rQgZdj@kSfPs]pRqUlr@iS`cBibBrDeUqJ{IsTaImK}KuLo[V{Y|nzpbOevmmEYhGbbAdr@lL|Qd[tG`CxQ|z|kbOkmgmE|p@{Z|~d`bO}dmlExk@rWnAbE|vmmbOgkhmEpVoPvIsN|trnbOcoimEcJlPyQtPgaAxc@hXuN|volbOukhmEgk@tZ|bq~aOcgkmEvYx`@bxA`aA|bylbO_khmEqw@td@|btgbO_vhmE{LhG}LhZiIh@|hplbOmvlmEif@lOyiA~w@iTnk@{n@|x@nFh[|dufbOspgmEnm@{j@lUei@|fd~aOgz~lEvb@rHt]aBm\\vA}h@kJ|l|bbO_{_mE_@xRvLl\\nO~Mjk@lO~KzHtE~L`Ddh@nUj\\zg@ng@vTb_AjNz}A`J|Ld]dR~Vb_@hAzJ}Cpj@~QxXbd@n~AnFdw@hF~MfeDxbCplDrRpRrF|VdQ|zuibOghfmEqB{DiFi@gKvJ|bmpbOeyglEfEtGJ`w@|lb}aOed_mE_eA{K}LwEgGoJ`V~LbrAbR|`k}aOoc_mEiiAwKoUyL|lbdbOaaimEf_@l[vl@jTvFvLv@}Kjl@io@zRgi@vKoK|tukbOs}slEMdIqIzNAtNyDhLb@fT|xmmaOopcmEkPd@ei@cMx^~H|frkaOm}cmEmt@wPaS_@uOhEiVlTkOhFqxAhQ_dAfE|xj~aOwz~lEd[`Gv\\^tbAqh@zg@iFpqDnAtmAtKbeAnSphAuTnVImVNeeAvTisAkU|`skaOc_}mEjz@di@`cA`\\p_@~Y~rAzi@pYzTxu@z`@nb@rl@|Xtq@rq@~V`Wla@rs@z_@~C|LiG~XtAbN`bA~x@hFnMjCvb@xb@dp@dpCpkB~bAfc@|zd{aOsf}mEvi@npAE|`ClWbg@|EjkAoA|NsNhY_`@`WeJfO|@v`@rNvP|xyjbOschmEyLpMeTzb@qC|g@g\\pd@uFhc@wAt[vFvEnShCxGnI}E|\\lCrI|IpDx_AjJf|@`RzNo@v`AiTbbBGxNjBfZvNhfAjFlJ~Gji@`_AP`i@~^dVHxr@fGv]lP|^W~kBeDnMo_@r_@wBnJdU~b@dJnj@~]|VlEdJyMbwBrs@dlAxK`]qRnfB|dauaOgzgmEcSbEcmAjB|x~iaOigalEloB_iA~h@q_A|r@qg@t_Aq_@zJeMtLu[zw@cf@|]up@Eg\\sG}b@zB__@wIkULqJ|RaQf`@_i@v]w\\|OqH|rskaO}}cmEkq@kP|zbkaOwcdmEe_@mJ|zcjaOaodmExX~GeXcH|x{kaOgycmEad@wK|belaOwucmEip@aP|lzuaOw}`mEo\\jE{[sI|lupbOeu_mEbo@\\|bdkbOsu_mEkdAqIyz@Y|pqlaOug|mEda@vU~}@|Xp[zWz^xO|xvyaO_rrmEnHhO~RtJ|hllbOu{ilE?tEMuQtK}UtCaf@io@a~B|z{lbO}lklEaA|QzIvL|pnibOs~emE~RyDfh@m[vo@aTrl@kc@tKyW|T_G|fcrbO_wimEo~AcAgL~GkI~R{YtWo]fRgf@vN}f@vZyuAlLnuAyKrf@qZvf@cOp^_SlXgVhLqTtLqGpaCxChNoBpKiJlh@}}@fdA_T~h@wf@~e@mSz{@eo@vRwGlf@`Bpw@vYrtBnjAp_BxV|todbOoq}lEvVjGxJxH~D|K~Cjh@pUj\\nf@~d@|VffAhJtjAq@rRlKdLpe@hT|PbWnArQ||ogbOqdnlEtrA{YpLkGhGsLnKy}@yAiOqQcXuk@sb@cGem@||y`bOu__mEeUdKi_@ZolAkVwx@gKai@w[}PgFogA_Jsj@pLaRb@ow@_[cZqC||t_bO{}imEuZa[bElK|ht`aOwjrmEum@qK||bgbOea`mEvN{AhH}H|Hyg@pTgZ`DkY|pbacOwr|lEmc@_@iVeNwMp@|j`gbOm}gmE|LeOhJ}D||zfbOuvgmEfQqUhMmF|`clbOwqgmE~PqJhGaOp]i\\j^qPlQU|jzgbOeshmEyd@db@|jpfbOopgmEhHg@tb@oc@|tchbOo|hmEud@dh@pPsN|xygbOkshmEm`@n`@|bxfbOopgmEn_@a`@|vgtbOafjmEcOzOwTV|luybOqazlEvRaYqA{VpEoG||@mTps@aBrb@sSxh@mOpp@qy@r@aJoFwH|~{dcO}y}lEsw@so@yoAmz@ehAci@vdAlf@pf@b]|xr{bOgj|lEj[qGfc@a@|fq{bOoi|lEb[gHxb@i@|ru|bOst|lE|`@\\tNaC|zl|bOgq|lEjl@_Awm@bA|hf|bOep|lEbo@oB|ti|bO_q|lEzj@s@||r_cOygamEtQwB|KpD|py|bOonflEzGmJfS~CwEna@|tq|bOmrelEvHya@|fsnbO}}glEo@{Zo`@qe@bYhY|`lnbOqdimEuTxVsUlOcy@j[|raubOggkmEbOcF|PwWxTcF|f{qbOowimEzm@|AnOwCvr@}gAvdAiTlh@mf@bcAgg@t`@u\\pUkG~a@|Brw@vYrtBnjAl_BxV||lkbOocgmEbd@{Mp]oRfXiVxLuV|zypbOwximE{y@c@sIvGaJ`TuXfVu\\vQ_f@jN|jgmbOkshmEbYsV|vfmbOarhmE`XcW|h}mbOiiimEyUtT|n}mbOeiimEuWvY|rimbOmohmEfb@e`@|lcnbOcjimEsWlV|xanbO}jimEeXnU|bjmbO{rhmEfW}V|jhnbO}mimEs\\nZ|hinbOcnimEw\\h[|pgmbOkshmExZmW|~hmbOiphmEvZ_Z|xnnbOwqimEab@~^|limbOmqhmEvUmW|vjmbOsphmEj_@y]|ximbOmqhmE~[kZ|xcnbOwkimE_YbX|hcnbOgjimEcXzV|nmmbOqphmExd@qa@|bqnbOcnimEcc@t^|~lnbOopimEe`@b^|pjmbOonhmE|i@_e@|`unbOktimEyg@vc@|zvnbOsuimEsh@pd@|trnbO{simEce@ha@|pkmbO{mhmExe@ga@|ltnbOksimEce@fc@|jsnbOarimEud@`a@|vpnbO{nimEcb@`^|xnnbOqqimE{c@z`@|nlmbOkqhmEfi@kc@|dlmbOgohmEzd@e`@|zpnbOurimEud@`a@|fmmbOqphmEld@ua@||jmbOwnhmElh@ud@|pnmbOaohmEp`@w\\|fnmbOknhmEd]oX|vmnbOqiimEy^~Y|`onbOckimEaZnY}G|A|fjnbOkcimEaZzU|dinbOsaimEmZdU||gnbOo_imEmW`S|`lmbOakhmExG{AhT_T|jombOykhmElWgS|pmmbOalhmEf^cZ||lnbOugimE_]tY||kmbOukhmErG}AtU_U|nmmbOglhmE`\\aW|`ombO{lhmEx[aX|frmbOojhmE}|@ba@|xnkbOsdgmEz`@iL~^iStWwU~FaO|vtkbOwggmEh]gK~Z_Q|WuUdEiJ|xpkbOuegmEt]}Jz^}RxXsVbFeM|bmnbOgfimEy\\v^_ZpPs\\dK|fonbOwiimEyE~KuWnUk_@lSs[bJ|nblaOiv|mEhk@p_@vbAj\\tQpN|rakbOufgmEtr@}`@|x~jbO_cgmEh{@yh@|jbkbOclgmErq@q_@|fyqbOqwimEmzAwEic@tSgc@rc@|p_}aOcd_mEg}@wJgUsK|pl}aOac_mEh{@nPxb@gD|t_mbOqghmE~TwDd]qb@|vybbOkzklEvSgDtQoI|`}cbOqgllEud@|L|foabO_jjlE~GsVpMuNdi@uNraBcx@rRmF}E~@|bw~aOgyelExVoDdVyQuj@hW|rd`bOepflEeg@xU|bpabO}vhlEqCnTmd@zn@|dc`bOgoflE}a@dT|xb`bOwnflEi_@|R|na`bOinflEq^pQ|t|_bOalflE{[pP|da`bO}mflEg^dR|z~_bOamflEe\\vP|rc`bO}nflEc`@tS|`b`bOimflEg\\hQ|hb`bOwmflEc]vQ|laabOoeelEsEiHg@}OwLoGpAoQxLmIp{@V||snbOgohlEIyJiFiLsP_O|zxmbOwyilEjUf[|`lnbOccilE}TgV|njnbOgeilEqWkX|d`ibOeztlEzEnY`U`O|dy~aOaxjmE{Xo`@b@dI_KzC|dp~aOoekmEgJ{Eqf@xC|~o~aO_dkmEiQiFk]jE|pvtaOkejlEcp@z`@gJhY{JfMa|@h]cTxP|dtcbO_x{lEqu@zy@|~_bbOw_zlEgU|RiM~C|~ncbOym{lEab@hd@|hibbOahzlEba@oa@|zocbOso{lEeWl\\uMhJ|nfbbOuezlEjQoM|Wu^|vfbbOgezlEjQyMjVc\\|vrcbOyu{lEue@lj@||pcbO_s{lEc[t_@|lvbbOyszlEtXy\\|zncbOyo{lEuZ~]|hrbbO_pzlEvZq]|~lcbO{l{lEm\\j^|ptbbOwmzlE|TuV|dlcbO}g{lE_UdX|~rbbOylzlErWyY|fmcbOgj{lEk[x]|lmbbOkizlE`^c_@|bncbOal{lEe^x`@|lrgbOmxemEqUjGsr@vo@mRvXm^zFeL|GgErLuCt^Kxh@|fdcbOwq~lEjMvQ|QdI||cobOsjhlE}AkP_[wV|ngjbOafslE_[uOmGuJ|rdjbOuhslEaVcLoHgJ|bfjbOigslEkYsNeHgL|`ijbOudslEi^eRkG_O|hjjbOocslEg^{QkHuN|rjjbOaaslEic@aVyE}Q|zljbOw`slE_c@mUwGkR|nhjbOccslEs`@iTsEiT|njjbOabslEy`@}SqGsP|rkjbOibslE{b@wUqFwU|pnjbOs_slE}f@sWwEsT|dmjbO}`slEud@}ViFeR|zfjbO}bslEk`@gTeEsP|lhjbOebslEu_@gSmGgQ|nrbbOey`mEvHsPhD_^nGoMzj@mNj|@mhAtr@aO|l@oDdLqDxLyUvDmZtMqJ|nilbOqzgmE{jAts@ocAlI|delbO_xgmEyeAbq@g}@rH|bvgaOypomEbJgBZsGmDaCiNI|jb_bOqq~lEag@yK|z|}aOi}~lEpn@nKf[wB|xa~aOg{~lEzh@zI|r{yaOmk`mElAr@oZoNqu@iH|x`qbOojglEskBavA||qobOwohlExg@v_@|l{vbOiwelEdi@zDxa@lV|~|maOmm{mE{aAak@|xfnaOqk{mE{FkDDmW|hqmaO_u{mEzf@dP|`nkbOeshmEi[tNoVvf@|`glbOaygmE{fA`r@ie@fF|~albOmtgmEc_Ahm@u_@lF|jcibOu~emE|^}Fd|@qk@|zblbOsugmEe`Ahn@oa@pF|n`lbOatgmEk_Abm@ac@dF|dsibOu_fmEnOoEhm@w_@eDhB|ppnbOqiimE{EjL}XnVy]lRmd@vM{r@z`@||rjbOaqfmE`YwObp@mT`ZoRhUgW|`qnbOagimEmFpK}YxVuxA~n@|tvjbOctfmEbUgMrg@iOj\\gRpW}UvFaQ|jrnbOkmimEqFtOeZvWkvAlm@|xyjbO{vfmEnz@i[fZwPzXuV|EuM|rumbOulhmEcz@j`@||ombOmihmEep@pZ|p`gbOqugmExSuW|v_hbOuwhmE}S~W|xagbOuvgmE|SwW|~wgbOsphmE{SxW|jdgbO}xgmEzSwW|pzgbO{rhmE}SvW|zfgbOg{gmE|SwW|d}gbOeuhmE_TxW|nigbOo}gmE|S{W|xwhbOiajmEeMv\\sXf_@|zrgbOsfhmExVa]zIoV||vhbOk_jmEuJfY}Xt_@|zvhbOu_jmE_Mz[qZ|`@|`lgbOy_hmEp[eb@fLaZ|~iw`OstsmEbLfJzJtBncCqGvRnA|d}lbOgthmEma@vC||{lbOashmEg_@fC|hcnbOwlimEp\\wM|rbobO{{imEq`@`O|h_nbOakimEfd@eP|~fobOs|imEmK`Au\\nO|zzmbOciimEd_@_QpLm@|niobOa}imEmMv@y`@|Q|jkobOc}imEmOn@k_@~P|niobOi}imEoMl@a^dP|tujbOgvhmEk`@ncAsRxK|bepbOu|imE`}@nD|l`nbOmqimEcb@f[s\\dC|~~mbOgnimEce@l]aXbA|vg|bOkk}mE_Xvb@eYhr@{RzR_Iz[eIbLkh@|Yy`@rN}c@qEy\\lD{SyIaNG|vyobOodnmEbDwCdZ}C|HhA|jzobOoenmE|^qF|vvpbOgzimEeb@qA|~`dbOu_cmEaNrB{GvFkGvZ|x`hbOa`fmEoSO_CuL|ju~aOmakmEv\\ha@|hq_bOi`jmE_Zg^|hw~aOw}jmE`Wb[|nm_bO{bjmEeT}W||tvbOqmlmEpVmEvPkJ|x`kaOmddmEo_@yI|fggbOqanlElgBgc@|HaM~Isu@|rejbOqcslEq\\uPkGcHSwH|t~hbOsetlERzFdIrIlXxL|jajbOkfslEwUcKeKgP|f_ibOsltlEaGxDak@s@|z_jbOs_slEs^_L|thibOu~rlEj^i@xGhB||bkbOcngmEhn@{\\||`caOgjqmEnRdJuBxN|lc}aOed_mE|c@nJ|pspbO_hflEtEpGhSH|llibO{z`mEeBxNxHdJzbAnKv{@hRjOYnfAcUrbBJrUvI|dtybOcwylEk@fTfF|Z||xybOaixlEwEeZh@yN|nq_cOo{|lEtJfCfRoE|znzbOehulEuArz@yPpU||tpbOopumEq\\u`@|rlwbOy_hmEcX_ZsN}VwB{M|`nvbOacimEvUh^|luvbOemlmEbWkEhQuK|z}ibOuagmEjWoa@lZaL|h_jbOkcgmEbTq_@zZ_M|~_jbOodgmErSc^xZ_M|p~ibOacgmEpTm`@tYuL|p_jbOudgmEjRc^vZuM|zdraOkpgmE{Tp@wEfL|fgbbO}{~lEqPoPsQrH"},"places":[["Smyrna","city",-8451475,3388389],["Atlanta","city",-8438982,3375447],["Decatur","town",-8429607,3377376],["College Park","town",-8444937,3365344],["Doraville","town",-8428326,3389816],["Scottdale","town",-8426409,3378983],["East Point","town",-8443937,3367955],["Belvedere Park","town",-8426731,3375485],["Chamblee","town",-8429883,3389218],["Brookhaven","town",-8434020,3385844],["Clarkston","town",-8423964,3380955],["Forest Park","town",-8436909,3362205],["Vinings","town",-8446437,3386483],["Panthersville","town",-8427187,3370733],["Tucker","town",-8422007,3385327],["Candler-McAfee","town",-8428341,3373192],["Gresham Park","suburb",-8431437,3370344],["Cooks Crossing","suburb",-8447437,3362678],["Red Oak","suburb",-8449854,3362483],["Buckhead","suburb",-8437956,3383981],["Thomasville","suburb",-8434965,3369733],["Sunrise","suburb",-8452187,3362289],["Druid Hills","suburb",-8433604,3378038],["Ben Hill","suburb",-8451132,3369066],["Granada","suburb",-8453132,3364428],["Bankhead","suburb",-8442555,3377188],["Old Fourth Ward","suburb",-8437176,3376411],["Lindbergh","suburb",-8436741,3382112],["Cumberland","suburb",-8446071,3389734],["Weather Wood","neighbourhood",-8429774,3367881],["Rolling Meadows","neighbourhood",-8427048,3362039],["Forrest Park","neighbourhood",-8442576,3370650],["Elmwood","neighbourhood",-8443909,3366594],["Creek Cove","neighbourhood",-8424687,3363316],["Oakdale","neighbourhood",-8449771,3381872],["Eastland Heights","neighbourhood",-8432992,3371900],["Pebblebrook Estates","neighbourhood",-8452743,3382066],["Orchard Knob","neighbourhood",-8437854,3367539],["Kirkwood","neighbourhood",-8432315,3375243],["North DeKalb","neighbourhood",-8427298,3381010],["Adams Park","neighbourhood",-8445687,3371205],["Tolliver Heights","neighbourhood",-8428214,3366677],["Conley Downs","neighbourhood",-8426326,3367261],["Chelsea Heights","neighbourhood",-8431715,3378344],["Harry Pooles Mobile Home Park","neighbourhood",-8425103,3363844],["East Lake Highlands","neighbourhood",-8429853,3375038],["Ash Manor","neighbourhood",-8427909,3363983],["Queens Lake Estates","neighbourhood",-8454299,3379038],["Pinecrest Hills","neighbourhood",-8435469,3364654],["Mountain View Plaza","neighbourhood",-8436326,3363761],["Benton Harbor","neighbourhood",-8420936,3368344],["Fairfield Glen","neighbourhood",-8422770,3362094],["Cherry Ridge","neighbourhood",-8424242,3368150],["Briar Glen","neighbourhood",-8425270,3368483],["Oakhurst","neighbourhood",-8430336,3376087],["Oak View Homes","neighbourhood",-8434492,3363844],["Blue Creek","neighbourhood",-8429965,3366519],["Ellen","neighbourhood",-8444243,3380066],["Rovena Acres","neighbourhood",-8427881,3368171],["Emory Estates","neighbourhood",-8431437,3379038],["Gilbert Gardens","neighbourhood",-8438076,3365039],["Center Hill","neighbourhood",-8447337,3377527],["West End","neighbourhood",-8441632,3373816],["Ingleside","neighbourhood",-8426576,3378149],["East Atlanta Village","neighbourhood",-8434555,3374020],["Cabbagetown","neighbourhood",-8436659,3374816],["Elizabeth Park","neighbourhood",-8434409,3364261],["Capitol View","neighbourhood",-8441326,3371677],["River Hills","neighbourhood",-8428665,3367725],["Del Pines","neighbourhood",-8421659,3363622]]}</script>
+<script>
+"use strict";
+/* ============================================================
+   COMMON GROUND · LIVING MAPMAKER
+   A living map woven by the people who move through a place.
+   Single file. No build. Nothing required to render.
+   ============================================================ */
+
+/* ---------- constants ---------- */
+var TAU = Math.PI * 2;
+var PAPER = "#efeadd", PAPER_LIT = "#f2eee3";
+/* Authorship lives inside the two accents of the ground: teal, vermillion, graphite.
+   People are told apart by value and by the make of the fibre, never by a new hue. */
+var FIBRES = [
+  { c: "#2f7d84", m: "solid", warm: 0 },   /* teal            */
+  { c: "#bf4526", m: "solid", warm: 1 },   /* vermillion      */
+  { c: "#215f67", m: "dash", warm: 0 },    /* deep teal       */
+  { c: "#8a2e16", m: "dash", warm: 1 },    /* deep vermillion */
+  { c: "#6aa9ad", m: "ply", warm: 0 },     /* pale teal       */
+  { c: "#d5795d", m: "ply", warm: 1 },     /* pale vermillion */
+  { c: "#7a2f4e", m: "solid", warm: 1 },   /* madder          */
+  { c: "#0f6f70", m: "bead", warm: 0 },    /* verdigris       */
+  { c: "#3f959b", m: "dash", warm: 0 },    /* light teal      */
+  { c: "#9c3520", m: "solid", warm: 1 },   /* brick           */
+  { c: "#1d7f83", m: "ply", warm: 0 },     /* deep verdigris  */
+  { c: "#d99a55", m: "ply", warm: 1 },     /* ochre thread    */
+  { c: "#54263c", m: "dash", warm: 1 },    /* deep madder     */
+  { c: "#8fc0c2", m: "solid", warm: 0 },   /* pale verdigris  */
+  { c: "#e08a6e", m: "dash", warm: 1 },    /* faded vermilion */
+  { c: "#0b555c", m: "solid", warm: 0 },   /* ink teal        */
+  { c: "#b8563d", m: "ply", warm: 1 },     /* rust            */
+  { c: "#46888c", m: "solid", warm: 0 }    /* sea             */
+];
+var STROKE_MIN_PX = 7;             /* travel before a drag becomes a thread */
+var HOLD_MS = 520;                 /* long-press to say something into place */
+
+/* ---------- math / geo ---------- */
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function mercX(lng) { return (lng + 180) / 360; }
+function mercY(lat) {
+  var s = Math.sin(clamp(lat, -85.05, 85.05) * Math.PI / 180);
+  return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
+}
+function unMercX(x) { return x * 360 - 180; }
+function unMercY(y) { return 180 / Math.PI * Math.atan(Math.sinh(Math.PI * (1 - 2 * y))); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+/* deterministic hash -> [0,1) ; used for ink wobble, never for geography */
+function hash01(n) { var x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+
+/* ---------- polyline decode (Google polyline, 1e5) ---------- */
+function decodePolylines(str) {
+  var out = [], i = 0, n = str.length;
+  while (i < n) {
+    var lat = 0, lng = 0, pts = [];
+    while (i < n && str[i] !== "|") {
+      var shift = 0, result = 0, b;
+      do { b = str.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+      shift = 0; result = 0;
+      do { b = str.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+      pts.push(mercX(lng / 1e5), mercY(lat / 1e5));
+    }
+    i++;
+    if (pts.length >= 4) out.push(Float64Array.from(pts));
+  }
+  return out;
+}
+
+/* ---------- the ground (real geometry, always present) ---------- */
+var GROUND_INDEX = null;   /* built lazily: which ground fibres pass near a place */
+
+var GROUND = { bbox: [-84.55, 33.62, -84.2, 33.9], layers: {}, places: [] };
+try {
+  var gd = document.getElementById("ground-data").textContent;
+  if (gd && gd.charAt(0) === "{") GROUND = JSON.parse(gd);
+} catch (e) { /* ground stays empty; the paper still holds */ }
+
+var INK = {};
+for (var lk in GROUND.layers) { try { INK[lk] = decodePolylines(GROUND.layers[lk]); } catch (e) { INK[lk] = []; } }
+var PLACES = (GROUND.places || []).map(function (p) {
+  return { name: p[0], kind: p[1], x: mercX(p[2] / 1e5), y: mercY(p[3] / 1e5) };
+});
+
+/* ---------- identity ---------- */
+function readLS(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }
+function writeLS(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
+
+var ME = readLS("cg.me", "");
+if (!/^[a-z0-9]{6,10}$/.test(ME)) {
+  ME = Math.random().toString(36).slice(2, 8);
+  writeLS("cg.me", ME);
+}
+function hashAuthor(a) {
+  var h = 0;
+  for (var i = 0; i < a.length; i++) h = (h * 31 + a.charCodeAt(i)) >>> 0;
+  return h;
+}
+/* Hashing straight to a fibre collides at three or four people, and then two
+   humans on one ground look like one. Instead the people of a ground are put in
+   the order they first left something, which every client works out identically
+   from the same log, and handed the fibres in turn. Up to eighteen hands are
+   distinct; past that it falls back to the hash. */
+var fibreIndex = Object.create(null), fibreOrderDirty = true;
+function rebuildFibreOrder() {
+  var firstSeen = Object.create(null);
+  var ops = (typeof Store !== "undefined" && Store && Store.ops) ? Store.ops : [];
+  for (var i = 0; i < ops.length; i++) {
+    var o = ops[i];
+    if (firstSeen[o.a] === undefined || o.t < firstSeen[o.a]) firstSeen[o.a] = o.t;
+  }
+  if (firstSeen[ME] === undefined) firstSeen[ME] = Infinity;   /* you join at the end until you weave */
+  if (!ops.length) fibreOrderDirty = true;                     /* provisional until there is a log */
+  var people = Object.keys(firstSeen).sort(function (a, b) {
+    if (firstSeen[a] !== firstSeen[b]) return firstSeen[a] - firstSeen[b];
+    return a < b ? -1 : 1;
+  });
+  fibreIndex = Object.create(null);
+  for (var k = 0; k < people.length; k++) {
+    fibreIndex[people[k]] = k < FIBRES.length ? k : (hashAuthor(people[k]) % FIBRES.length);
+  }
+  fibreOrderDirty = false;
+}
+/* whenever the order is rebuilt, the shorthand follows it in the same breath */
+function syncMine() {
+  if (typeof MY_FIBRE === "undefined") return;
+  var f = FIBRES[fibreIndex[ME] !== undefined ? fibreIndex[ME] : (hashAuthor(ME) % FIBRES.length)];
+  if (f && f !== MY_FIBRE) { MY_FIBRE = f; MY_COLOR = f.c; }
+}
+function fibreOf(author) {
+  if (fibreOrderDirty) { rebuildFibreOrder(); syncMine(); }
+  var idx = fibreIndex[author];
+  if (idx === undefined) idx = hashAuthor(author) % FIBRES.length;
+  return FIBRES[idx];
+}
+function colorOf(author) { return fibreOf(author).c; }
+/* MY_COLOR and MY_FIBRE are conveniences kept in step with fibreOf(ME); they are
+   never an independent second opinion about which fibre is yours. */
+var MY_FIBRE = fibreOf(ME);
+var MY_COLOR = MY_FIBRE.c;
+function refreshMyFibre() {
+  if (fibreOrderDirty) rebuildFibreOrder();
+  MY_FIBRE = fibreOf(ME); MY_COLOR = MY_FIBRE.c;
+  for (var i = 0; i < Store.threads.length; i++) {
+    var fb2 = fibreOf(Store.threads[i].a);
+    Store.threads[i].c = fb2.c; Store.threads[i].m = fb2.m;
+  }
+  for (var j = 0; j < Store.notes.length; j++) Store.notes[j].c = colorOf(Store.notes[j].a);
+  if (typeof threadBtn !== "undefined" && threadBtn) setTrace(traceMode);
+  if (typeof refreshPeopleGlyph === "function") refreshPeopleGlyph();
+  weaveDirty = true; dirty = true;
+}
+
+/* The person keeps one identity, so their fibre is theirs everywhere. Each open
+   client gets its own, so two tabs on one device are two clients that can weave
+   together without ever minting the same mark twice. */
+var SITE = (function () {
+  var r = "";
+  try {
+    var buf = new Uint8Array(5);
+    if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(buf);
+    else for (var k = 0; k < buf.length; k++) buf[k] = (Math.random() * 256) | 0;
+    for (var i = 0; i < buf.length; i++) r += buf[i].toString(36);
+  } catch (e) { r = Math.random().toString(36).slice(2); }
+  return (ME + r).replace(/[^a-z0-9]/g, "").slice(0, 14) || ("s" + Math.random().toString(36).slice(2, 8));
+})();
+
+/* ---------- ground id (which place we are weaving) ---------- */
+function readGroundId() {
+  var h = (location.hash || "").replace(/^#/, "");
+  var m = /(?:^|&)g=([A-Za-z0-9_-]{1,24})/.exec(h);
+  if (m) return m[1];
+  var q = new URLSearchParams(location.search).get("g");
+  if (q && /^[A-Za-z0-9_-]{1,24}$/.test(q)) return q;
+  return "atlanta";
+}
+var GID = readGroundId();
+
+/* ============================================================
+   STORE — append-only ops. The whole history of the ground.
+   ============================================================ */
+var Store = {
+  ops: [],
+  seen: Object.create(null),
+  seq: 0,
+  threads: [],          /* {id,a,t,c,pts:Float64Array(merc pairs),drawn:0..1} */
+  notes: [],            /* {id,a,t,c,x,y,text} */
+  knots: new Map(),      /* cellKey -> knot */
+  bounds: { t0: Infinity, t1: 0 }
+};
+
+function opId() { return SITE + "." + (++Store.seq).toString(36); }
+
+function num(v) { return typeof v === "number" && isFinite(v); }
+function validOp(op) {
+  if (!op || typeof op !== "object") return false;
+  if (typeof op.i !== "string" || !/^[A-Za-z0-9_.-]{3,48}$/.test(op.i)) return false;
+  if (typeof op.a !== "string" || !op.a.length || op.a.length > 32) return false;
+  if (!num(op.t) || op.t < 0) return false;
+  var d = op.d;
+  if (op.k === "t") {
+    if (!d || !Array.isArray(d.p) || d.p.length < 4 || d.p.length % 2 || d.p.length > 20000) return false;
+    for (var i = 0; i < d.p.length; i++) {
+      if (!num(d.p[i])) return false;
+      if (i % 2 === 0) { if (d.p[i] < -9000000 || d.p[i] > 9000000) return false; }
+      else if (d.p[i] < -18100000 || d.p[i] > 18100000) return false;
+    }
+    return true;
+  }
+  if (op.k === "n") {
+    if (!d || !Array.isArray(d.ll) || d.ll.length !== 2 || !num(d.ll[0]) || !num(d.ll[1])) return false;
+    if (typeof d.x !== "string") return false;
+    return true;
+  }
+  if (op.k === "x") return !!(d && typeof d.r === "string");
+  return false;
+}
+
+function addOp(op, opts) {
+  if (!op || !op.i || Store.seen[op.i]) return false;
+  if (tombs.has(op.i)) return false;
+  if (!validOp(op)) return false;
+  Store.seen[op.i] = 1;
+  Store.ops.push(op);
+  if (op.i.indexOf(SITE + ".") === 0) {
+    var n = parseInt((op.i.split(".")[1] || "0"), 36);
+    if (n > Store.seq) Store.seq = n;
+  }
+  fibreOrderDirty = true;
+  try { materialise(op, opts || {}); }
+  catch (e) { Store.ops.pop(); delete Store.seen[op.i]; return false; }
+  if (op.t < Store.bounds.t0) Store.bounds.t0 = op.t;
+  if (op.t > Store.bounds.t1) Store.bounds.t1 = op.t;
+  return true;
+}
+
+/* ---- laying a thread into the cloth ----
+   The ledger keeps exactly what the hand drew and never anything else. What the
+   cloth SHOWS is that gesture settled into the ground it was drawn over: where a
+   sample falls within a stride of a street the thread lies in the street, the way
+   ink settles into the tooth of paper. Past that stride nothing moves, so a
+   deliberate cut across a park stays a cut across a park. */
+var BIND_CELL = 1 / Math.pow(2, 17);          /* ~250 m index cells */
+function buildGroundIndex() {
+  GROUND_INDEX = new Map();
+  var layers = ["motorway", "primary", "secondary", "rail", "water"];
+  for (var li = 0; li < layers.length; li++) {
+    var lines = INK[layers[li]];
+    if (!lines) continue;
+    for (var i = 0; i < lines.length; i++) {
+      var pts = lines[i];
+      for (var j = 0; j + 3 < pts.length; j += 2) {
+        var ax = pts[j], ay = pts[j + 1], bx = pts[j + 2], by = pts[j + 3];
+        var c0x = Math.floor(Math.min(ax, bx) / BIND_CELL), c1x = Math.floor(Math.max(ax, bx) / BIND_CELL);
+        var c0y = Math.floor(Math.min(ay, by) / BIND_CELL), c1y = Math.floor(Math.max(ay, by) / BIND_CELL);
+        if ((c1x - c0x) * (c1y - c0y) > 40) continue;
+        for (var cx = c0x; cx <= c1x; cx++) for (var cy = c0y; cy <= c1y; cy++) {
+          var k = cx + ":" + cy;
+          var arr = GROUND_INDEX.get(k);
+          if (!arr) { arr = []; GROUND_INDEX.set(k, arr); }
+          arr.push(ax, ay, bx, by);
+        }
+      }
+    }
+  }
+}
+
+function nearestOnGround(x, y, tol) {
+  if (!GROUND_INDEX) buildGroundIndex();
+  var cx = Math.floor(x / BIND_CELL), cy = Math.floor(y / BIND_CELL);
+  var best = null, bd = tol * tol;
+  for (var ox = -1; ox <= 1; ox++) for (var oy = -1; oy <= 1; oy++) {
+    var arr = GROUND_INDEX.get((cx + ox) + ":" + (cy + oy));
+    if (!arr) continue;
+    for (var i = 0; i < arr.length; i += 4) {
+      var ax = arr[i], ay = arr[i + 1], bx = arr[i + 2], by = arr[i + 3];
+      var dx = bx - ax, dy = by - ay;
+      var L2 = dx * dx + dy * dy;
+      var t = L2 > 0 ? ((x - ax) * dx + (y - ay) * dy) / L2 : 0;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      var px = ax + t * dx, py = ay + t * dy;
+      var d2 = (x - px) * (x - px) + (y - py) * (y - py);
+      if (d2 < bd) { bd = d2; best = [px, py]; }
+    }
+  }
+  return best;
+}
+
+/* about thirty metres here — a stride, not a correction */
+var BIND_TOL = 30 / 40075016 * 1.2;
+function settleIntoGround(pts) {
+  var out = new Float64Array(pts.length);
+  var moved = 0;
+  for (var i = 0; i < pts.length; i += 2) {
+    var hit = nearestOnGround(pts[i], pts[i + 1], BIND_TOL);
+    if (hit) { out[i] = hit[0]; out[i + 1] = hit[1]; moved++; }
+    else { out[i] = pts[i]; out[i + 1] = pts[i + 1]; }
+  }
+  if (moved < 2) return pts;
+  /* ease between what was drawn and where it settled, so the thread still
+     remembers the hand that made it */
+  for (var j = 0; j < pts.length; j++) out[j] = pts[j] * 0.22 + out[j] * 0.78;
+  return out;
+}
+
+function materialise(op, opts) {
+  if (op.k === "t") {
+    var raw = op.d.p, pts = new Float64Array(raw.length);
+    for (var i = 0; i < raw.length; i += 2) {
+      pts[i] = mercX(raw[i + 1] / 1e5);
+      pts[i + 1] = mercY(raw[i] / 1e5);
+    }
+    var fb = fibreOf(op.a);
+    var bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+    for (var b = 0; b < pts.length; b += 2) {
+      if (pts[b] < bx0) bx0 = pts[b];
+      if (pts[b] > bx1) bx1 = pts[b];
+      if (pts[b + 1] < by0) by0 = pts[b + 1];
+      if (pts[b + 1] > by1) by1 = pts[b + 1];
+    }
+    var bound = settleIntoGround(pts);
+    var th = {
+      id: op.i, a: op.a, t: op.t, c: fb.c, m: fb.m, pts: bound, raw: pts,
+      bx0: bx0, by0: by0, bx1: bx1, by1: by1,
+      drawn: opts.animate ? 0 : 1
+    };
+    Store.threads.push(th);
+    Store.threadsDirty = true;
+    if (opts.animate) { th.drawn = -(opts.stagger || 0); th.rate = 0.016; }
+    weaveThread(th);
+  } else if (op.k === "n") {
+    Store.notes.push({
+      id: op.i, a: op.a, t: op.t, c: colorOf(op.a),
+      x: mercX(op.d.ll[1] / 1e5), y: mercY(op.d.ll[0] / 1e5),
+      text: String(op.d.x || "").slice(0, 140), drawn: opts.animate ? 0 : 1
+    });
+  }
+}
+
+/* Unpicking is remembered, so a thread you took back does not come home again
+   the next time a peer tells you everything it holds. */
+var tombs = (function () {
+  try { var a = JSON.parse(readLS("cg.gone." + readGroundId(), "[]")); return new Set(Array.isArray(a) ? a : []); }
+  catch (e) { return new Set(); }
+})();
+function saveTombs() {
+  try { writeLS("cg.gone." + GID, JSON.stringify(Array.from(tombs).slice(-600))); } catch (e) { }
+}
+function removeOp(id, by) {
+  var idx = -1;
+  for (var i = Store.ops.length - 1; i >= 0; i--) if (Store.ops[i].i === id) { idx = i; break; }
+  if (idx < 0) { if (by) { tombs.add(id); saveTombs(); } return false; }
+  if (by && Store.ops[idx].a !== by) return false;      /* only your own marks are yours to take back */
+  Store.ops.splice(idx, 1);
+  delete Store.seen[id];
+  tombs.add(id); saveTombs();
+  rebuild();
+  return true;
+}
+
+function rebuild() {
+  fibreOrderDirty = true;
+  Store.threads = []; Store.notes = []; Store.knots = new Map();
+  aggCache = null; aggLevel = -1; openKnot = null; touchWeave();
+  Store.bounds = { t0: Infinity, t1: 0 };
+  var ops = Store.ops.slice().sort(function (a, b) { return a.t - b.t; });
+  for (var i = 0; i < ops.length; i++) {
+    try { materialise(ops[i], {}); } catch (e) { continue; }
+    if (ops[i].t < Store.bounds.t0) Store.bounds.t0 = ops[i].t;
+    if (ops[i].t > Store.bounds.t1) Store.bounds.t1 = ops[i].t;
+  }
+}
+
+/* ---------- weaving ----------
+   A knot is not an arithmetic accident of two polylines crossing. It is a PLACE
+   that more than one thread has passed through. Every thread is counted once per
+   place, so a jittery trace and a clean one weigh the same, and coming back on a
+   later day counts as a return whether or not anything ever crossed there.
+   Places are held at ~32 m and gathered upward to whatever scale you are looking at. */
+
+var BASE_Z = 20;                                  /* the finest place we hold */
+var BASE_CELL = 1 / Math.pow(2, BASE_Z);          /* ~32 m on the ground here */
+var KEY_SPAN = 1 << BASE_Z;
+
+function packCell(cx, cy) { return cx * KEY_SPAN + cy; }
+
+/* The places a thread passes through, walked at half a cell so nothing is skipped,
+   and the bearing on which it crossed each one. Bearing is what tells a meeting
+   from a shared corridor, and unlike anything positional it does not move when
+   the trace wobbles. Folded to 180 degrees, in four bins: a direction, not a heading. */
+function threadCells(pts) {
+  if (pts.length < 4) return [];
+  var step = BASE_CELL * 0.5;
+  var wx = [], wy = [];
+  wx.push(pts[0]); wy.push(pts[1]);
+  for (var i = 0; i + 3 < pts.length; i += 2) {
+    var x1 = pts[i], y1 = pts[i + 1], x2 = pts[i + 2], y2 = pts[i + 3];
+    var d = Math.hypot(x2 - x1, y2 - y1);
+    var n = Math.min(400, Math.max(1, Math.ceil(d / step)));
+    for (var j = 1; j <= n; j++) { wx.push(x1 + (x2 - x1) * j / n); wy.push(y1 + (y2 - y1) * j / n); }
+  }
+  var seen = new Map(), out = [];
+  var WIN = 5;                                  /* the bearing is read over ~160 m, not one cell */
+  for (var q = 0; q < wx.length; q++) {
+    var cx = Math.floor(wx[q] / BASE_CELL), cy = Math.floor(wy[q] / BASE_CELL);
+    var k = packCell(cx, cy);
+    if (seen.has(k)) continue;
+    var a = Math.max(0, q - WIN), b = Math.min(wx.length - 1, q + WIN);
+    var dx = wx[b] - wx[a], dy = wy[b] - wy[a];
+    if (Math.abs(dx) < 1e-12 && Math.abs(dy) < 1e-12) { dx = wx[wx.length - 1] - wx[0]; dy = wy[wy.length - 1] - wy[0]; }
+    var ang = Math.atan2(dy, dx);
+    if (ang < 0) ang += Math.PI;
+    if (ang >= Math.PI) ang -= Math.PI;
+    var bin = Math.min(3, Math.floor(ang / (Math.PI / 4)));
+    seen.set(k, 1);
+    out.push(k, bin);
+  }
+  return out;
+}
+
+/* Store.knots holds the finest places; the drawn weave is gathered from them. */
+function weaveThread(th) {
+  th.cells = threadCells(th.pts);
+  var bucket = Math.floor(th.t / 36e5);            /* an hour apart is a return */
+  for (var i = 0; i < th.cells.length; i += 2) {
+    var k = th.cells[i], bin = th.cells[i + 1];
+    var kn = Store.knots.get(k);
+    if (!kn) {
+      var cx = Math.floor(k / KEY_SPAN), cy = k - cx * KEY_SPAN;
+      kn = {
+        key: k, cx: cx, cy: cy,
+        x: (cx + 0.5) * BASE_CELL, y: (cy + 0.5) * BASE_CELL,
+        eid: [], ea: [], eb: [], et: [], bins: new Set(),
+        t0: Infinity, t1: 0, grew: 0
+      };
+      Store.knots.set(k, kn);
+    }
+    if (kn.eid.indexOf(th.id) < 0) {
+      kn.eid.push(th.id); kn.ea.push(th.a); kn.eb.push(bucket); kn.et.push(th.t);
+      kn.bins.add(bin);
+    }
+    if (th.t < kn.t0) kn.t0 = th.t;
+    if (th.t > kn.t1) kn.t1 = th.t;
+    kn.grew = Math.max(kn.grew, th.t);
+  }
+  touchWeave();
+}
+
+/* co  = how many threads have come through this place
+   au  = how many people
+   ret = how many times someone came back on a later occasion */
+/* A place worn deep by one person is not the same thing as a place shared wide.
+   Depth adds; people multiply; and common ground is not something you can make alone. */
+function weighPlace(co, au, ret) { return (co + ret) * (1 + Math.log2(Math.max(1, au))); }
+function maxStageFor(au) { return au >= 3 ? 4 : 3; }
+function knotWeight(kn) {
+  var au = new Set(), vi = new Set();
+  for (var i = 0; i < kn.ea.length; i++) { au.add(kn.ea[i]); vi.add(kn.ea[i] + "|" + kn.eb[i]); }
+  return weighPlace(kn.eid.length, au.size, vi.size - au.size);
+}
+
+function syncPips() {
+  var has = Store.ops.length > 0;
+  var b = document.getElementById("back");
+  if (b) b.classList.toggle("show", has);
+  var pe = document.getElementById("people");
+  if (pe) pe.classList.toggle("show", has || peers.size > 0 || demoOff);
+}
+
+/* ---------- persistence ---------- */
+var LS_KEY = "cg.ops." + GID;
+var LS_VISIT = "cg.visit." + GID;
+var MAX_OPS = 4000;
+
+function loadLocal() {
+  var raw = readLS(LS_KEY, "");
+  if (!raw) return [];
+  try { var a = JSON.parse(raw); return Array.isArray(a) ? a.filter(validOp) : []; } catch (e) { return []; }
+}
+var saveTimer = 0;
+function saveLocal() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(function () {
+    var ops = Store.ops;
+    if (ops.length > MAX_OPS) ops = ops.slice(ops.length - MAX_OPS);
+    var keep = ops.length;
+    for (var attempt = 0; attempt < 9; attempt++) {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(ops.slice(ops.length - keep))); return; }
+      catch (e) { keep = Math.floor(keep * 0.8); if (keep < 8) break; }
+    }
+    try { localStorage.removeItem(LS_KEY); } catch (e3) { }
+  }, 350);
+}
+
+/* ============================================================
+   VIEW
+   ============================================================ */
+var V = { x: mercX(-84.3880), y: mercY(33.7490), z: 12.4 };
+var W = 0, H = 0, DPR = 1;
+var cv = document.getElementById("cv");
+var ctx = cv.getContext("2d", { alpha: false });
+
+function worldSize() { return 256 * Math.pow(2, V.z); }
+function toScreenX(mx) { return (mx - V.x) * worldSize() + W / 2; }
+function toScreenY(my) { return (my - V.y) * worldSize() + H / 2; }
+function fromScreenX(sx) { return (sx - W / 2) / worldSize() + V.x; }
+function fromScreenY(sy) { return (sy - H / 2) / worldSize() + V.y; }
+
+var SAFE_B = 0, SAFE_T = 0;
+function safeBottom() { return SAFE_B; }
+function safeTop() { return SAFE_T; }
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+  try {
+    var probe = document.createElement("div");
+    probe.style.cssText = "position:fixed;bottom:0;height:env(safe-area-inset-bottom);width:1px;";
+    document.body.appendChild(probe);
+    SAFE_B = probe.getBoundingClientRect().height || 0;
+    probe.style.cssText = "position:fixed;top:0;height:env(safe-area-inset-top);width:1px;";
+    document.body.appendChild(probe);
+    SAFE_T = probe.getBoundingClientRect().height || 0;
+    probe.remove();
+  } catch (e) { SAFE_B = 0; }
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.max(1, Math.round(W * DPR));
+  cv.height = Math.max(1, Math.round(H * DPR));
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  paperTex = null;
+  weaveDirty = true;
+  dirty = true;
+}
+
+/* ============================================================
+   TILES — optional depth. Never required.
+   ============================================================ */
+var Tiles = {
+  cache: new Map(), fails: 0, off: false, pending: 0, anyOk: false,
+  hosts: ["a", "b", "c"],
+  key: function (z, x, y) { return z + "/" + x + "/" + y; },
+  get: function (z, x, y) {
+    var k = this.key(z, x, y);
+    var e = this.cache.get(k);
+    if (e) return e;
+    if (this.off || this.pending > 6) return null;
+    var img = new Image();
+    e = { img: img, ok: false, bad: false, born: performance.now() };
+    this.cache.set(k, e);
+    this.pending++;
+    var self = this;
+    img.crossOrigin = "anonymous";
+    img.onload = function () {
+      self.pending--; e.ok = true; self.fails = 0;
+      if (!self.anyOk) { self.anyOk = true; var at = document.getElementById("attrib"); if (at) at.style.display = "block"; }
+      weaveDirty = true; dirty = true;
+    };
+    img.onerror = function () {
+      self.pending--; e.bad = true; self.fails++;
+      if (self.fails >= 4 && !self.anyOk) self.off = true;
+      if (self.fails >= 12) self.off = true;
+      dirty = true;
+    };
+    img.src = "https://" + this.hosts[(x + y) % 3] + ".tile.openstreetmap.org/" + z + "/" + x + "/" + y + ".png";
+    if (this.cache.size > 320) {
+      var it = this.cache.keys();
+      for (var i = 0; i < 80; i++) { var kk = it.next().value; if (kk !== k) this.cache.delete(kk); }
+    }
+    return e;
+  }
+};
+
+function drawTiles() {
+  if (Tiles.off) return;
+  if (navigator.onLine === false) return;
+  var tz = clamp(Math.round(V.z), 3, 19);
+  var scale = worldSize() / (256 * Math.pow(2, tz));
+  var tsize = 256 * scale;
+  var n = Math.pow(2, tz);
+  var left = fromScreenX(0) * n, right = fromScreenX(W) * n;
+  var top = fromScreenY(0) * n, bot = fromScreenY(H) * n;
+  var x0 = Math.floor(left), x1 = Math.floor(right), y0 = Math.floor(top), y1 = Math.floor(bot);
+  if ((x1 - x0 + 1) * (y1 - y0 + 1) > 90) return;
+  ctx.save();
+  try { ctx.filter = "grayscale(1) contrast(.62) brightness(1.16)"; } catch (e) { }
+  ctx.globalAlpha = 0.42;
+  for (var ty = y0; ty <= y1; ty++) {
+    if (ty < 0 || ty >= n) continue;
+    for (var tx = x0; tx <= x1; tx++) {
+      var wx = ((tx % n) + n) % n;
+      var e = Tiles.get(tz, wx, ty);
+      if (!e || !e.ok) continue;
+      var sx = toScreenX(tx / n), sy = toScreenY(ty / n);
+      ctx.drawImage(e.img, sx, sy, tsize + 1, tsize + 1);
+    }
+  }
+  ctx.restore();
+}
+
+/* ============================================================
+   PAPER
+   ============================================================ */
+var paperTex = null, paperCanvas = null;
+function paperTile() { if (!paperCanvas) paperCanvas = makePaper(); return paperCanvas; }
+function makePaper() {
+  /* correlated grain, so ink has something to sit in */
+  var s = 192, L = 48, c = document.createElement("canvas");
+  c.width = s; c.height = s;
+  var g = c.getContext("2d");
+  var lat = new Float32Array((L + 1) * (L + 1));
+  for (var i = 0; i <= L; i++) for (var j = 0; j <= L; j++) {
+    lat[i * (L + 1) + j] = hash01(i * 131 + j * 977 + 7);
+  }
+  var im = g.createImageData(s, s), k = s / L;
+  for (var y = 0; y < s; y++) {
+    for (var x = 0; x < s; x++) {
+      var fx = x / k, fy = y / k;
+      var x0 = fx | 0, y0 = fy | 0, tx = fx - x0, ty = fy - y0;
+      var a = lat[y0 * (L + 1) + x0], b = lat[y0 * (L + 1) + x0 + 1];
+      var cL = lat[(y0 + 1) * (L + 1) + x0], d = lat[(y0 + 1) * (L + 1) + x0 + 1];
+      tx = tx * tx * (3 - 2 * tx); ty = ty * ty * (3 - 2 * ty);
+      var nv = (a + (b - a) * tx) * (1 - ty) + (cL + (d - cL) * tx) * ty;
+      var fine = hash01(x * 7919 + y * 104729);
+      var v = 232 + nv * 16 + fine * 7;
+      var o = (y * s + x) * 4;
+      im.data[o] = v; im.data[o + 1] = v - 4; im.data[o + 2] = v - 14;
+      im.data[o + 3] = 40 + (fine * 26) | 0;
+    }
+  }
+  g.putImageData(im, 0, 0);
+  return c;
+}
+
+/* ============================================================
+   INK GROUND
+   ============================================================ */
+/* ----------------------------------------------------------------
+   THE GROUND IS FIBRE TOO.
+   The city is not a printed basemap with drawing on top of it. Water, rail
+   and roads are threads already laid in the cloth — spun, tapered, breathing —
+   and a thread somebody leaves today passes over some of them and under others.
+   ---------------------------------------------------------------- */
+var INK_STYLE = {
+  water: { col: "#7fa9b0", w: [1.4, 6.0], a: 0.62, make: "solid", bind: 1 },
+  rail: { col: "#6e736d", w: [0.6, 1.5], a: 0.28, make: "dash", bind: 1 },
+  secondary: { col: "#5d635c", w: [0.5, 1.5], a: 0.24, make: "solid", bind: 0 },
+  primary: { col: "#484e47", w: [0.8, 2.8], a: 0.40, make: "solid", bind: 1 },
+  motorway: { col: "#3a403a", w: [1.3, 4.6], a: 0.52, make: "solid", bind: 1 },
+  boundary: { col: "#9a9083", w: [0.7, 1.4], a: 0.30, make: "dash", bind: 0 }
+};
+var INK_ORDER = ["boundary", "rail", "secondary", "water", "primary", "motorway"];
+
+var groundLaid = [];
+
+/* how full the ground is, decided once, before anything reads it */
+function measureCrowd() {
+  var m = LAYER_PAD;
+  var vx0 = fromScreenX(-m), vx1 = fromScreenX(W + m);
+  var vy0 = fromScreenY(-m), vy1 = fromScreenY(H + m);
+  var count = 0, all = 0;
+  for (var i = 0; i < Store.threads.length; i++) {
+    var t = Store.threads[i];
+    if (t.bx1 < vx0 || t.bx0 > vx1 || t.by1 < vy0 || t.by0 > vy1) continue;
+    all++;
+    if (t.t <= timeCursor) count++;
+  }
+  placeCrowd = count;
+  /* Pressure follows how full this ground IS, not how much of it the time
+     cursor happens to be showing — winding time back must thin the cloth, not
+     change the language it is drawn in. */
+  press = clamp(1 - Math.log2(1 + all / 36) * 0.17, 0.34, 1);
+  plainWeave = all > 1400;
+  laid = plainWeave ? null : groundLaid.slice(0, 190);
+}
+
+function drawInk() {
+  var ws = worldSize();
+  var zt = clamp((V.z - 9) / 8, 0, 1);
+  var thin = (Tiles.off || !Tiles.anyOk) ? 1 : 0.72;
+  var lift = 1 - warp * 0.18;
+  var mg = LAYER_PAD;
+  var vx0 = fromScreenX(-mg), vx1 = fromScreenX(W + mg);
+  var vy0 = fromScreenY(-mg), vy1 = fromScreenY(H + mg);
+  groundLaid.length = 0;
+  var bindCap = 190;
+
+  for (var li = 0; li < INK_ORDER.length; li++) {
+    var name = INK_ORDER[li], lines = INK[name];
+    if (!lines || !lines.length) continue;
+    var st = INK_STYLE[name];
+    if (name === "rail" && V.z < 10.5) continue;
+    if (name === "secondary" && V.z < 10.2) continue;
+    var lw = lerp(st.w[0], st.w[1], zt) * thin;
+    ctx.save();
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.fillStyle = st.col;
+    ctx.globalAlpha = st.a * lift;
+
+    for (var i = 0; i < lines.length; i++) {
+      var p = lines[i];
+      var n = 0, lastX = -1e9, lastY = -1e9, on = false;
+      _tx.length = 0; _ty.length = 0;
+      for (var j = 0; j < p.length; j += 2) {
+        if (p[j] > vx0 && p[j] < vx1 && p[j + 1] > vy0 && p[j + 1] < vy1) on = true;
+        var sx = (p[j] - V.x) * ws + W / 2, sy = (p[j + 1] - V.y) * ws + H / 2;
+        if (n > 0 && Math.abs(sx - lastX) < 0.5 && Math.abs(sy - lastY) < 0.5) continue;
+        _tx.push(sx); _ty.push(sy); lastX = sx; lastY = sy; n++;
+      }
+      if (!on || n < 2) continue;
+      _seed = (i * 2654435761) % 100000;
+      ribbon(n, lw);
+      ctx.fill();
+      if (st.make === "dash" && lw > 0.9) {
+        ctx.save();
+        ctx.globalAlpha = st.a * lift * 0.9;
+        ctx.strokeStyle = PAPER_LIT; ctx.lineWidth = lw * 0.62;
+        ctx.setLineDash([lw * 0.8, lw * 2.4]);
+        ctx.beginPath();
+        for (var q = 0; q < n; q++) { if (q === 0) ctx.moveTo(_tx[q], _ty[q]); else ctx.lineTo(_tx[q], _ty[q]); }
+        ctx.stroke();
+        ctx.restore();
+      }
+      /* the strong ground fibres are part of the weave and can surface through it */
+      if (st.bind && groundLaid.length < bindCap && lw > 1.0) {
+        var kx = new Float32Array(n), ky = new Float32Array(n);
+        for (var c = 0; c < n; c++) { kx[c] = _tx[c]; ky[c] = _ty[c]; }
+        groundLaid.push({ th: { c: st.col, id: "g" + li + "_" + i }, x: kx, y: ky, n: n, w: lw, a: st.a * lift });
+      }
+    }
+    ctx.restore();
+  }
+  drawPlaces();
+}
+
+function drawPlaces() {
+  if (V.z < 10.4 || !PLACES.length) return;
+  /* Names are for a ground nobody has woven yet. As the weave arrives it becomes
+     the thing worth reading, and the machine's labels get out of its way. */
+  var nameFade = 1 - clamp((placeCrowd - 3) / 22, 0, 1);
+  if (nameFade <= 0.02) return;
+  var ws = worldSize();
+  var show = V.z < 12 ? ["city", "town"] : V.z < 13.5 ? ["city", "town", "suburb"] : null;
+  ctx.save();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.lineWidth = 3; ctx.lineJoin = "round";
+  var drawn = [];
+  for (var i = 0; i < PLACES.length; i++) {
+    var p = PLACES[i];
+    if (show && show.indexOf(p.kind) < 0) continue;
+    var sx = (p.x - V.x) * ws + W / 2, sy = (p.y - V.y) * ws + H / 2;
+    if (sx < -60 || sx > W + 60 || sy < -20 || sy > H + 20) continue;
+    var clash = false;
+    for (var d = 0; d < drawn.length; d++) {
+      if (Math.abs(drawn[d][0] - sx) < 92 && Math.abs(drawn[d][1] - sy) < 24) { clash = true; break; }
+    }
+    if (clash) continue;
+    drawn.push([sx, sy]);
+    var big = p.kind === "city";
+    ctx.font = (big ? "600 9.5px " : "600 8.5px ") + '-apple-system,system-ui,"Helvetica Neue",sans-serif';
+    var label = p.name.toUpperCase();
+    var lw2 = ctx.measureText(label).width + (label.length - 1) * 1.6;
+    if (sx - lw2 / 2 < 6 || sx + lw2 / 2 > W - 6) continue;   /* never clipped mid-word */
+    var tx0 = sx - lw2 / 2, alpha = (big ? 0.42 : 0.28) * (1 - warp * 0.5) * nameFade;
+    ctx.textAlign = "left";
+    for (var ci = 0; ci < label.length; ci++) {
+      var ch = label.charAt(ci);
+      ctx.globalAlpha = 0.8 * (1 - warp * 0.5) * nameFade;
+      ctx.strokeStyle = "rgba(241,236,224,.9)"; ctx.strokeText(ch, tx0, sy);
+      ctx.globalAlpha = alpha; ctx.fillStyle = "#1d201d"; ctx.fillText(ch, tx0, sy);
+      tx0 += ctx.measureText(ch).width + 1.6;
+    }
+    ctx.textAlign = "center";
+  }
+  ctx.restore();
+}
+
+/* ============================================================
+   THE WEAVE — threads, knots, common ground
+   ============================================================ */
+var timeCursor = Infinity;   /* unweave cursor */
+var LAST_VISIT = 0, SESSION_T0 = Date.now(), arrivalSet = null;
+var openKnot = null;
+
+function threadWidth() { return clamp(1.0 + (V.z - 10) * 0.42, 1.1, 4.6); }
+
+/* a thread is a spun ribbon: thick in the middle of the gesture, tapering at both ends */
+var _tx = [], _ty = [];
+function threadScreen(th, upto, ws) {
+  var pts = th.pts, n = 0;
+  var seedBase = (th.id.charCodeAt(0) + th.id.charCodeAt(th.id.length - 1)) * 7;
+  _tx.length = 0; _ty.length = 0;
+  var lastX = -1e9, lastY = -1e9;
+  for (var i = 0; i < upto; i++) {
+    var jx = (hash01(seedBase + i * 2) - 0.5) * 0.5 + (hash01(seedBase + Math.floor(i / 5)) - 0.5) * 0.8;
+    var jy = (hash01(seedBase + i * 2 + 1) - 0.5) * 0.5 + (hash01(seedBase + 57 + Math.floor(i / 5)) - 0.5) * 0.8;
+    var sx = (pts[i * 2] - V.x) * ws + W / 2 + jx;
+    var sy = (pts[i * 2 + 1] - V.y) * ws + H / 2 + jy;
+    if (n > 0 && Math.abs(sx - lastX) < 0.5 && Math.abs(sy - lastY) < 0.5 && i !== upto - 1) continue;
+    _tx.push(sx); _ty.push(sy); lastX = sx; lastY = sy; n++;
+  }
+  /* one smoothing pass, so a fast gesture reads as fibre and not as a polyline */
+  var passes = V.z >= 15 ? 2 : 1;
+  for (var sp = 0; sp < passes && n > 3; sp++) {
+    var ox = _tx.slice(0, n), oy = _ty.slice(0, n);
+    for (var q = 1; q < n - 1; q++) {
+      _tx[q] = ox[q] * 0.5 + ox[q - 1] * 0.25 + ox[q + 1] * 0.25;
+      _ty[q] = oy[q] * 0.5 + oy[q - 1] * 0.25 + oy[q + 1] * 0.25;
+    }
+  }
+  return n;
+}
+
+var _seed = 0;
+/* no two threads are the same slab: both ends draw to a point and the body
+   swells and thins along its length, the way a spun fibre does */
+function halfWidth(t, i, width) {
+  var ends = Math.min(1, Math.pow(clamp(t / 0.13, 0, 1), 0.75) * Math.pow(clamp((1 - t) / 0.13, 0, 1), 0.75) + 0.06);
+  var slow = hash01(_seed + Math.floor(i / 7)) - 0.5;
+  var slow2 = hash01(_seed + 91 + Math.floor(i / 17)) - 0.5;
+  var body = 1 + slow * 0.30 + slow2 * 0.22;
+  return width * 0.5 * ends * body + 0.16;
+}
+
+function ribbon(n, width, off) {
+  /* offset outline, so the stroke can breathe along its length */
+  off = off || 0;
+  ctx.beginPath();
+  var i, nx, ny, len, hw, ax, ay;
+  for (i = 0; i < n; i++) {
+    var t = n < 2 ? 1 : i / (n - 1);
+    hw = halfWidth(t, i, width);
+    ax = _tx[Math.min(i + 1, n - 1)] - _tx[Math.max(i - 1, 0)];
+    ay = _ty[Math.min(i + 1, n - 1)] - _ty[Math.max(i - 1, 0)];
+    len = Math.hypot(ax, ay) || 1;
+    nx = -ay / len; ny = ax / len;
+    if (i === 0) ctx.moveTo(_tx[i] + nx * (hw + off), _ty[i] + ny * (hw + off));
+    else ctx.lineTo(_tx[i] + nx * (hw + off), _ty[i] + ny * (hw + off));
+  }
+  for (i = n - 1; i >= 0; i--) {
+    var t2 = n < 2 ? 1 : i / (n - 1);
+    hw = halfWidth(t2, i, width);
+    ax = _tx[Math.min(i + 1, n - 1)] - _tx[Math.max(i - 1, 0)];
+    ay = _ty[Math.min(i + 1, n - 1)] - _ty[Math.max(i - 1, 0)];
+    len = Math.hypot(ax, ay) || 1;
+    nx = -ay / len; ny = ax / len;
+    ctx.lineTo(_tx[i] - nx * (hw - off), _ty[i] - ny * (hw - off));
+  }
+  ctx.closePath();
+}
+
+var plainWeave = false, laid = null, press = 1, placeCrowd = 0, reveal = 1, lastCool = 0;
+function drawThread(th, alpha, width, dim) {
+  var ws = worldSize();
+  var count = th.pts.length / 2;
+  var upto = th.drawn >= 1 ? count : Math.max(2, Math.floor(count * th.drawn));
+  if (upto < 2) return;
+  var n = threadScreen(th, upto, ws);
+  if (n < 2) return;
+  var i;
+  _seed = (th.id.charCodeAt(0) * 31 + th.id.charCodeAt(th.id.length - 1)) * 13;
+  if (laid && laid.length < 520 && !dim) {
+    var kx = new Float32Array(n), ky = new Float32Array(n);
+    kx.set(_tx.slice(0, n)); ky.set(_ty.slice(0, n));
+    laid.push({ th: th, x: kx, y: ky, n: n, w: width, a: alpha });
+  }
+  ctx.save();
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+
+  /* the gap that lets one thread pass over another instead of blotting it —
+     threads are laid oldest first, so the weave has a real over and under */
+  if (!dim && width > 1.3 && !plainWeave) {
+    ctx.globalAlpha = alpha * 0.82;
+    ctx.strokeStyle = PAPER_LIT; ctx.lineWidth = width + 1.7;
+    ctx.beginPath();
+    for (i = 0; i < n; i++) { if (i === 0) ctx.moveTo(_tx[i], _ty[i]); else ctx.lineTo(_tx[i], _ty[i]); }
+    ctx.stroke();
+  }
+
+  /* the fibre haze around the thread */
+  if (!plainWeave) {
+    ctx.globalAlpha = alpha * (dim ? 0.04 : 0.10);
+    ctx.strokeStyle = th.c; ctx.lineWidth = width * 2.2;
+    ctx.beginPath();
+    for (i = 0; i < n; i++) { if (i === 0) ctx.moveTo(_tx[i], _ty[i]); else ctx.lineTo(_tx[i], _ty[i]); }
+    ctx.stroke();
+  }
+
+  /* the thread itself, in its own make */
+  ctx.globalAlpha = alpha * (dim ? 0.16 : 1);
+  ctx.fillStyle = th.c;
+  var mk = th.m || "solid";
+  if (mk === "ply" && width > 2.3) {
+    var sep = Math.max(1.5, width * 0.58);
+    ribbon(n, width * 0.46, sep); ctx.fill();
+    ribbon(n, width * 0.46, -sep); ctx.fill();
+  } else {
+    ribbon(n, width); ctx.fill();
+    if (mk === "dash" && width > 1.4) {
+      /* stitches: the paper shows through the thread at intervals */
+      ctx.globalAlpha = alpha * (dim ? 0.12 : 0.62);
+      ctx.strokeStyle = PAPER_LIT; ctx.lineWidth = width * 0.5;
+      ctx.setLineDash([width * 0.7, width * 2.6]);
+      ctx.beginPath();
+      for (i = 0; i < n; i++) { if (i === 0) ctx.moveTo(_tx[i], _ty[i]); else ctx.lineTo(_tx[i], _ty[i]); }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (mk === "bead" && width > 1.2) {
+      /* beads read because the paper shows around them */
+      var every = Math.max(4, Math.round(22 / Math.max(1, width)));
+      for (i = 0; i < n; i += every) {
+        ctx.globalAlpha = alpha * (dim ? 0.1 : 0.85);
+        ctx.fillStyle = PAPER_LIT;
+        ctx.beginPath(); ctx.arc(_tx[i], _ty[i], width * 0.98, 0, TAU); ctx.fill();
+        ctx.globalAlpha = alpha * (dim ? 0.16 : 1);
+        ctx.fillStyle = th.c;
+        ctx.beginPath(); ctx.arc(_tx[i], _ty[i], width * 0.62, 0, TAU); ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
+}
+
+/* ---- the weave goes over and under ----
+   Threads are laid in order, so the last one drawn sits on top of every crossing.
+   Cloth does not behave like that. Here every meeting of two threads is given a
+   side by the pair itself, and wherever the older thread should have surfaced,
+   a short span of it is drawn back over the newer one. */
+function interlace() {
+  if (!laid || laid.length < 2) { laid = null; return; }
+  var grid = new Map(), G = 26, fixups = 0, MAX = 340;
+  function key(x, y) { return ((x / G) | 0) + ":" + ((y / G) | 0); }
+  for (var t = 0; t < laid.length; t++) {
+    var L = laid[t];
+    for (var i = 0; i + 1 < L.n; i++) {
+      var k = key((L.x[i] + L.x[i + 1]) / 2, (L.y[i] + L.y[i + 1]) / 2);
+      var arr = grid.get(k); if (!arr) { arr = []; grid.set(k, arr); }
+      arr.push(t * 100000 + i);
+    }
+  }
+  for (var t2 = laid.length - 1; t2 > 0 && fixups < MAX; t2--) {
+    var Lb = laid[t2];
+    for (var j = 0; j + 1 < Lb.n && fixups < MAX; j++) {
+      var cx = (Lb.x[j] + Lb.x[j + 1]) / 2, cy = (Lb.y[j] + Lb.y[j + 1]) / 2;
+      var gx = (cx / G) | 0, gy = (cy / G) | 0;
+      for (var ox = -1; ox <= 1 && fixups < MAX; ox++) for (var oy = -1; oy <= 1 && fixups < MAX; oy++) {
+        var arr2 = grid.get((gx + ox) + ":" + (gy + oy));
+        if (!arr2) continue;
+        for (var q = 0; q < arr2.length; q++) {
+          var enc = arr2[q], ti = (enc / 100000) | 0, si = enc - ti * 100000;
+          if (ti >= t2) continue;                       /* only what was laid earlier */
+          var La = laid[ti];
+          var p = xsect(La.x[si], La.y[si], La.x[si + 1], La.y[si + 1], Lb.x[j], Lb.y[j], Lb.x[j + 1], Lb.y[j + 1]);
+          if (!p) continue;
+          /* the pair decides which of them is on top, and it is not always the newer */
+          if (hash01(ti * 7919 + t2 * 104729 + si * 31 + j) < 0.5) continue;
+          surface(La, si, p[0], p[1]);
+          if (++fixups >= MAX) break;
+        }
+      }
+    }
+  }
+  laid = null;
+}
+
+function xsect(ax, ay, bx, by, cx, cy, dx, dy) {
+  var d = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx);
+  if (Math.abs(d) < 1e-9) return null;
+  var t = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / d;
+  var u = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / d;
+  if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+  return [ax + t * (bx - ax), ay + t * (by - ay)];
+}
+
+/* bring a short span of an earlier thread back up over a later one */
+function surface(L, si, px, py) {
+  var r = Math.max(4.5, L.w * 2.2);
+  var i0 = Math.max(0, si - 3), i1 = Math.min(L.n - 1, si + 4);
+  ctx.save();
+  ctx.beginPath(); ctx.arc(px, py, r, 0, TAU); ctx.clip();
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.beginPath();
+  for (var i = i0; i <= i1; i++) { if (i === i0) ctx.moveTo(L.x[i], L.y[i]); else ctx.lineTo(L.x[i], L.y[i]); }
+  ctx.globalAlpha = L.a * 0.8;
+  ctx.strokeStyle = PAPER_LIT; ctx.lineWidth = L.w + 1.7; ctx.stroke();
+  ctx.globalAlpha = L.a;
+  ctx.strokeStyle = L.th.c; ctx.lineWidth = L.w * 0.92; ctx.stroke();
+  ctx.restore();
+}
+
+function drawWeave(now) {
+  buildAggregate();
+  var nowMs = Date.now();
+  var pending = 0, settled = 0;
+  var m = LAYER_PAD;
+  var vx0 = fromScreenX(-m), vx1 = fromScreenX(W + m);
+  var vy0 = fromScreenY(-m), vy1 = fromScreenY(H + m);
+  var ws = worldSize();
+  var base = threadWidth();
+  var dimOthers = !!openKnot;
+  var live = openKnot ? openKnot.threadList : null;
+
+  /* threads, oldest first */
+  if (Store.threadsDirty) {
+    Store.threads.sort(function (p, q) { return p.t - q.t; });
+    Store.threadsDirty = false;
+  }
+
+  for (var i = 0; i < Store.threads.length; i++) {
+    var th = Store.threads[i];
+    if (th.t > timeCursor) continue;
+    if (th.drawn < 1) { th.drawn = Math.min(1, th.drawn + (th.rate || 0.02)); dirty = true; weaveDirty = true; pending++; }
+    if (th.drawn < 0) { th.drawn = Math.min(0, th.drawn + 0.02); dirty = true; weaveDirty = true; continue; }
+    settled++;
+    /* nothing offscreen is projected at all */
+    if (th.bx1 < vx0 || th.bx0 > vx1 || th.by1 < vy0 || th.by0 > vy1) continue;
+    var age = Store.bounds.t1 > Store.bounds.t0
+      ? (th.t - Store.bounds.t0) / (Store.bounds.t1 - Store.bounds.t0 || 1) : 1;
+    var recent = clamp(1 - (nowMs - th.t) / (3 * 864e5), 0, 1);   /* three days keep their ink */
+    var pr = press + (1 - press) * recent * 0.8;
+    var a = (0.52 + 0.42 * age) * pr;
+    if (th.a === ME) a = Math.min(1, a * 1.3 + 0.08);   /* your own hand always reads */
+    var dim = dimOthers && live.indexOf(th.id) < 0;
+    /* Density redistributes ink rather than deleting it: a strand grows with the
+       wear of the ground under it, so many thin threads down one street fuse into
+       a single thick warp band instead of all of them fading away. */
+    var fuse = 1 + Math.log2(1 + (th.wear || 1)) * 0.20;
+    /* a thread laid today has no wear behind it yet, and must not therefore read
+       as a thinner, flatter mark than the corridors it walks through */
+    var w = base * (0.74 + 0.38 * age) * (0.5 + 0.5 * pr) * Math.max(fuse, 1 + recent * 0.18)
+      * (th.a === ME ? 1.10 : 1);
+    if (dimOthers && !dim) w *= 1.25;
+    drawThread(th, a, w, dim);
+  }
+
+  interlace();
+  /* while a ground is drawing itself back in, its knots wait for their threads */
+  reveal = (pending + settled) > 0 ? settled / (pending + settled) : 1;
+  /* freshness fades on the live pass; the cloth underneath is only repainted
+     now and then, so a new meeting costs a blit rather than a whole fabric */
+  var anyFresh = false;
+  for (var fk = 0; fk < renderedKnots.length; fk++) if (renderedKnots[fk].fresh > 0.02) { anyFresh = true; break; }
+  if (anyFresh && nowMs - lastCool > 2500) { lastCool = nowMs; weaveDirty = true; }
+
+  /* knots gather as you pull back: at a distance the weave is fabric, not beads */
+  buildKnotClusters();
+  for (var k = 0; k < renderedKnots.length; k++) drawKnot(renderedKnots[k], now);
+
+  /* words in place */
+  drawNotes(now);
+}
+
+/* ---- gathering places upward to the scale you are looking at ----
+   Places are held at ~32 m. What you see is those places gathered into cells
+   about 20 px across, so a knot always means "this much happened around here",
+   and its rank on the ladder never changes just because you zoomed. */
+var renderedKnots = [];
+var aggDirty = true, aggLevel = -1, aggCache = null, aggCut = Infinity, wearDirty = true;
+
+/* ---- one owner of "the cloth is no longer what is on screen" ----
+   Every cache below hangs off this one number. Nothing else may decide on its
+   own that a repaint is or is not needed: five flags that each knew a little
+   went out of step with one another, and the screen showed the disagreement. */
+var weaveVersion = 1;
+function touchWeave() {
+  weaveVersion++;
+  aggDirty = true; wearDirty = true; weaveDirty = true; dirty = true;
+}
+
+/* how worn is the ground each thread runs through — only recomputed when the
+   ground itself changes, never merely because you zoomed */
+function computeWear() {
+  var wear = new Map();
+  Store.knots.forEach(function (kn) {
+    var n = kn.eid.length;
+    for (var i = 0; i < n; i++) {
+      var cur = wear.get(kn.eid[i]);
+      if (cur === undefined || n > cur) wear.set(kn.eid[i], n);
+    }
+  });
+  for (var wi = 0; wi < Store.threads.length; wi++) Store.threads[wi].wear = wear.get(Store.threads[wi].id) || 1;
+  wearDirty = false;
+}
+
+function levelForZoom() { return clamp(Math.round(V.z) + 6, 12, BASE_Z); }
+
+function buildAggregate() {
+  var L = levelForZoom();
+  if (!aggDirty && L === aggLevel && aggCache && aggCut === timeCursor) return aggCache;
+  aggCut = timeCursor;
+  var shift = BASE_Z - L, span = 1 << L;
+  var out = new Map();
+  var cut = timeCursor;
+  Store.knots.forEach(function (kn) {
+    var cx = kn.cx >> shift, cy = kn.cy >> shift;
+    var k = cx * span + cy;
+    var a = out.get(k);
+    if (!a) {
+      a = { key: k, sx: 0, sy: 0, np: 0, threads: new Set(), authors: new Set(), visits: new Set(), bins: new Set(), t0: Infinity, t1: 0, grew: 0 };
+      out.set(k, a);
+    }
+    var here = 0;
+    for (var i = 0; i < kn.eid.length; i++) {
+      if (kn.et[i] > cut) continue;               /* unwoven threads take their knots with them */
+      here++;
+      a.threads.add(kn.eid[i]); a.authors.add(kn.ea[i]); a.visits.add(kn.ea[i] + "|" + kn.eb[i]);
+      if (kn.et[i] < a.t0) a.t0 = kn.et[i];
+      if (kn.et[i] > a.t1) a.t1 = kn.et[i];
+    }
+    if (!here) return;
+    kn.bins.forEach(function (bb) { a.bins.add(bb); });
+    a.sx += kn.x * here; a.sy += kn.y * here; a.np += here;
+    if (kn.grew > a.grew) a.grew = kn.grew;
+  });
+  var list = [];
+  out.forEach(function (a) {
+    a.x = a.sx / a.np; a.y = a.sy / a.np;
+    a.co = a.threads.size;
+    a.au = a.authors.size;
+    a.ret = Math.max(0, a.visits.size - a.au);
+    a.w = weighPlace(a.co, a.au, a.ret);
+    a.threadList = Array.from(a.threads);
+    /* threads have to meet at an angle. Running along together is a worn
+       corridor, however many feet have worn it — the corridor thickens instead. */
+    if (a.co >= 2 && a.bins.size >= 2) list.push(a);
+  });
+
+  aggTopW = 1;
+  for (var tw = 0; tw < list.length; tw++) if (list[tw].w > aggTopW) aggTopW = list[tw].w;
+  if (LAST_VISIT && !arrivalSet && Date.now() - SESSION_T0 < 45000) {
+    arrivalSet = new Set();
+    for (var av = 0; av < list.length; av++) if (list[av].grew > LAST_VISIT) arrivalSet.add(list[av].key);
+  }
+  if (wearDirty) computeWear();
+  aggCache = list; aggLevel = L; aggDirty = false;
+  return list;
+}
+
+/* The ladder reads off the place's own history — never off the zoom — but it is
+   also read against the strongest place on this ground, so however many years a
+   city is woven for there are only ever two or three landmarks, and the whole
+   progression from a first crossing to common ground stays legible forever. */
+var aggTopW = 1;
+function knotStage(w, au) {
+  /* A coarser aggregation gathers more threads into one cell, so raw weight
+     climbs as you pull back. Normalise it to a reference scale first, or the
+     same place is common ground from far away and a first crossing up close. */
+  var wr = w / Math.pow(2, 18 - aggLevel);
+  var abs = wr < 8 ? 0 : wr < 17 ? 1 : wr < 34 ? 2 : wr < 68 ? 3 : 4;
+  var rel = 1;
+  if (aggTopW > 40) {
+    var q = w / aggTopW;
+    rel = q >= 0.62 ? 4 : q >= 0.34 ? 3 : q >= 0.15 ? 2 : q >= 0.05 ? 1 : 0;
+  } else rel = 4;
+  return Math.min(abs, rel, maxStageFor(au || 1));
+}
+
+function buildKnotClusters() {
+  var ws = worldSize();
+  var all = buildAggregate();
+  var vis = [];
+  for (var i = 0; i < all.length; i++) {
+    var a = all[i];
+    var sx = (a.x - V.x) * ws + W / 2, sy = (a.y - V.y) * ws + H / 2;
+    if (sx < -60 || sx > W + 60 || sy < -60 || sy > H + 60) continue;
+    vis.push(a);
+  }
+  /* only ever as many knots as the screen can hold without becoming beads */
+  /* The strongest place in a neighbourhood speaks for it, so the weave shows
+     peaks rather than a lattice of equal beads. But weight is the history of a
+     place, and a meeting that happened a minute ago has no history yet — on a
+     ground a year old it would be outranked by everything and never drawn. So
+     some of the room is kept for what has just changed, whatever it weighs. */
+  var cap = clamp(Math.round((W * H) / 17000), 14, 44);
+  var nowT = Date.now();
+  for (var fi = 0; fi < vis.length; fi++) {
+    var vf = vis[fi];
+    vf.fresh = Math.max(
+      clamp(1 - (nowT - vf.grew) / (25 * 60000), 0, 1),        /* the last half hour */
+      /* what changed while you were away — settled once, at the door, so knots
+         do not appear and vanish under a motionless hand */
+      (arrivalSet && arrivalSet.has(vf.key)) ? 1 : 0
+    );
+  }
+  if (arrivalSet && Date.now() - SESSION_T0 > 45000) arrivalSet = null;
+  var freshOnes = vis.filter(function (v) { return v.fresh > 0.02; })
+    .sort(function (p, q) { return q.grew - p.grew; })
+    .slice(0, Math.max(4, Math.round(cap * 0.4)));
+  var freshSet = new Set(freshOnes);
+  vis.sort(function (p, q) {
+    if (freshSet.has(p) !== freshSet.has(q)) return freshSet.has(p) ? -1 : 1;
+    return q.w - p.w;
+  });
+  var kept = [];
+  for (var v = 0; v < vis.length && kept.length < cap; v++) {
+    var a2 = vis[v];
+    var ax = (a2.x - V.x) * ws + W / 2, ay = (a2.y - V.y) * ws + H / 2;
+    var ar = knotRadius(a2.w), ok = true;
+    for (var u = 0; u < kept.length; u++) {
+      var bx = (kept[u].x - V.x) * ws + W / 2, by = (kept[u].y - V.y) * ws + H / 2;
+      var kr = knotRadius(kept[u].w);
+      var d2 = Math.hypot(ax - bx, ay - by);
+      var mine2 = a2.fresh > 0.02;
+      if (d2 < Math.max(mine2 ? 18 : 34, (ar + kr) * (mine2 ? 0.6 : 1.05))) { ok = false; break; }
+      /* a much stronger place nearby speaks for its own surroundings —
+         unless something just happened here, which speaks for itself */
+      if (!mine2 && kept[u].w >= a2.w * 3 && d2 < kr * 2.6) { ok = false; break; }
+    }
+    if (ok) kept.push(a2);
+  }
+  /* on an empty ground the very first crossing must be seen; on a full one it
+     would only be litter, so the faintest stage steps back once the weave is busy */
+  if (kept.length > 12) kept = kept.filter(function (a3) { return knotStage(a3.w, a3.au) >= 1 || a3.fresh > 0.02; });
+  /* A run of equal knots down one stretch is a corridor wearing evenly, not a
+     row of separate places. Where several of the same strength sit in a line,
+     the strongest speaks for them. */
+  var peaks = [];
+  for (var ki = 0; ki < kept.length; ki++) {
+    var kk = kept[ki];
+    var kx = (kk.x - V.x) * ws + W / 2, ky = (kk.y - V.y) * ws + H / 2;
+    var reach3 = Math.max(58, knotRadius(kk.w) * 3.4), peers2 = 0, beaten = false;
+    for (var kj = 0; kj < kept.length; kj++) {
+      if (kj === ki) continue;
+      var o2 = kept[kj];
+      var ox2 = (o2.x - V.x) * ws + W / 2, oy2 = (o2.y - V.y) * ws + H / 2;
+      if (Math.hypot(kx - ox2, ky - oy2) > reach3) continue;
+      if (Math.abs(o2.w - kk.w) <= kk.w * 0.3) {
+        peers2++;
+        if (o2.w > kk.w || (o2.w === kk.w && o2.key < kk.key)) beaten = true;
+      }
+    }
+    if (peers2 >= 2 && beaten && !(kk.fresh > 0.02)) continue;
+    peaks.push(kk);
+  }
+  peaks.sort(function (p, q) { return p.w - q.w; });
+  renderedKnots = peaks;
+  if (openKnot && renderedKnots.indexOf(openKnot) < 0) {
+    var found = null, bd = 1e9;
+    for (var j = 0; j < renderedKnots.length; j++) {
+      var d = Math.hypot(renderedKnots[j].x - openKnot.x, renderedKnots[j].y - openKnot.y);
+      if (d < bd) { bd = d; found = renderedKnots[j]; }
+    }
+    var reach2 = BASE_CELL * (1 << (BASE_Z - levelForZoom())) * 2;
+    if (found && bd < reach2) openKnot = found;
+    else if (all.indexOf(openKnot) >= 0) renderedKnots.push(openKnot);   /* stays open while you travel */
+    else openKnot = null;
+  }
+}
+
+var _thById = null, _thByIdN = -1;
+function threadById(id) {
+  if (_thByIdN !== Store.threads.length) {
+    _thById = new Map();
+    for (var i = 0; i < Store.threads.length; i++) _thById.set(Store.threads[i].id, Store.threads[i]);
+    _thByIdN = Store.threads.length;
+  }
+  return _thById.get(id);
+}
+
+function knotRadius(w) {
+  return clamp(2.4 + Math.pow(w, 0.46) * (2.0 + clamp(V.z - 11, 0, 6) * 0.34), 2.4, 54);
+}
+
+function drawKnot(kn, now) {
+  var ws = worldSize();
+  var sx = (kn.x - V.x) * ws + W / 2, sy = (kn.y - V.y) * ws + H / 2;
+  if (sx < -80 || sx > W + 80 || sy < -80 || sy > H + 80) return;
+  var w = kn.w, st = knotStage(w, kn.au);
+  var r = knotRadius(w);
+  var isOpen = openKnot === kn;
+  var HM = ((openKnot && !isOpen) ? 0.2 : 1) * clamp(1 / (0.45 + 0.55 * press), 1, 1.7) * reveal
+    * (1 + (kn.fresh || 0) * 0.55);
+  var many = kn.au > 1;
+  var accent = many ? "#bf4526" : "#2f7d84";
+
+  ctx.save();
+  ctx.translate(sx, sy);
+
+  /* 4 · COMMON GROUND.
+     Not a hatch stamped on the map. The field is made of the threads themselves:
+     as many strands as have come through, laid on the bearings actually recorded
+     here, interlaced over and under, fading to nothing at the edges so the place
+     radiates instead of ending at a border. */
+  if (st >= 4) {
+    var over = clamp(Math.log2(w / 68), 0, 3.2);
+    var R = r * (1.45 + over * 0.42);
+    var bins = kn.binList || (kn.binList = Array.from(kn.bins || [0, 2]));
+    var hands = kn.handList;
+    if (!hands) {
+      hands = []; var seenH = {};
+      for (var hh = 0; hh < kn.threadList.length && hands.length < 8; hh++) {
+        var th2 = threadById(kn.threadList[hh]);
+        if (!th2 || seenH[th2.a]) continue;
+        seenH[th2.a] = 1; hands.push(th2.c);
+      }
+      if (!hands.length) hands = ["#2f7d84"];
+      kn.handList = hands;
+    }
+    var strands = clamp(Math.round(kn.co * 0.85), 7, 30);
+    var seedK = Math.abs(Math.round(kn.x * 1e6)) % 99991;
+    ctx.lineCap = "round";
+    for (var si = 0; si < strands; si++) {
+      var bin = bins[si % bins.length];
+      var ang2 = (bin + 0.5) * (Math.PI / 4) + (hash01(seedK + si * 7) - 0.5) * 0.55;
+      var spread = ((si % 2 ? 1 : -1) * Math.floor(si / 2 + 1) / (strands / 2 + 1)) * R * 0.92;
+      spread += (hash01(seedK + si * 13 + 3) - 0.5) * R * 0.12;
+      var ux = Math.cos(ang2), uy = Math.sin(ang2);
+      var px = -uy * spread, py = ux * spread;
+      var reachS = Math.sqrt(Math.max(1, R * R - spread * spread));
+      var col = hands[si % hands.length];
+      var sw = threadWidth() * (0.7 + 0.5 * hash01(seedK + si * 31));
+      var caseIt = (si % 2 === 0);
+      var STEPS = 9;
+      for (var g2 = 0; g2 < STEPS; g2++) {
+        var t0 = -1 + (2 * g2) / STEPS, t1 = -1 + (2 * (g2 + 1)) / STEPS;
+        var mid = (t0 + t1) / 2;
+        var fall = Math.pow(Math.max(0, 1 - Math.abs(mid)), 0.75) * Math.pow(Math.max(0, 1 - Math.abs(spread) / R), 0.55);
+        if (fall <= 0.02) continue;
+        var ax2 = px + ux * reachS * t0, ay2 = py + uy * reachS * t0;
+        var bx3 = px + ux * reachS * t1, by3 = py + uy * reachS * t1;
+        if (caseIt) {
+          ctx.globalAlpha = fall * 0.5 * HM;
+          ctx.strokeStyle = PAPER_LIT; ctx.lineWidth = sw + 1.6;
+          ctx.beginPath(); ctx.moveTo(ax2, ay2); ctx.lineTo(bx3, by3); ctx.stroke();
+        }
+        ctx.globalAlpha = fall * (0.42 + over * 0.06) * HM;
+        ctx.strokeStyle = col; ctx.lineWidth = sw;
+        ctx.beginPath(); ctx.moveTo(ax2, ay2); ctx.lineTo(bx3, by3); ctx.stroke();
+      }
+    }
+  }
+
+  /* the threads read under the knot */
+  if (r > 6) {
+    ctx.globalAlpha = (0.13) * HM;
+    ctx.fillStyle = PAPER_LIT;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.78, 0, TAU); ctx.fill();
+  }
+
+  /* 0 · FIRST CROSSING — barely there. 1-3 · the knot tightens, ring by ring. */
+  var rings = st === 0 ? 1 : clamp(1 + Math.floor(Math.log2(1 + kn.ret + kn.co / 2)), 1, 3);
+  /* how worn against how shared: a place one person keeps returning to draws
+     tight, close rings; a place many people cross draws them open */
+  var openness = clamp(0.30 + kn.au / (kn.au + kn.ret + 1) * 0.55, 0.30, 0.85);
+  for (var i = 0; i < rings; i++) {
+    var rr = r * (rings === 1 ? 1 : ((1 - openness) + openness * ((i + 1) / rings)));
+    ctx.beginPath();
+    ctx.arc(0, 0, rr, 0, TAU);
+    var outer = i === rings - 1;
+    ctx.strokeStyle = (outer && st >= 3) ? accent : "rgba(29,32,29,.66)";
+    ctx.globalAlpha = (st === 0 ? 0.30 : (0.24 + 0.34 * ((i + 1) / rings)) * (isOpen ? 1 : 0.9)) * HM;
+    ctx.lineWidth = st === 0 ? 0.55 : 0.7 + (outer ? 0.3 : 0);
+    ctx.stroke();
+  }
+
+  /* 3+ · the ends of the threads that hold it */
+  if (st >= 2 && r > 5) {
+    ctx.globalAlpha = (0.4) * HM; ctx.strokeStyle = "rgba(29,32,29,.75)"; ctx.lineWidth = 0.6;
+    var spokes = clamp(kn.au * 2, 3, 14);
+    var off = (Math.abs(kn.x) * 977) % 1;
+    ctx.beginPath();
+    for (var sp = 0; sp < spokes; sp++) {
+      var ang = (sp / spokes) * TAU + off;
+      ctx.moveTo(Math.cos(ang) * r * 1.02, Math.sin(ang) * r * 1.02);
+      ctx.lineTo(Math.cos(ang) * r * 1.20, Math.sin(ang) * r * 1.20);
+    }
+    ctx.stroke();
+  }
+
+  /* the eye */
+  if (st >= 1) {
+    ctx.globalAlpha = (0.78) * HM;
+    ctx.fillStyle = st >= 4 ? "#bf4526" : "#262a26";
+    var eye = clamp(r * 0.14, 0.8, 2.6) * (st >= 4 ? 1 + clamp(Math.log2(w / 68), 0, 3.2) * 0.22 : 1);
+    ctx.beginPath(); ctx.arc(0, 0, eye, 0, TAU); ctx.fill();
+  }
+
+  /* a knot that just tightened sends out one pulse */
+  /* the pulse and the just-happened halo are drawn live, over the cloth, so a
+     new meeting can breathe without repainting the whole fabric behind it */
+  if (isOpen) {
+    /* the breathing ring is drawn on the live pass; only what is still is cached */
+    /* one bead for every hand that has been here, in that person's own fibre */
+    var hands = [], seen = {};
+    for (var hi = 0; hi < kn.threadList.length && hands.length < 14; hi++) {
+      var thh = threadById(kn.threadList[hi]);
+      if (!thh || seen[thh.a]) continue;
+      seen[thh.a] = 1; hands.push(thh.c);
+    }
+    var hr = r + 12;
+    for (var b2 = 0; b2 < hands.length; b2++) {
+      var ang2 = -Math.PI / 2 + (b2 / hands.length) * TAU;
+      ctx.globalAlpha = (0.95) * HM; ctx.fillStyle = hands[b2];
+      ctx.beginPath(); ctx.arc(Math.cos(ang2) * hr, Math.sin(ang2) * hr, 2.9, 0, TAU); ctx.fill();
+      ctx.globalAlpha = (0.5) * HM; ctx.strokeStyle = PAPER_LIT; ctx.lineWidth = 0.8; ctx.stroke();
+    }
+    /* and one arc for every time somebody came back */
+    var arcs = Math.min(kn.ret, 12);
+    for (var a4 = 0; a4 < arcs; a4++) {
+      ctx.globalAlpha = (0.30) * HM; ctx.strokeStyle = "rgba(29,32,29,.8)"; ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 19 + a4 * 2.6, -Math.PI * 0.42, Math.PI * 0.42);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawNotes(now) {
+  var ws = worldSize();
+  if (!openKnot && V.z < 13.8) {
+    /* too far out to read, but the place a word was left is still marked */
+    ctx.save();
+    for (var m = 0; m < Store.notes.length; m++) {
+      var nn = Store.notes[m];
+      if (nn.t > timeCursor) continue;
+      var mx2 = (nn.x - V.x) * ws + W / 2, my2 = (nn.y - V.y) * ws + H / 2;
+      if (mx2 < -8 || mx2 > W + 8 || my2 < -8 || my2 > H + 8) continue;
+      ctx.globalAlpha = 0.55; ctx.strokeStyle = nn.c; ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(mx2, my2); ctx.lineTo(mx2, my2 - 7); ctx.stroke();
+      ctx.globalAlpha = 0.75; ctx.fillStyle = nn.c;
+      ctx.beginPath(); ctx.arc(mx2, my2, 1.6, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+  ctx.save();
+  ctx.textBaseline = "middle";
+  var placed = [];
+  for (var i = 0; i < Store.notes.length; i++) {
+    var n = Store.notes[i];
+    if (n.t > timeCursor) continue;
+    if (n.drawn < 1) { n.drawn = Math.min(1, n.drawn + 0.05); dirty = true; weaveDirty = true; }
+    var sx = (n.x - V.x) * ws + W / 2, sy = (n.y - V.y) * ws + H / 2;
+    if (sx < -140 || sx > W + 140 || sy < -30 || sy > H + 30) continue;
+    var reach = BASE_CELL * (1 << (BASE_Z - levelForZoom())) * 1.6;
+    var near = openKnot ? Math.hypot(n.x - openKnot.x, n.y - openKnot.y) < reach : false;
+    if (openKnot && !near) continue;
+    var clash = false;
+    for (var q = 0; q < placed.length; q++) {
+      if (Math.abs(placed[q][0] - sx) < 150 && Math.abs(placed[q][1] - sy) < 22) { clash = true; break; }
+    }
+    if (clash) continue;
+    placed.push([sx, sy]);
+    var a = n.drawn;
+    ctx.globalAlpha = a;
+    /* the tick that pins the word to the ground */
+    ctx.strokeStyle = n.c; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx, sy - 13); ctx.stroke();
+    ctx.beginPath(); ctx.arc(sx, sy, 2.1, 0, TAU); ctx.fillStyle = n.c; ctx.fill();
+    ctx.font = 'italic 12.5px Georgia,"Times New Roman",serif';
+    ctx.textAlign = "left";
+    var tw = ctx.measureText(n.text).width;
+    var tx = sx + 6 + tw > W - 8 ? sx - 6 - tw : sx + 6;
+    if (tx < 8 || tx + tw > W - 8) continue;
+    ctx.globalAlpha = a * 0.85;
+    ctx.strokeStyle = "rgba(241,236,224,.9)"; ctx.lineWidth = 3; ctx.lineJoin = "round";
+    ctx.strokeText(n.text, tx, sy - 16);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = "#1d201d";
+    ctx.fillText(n.text, tx, sy - 16);
+  }
+  ctx.restore();
+}
+
+/* ---------- live strokes (mine in progress, and other people's) ---------- */
+var drawingPts = null;      /* Float64Array-ish array of merc pairs */
+var livePeers = new Map();  /* author -> {pts:[], c, ts} */
+
+function drawLive(now) {
+  var ws = worldSize();
+  if (drawingPts && drawingPts.length >= 4) {
+    ctx.save();
+    ctx.strokeStyle = MY_COLOR; ctx.globalAlpha = 0.95;
+    ctx.lineWidth = threadWidth() * 1.05; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath();
+    for (var i = 0; i < drawingPts.length; i += 2) {
+      var sx = (drawingPts[i] - V.x) * ws + W / 2, sy = (drawingPts[i + 1] - V.y) * ws + H / 2;
+      if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+    }
+    ctx.stroke();
+    /* the needle */
+    var lx = (drawingPts[drawingPts.length - 2] - V.x) * ws + W / 2;
+    var ly = (drawingPts[drawingPts.length - 1] - V.y) * ws + H / 2;
+    ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(lx, ly, 5 + Math.sin(now / 160) * 1.2, 0, TAU);
+    ctx.strokeStyle = MY_COLOR; ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+  }
+  livePeers.forEach(function (lp, a) {
+    if (now - lp.ts > 6000) { livePeers.delete(a); return; }
+    if (lp.pts.length < 4) return;
+    ctx.save();
+    ctx.strokeStyle = lp.c; ctx.globalAlpha = 0.8;
+    ctx.lineWidth = threadWidth(); ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    for (var i = 0; i < lp.pts.length; i += 2) {
+      var sx = (lp.pts[i] - V.x) * ws + W / 2, sy = (lp.pts[i + 1] - V.y) * ws + H / 2;
+      if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+    }
+    ctx.stroke();
+    ctx.restore();
+    dirty = true;
+  });
+}
+
+/* what has just happened, drawn over the cloth every frame */
+function drawFreshMarks(now) {
+  if (!renderedKnots.length) return;
+  /* while a pinch is in flight the cached cloth is being scaled and the live
+     marks are not; rather than contradict it, they wait for the gesture to end */
+  if (lTag && Math.abs(lTag.z - V.z) > 0.01) return;
+  var ws = worldSize(), t = Date.now();
+  ctx.save();
+  if (openKnot) {
+    var ox3 = (openKnot.x - V.x) * ws + W / 2, oy3 = (openKnot.y - V.y) * ws + H / 2;
+    ctx.globalAlpha = 0.42; ctx.strokeStyle = "#bf4526"; ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.arc(ox3, oy3, knotRadius(openKnot.w) + 12 + Math.sin(now / 420) * 1.6, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    dirty = true;
+  }
+  for (var i = 0; i < renderedKnots.length; i++) {
+    var kn = renderedKnots[i];
+    var f = kn.fresh || 0;
+    if (f <= 0.02) continue;
+    var sx = (kn.x - V.x) * ws + W / 2, sy = (kn.y - V.y) * ws + H / 2;
+    if (sx < -60 || sx > W + 60 || sy < -60 || sy > H + 60) continue;
+    var r = knotRadius(kn.w);
+    var accent = kn.au > 1 ? "#bf4526" : "#2f7d84";
+    /* the standing halo: a new meeting among old heavy ones */
+    ctx.globalAlpha = f * 0.52;
+    ctx.strokeStyle = accent; ctx.lineWidth = 1.2;
+    ctx.setLineDash([2, 3.2]);
+    ctx.beginPath(); ctx.arc(sx, sy, r + 7 + Math.sin(now / 900 + i) * 1.1, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = f * 0.22; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.arc(sx, sy, r + 13, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+    /* and one ring outward at the moment it tightened */
+    var pulse = clamp(1 - (t - kn.grew) / 2600, 0, 1);
+    if (pulse > 0) {
+      ctx.globalAlpha = pulse * 0.5;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.arc(sx, sy, r + (1 - pulse) * 34, 0, TAU); ctx.stroke();
+    }
+    dirty = true;
+  }
+  ctx.restore();
+}
+
+/* ---------- presence ---------- */
+var peers = new Map(); /* author -> {c, x, y, ts} */
+function drawPresence(now) {
+  var ws = worldSize();
+  peers.forEach(function (p, a) {
+    if (now - p.ts > 14000) { peers.delete(a); refreshPeopleGlyph(); return; }
+    if (p.x == null) return;
+    var sx = (p.x - V.x) * ws + W / 2, sy = (p.y - V.y) * ws + H / 2;
+    if (sx < -40 || sx > W + 40 || sy < -40 || sy > H + 40) return;
+    var pulse = 0.5 + 0.5 * Math.sin(now / 900 + a.charCodeAt(0));
+    ctx.save();
+    /* a shuttle resting on the cloth where somebody is working */
+    ctx.globalAlpha = 0.62; ctx.strokeStyle = p.c; ctx.lineWidth = 1.3;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.arc(sx, sy, 5.5 + pulse * 0.8, 0, TAU);
+    ctx.stroke();
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(sx - 11, sy); ctx.lineTo(sx - 7, sy);
+    ctx.moveTo(sx + 7, sy); ctx.lineTo(sx + 11, sy);
+    ctx.stroke();
+    ctx.restore();
+    dirty = true;
+  });
+}
+
+/* ---------- the loom warp (only while a thread can be left) ---------- */
+var warp = 0;
+function drawWarp() {
+  if (warp <= 0.01) return;
+  ctx.save();
+  /* warp threads strung down the paper — the ground is on the loom */
+  var gap = 7;
+  ctx.strokeStyle = "#1d201d"; ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  for (var x = 0; x < W; x += gap) {
+    var a = 0.055 + 0.045 * hash01(x);
+    ctx.globalAlpha = warp * a;
+    ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke();
+  }
+  /* the tensioned edge of the cloth */
+  ctx.globalAlpha = warp;
+  var top = ctx.createLinearGradient(0, 0, 0, 26);
+  top.addColorStop(0, "rgba(29,32,29,.13)"); top.addColorStop(1, "rgba(29,32,29,0)");
+  ctx.fillStyle = top; ctx.fillRect(0, 0, W, 26);
+  var bot = ctx.createLinearGradient(0, H, 0, H - 26);
+  bot.addColorStop(0, "rgba(29,32,29,.13)"); bot.addColorStop(1, "rgba(29,32,29,0)");
+  ctx.fillStyle = bot; ctx.fillRect(0, H - 26, W, 26);
+  ctx.restore();
+}
+
+/* ---------- what the ground wants ----------
+   No words, no arrow, no coach mark. The ground simply does the thing once,
+   in the same fibre you will be given: a thread is laid, another crosses it,
+   the crossing tightens into a knot. Then it lets go. It is never written down. */
+var demoOff = readLS("cg.taught", "") === "1", demoPulse = 0, demoGeom = null;
+
+/* two paths that genuinely meet; the meeting point is found, never assumed */
+function buildDemoGeom() {
+  var bx = W / 2, by = H - 54 - safeBottom();
+  var cx = W / 2, cy = H * 0.44;
+  var R = Math.min(W * 0.40, H * 0.20, 168);
+  function bez(p0, p1, p2, p3, N) {
+    var out = [];
+    for (var i = 0; i < N; i++) {
+      var t = i / (N - 1), u = 1 - t;
+      out.push([
+        u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+        u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]
+      ]);
+    }
+    return out;
+  }
+  /* mine leaves the control and rises through the middle of the ground */
+  /* it starts clear of the control: the gesture is press here, then draw there */
+  var A = bez([bx - R * 0.62, by - H * 0.055], [bx - R * 1.15, by - H * 0.12],
+    [cx - R * 0.85, cy - H * 0.02], [cx + R * 0.72, cy - H * 0.16], 60);
+  /* someone else comes across it */
+  var B = bez([cx - R * 1.12, cy - H * 0.16], [cx - R * 0.3, cy - H * 0.02], [cx + R * 0.2, cy + H * 0.02], [cx + R * 1.05, cy + H * 0.10], 60);
+
+  /* where do they actually cross? */
+  var best = null;
+  for (var i = 0; i + 1 < A.length && !best; i++) {
+    for (var j = 0; j + 1 < B.length; j++) {
+      var a1 = A[i], a2 = A[i + 1], b1 = B[j], b2 = B[j + 1];
+      var d = (a2[0] - a1[0]) * (b2[1] - b1[1]) - (a2[1] - a1[1]) * (b2[0] - b1[0]);
+      if (Math.abs(d) < 1e-9) continue;
+      var t = ((b1[0] - a1[0]) * (b2[1] - b1[1]) - (b1[1] - a1[1]) * (b2[0] - b1[0])) / d;
+      var u = ((b1[0] - a1[0]) * (a2[1] - a1[1]) - (b1[1] - a1[1]) * (a2[0] - a1[0])) / d;
+      if (t < 0 || t > 1 || u < 0 || u > 1) continue;
+      best = {
+        x: a1[0] + t * (a2[0] - a1[0]), y: a1[1] + t * (a2[1] - a1[1]),
+        ta: (i + t) / (A.length - 1), tb: (j + u) / (B.length - 1)
+      };
+      break;
+    }
+  }
+  if (!best) best = { x: cx, y: cy, ta: 0.6, tb: 0.5 };
+  return { A: A, B: B, ix: best.x, iy: best.y, ta: best.ta, tb: best.tb, w: W, h: H };
+}
+
+function drawDemo(now) {
+  /* the ground stops explaining itself the moment anything real is happening on it */
+  /* until the meeting point has answered, this place might be full */
+  if (!GOT_CLOTH && net.state === "open" && Date.now() - SESSION_T0 < 7000 && !Store.threads.length) {
+    if (demoPulse) { demoPulse = 0; threadBtn.classList.remove("beat"); }
+    return;
+  }
+  if (demoOff || sayAt || Store.threads.length || Store.notes.length || drawingPts || livePeers.size || peers.size) {
+    if (demoPulse) { demoPulse = 0; threadBtn.classList.remove("beat"); }
+    return;
+  }
+  if (!demoGeom || demoGeom.w !== W || demoGeom.h !== H) demoGeom = buildDemoGeom();
+  var G = demoGeom;
+
+  var T = 7600, u = (now % T) / T;
+  var pA = clamp((u - 0.04) / 0.28, 0, 1);
+  var sB = clamp((u - 0.34) / 0.30, 0, 1);
+  var out = u < 0.82 ? 1 : clamp((1 - u) / 0.18, 0, 1);
+
+  /* the second thread slows as it passes over the first */
+  var s1 = G.tb * 0.72, s2 = s1 + 0.17, pB;
+  if (sB <= s1) pB = G.tb * (sB / (s1 || 1));
+  else if (sB <= s2) pB = G.tb;
+  else pB = G.tb + (1 - G.tb) * ((sB - s2) / (1 - s2));
+  var atCross = sB > s1 && sB <= s2;
+  var pK = clamp((sB - s2) / 0.26, 0, 1);
+
+  var warm = MY_FIBRE.warm;
+  var other = warm ? "#2f7d84" : "#bf4526";
+
+  ctx.save();
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  /* laid in exactly the fibre the person will be given, so the demonstration
+     teaches the language the ground actually speaks */
+  function lay(path, prog, col, wid, seed) {
+    if (prog <= 0.005) return null;
+    var n = Math.max(2, Math.round(prog * (path.length - 1)) + 1);
+    _tx.length = 0; _ty.length = 0;
+    for (var i = 0; i < n; i++) { _tx.push(path[i][0]); _ty.push(path[i][1]); }
+    _seed = seed;
+    ctx.beginPath();
+    for (var j = 0; j < n; j++) { if (j === 0) ctx.moveTo(_tx[j], _ty[j]); else ctx.lineTo(_tx[j], _ty[j]); }
+    ctx.globalAlpha = out * 0.78; ctx.strokeStyle = PAPER_LIT; ctx.lineWidth = wid + 1.7;
+    ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.stroke();
+    ctx.globalAlpha = out * 0.10; ctx.strokeStyle = col; ctx.lineWidth = wid * 2.2; ctx.stroke();
+    ctx.globalAlpha = out * 0.9; ctx.fillStyle = col;
+    ribbon(n, wid); ctx.fill();
+    return prog < 1 ? path[n - 1] : null;
+  }
+  var headA = lay(G.A, pA, MY_COLOR, 3.2, 311);
+  var headB = lay(G.B, pB, other, 2.9, 977);
+  /* and the first thread surfaces back over the second, the way cloth does */
+  if (pB > G.tb && pA >= G.ta) {
+    var iA = Math.max(1, Math.round(G.ta * (G.A.length - 1)));
+    _tx.length = 0; _ty.length = 0;
+    for (var q2 = Math.max(0, iA - 3); q2 <= Math.min(G.A.length - 1, iA + 3); q2++) { _tx.push(G.A[q2][0]); _ty.push(G.A[q2][1]); }
+    ctx.save();
+    ctx.beginPath(); ctx.arc(G.ix, G.iy, 9, 0, TAU); ctx.clip();
+    ctx.beginPath();
+    for (var q3 = 0; q3 < _tx.length; q3++) { if (q3 === 0) ctx.moveTo(_tx[q3], _ty[q3]); else ctx.lineTo(_tx[q3], _ty[q3]); }
+    ctx.globalAlpha = out * 0.78; ctx.strokeStyle = PAPER_LIT; ctx.lineWidth = 3.2 + 1.7; ctx.stroke();
+    ctx.globalAlpha = out * 0.9; ctx.strokeStyle = MY_COLOR; ctx.lineWidth = 3.0; ctx.stroke();
+    ctx.restore();
+  }
+  var head = headB || headA;
+  if (head) {
+    ctx.globalAlpha = out * (atCross ? 1 : 0.9);
+    ctx.fillStyle = headB ? other : MY_COLOR;
+    ctx.beginPath(); ctx.arc(head[0], head[1], atCross ? 4.6 : 3.6, 0, TAU); ctx.fill();
+    if (atCross) {
+      ctx.globalAlpha = out * 0.42; ctx.strokeStyle = other; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(head[0], head[1], 9 + Math.sin(now / 130) * 2, 0, TAU); ctx.stroke();
+    }
+  }
+  /* and where they met, exactly there, a knot */
+  if (pK > 0) {
+    var r = 4 + pK * 10;
+    ctx.globalAlpha = out * pK * 0.9;
+    ctx.strokeStyle = "rgba(29,32,29,.8)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(G.ix, G.iy, r, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = "#bf4526"; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(G.ix, G.iy, r * 0.52, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = out * pK * (1 - pK) * 2.4;
+    ctx.beginPath(); ctx.arc(G.ix, G.iy, r + pK * 24, 0, TAU); ctx.stroke();
+  }
+  ctx.restore();
+
+  /* the control keeps time from the first stroke until the knot is tied */
+  var want = (pA > 0 && pK < 1) ? 1 : 0;
+  if (want !== demoPulse) { demoPulse = want; threadBtn.classList.toggle("beat", !!want); }
+  dirty = true;
+}
+
+/* while the fabric is running backwards, say plainly which day you are looking at */
+var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function drawEra() {
+  if (timeCursor === Infinity || !isFinite(Store.bounds.t1) || !Store.bounds.t1) return;
+  var d = new Date(clamp(timeCursor, Store.bounds.t0, Store.bounds.t1));
+  var label = (d.getDate() + " " + MON[d.getMonth()]).toUpperCase();
+  ctx.save();
+  ctx.textAlign = "left"; ctx.textBaseline = "top";
+  ctx.font = '600 10px -apple-system,system-ui,"Helvetica Neue",sans-serif';
+  var lw3 = ctx.measureText(label).width + (label.length - 1) * 2.2;
+  var tx3 = (W - lw3) / 2, ty3 = 18 + safeTop();
+  for (var ci2 = 0; ci2 < label.length; ci2++) {
+    var ch2 = label.charAt(ci2);
+    ctx.globalAlpha = 0.85; ctx.strokeStyle = "rgba(241,236,224,.9)"; ctx.lineWidth = 3.4; ctx.lineJoin = "round";
+    ctx.strokeText(ch2, tx3, ty3);
+    ctx.globalAlpha = 0.5; ctx.fillStyle = "#1d201d"; ctx.fillText(ch2, tx3, ty3);
+    tx3 += ctx.measureText(ch2).width + 2.2;
+  }
+  ctx.restore();
+}
+
+/* ============================================================
+   FRAME — the ground and the weave are drawn into a padded layer and
+   carried while you travel; only what is alive is drawn every frame.
+   ============================================================ */
+var dirty = true;
+var LAYER_PAD = 120;
+var layer = document.createElement("canvas");
+var lctx = layer.getContext("2d");
+var lTag = null;
+var weaveDirty = true;
+
+function renderLayer(now) {
+  weaveDirty = false;            /* anything the draw itself marks must survive */
+  var pad = LAYER_PAD;
+  var cw = Math.round((W + pad * 2) * DPR), ch = Math.round((H + pad * 2) * DPR);
+  if (layer.width !== cw || layer.height !== ch) { layer.width = cw; layer.height = ch; }
+  var prev = ctx;
+  ctx = lctx;
+  ctx.setTransform(DPR, 0, 0, DPR, pad * DPR, pad * DPR);
+  ctx.clearRect(-pad, -pad, W + pad * 2, H + pad * 2);
+  ctx.fillStyle = PAPER;
+  ctx.fillRect(-pad, -pad, W + pad * 2, H + pad * 2);
+  drawTiles();
+  if (!paperTex) paperTex = cv.getContext("2d").createPattern(paperTile(), "repeat");
+  if (paperTex) { ctx.save(); ctx.fillStyle = paperTex; ctx.fillRect(-pad, -pad, W + pad * 2, H + pad * 2); ctx.restore(); }
+  measureCrowd();
+  drawInk();
+  drawWeave(now);
+  ctx = prev;
+  lTag = { x: V.x, y: V.y, z: V.z, pad: pad, w: W, h: H, v: weaveVersion };
+}
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  stepMotion(now);
+  if (!dirty) return;
+  dirty = false;
+
+  var ws = worldSize();
+  var needs = weaveDirty || !lTag || lTag.v !== weaveVersion || lTag.w !== W || lTag.h !== H;
+  if (!needs && lTag.z === V.z) {
+    var dx = (lTag.x - V.x) * ws, dy = (lTag.y - V.y) * ws;
+    if (Math.abs(dx) > LAYER_PAD - 4 || Math.abs(dy) > LAYER_PAD - 4) needs = true;
+  } else if (!needs && !pinch && !pointerDown) {
+    needs = true;   /* a settled zoom deserves a clean redraw */
+  }
+  if (needs) renderLayer(now);
+
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = PAPER;
+  ctx.fillRect(0, 0, W, H);
+  if (lTag) {
+    var sc = Math.pow(2, V.z - lTag.z);
+    var lw = lTag.w + lTag.pad * 2, lh = lTag.h + lTag.pad * 2;
+    var dstX = (-lTag.pad - W / 2) * sc + (lTag.x - V.x) * ws + W / 2;
+    var dstY = (-lTag.pad - H / 2) * sc + (lTag.y - V.y) * ws + H / 2;
+    ctx.drawImage(layer, dstX, dstY, lw * sc, lh * sc);
+  }
+  if (!needs) buildKnotClusters();   /* kept current for the live pass and for taps */
+
+  drawWarp();
+  drawFreshMarks(now);
+  drawLive(now);
+  drawPresence(now);
+  drawDemo(now);
+  drawEra();
+}
+
+/* ---------- motion: inertia, zoom easing, unweaving ---------- */
+var vel = { x: 0, y: 0 }, lastMotion = 0;      /* world units per second */
+var samples = [];                              /* recent {x,y,t} for a real fling */
+function pushSample(x, y, t) {
+  samples.push({ x: x, y: y, t: t });
+  while (samples.length > 8 || (samples.length > 2 && t - samples[0].t > 110)) samples.shift();
+}
+function flingVelocity(now) {
+  /* a finger that has been still for a moment is aiming, not throwing */
+  if (samples.length < 2 || now - samples[samples.length - 1].t > 60) return { x: 0, y: 0 };
+  var a = samples[0], b = samples[samples.length - 1];
+  var dt = (b.t - a.t) / 1000;
+  if (dt < 0.008) return { x: 0, y: 0 };
+  var ws = worldSize();
+  var vx = (b.x - a.x) / dt / ws, vy = (b.y - a.y) / dt / ws;
+  var speed = Math.hypot(vx, vy) * ws;
+  var cap = 2600;                              /* px/s — a flick, not a launch */
+  if (speed > cap) { vx *= cap / speed; vy *= cap / speed; }
+  return { x: vx, y: vy };
+}
+var unweave = { held: false };
+
+function stepMotion(now) {
+  var dt = Math.min(50, now - (lastMotion || now)); lastMotion = now;
+  stepZoom(now);
+  if (!pointerDown && (vel.x || vel.y)) {
+    var sec = dt / 1000;
+    V.x -= vel.x * sec; V.y -= vel.y * sec;
+    var decay = Math.pow(0.0022, sec);          /* against the clock, not the frame */
+    vel.x *= decay; vel.y *= decay;
+    if (Math.abs(vel.x) * worldSize() < 6) vel.x = 0;
+    if (Math.abs(vel.y) * worldSize() < 6) vel.y = 0;
+    clampView(); dirty = true;
+  }
+  var targetWarp = traceMode ? 1 : 0;
+  if (Math.abs(warp - targetWarp) > 0.005) { warp += (targetWarp - warp) * 0.14; dirty = true; weaveDirty = true; }
+  else if (warp !== targetWarp) { warp = targetWarp; dirty = true; weaveDirty = true; }
+
+  /* unweaving: hold to run the fabric backwards, release and it reweaves */
+  if (Store.bounds.t1 > 0) {
+    var span = Math.max(60000, Store.bounds.t1 - Store.bounds.t0);
+    if (unweave.held) {
+      if (timeCursor === Infinity) timeCursor = Store.bounds.t1 + 1;
+      timeCursor -= span * (dt / 1000) * 0.30;      /* about three seconds to the beginning */
+      if (timeCursor < Store.bounds.t0 - 1) timeCursor = Store.bounds.t0 - 1;
+      dirty = true; weaveDirty = true;
+    } else if (timeCursor !== Infinity) {
+      timeCursor += span * (dt / 1000) * 0.45;      /* and a little over two back to now */
+      if (timeCursor >= Store.bounds.t1) { timeCursor = Infinity; }
+      dirty = true; weaveDirty = true;
+    }
+  }
+}
+
+var GB = null;  /* the edge of the drawn ground */
+(function () {
+  var bb = GROUND.bbox;
+  if (!bb) return;
+  var x0 = mercX(bb[0]), x1 = mercX(bb[2]), y0 = mercY(bb[3]), y1 = mercY(bb[1]);
+  var mx = (x1 - x0) * 0.35, my = (y1 - y0) * 0.35;
+  GB = { x0: x0 - mx, x1: x1 + mx, y0: y0 - my, y1: y1 + my };
+})();
+function clampView() {
+  V.z = clamp(V.z, 9.6, 19);
+  V.y = clamp(V.y, 0.02, 0.98);
+  V.x = ((V.x % 1) + 1) % 1;
+  /* with no tiles the ground is the drawn city; do not let anyone wander into blank paper */
+  if (GB && (Tiles.off || !Tiles.anyOk)) {
+    V.x = clamp(V.x, GB.x0, GB.x1);
+    V.y = clamp(V.y, GB.y0, GB.y1);
+  }
+}
+
+/* ============================================================
+   INPUT — the map is the interface
+   ============================================================ */
+var traceMode = false;
+var pointers = new Map();
+var pointerDown = false;
+var pinch = null;
+var stroke = null;
+var holdTimer = 0, holdCandidate = null;
+
+var stage = document.getElementById("stage");
+
+function ptOf(e) { return { x: e.clientX, y: e.clientY, t: performance.now() }; }
+
+var travelled = 0;
+stage.addEventListener("pointerdown", function (e) {
+  if (keyOpen) return;
+  travelled = 0;
+  try { if (stage.setPointerCapture) stage.setPointerCapture(e.pointerId); } catch (er) { }
+  var p0 = ptOf(e);
+  pointers.set(e.pointerId, p0);
+  pointerDown = true;
+  vel.x = 0; vel.y = 0;
+  samples.length = 0; pushSample(p0.x, p0.y, p0.t);
+
+  zoomTween = null;
+  if (pointers.size === 2) {
+    /* two fingers always travel — cancel any nascent thread */
+    if (stroke) { stroke = null; drawingPts = null; dirty = true; }
+    var it = pointers.values(), a = it.next().value, b = it.next().value;
+    pinch = {
+      d: Math.hypot(a.x - b.x, a.y - b.y),
+      mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, z: V.z,
+      wx: fromScreenX((a.x + b.x) / 2), wy: fromScreenY((a.y + b.y) / 2)
+    };
+    clearTimeout(holdTimer);
+    return;
+  }
+  if (pointers.size > 2) return;
+
+  var p = p0;
+  if (traceMode) {
+    /* armed: the finger is laying thread. Nothing may interrupt it. */
+    stroke = { pts: [fromScreenX(p.x), fromScreenY(p.y)], sx: p.x, sy: p.y, moved: 0, t0: Date.now(), last: p };
+    drawingPts = stroke.pts;
+  } else {
+    /* travelling: a held finger pins a word to the ground */
+    stroke = null;
+    holdCandidate = { x: p.x, y: p.y };
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(function () {
+      if (!holdCandidate || pointers.size !== 1) return;
+      var wx = fromScreenX(holdCandidate.x), wy = fromScreenY(holdCandidate.y);
+      pointers.clear(); pointerDown = false; vel.x = 0; vel.y = 0;
+      openSay(holdCandidate.x, holdCandidate.y, wx, wy);
+    }, HOLD_MS);
+  }
+  dirty = true;
+}, { passive: false });
+
+stage.addEventListener("pointermove", function (e) {
+  if (!pointers.has(e.pointerId)) return;
+  var prev = pointers.get(e.pointerId);
+  var p = ptOf(e);
+  pointers.set(e.pointerId, p);
+
+  if (holdCandidate && Math.hypot(p.x - holdCandidate.x, p.y - holdCandidate.y) > 9) {
+    clearTimeout(holdTimer); holdCandidate = null;
+  }
+
+  if (pointers.size >= 2 && pinch) {
+    var it = pointers.values(), a = it.next().value, b = it.next().value;
+    var d = Math.hypot(a.x - b.x, a.y - b.y);
+    var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    if (pinch.d > 4) {
+      V.z = clamp(pinch.z + Math.log2(d / pinch.d), 9.6, 19);
+    }
+    /* keep the world point under the pinch centre pinned */
+    V.x = pinch.wx - (mx - W / 2) / worldSize();
+    V.y = pinch.wy - (my - H / 2) / worldSize();
+    clampView(); dirty = true;
+    return;
+  }
+
+  if (stroke) {
+    stroke.moved += Math.hypot(p.x - prev.x, p.y - prev.y);
+    var wx = fromScreenX(p.x), wy = fromScreenY(p.y);
+    var n = stroke.pts.length;
+    var dx = (wx - stroke.pts[n - 2]) * worldSize(), dy = (wy - stroke.pts[n - 1]) * worldSize();
+    if (dx * dx + dy * dy > 4) { stroke.pts.push(wx, wy); pushLive(); }
+    dirty = true;
+    e.preventDefault();
+    return;
+  }
+
+  /* travel */
+  travelled += Math.hypot(p.x - prev.x, p.y - prev.y);
+  pushSample(p.x, p.y, p.t);
+  var ws = worldSize();
+  V.x -= (p.x - prev.x) / ws; V.y -= (p.y - prev.y) / ws;
+  clampView(); dirty = true;
+}, { passive: false });
+
+function endPointer(e) {
+  clearTimeout(holdTimer); holdCandidate = null;
+  var had = pointers.has(e.pointerId);
+  var wasPinching = !!pinch;
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (pointers.size === 0) {
+    pointerDown = false;
+    if (!stroke && !wasPinching) { var fv = flingVelocity(performance.now()); vel.x = fv.x; vel.y = fv.y; }
+    samples.length = 0;
+  }
+  if (!had) return;
+
+  if (stroke) {
+    var s = stroke; stroke = null;
+    if (s.moved >= STROKE_MIN_PX && s.pts.length >= 4) {
+      settleThread(s.pts);
+      drawingPts = null;
+    } else {
+      drawingPts = null;
+      tapAt(s.sx, s.sy);
+    }
+    dirty = true;
+    return;
+  }
+  if (pointers.size === 0 && e.type === "pointerup" && !wasPinching && travelled < STROKE_MIN_PX) {
+    /* a still tap while travelling: open a knot if one is there */
+    tapAt(e.clientX, e.clientY);
+  }
+  dirty = true;
+}
+stage.addEventListener("pointerup", endPointer);
+stage.addEventListener("pointercancel", endPointer);
+stage.addEventListener("pointerleave", function (e) { if (!stroke && pointers.size <= 1) endPointer(e); });
+
+stage.addEventListener("wheel", function (e) {
+  e.preventDefault();
+  var wx = fromScreenX(e.clientX), wy = fromScreenY(e.clientY);
+  V.z = clamp(V.z - e.deltaY * 0.0022 * (e.deltaMode === 1 ? 16 : 1), 9.6, 19);
+  V.x = wx - (e.clientX - W / 2) / worldSize();
+  V.y = wy - (e.clientY - H / 2) / worldSize();
+  clampView(); dirty = true;
+}, { passive: false });
+
+function tapAt(sx, sy) {
+  var ws = worldSize();
+  var best = null, bestScore = -1;
+  for (var i = 0; i < renderedKnots.length; i++) {
+    var kn = renderedKnots[i];
+    var d = Math.hypot((kn.x - V.x) * ws + W / 2 - sx, (kn.y - V.y) * ws + H / 2 - sy);
+    var r = knotRadius(kn.w);
+    var reach = Math.max(26, r + 14);
+    if (d < reach) { var score = (reach - d) + kn.w * 0.3; if (score > bestScore) { bestScore = score; best = kn; } }
+  }
+  openKnot = (best && best !== openKnot) ? best : null;
+  weaveDirty = true; dirty = true;
+}
+
+/* ---------- leaving a thread ---------- */
+function settleThread(mercPts) {
+  var packed = [];
+  for (var i = 0; i < mercPts.length; i += 2) {
+    packed.push(Math.round(unMercY(mercPts[i + 1]) * 1e5), Math.round(unMercX(mercPts[i]) * 1e5));
+  }
+  writeLS("cg.where." + GID, JSON.stringify([V.x, V.y, Math.max(V.z, 14.2), Date.now()]));
+  var op = { i: opId(), a: ME, t: Date.now(), k: "t", d: { p: packed } };
+  addOp(op); saveLocal(); publish([op]);
+  lastMine = op.i; showUndo(); syncPips(); refreshMyFibre(); publishCloth(6000);
+  dirty = true;
+}
+
+/* ---------- saying something into place ---------- */
+var say = document.getElementById("say");
+var sayIn = document.getElementById("sayIn");
+var micBtn = document.getElementById("mic");
+var sayAt = null, recog = null;
+
+var sayReady = false, sayOpened = 0;
+function openSay(sx, sy, wx, wy) {
+  sayAt = { x: wx, y: wy };
+  sayReady = false;
+  sayOpened = performance.now();
+  say.style.display = "block";
+  var nearRight = sx > W - 170;
+  say.classList.toggle("flip", nearRight);
+  say.style.left = clamp(sx, 46, W - 46) + "px";
+  say.style.top = clamp(sy - 26, 44, H - 130) + "px";
+  sayIn.value = "";
+  syncMicGlyph();
+
+  /* The finger that opened this is still on the glass. Focusing now means the
+     keyboard steals it and the lift blurs it straight back out. Wait for the lift. */
+  function arm() {
+    window.removeEventListener("pointerup", arm, true);
+    window.removeEventListener("touchend", arm, true);
+    clearTimeout(armFallback);
+    setTimeout(function () {
+      if (!sayAt) return;
+      sayReady = true;
+      try { sayIn.focus(); } catch (e) { }
+    }, 30);
+  }
+  var armFallback = setTimeout(arm, 700);
+  window.addEventListener("pointerup", arm, true);
+  window.addEventListener("touchend", arm, true);
+}
+function closeSay(commit) {
+  sayReady = false;
+  if (recog) { try { recog.stop(); } catch (e) { } recog = null; micBtn.classList.remove("on"); }
+  var text = sayIn.value.trim();
+  say.style.display = "none";
+  if (commit && text && sayAt) {
+    var op = {
+      i: opId(), a: ME, t: Date.now(), k: "n",
+      d: { ll: [Math.round(unMercY(sayAt.y) * 1e5), Math.round(unMercX(sayAt.x) * 1e5)], x: text.slice(0, 140) }
+    };
+    addOp(op); saveLocal(); publish([op]);
+    lastMine = op.i; showUndo(); syncPips(); refreshMyFibre(); publishCloth(6000);
+  }
+  sayAt = null; sayIn.blur(); dirty = true;
+}
+sayIn.addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); closeSay(true); }
+  else if (e.key === "Escape") { closeSay(false); }
+});
+sayIn.addEventListener("blur", function () {
+  setTimeout(function () {
+    if (!sayReady || performance.now() - sayOpened < 700) return;   /* not a real dismissal */
+    if (say.style.display === "block") closeSay(true);
+  }, 140);
+});
+/* with something written, the glyph becomes the way to throw it away */
+function syncMicGlyph() {
+  var has = sayIn.value.trim().length > 0;
+  document.getElementById("micVoice").style.display = has ? "none" : "";
+  document.getElementById("micDrop").style.display = has ? "" : "none";
+  micBtn.classList.add("avail");
+}
+sayIn.addEventListener("input", syncMicGlyph);
+micBtn.addEventListener("click", function (e) {
+  e.stopPropagation();
+  if (sayIn.value.trim()) { sayIn.value = ""; syncMicGlyph(); closeSay(false); return; }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  if (recog) { try { recog.stop(); } catch (er) { } recog = null; micBtn.classList.remove("on"); return; }
+  try {
+    recog = new SR();
+    recog.interimResults = true; recog.continuous = false; recog.lang = navigator.language || "en-US";
+    micBtn.classList.add("on");
+    recog.onresult = function (ev) {
+      var s = "";
+      for (var i = 0; i < ev.results.length; i++) s += ev.results[i][0].transcript;
+      sayIn.value = s.trim().slice(0, 140);
+    };
+    recog.onend = function () { recog = null; micBtn.classList.remove("on"); };
+    recog.onerror = function () { recog = null; micBtn.classList.remove("on"); };
+    recog.start();
+  } catch (er) { recog = null; micBtn.classList.remove("on"); }
+});
+
+/* ============================================================
+   CONTROLS
+   ============================================================ */
+var threadBtn = document.getElementById("thread");
+var peopleBtn = document.getElementById("people");
+var backBtn = document.getElementById("back");
+var undoBtn = document.getElementById("undo");
+var threadGlyph = document.getElementById("threadGlyph");
+var threadKnob = document.getElementById("threadKnob");
+
+/* A stroke at metro scale is ten kilometres of freehand line, which can only
+   ever lie across the city rather than in it. Reaching for the thread brings
+   you down to the scale where a gesture can follow a street. */
+var zoomTween = null;
+function easeZoomTo(z, ms) {
+  if (V.z >= z - 0.05) return;
+  zoomTween = { from: V.z, to: z, t0: performance.now(), ms: ms || 620 };
+  dirty = true;
+}
+function stepZoom(now) {
+  if (!zoomTween) return;
+  var k = clamp((now - zoomTween.t0) / zoomTween.ms, 0, 1);
+  var e = 1 - Math.pow(1 - k, 3);
+  V.z = zoomTween.from + (zoomTween.to - zoomTween.from) * e;
+  clampView();
+  dirty = true; weaveDirty = true;
+  if (k >= 1) zoomTween = null;
+}
+
+function setTrace(on) {
+  if (on) easeZoomTo(14.5);
+  traceMode = on;
+  threadBtn.classList.toggle("on", on);
+  threadBtn.style.background = on ? MY_COLOR : "";
+  threadGlyph.style.stroke = on ? "#f6f2e8" : "#1d201d";
+  threadKnob.style.fill = on ? "#f6f2e8" : "#1d201d";
+  dirty = true;
+}
+threadBtn.addEventListener("click", function () {
+  setTrace(!traceMode);
+  if (traceMode) { demoOff = true; demoPulse = 0; writeLS("cg.taught", "1"); threadBtn.classList.remove("beat"); syncPips(); }
+  if (openKnot) { openKnot = null; }
+});
+threadBtn.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+
+var undoTimer = 0, lastMine = null;
+function showUndo() {
+  undoBtn.classList.add("show");
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(function () { undoBtn.classList.remove("show"); lastMine = null; }, 30000);
+}
+undoBtn.addEventListener("click", function (e) {
+  e.stopPropagation();
+  if (!lastMine) return;
+  var id = lastMine;
+  removeOp(id, ME); saveLocal(); publish([{ i: SITE + ".x" + id, a: ME, t: Date.now(), k: "x", d: { r: id } }]);
+  lastMine = null; undoBtn.classList.remove("show"); syncPips(); dirty = true;
+});
+undoBtn.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+
+/* unweave: hold */
+["pointerdown"].forEach(function (ev) {
+  backBtn.addEventListener(ev, function (e) { e.stopPropagation(); unweave.held = true; dirty = true; });
+});
+["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) {
+  backBtn.addEventListener(ev, function (e) { e.stopPropagation(); unweave.held = false; });
+});
+window.addEventListener("pointerup", function () { unweave.held = false; });
+
+/* people */
+function refreshPeopleGlyph() {
+  var g = document.getElementById("peopleGlyph");
+  var list = [MY_COLOR], seenA = {};
+  seenA[ME] = 1;
+  peers.forEach(function (p, a) { if (!seenA[a] && list.length < 6) { seenA[a] = 1; list.push(p.c); } });
+  for (var i = Store.threads.length - 1; i >= 0 && list.length < 6; i--) {
+    var a2 = Store.threads[i].a;
+    if (!seenA[a2]) { seenA[a2] = 1; list.push(Store.threads[i].c); }
+  }
+  var s = "";
+  if (list.length === 1) {
+    s = '<circle cx="8.6" cy="15" r="3.1" fill="none" stroke="rgba(29,32,29,.40)" stroke-width="1.1"/>' +
+      '<circle cx="15" cy="15" r="3.4" fill="' + MY_COLOR + '"/>' +
+      '<circle cx="21.4" cy="15" r="3.1" fill="none" stroke="rgba(29,32,29,.40)" stroke-width="1.1"/>';
+  } else {
+    /* a little crowd standing together, in their own fibres */
+    var n = list.length;
+    var rr = n <= 3 ? 3.3 : n <= 4 ? 3.0 : 2.6;
+    var gap = rr * 2 + 1.4;
+    var row = Math.min(n, 3), rows = Math.ceil(n / 3);
+    for (var i = 0; i < n; i++) {
+      var ri = Math.floor(i / 3), ci = i % 3;
+      var wide = Math.min(n - ri * 3, 3);
+      var cx2 = 15 + (ci - (wide - 1) / 2) * gap;
+      var cy2 = 15 + (ri - (rows - 1) / 2) * (gap * 0.92);
+      s += '<circle cx="' + cx2.toFixed(1) + '" cy="' + cy2.toFixed(1) +
+        '" r="' + rr + '" fill="' + list[i] + '"/>';
+    }
+  }
+  g.innerHTML = s;
+}
+peopleBtn.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+peopleBtn.addEventListener("click", function () { openKey(); });
+
+/* ============================================================
+   THE GROUND KEY — a link and a woven square
+   ============================================================ */
+var keyEl = document.getElementById("key");
+var keyOpen = false;
+function joinUrl() {
+  return location.origin + location.pathname + "#g=" + GID;
+}
+function openKey() {
+  keyOpen = true;
+  keyEl.classList.add("show");
+  document.getElementById("keyUrl").textContent = joinUrl();
+  var here = [MY_COLOR], seenK = {};
+  seenK[ME] = 1;
+  peers.forEach(function (pp, a) { if (!seenK[a] && here.length < 12) { seenK[a] = 1; here.push(pp.c); } });
+  for (var hi = Store.threads.length - 1; hi >= 0 && here.length < 12; hi--) {
+    var ha = Store.threads[hi].a;
+    if (!seenK[ha]) { seenK[ha] = 1; here.push(Store.threads[hi].c); }
+  }
+  var dots = here.map(function (c) {
+    return '<span style="display:inline-block;width:11px;height:11px;border-radius:50%;margin:0 5px;background:' + c + '"></span>';
+  });
+  /* room for the others, drawn as room */
+  while (dots.length < 3) {
+    dots.push('<span style="display:inline-block;width:11px;height:11px;border-radius:50%;margin:0 5px;' +
+      'box-shadow:inset 0 0 0 1px rgba(29,32,29,.32)"></span>');
+  }
+  document.getElementById("keyNote").innerHTML = dots.join("");
+  try { drawQR(document.getElementById("qr"), joinUrl()); } catch (e) { }
+}
+keyEl.addEventListener("click", function () { keyOpen = false; keyEl.classList.remove("show"); });
+document.getElementById("keyUrl").addEventListener("click", function (e) {
+  e.stopPropagation();
+  try { navigator.clipboard.writeText(joinUrl()); this.textContent = "copied"; var self = this;
+    setTimeout(function () { self.textContent = joinUrl(); }, 1200); } catch (er) { }
+});
+
+/* ---------- QR (byte mode, level M, versions 1-10) ---------- */
+var QR = (function () {
+  var EXP = new Uint8Array(512), LOG = new Uint8Array(256);
+  (function () { var x = 1; for (var i = 0; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 0x100) x ^= 0x11d; } for (var j = 255; j < 512; j++) EXP[j] = EXP[j - 255]; })();
+  function mul(a, b) { return (a && b) ? EXP[LOG[a] + LOG[b]] : 0; }
+  function gen(n) { var g = [1]; for (var i = 0; i < n; i++) { var ng = new Array(g.length + 1).fill(0); for (var j = 0; j < g.length; j++) { ng[j] ^= g[j]; ng[j + 1] ^= mul(g[j], EXP[i]); } g = ng; } return g; }
+  function ecc(data, n) { var g = gen(n), r = new Uint8Array(data.length + n); r.set(data); for (var i = 0; i < data.length; i++) { var c = r[i]; if (c) for (var j = 0; j <= n; j++) r[i + j] ^= mul(g[j], c); } return r.subarray(data.length); }
+  var RS = { 1: [10, [[1, 16]]], 2: [16, [[1, 28]]], 3: [26, [[1, 44]]], 4: [18, [[2, 32]]], 5: [24, [[2, 43]]], 6: [16, [[4, 27]]], 7: [18, [[4, 31]]], 8: [22, [[2, 38], [2, 39]]], 9: [22, [[3, 36], [2, 37]]], 10: [26, [[4, 43], [1, 44]]] };
+  var ALIGN = { 1: [], 2: [6, 18], 3: [6, 22], 4: [6, 26], 5: [6, 30], 6: [6, 34], 7: [6, 22, 38], 8: [6, 24, 42], 9: [6, 26, 46], 10: [6, 28, 50] };
+  function bitlen(v) { var n = 0; while (v) { n++; v >>>= 1; } return n; }
+  function fmtBits(mask) { var d = (0 << 3) | mask; var r = d << 10; while (bitlen(r) >= 11) r ^= 0b10100110111 << (bitlen(r) - 11); return ((d << 10) | r) ^ 0b101010000010010; }
+  function verBits(v) { var r = v << 12; while (bitlen(r) >= 13) r ^= 0b1111100100101 << (bitlen(r) - 13); return (v << 12) | r; }
+
+  return function (text) {
+    var bytes = [];
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charCodeAt(i);
+      if (c < 128) bytes.push(c);
+      else if (c < 2048) bytes.push(192 | (c >> 6), 128 | (c & 63));
+      else bytes.push(224 | (c >> 12), 128 | ((c >> 6) & 63), 128 | (c & 63));
+    }
+    var ver = 0;
+    for (var v = 1; v <= 10; v++) {
+      var total = RS[v][1].reduce(function (a, g) { return a + g[0] * g[1]; }, 0);
+      if (bytes.length + (v < 10 ? 2 : 3) <= total) { ver = v; break; }
+    }
+    if (!ver) return null;
+    var ecn = RS[ver][0], groups = RS[ver][1];
+    var totalData = groups.reduce(function (a, g) { return a + g[0] * g[1]; }, 0);
+
+    /* bitstream */
+    var bits = [];
+    function put(val, n) { for (var i = n - 1; i >= 0; i--) bits.push((val >> i) & 1); }
+    put(4, 4);
+    put(bytes.length, ver < 10 ? 8 : 16);
+    for (var b = 0; b < bytes.length; b++) put(bytes[b], 8);
+    var cap = totalData * 8;
+    for (var t = 0; t < 4 && bits.length < cap; t++) bits.push(0);
+    while (bits.length % 8) bits.push(0);
+    var cw = [];
+    for (var i2 = 0; i2 < bits.length; i2 += 8) { var byte = 0; for (var k = 0; k < 8; k++) byte = (byte << 1) | bits[i2 + k]; cw.push(byte); }
+    var pad = [0xEC, 0x11], pi = 0;
+    while (cw.length < totalData) cw.push(pad[pi++ % 2]);
+
+    /* blocks */
+    var dblocks = [], eblocks = [], pos = 0;
+    for (var gi = 0; gi < groups.length; gi++) {
+      for (var bi = 0; bi < groups[gi][0]; bi++) {
+        var d = Uint8Array.from(cw.slice(pos, pos + groups[gi][1])); pos += groups[gi][1];
+        dblocks.push(d); eblocks.push(ecc(d, ecn));
+      }
+    }
+    var final = [];
+    var maxD = Math.max.apply(null, dblocks.map(function (d) { return d.length; }));
+    for (var c2 = 0; c2 < maxD; c2++) for (var bl = 0; bl < dblocks.length; bl++) if (c2 < dblocks[bl].length) final.push(dblocks[bl][c2]);
+    for (var c3 = 0; c3 < ecn; c3++) for (var bl2 = 0; bl2 < eblocks.length; bl2++) final.push(eblocks[bl2][c3]);
+
+    /* matrix */
+    var size = 17 + 4 * ver;
+    var m = [], fn = [];
+    for (var r = 0; r < size; r++) { m.push(new Uint8Array(size)); fn.push(new Uint8Array(size)); }
+    function setF(r, c, v) { if (r < 0 || c < 0 || r >= size || c >= size) return; m[r][c] = v; fn[r][c] = 1; }
+    function finder(r0, c0) {
+      for (var r = -1; r <= 7; r++) for (var c = -1; c <= 7; c++) {
+        var rr = r0 + r, cc = c0 + c;
+        if (rr < 0 || cc < 0 || rr >= size || cc >= size) continue;
+        var on = (r >= 0 && r <= 6 && (c === 0 || c === 6)) || (c >= 0 && c <= 6 && (r === 0 || r === 6)) || (r >= 2 && r <= 4 && c >= 2 && c <= 4);
+        setF(rr, cc, on ? 1 : 0);
+      }
+    }
+    finder(0, 0); finder(0, size - 7); finder(size - 7, 0);
+    for (var i3 = 8; i3 < size - 8; i3++) { setF(6, i3, i3 % 2 === 0 ? 1 : 0); setF(i3, 6, i3 % 2 === 0 ? 1 : 0); }
+    var ac = ALIGN[ver];
+    for (var a1 = 0; a1 < ac.length; a1++) for (var a2 = 0; a2 < ac.length; a2++) {
+      var ar = ac[a1], acol = ac[a2];
+      if ((ar <= 7 && acol <= 7) || (ar <= 7 && acol >= size - 8) || (ar >= size - 8 && acol <= 7)) continue;
+      for (var r2 = -2; r2 <= 2; r2++) for (var c4 = -2; c4 <= 2; c4++) {
+        setF(ar + r2, acol + c4, (Math.max(Math.abs(r2), Math.abs(c4)) !== 1) ? 1 : 0);
+      }
+    }
+    setF(size - 8, 8, 1);
+    /* reserve format */
+    for (var i4 = 0; i4 < 9; i4++) { if (i4 !== 6) { setF(8, i4, 0); setF(i4, 8, 0); } }
+    for (var i5 = 0; i5 < 8; i5++) { setF(8, size - 1 - i5, 0); setF(size - 1 - i5, 8, 0); }
+    if (ver >= 7) {
+      var vb = verBits(ver);
+      for (var i6 = 0; i6 < 18; i6++) {
+        var bit = (vb >> i6) & 1;
+        setF(Math.floor(i6 / 3), size - 11 + (i6 % 3), bit);
+        setF(size - 11 + (i6 % 3), Math.floor(i6 / 3), bit);
+      }
+    }
+    /* data zigzag */
+    var bi2 = 0, up = true;
+    var dataBits = [];
+    for (var f = 0; f < final.length; f++) for (var k2 = 7; k2 >= 0; k2--) dataBits.push((final[f] >> k2) & 1);
+    for (var col = size - 1; col > 0; col -= 2) {
+      if (col === 6) col--;
+      for (var rowi = 0; rowi < size; rowi++) {
+        var row = up ? size - 1 - rowi : rowi;
+        for (var s2 = 0; s2 < 2; s2++) {
+          var cc2 = col - s2;
+          if (fn[row][cc2]) continue;
+          m[row][cc2] = bi2 < dataBits.length ? dataBits[bi2] : 0;
+          bi2++;
+        }
+      }
+      up = !up;
+    }
+    /* masks */
+    function maskFn(k, r, c) {
+      switch (k) {
+        case 0: return (r + c) % 2 === 0;
+        case 1: return r % 2 === 0;
+        case 2: return c % 3 === 0;
+        case 3: return (r + c) % 3 === 0;
+        case 4: return (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0;
+        case 5: return ((r * c) % 2) + ((r * c) % 3) === 0;
+        case 6: return (((r * c) % 2) + ((r * c) % 3)) % 2 === 0;
+        default: return (((r + c) % 2) + ((r * c) % 3)) % 2 === 0;
+      }
+    }
+    function penalty(mm) {
+      var p = 0, r, c, run, i;
+      for (r = 0; r < size; r++) { run = 1; for (c = 1; c < size; c++) { if (mm[r][c] === mm[r][c - 1]) { run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1; } }
+      for (c = 0; c < size; c++) { run = 1; for (r = 1; r < size; r++) { if (mm[r][c] === mm[r - 1][c]) { run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1; } }
+      for (r = 0; r < size - 1; r++) for (c = 0; c < size - 1; c++) { var s3 = mm[r][c] + mm[r][c + 1] + mm[r + 1][c] + mm[r + 1][c + 1]; if (s3 === 0 || s3 === 4) p += 3; }
+      var dark = 0; for (r = 0; r < size; r++) for (c = 0; c < size; c++) dark += mm[r][c];
+      p += Math.floor(Math.abs(dark * 100 / (size * size) - 50) / 5) * 10;
+      return p;
+    }
+    var best = null, bestP = Infinity;
+    for (var mk = 0; mk < 8; mk++) {
+      var mm = m.map(function (row) { return Uint8Array.from(row); });
+      for (var r3 = 0; r3 < size; r3++) for (var c5 = 0; c5 < size; c5++) if (!fn[r3][c5] && maskFn(mk, r3, c5)) mm[r3][c5] ^= 1;
+      var fb = fmtBits(mk);
+      for (var i7 = 0; i7 < 15; i7++) {
+        var bit2 = (fb >> i7) & 1;
+        /* first copy: down column 8, then left along row 8 */
+        if (i7 < 6) mm[i7][8] = bit2;
+        else if (i7 === 6) mm[7][8] = bit2;
+        else if (i7 === 7) mm[8][8] = bit2;
+        else if (i7 === 8) mm[8][7] = bit2;
+        else mm[8][14 - i7] = bit2;
+        /* second copy: in from the right along row 8, then up column 8 */
+        if (i7 < 8) mm[8][size - 1 - i7] = bit2;
+        else mm[size - 15 + i7][8] = bit2;
+      }
+      mm[size - 8][8] = 1;
+      var pp = penalty(mm);
+      if (pp < bestP) { bestP = pp; best = mm; }
+    }
+    return best;
+  };
+})();
+
+function drawQR(canvas, text) {
+  var m = QR(text);
+  if (!m) return;
+  var n = m.length, quiet = 3, total = n + quiet * 2;
+  var css = canvas.clientWidth || 240;
+  var dpr = Math.min(window.devicePixelRatio || 1, 3);
+  canvas.width = Math.round(css * dpr); canvas.height = Math.round(css * dpr);
+  var g = canvas.getContext("2d");
+  var s = canvas.width / total;
+  g.fillStyle = PAPER; g.fillRect(0, 0, canvas.width, canvas.height);
+  /* Solid modules, no gaps. A gap of even a twentieth of a module is enough to
+     make a strict decoder refuse the square, and this square has to scan. */
+  for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+    if (!m[r][c]) continue;
+    var inFinder = (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7);
+    g.fillStyle = inFinder ? "#bf4526" : "#1d201d";
+    g.fillRect(Math.floor((c + quiet) * s), Math.floor((r + quiet) * s), Math.ceil(s) + 1, Math.ceil(s) + 1);
+  }
+}
+
+/* ============================================================
+   NETWORK — the ground tries to find the others. Never required.
+   ============================================================ */
+var net = { state: "local", mqtt: null, bc: null, tried: 0 };
+
+function handleMsg(raw) { try { handleMsgInner(raw); } catch (e) { /* one bad message is one bad message */ } }
+function handleMsgInner(msg) {
+  if (!msg || typeof msg !== "object" || msg.from === SITE || msg.g !== GID) return;
+  if (msg.ops && !Array.isArray(msg.ops)) return;
+  if (msg.cloth) {
+    /* the folded cloth, handed over on arrival */
+    GOT_CLOTH = true;
+    var wasEmpty = !Store.threads.length;
+    var got = 0;
+    for (var ci = 0; ci < msg.ops.length; ci++) if (addOp(msg.ops[ci], { animate: false })) got++;
+    if (got) { saveLocal(); syncPips(); refreshMyFibre(); }
+    if (got && wasEmpty && !readLS("cg.where." + GID, "")) frameTheWeave();
+    if (Store.ops.length > (msg.n || 0)) publishCloth(3000 + Math.random() * 4000);
+    return;
+  }
+  if (msg.ops) {
+    var added = 0;
+    for (var i = 0; i < msg.ops.length; i++) {
+      var op = msg.ops[i];
+      if (op.k === "x") { if (removeOp(op.d.r, op.a)) added++; continue; }
+      if (addOp(op, { animate: true })) added++;
+    }
+    if (added) { saveLocal(); syncPips(); refreshMyFibre(); publishCloth(12000 + Math.random() * 8000); }
+  }
+  if (msg.hello || msg.helloBack) {
+    /* someone arrived: send them what they are missing, and say what we hold
+       so they can send us what we are missing */
+    var have = msg.have || {};
+    var missing = Store.ops.filter(function (o) {
+      var parts = o.i.split(".");
+      return !(have[parts[0]] >= parseInt(parts[1] || "0", 36));
+    });
+    if (missing.length) publishChunked(missing.slice(-1200));
+    if (msg.hello) setTimeout(function () { send({ g: GID, from: SITE, helloBack: 1, have: haveVector() }); }, 60 + Math.random() * 260);
+  }
+  if (msg.pres) {
+    var who = msg.pres.a || msg.from;
+    var p = peers.get(who) || {};
+    p.c = msg.pres.c; p.x = msg.pres.x; p.y = msg.pres.y; p.ts = performance.now();
+    peers.set(who, p);
+    refreshPeopleGlyph(); syncPips(); dirty = true;
+  }
+  if (msg.live) {
+    var who2 = msg.live.a || msg.from;
+    var lp = livePeers.get(who2) || { pts: [], c: colorOf(who2) };
+    var conv = [];
+    for (var j = 0; j + 1 < msg.live.p.length; j += 2) conv.push(mercX(msg.live.p[j + 1] / 1e5), mercY(msg.live.p[j] / 1e5));
+    lp.pts = conv; lp.ts = performance.now();
+    livePeers.set(who2, lp);
+    dirty = true;
+  }
+}
+
+/* ---- where the cloth rests ----
+   Gossip only reaches people who are awake at the same moment. A city is not
+   used that way. Whoever weaves last leaves the whole cloth folded on the
+   meeting point, so somebody arriving an hour later is handed the place rather
+   than told it is empty. */
+var snapTimer = 0, GOT_CLOTH = false;
+function publishCloth(delay) {
+  clearTimeout(snapTimer);
+  snapTimer = setTimeout(function () {
+    if (!net.mqtt || !net.mqtt.ready || !Store.ops.length) return;
+    var ops = Store.ops;
+    if (ops.length > 1500) ops = ops.slice(ops.length - 1500);
+    var body = JSON.stringify({ g: GID, from: SITE, cloth: 1, n: Store.ops.length, ops: ops });
+    while (body.length > 280000 && ops.length > 40) {
+      ops = ops.slice(Math.floor(ops.length * 0.3));
+      body = JSON.stringify({ g: GID, from: SITE, cloth: 1, n: Store.ops.length, ops: ops });
+    }
+    try { net.mqtt.publishRetained(body); } catch (e) { }
+  }, delay);
+}
+
+/* stand in front of what is already here, rather than above the whole county */
+function frameTheWeave() {
+  if (!Store.threads.length) return;
+  var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (var i = 0; i < Store.threads.length; i++) {
+    var t = Store.threads[i];
+    if (t.bx0 < x0) x0 = t.bx0; if (t.bx1 > x1) x1 = t.bx1;
+    if (t.by0 < y0) y0 = t.by0; if (t.by1 > y1) y1 = t.by1;
+  }
+  if (!isFinite(x0)) return;
+  V.x = (x0 + x1) / 2; V.y = (y0 + y1) / 2;
+  var span = Math.max(x1 - x0, (y1 - y0) * (W / Math.max(1, H)), 1e-6);
+  var z = Math.log2((W * 0.78) / (span * 256));
+  V.z = clamp(z, 11, 16.5);
+  clampView(); touchWeave();
+}
+
+function haveVector() {
+  var have = {};
+  Store.ops.forEach(function (o) {
+    var parts = o.i.split(".");
+    var n = parseInt(parts[1] || "0", 36);
+    if (!(have[parts[0]] >= n)) have[parts[0]] = n;
+  });
+  return have;
+}
+function publish(ops) { send({ g: GID, from: SITE, ops: ops }); }
+function publishChunked(ops) {
+  for (var i = 0; i < ops.length; i += 40) {
+    (function (slice, k) {
+      setTimeout(function () { publish(slice); }, k * 45);
+    })(ops.slice(i, i + 40), i / 40);
+  }
+}
+function send(msg) {
+  var s = JSON.stringify(msg);
+  try { if (net.bc) net.bc.postMessage(s); } catch (e) { }
+  try { if (net.mqtt && net.mqtt.ready) net.mqtt.publish(s); } catch (e) { }
+}
+
+/* same device, other tabs — always available */
+try {
+  net.bc = new BroadcastChannel("cg." + GID);
+  net.bc.onmessage = function (e) { try { handleMsg(JSON.parse(e.data)); } catch (er) { } };
+} catch (e) { net.bc = null; }
+
+/* ---------- minimal MQTT 3.1.1 over WebSocket ---------- */
+function MqttClient(url, topic, snapTopic, onMsg, onOpen, onFail) {
+  var ws, ready = false, pingTimer = 0, self = this;
+  var cid = "cg" + ME + Math.random().toString(36).slice(2, 7);
+  function enc(str) { return new TextEncoder().encode(str); }
+  function rem(len) { var out = []; do { var d = len % 128; len = Math.floor(len / 128); if (len > 0) d |= 128; out.push(d); } while (len > 0); return out; }
+  function pack(type, flags, payload) {
+    var head = [(type << 4) | flags].concat(rem(payload.length));
+    var buf = new Uint8Array(head.length + payload.length);
+    buf.set(head, 0); buf.set(payload, head.length);
+    return buf;
+  }
+  function strBuf(s) { var b = enc(s); var o = new Uint8Array(b.length + 2); o[0] = b.length >> 8; o[1] = b.length & 255; o.set(b, 2); return o; }
+  function cat() { var parts = [].slice.call(arguments); var n = parts.reduce(function (a, p) { return a + p.length; }, 0); var o = new Uint8Array(n), off = 0; for (var i = 0; i < parts.length; i++) { o.set(parts[i], off); off += parts[i].length; } return o; }
+
+  try { ws = new WebSocket(url, ["mqtt"]); } catch (e) { onFail && onFail(); return; }
+  ws.binaryType = "arraybuffer";
+  var failed = false;
+  var guard = setTimeout(function () { if (!ready) { failed = true; try { ws.close(); } catch (e) { } onFail && onFail(); } }, 7000);
+
+  ws.onopen = function () {
+    var vh = cat(strBuf("MQTT"), new Uint8Array([4, 0x02, 0, 30]));
+    ws.send(pack(1, 0, cat(vh, strBuf(cid))));
+  };
+  ws.onerror = function () { if (!failed) { failed = true; clearTimeout(guard); onFail && onFail(); } };
+  ws.onclose = function () { ready = false; self.ready = false; if (!failed) { failed = true; clearTimeout(guard); onFail && onFail(); } };
+  /* a websocket frame is not an mqtt packet: brokers split and coalesce freely,
+     so everything arriving is treated as one continuous stream */
+  var inbuf = new Uint8Array(0);
+  function feed(chunk) {
+    if (inbuf.length) {
+      var merged = new Uint8Array(inbuf.length + chunk.length);
+      merged.set(inbuf, 0); merged.set(chunk, inbuf.length);
+      inbuf = merged;
+    } else inbuf = chunk;
+    var off = 0;
+    for (;;) {
+      if (inbuf.length - off < 2) break;
+      var type = inbuf[off] >> 4;
+      var mult = 1, len = 0, j = off + 1, byte, bytes = 0, complete = false;
+      do {
+        if (j >= inbuf.length) break;
+        byte = inbuf[j++]; len += (byte & 127) * mult; mult *= 128; bytes++;
+        if (!(byte & 128)) { complete = true; break; }
+      } while (bytes < 4);
+      if (!complete) break;
+      if (inbuf.length - j < len) break;                 /* wait for the rest */
+      handlePacket(type, inbuf.subarray(j, j + len));
+      off = j + len;
+      if (closedOut) return;
+    }
+    inbuf = off ? inbuf.subarray(off) : inbuf;
+  }
+  var closedOut = false;
+  function handlePacket(type, body) {
+    if (type === 2) {                                     /* CONNACK */
+      if (body.length >= 2 && body[1] === 0) {
+        ready = true; self.ready = true; clearTimeout(guard);
+        /* the live gossip, and the ground's own resting place */
+        ws.send(pack(8, 2, cat(new Uint8Array([0, 1]),
+          strBuf(topic), new Uint8Array([0]),
+          strBuf(snapTopic), new Uint8Array([0]))));
+        pingTimer = setInterval(function () { try { ws.send(new Uint8Array([0xC0, 0])); } catch (e) { } }, 20000);
+        onOpen && onOpen();
+      } else { closedOut = true; failed = true; clearTimeout(guard); try { ws.close(); } catch (e) { } onFail && onFail(); }
+    } else if (type === 3) {                              /* PUBLISH */
+      if (body.length < 2) return;
+      var tl = (body[0] << 8) | body[1];
+      var payload = body.subarray(2 + tl);
+      try { onMsg(new TextDecoder().decode(payload)); } catch (e) { }
+    }
+  }
+  ws.onmessage = function (ev) {
+    try {
+      var d = typeof ev.data === "string" ? new TextEncoder().encode(ev.data) : new Uint8Array(ev.data);
+      feed(d);
+    } catch (e) { }
+  };
+  this.ready = false;
+  this.publish = function (str) {
+    if (!ready) return;
+    try { ws.send(pack(3, 0, cat(strBuf(topic), enc(str)))); } catch (e) { }
+  };
+  /* A retained message is the only thing on a public broker that outlives the
+     people holding it. It is where the cloth rests between visits. */
+  this.publishRetained = function (str) {
+    if (!ready) return;
+    try { ws.send(pack(3, 1, cat(strBuf(snapTopic), enc(str)))); } catch (e) { }
+  };
+  this.close = function () { clearInterval(pingTimer); try { ws.close(); } catch (e) { } };
+}
+
+var BROKERS = (function () {
+  /* a ground can name its own meeting point; otherwise it asks the public ones */
+  var q = new URLSearchParams(location.search).get("broker");
+  if (q && /^wss?:\/\//.test(q)) return [q];
+  return [
+    "wss://broker.emqx.io:8084/mqtt",
+    "wss://test.mosquitto.org:8081/mqtt",
+    "wss://broker.hivemq.com:8884/mqtt"
+  ];
+})();
+function connectNet() {
+  if (net.tried >= BROKERS.length || net.state === "open") return;
+  var url = BROKERS[net.tried++];
+  var topic = "unsettled-atlas/commonground/" + GID;
+  net.mqtt = new MqttClient(url, topic, topic + "/cloth",
+    function (s) { try { handleMsg(JSON.parse(s)); } catch (e) { } },
+    function () {
+      net.state = "open";
+      send({ g: GID, from: SITE, hello: 1, have: haveVector() });
+      sendPresence();
+      /* nothing was left here: leave it now */
+      setTimeout(function () { if (!GOT_CLOTH && Store.ops.length) publishCloth(200); }, 3500);
+    },
+    function () { net.state = "local"; net.mqtt = null; setTimeout(connectNet, 600); }
+  );
+}
+
+function sendPresence() {
+  send({ g: GID, from: SITE, pres: { a: ME, c: MY_COLOR, x: V.x, y: V.y } });
+}
+setInterval(function () { if (net.mqtt && net.mqtt.ready) sendPresence(); }, 4000);
+
+var liveTimer = 0;
+function pushLive() {
+  if (liveTimer) return;
+  liveTimer = setTimeout(function () {
+    liveTimer = 0;
+    if (!drawingPts || drawingPts.length < 4) return;
+    var p = [];
+    var step = Math.max(1, Math.floor(drawingPts.length / 2 / 60));
+    for (var i = 0; i < drawingPts.length; i += 2 * step) {
+      p.push(Math.round(unMercY(drawingPts[i + 1]) * 1e5), Math.round(unMercX(drawingPts[i]) * 1e5));
+    }
+    send({ g: GID, from: SITE, live: { a: ME, p: p } });
+  }, 130);
+}
+
+/* reconnect when the device comes back */
+window.addEventListener("online", function () { if (net.state !== "open") { net.tried = 0; connectNet(); } });
+document.addEventListener("visibilitychange", function () {
+  if (!document.hidden && net.state !== "open") { net.tried = 0; connectNet(); }
+});
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+function boot() {
+  /* the loop starts first; nothing below it may ever stop the ground appearing */
+  requestAnimationFrame(frame);
+  try { bootGround(); } catch (e) { dirty = true; }
+}
+
+function bootGround() {
+  resize();
+  window.addEventListener("resize", resize);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", resize);
+
+  /* the place you were last weaving is where you come back to */
+  try {
+    var whereRaw = readLS("cg.where." + GID, "");
+    if (whereRaw) {
+      var wh = JSON.parse(whereRaw);
+      if (wh && wh.length === 4 && isFinite(wh[0]) && Date.now() - wh[3] < 120 * 864e5) {
+        V.x = wh[0]; V.y = wh[1]; V.z = clamp(wh[2], 9.6, 19);
+      }
+    }
+  } catch (e) { }
+
+  /* restore the ground */
+  var lastVisit = parseInt(readLS(LS_VISIT, "0"), 10) || 0;
+  LAST_VISIT = lastVisit;
+  var saved = loadLocal();
+  var sortedSaved = saved.slice().sort(function (a, b) { return (a.t || 0) - (b.t || 0); });
+  var fresh = 0;
+  for (var i = 0; i < sortedSaved.length; i++) {
+    var op = sortedSaved[i];
+    addOp(op, { animate: lastVisit > 0 && op.t > lastVisit, stagger: Math.min(1.6, fresh++ * 0.22) });
+  }
+  writeLS(LS_VISIT, String(Date.now()));
+
+  /* frame first, everything else after */
+  refreshMyFibre();
+  setTrace(false);
+  refreshPeopleGlyph();
+  syncPips();
+  dirty = true;
+
+  /* a mark you made a moment ago can still be taken back after a reload */
+  for (var m = Store.ops.length - 1; m >= 0; m--) {
+    if (Store.ops[m].a !== ME) continue;
+    if (Date.now() - Store.ops[m].t < 3 * 60000) { lastMine = Store.ops[m].i; showUndo(); }
+    break;
+  }
+
+  /* say hello to any other client on this device straight away */
+  try { send({ g: GID, from: SITE, hello: 1, have: haveVector() }); } catch (e) { }
+  setTimeout(function () { try { connectNet(); } catch (e) { } }, 700);
+}
+
+/* moving to another ground is moving to another place */
+window.addEventListener("hashchange", function () {
+  if (readGroundId() !== GID) location.reload();
+});
+
+window.addEventListener("keydown", function (e) {
+  if (e.key === "z" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (lastMine) undoBtn.click(); }
+  if (e.key === "Escape") { openKnot = null; keyOpen = false; keyEl.classList.remove("show"); dirty = true; }
+});
+
+window.addEventListener("error", function () { /* never let a stray error blank the ground */ });
+
+boot();
+</script>
+</body>
+</html>

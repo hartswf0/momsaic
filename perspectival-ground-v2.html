@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>PERSPECTIVAL GROUND</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#000;--paper:#fff;--rain:#3b82f6;--car:#ff2e2e;--chair:#19e6c8;--frog:#ffd23f}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#fff;color:#000}
+body{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;letter-spacing:.04em;
+  height:100dvh;width:100vw;user-select:none;-webkit-user-select:none;touch-action:none;position:fixed;inset:0}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#hud{position:absolute;inset:0;pointer-events:none;z-index:5;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.panel{background:#fff;border:3px solid #000}
+#top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:7px;gap:7px}
+#who{display:flex;align-items:center;gap:8px;padding:6px 9px;pointer-events:auto}
+#who svg{flex:0 0 auto}
+#who .n{font-size:14px;font-weight:700;letter-spacing:.08em;line-height:1.1}
+#who .s{font-size:8.5px;letter-spacing:.08em;opacity:.75;margin-top:2px;white-space:nowrap}
+#right{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+#budget{padding:6px 9px;min-width:104px}
+#budget .n{font-size:14px;font-weight:700;line-height:1;text-align:right}
+#gauge{height:5px;border:2px solid #000;margin-top:4px}
+#gauge i{display:block;height:100%;background:#000}
+#budget .t{font-size:8.5px;letter-spacing:.1em;margin-top:3px;text-align:right;opacity:.75}
+#dest{padding:6px 9px;display:flex;align-items:center;gap:7px;max-width:62vw}
+#dest .l{font-size:8.5px;letter-spacing:.14em;opacity:.75}
+#dest .p{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dest .d{font-size:10px;font-weight:700}
+#lens{position:absolute;left:7px;bottom:118px;right:7px;padding:6px 9px;font-size:9.5px;letter-spacing:.06em;
+  line-height:1.7;pointer-events:none}
+#lens b{font-weight:700}
+#say{position:absolute;left:7px;right:7px;bottom:166px;background:#fff;border-left:5px solid #000;
+  padding:7px 9px;font-size:11px;line-height:1.5;pointer-events:none;opacity:0;transition:opacity .18s}
+#say.show{opacity:1}
+#coach{position:absolute;left:50%;transform:translateX(-50%);bottom:70px;padding:7px 11px;
+  font-size:10.5px;letter-spacing:.1em;font-weight:700;white-space:nowrap}
+#tools{position:absolute;right:7px;bottom:180px;display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+.tool{width:40px;height:40px;display:grid;place-items:center;background:#fff;border:3px solid #000}
+#bottom{position:absolute;left:0;right:0;bottom:0;padding:7px;display:flex;gap:7px;pointer-events:auto}
+.seg{display:flex;border:3px solid #000;background:#fff;flex:1}
+.seg button{flex:1;border:0;background:transparent;color:#000;font:inherit;font-weight:700;
+  letter-spacing:.1em;font-size:11.5px;padding:13px 2px;display:flex;align-items:center;justify-content:center;gap:6px}
+.seg button[aria-pressed="true"]{background:#000;color:#fff}
+.seg button[aria-pressed="true"] svg *{stroke:#fff!important}
+#go{border:3px solid #000;background:#000;color:#fff;font:inherit;font-weight:700;letter-spacing:.1em;
+  font-size:11.5px;padding:13px 14px;flex:0 0 auto}
+#become{position:absolute;inset:0;background:#fff;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:10px;z-index:9;pointer-events:auto}
+#become.show{display:flex}
+#become .k{font-size:9.5px;letter-spacing:.3em;font-weight:700}
+#become .n{font-size:30px;font-weight:700;letter-spacing:.05em}
+#become .d{font-size:11px;max-width:25ch;text-align:center;line-height:1.8}
+#become .w{font-size:10px;letter-spacing:.08em;text-align:center;line-height:1.9;max-width:28ch}
+#cmp{position:absolute;left:7px;right:7px;top:60px;padding:9px;display:none;z-index:7;pointer-events:none}
+#cmp.show{display:block}
+#cmp h4{font-size:8.5px;letter-spacing:.16em;margin-bottom:6px;font-weight:700}
+#cmp .r{display:flex;align-items:center;gap:7px;font-size:10.5px;line-height:1.85}
+#cmp .nm{width:74px;font-weight:700;font-size:9px;letter-spacing:.06em}
+#imp{position:absolute;inset:0;background:#fff;display:none;flex-direction:column;gap:12px;padding:20px;
+  z-index:10;pointer-events:auto;justify-content:center}
+#imp.show{display:flex}
+#imp h2{font-size:16px;font-weight:700;letter-spacing:.08em}
+#imp p{font-size:11px;line-height:1.8}
+#imp textarea{width:100%;height:120px;border:3px solid #000;font:inherit;font-size:10px;padding:8px}
+#imp button,#imp label{border:3px solid #000;background:#fff;font:inherit;font-weight:700;letter-spacing:.12em;
+  font-size:11px;padding:12px;text-align:center;display:block}
+#imp .go{background:#000;color:#fff}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud">
+  <div id="top">
+    <div class="panel" id="who"><svg id="whoIcon" width="26" height="26" viewBox="0 0 26 26"></svg>
+      <div><div class="n" id="whoName">—</div><div class="s" id="whoSub"></div></div></div>
+    <div id="right">
+      <div class="panel" id="budget"><div class="n" id="budNum">0</div>
+        <div id="gauge"><i id="gaugeFill"></i></div><div class="t" id="turnNo"></div></div>
+    </div>
+  </div>
+  <div class="panel" id="dest" style="position:absolute;left:7px;top:66px">
+    <div><div class="l">EVERYONE IS TRYING TO REACH</div><div class="p" id="destName">—</div></div>
+    <div class="d" id="destDist"></div>
+  </div>
+  <div class="panel" id="cmp"><h4>SAME LINE · FOUR READINGS</h4><div id="cmpRows"></div></div>
+  <div id="say"></div>
+  <div class="panel" id="lens"></div>
+  <div class="panel" id="coach">DRAG FROM YOUR DOT</div>
+  <div id="tools">
+    <div class="tool" id="tCenter"><svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="4" fill="none" stroke="#000" stroke-width="2"/><path d="M10 1v3M10 16v3M1 10h3M16 10h3" stroke="#000" stroke-width="2"/></svg></div>
+    <div class="tool" id="tGround"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 6l5-3 6 3 5-3v11l-5 3-6-3-5 3z" fill="none" stroke="#000" stroke-width="2" stroke-linejoin="round"/><path d="M7 3v11M13 6v11" stroke="#000" stroke-width="2"/></svg></div>
+  </div>
+  <div id="bottom">
+    <div class="seg">
+      <button id="bMove" aria-pressed="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 12C5 12 5 4 8 4s3 8 6 8" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/></svg>MOVE</button>
+      <button id="bBuild" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 13L13 2M10 2h4v4" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>BUILD</button>
+    </div>
+    <button id="go">END TURN</button>
+  </div>
+</div>
+<div id="become">
+  <div class="k">YOU BECOME</div>
+  <svg id="becomeIcon" width="96" height="96" viewBox="0 0 96 96"></svg>
+  <div class="n" id="becomeName"></div>
+  <div class="d" id="becomeDesc"></div>
+  <div class="w" id="becomeWorld"></div>
+</div>
+<div id="imp">
+  <h2>LOAD REAL GROUND</h2>
+  <p>Paste the contents of Common Ground's <code>ground-data</code> script, or open the Living Mapmaker HTML file itself and it will be pulled out. The schematic corridors are replaced by the full extract.</p>
+  <label for="impFile">OPEN A FILE<input id="impFile" type="file" accept=".html,.htm,.json,.txt" style="display:none"></label>
+  <textarea id="impText" placeholder='{"bbox":[...],"layers":{...}}'></textarea>
+  <button class="go" id="impGo">USE THIS GROUND</button>
+  <button id="impClose">CANCEL</button>
+</div>
+
+<script>
+"use strict";
+/* ===========================================================================
+   PERSPECTIVAL GROUND  v2
+   Four bodies stand on one city. Each turn you wake up inside a different one
+   and the ground rearranges itself around what you now are.
+   =========================================================================== */
+const GROUND_BLOB=null;
+
+/* ---- named Atlanta. Names are what make a map a map. ---- */
+const SCHEMATIC={bbox:[-84.55,33.62,-84.2,33.9],layers:{
+ water:[
+  {n:"CHATTAHOOCHEE RIVER",p:[[-84.45,33.90],[-84.46,33.87],[-84.48,33.85],[-84.505,33.83],[-84.525,33.80],[-84.545,33.77],[-84.55,33.75]]},
+  {n:"PEACHTREE CREEK",p:[[-84.30,33.83],[-84.34,33.82],[-84.38,33.82],[-84.42,33.812],[-84.45,33.82],[-84.475,33.845]]},
+  {n:"SOUTH RIVER",p:[[-84.40,33.70],[-84.36,33.69],[-84.32,33.68],[-84.28,33.672],[-84.24,33.665]]},
+  {n:"UTOY CREEK",p:[[-84.42,33.725],[-84.46,33.712],[-84.50,33.72],[-84.55,33.735]]},
+  {n:"NANCY CREEK",p:[[-84.28,33.885],[-84.33,33.875],[-84.38,33.872],[-84.43,33.866],[-84.46,33.858]]},
+  {n:"INTRENCHMENT CREEK",p:[[-84.375,33.735],[-84.372,33.705],[-84.378,33.678]]},
+  {n:"CLEAR CREEK",p:[[-84.352,33.792],[-84.358,33.808],[-84.366,33.818]]},
+  {n:"PROCTOR CREEK",p:[[-84.395,33.765],[-84.425,33.772],[-84.455,33.782],[-84.49,33.788]]}],
+ motorway:[
+  {n:"I-85",p:[[-84.28,33.90],[-84.325,33.862],[-84.358,33.828],[-84.383,33.79],[-84.392,33.762]]},
+  {n:"I-75",p:[[-84.465,33.90],[-84.448,33.868],[-84.421,33.832],[-84.402,33.80],[-84.392,33.772]]},
+  {n:"THE CONNECTOR",p:[[-84.392,33.762],[-84.396,33.742],[-84.404,33.715],[-84.421,33.688],[-84.438,33.658]]},
+  {n:"I-20",p:[[-84.55,33.752],[-84.487,33.749],[-84.44,33.747],[-84.392,33.746],[-84.34,33.742],[-84.28,33.736],[-84.20,33.731]]},
+  {n:"I-285 EAST",p:[[-84.232,33.90],[-84.236,33.85],[-84.241,33.80],[-84.247,33.75],[-84.253,33.70],[-84.262,33.662]]},
+  {n:"I-285 SOUTH",p:[[-84.262,33.662],[-84.32,33.641],[-84.38,33.634],[-84.44,33.639],[-84.50,33.652],[-84.55,33.668]]}],
+ rail:[
+  {n:"MARTA RED/GOLD",p:[[-84.386,33.72],[-84.390,33.748],[-84.386,33.772],[-84.383,33.792],[-84.381,33.816],[-84.378,33.848]]},
+  {n:"MARTA BLUE/GREEN",p:[[-84.47,33.752],[-84.432,33.753],[-84.395,33.753],[-84.365,33.752],[-84.325,33.749],[-84.29,33.746]]}],
+ primary:[
+  {n:"PEACHTREE ST",p:[[-84.392,33.752],[-84.386,33.772],[-84.383,33.792],[-84.380,33.812],[-84.379,33.842],[-84.375,33.864]]},
+  {n:"PONCE DE LEON AVE",p:[[-84.395,33.772],[-84.362,33.772],[-84.338,33.770],[-84.308,33.769]]},
+  {n:"MEMORIAL DR",p:[[-84.383,33.748],[-84.342,33.746],[-84.300,33.744]]},
+  {n:"NORTHSIDE DR",p:[[-84.412,33.718],[-84.411,33.758],[-84.416,33.800],[-84.421,33.842]]},
+  {n:"CASCADE RD",p:[[-84.412,33.732],[-84.452,33.722],[-84.492,33.702]]},
+  {n:"BUFORD HWY",p:[[-84.341,33.822],[-84.302,33.852],[-84.272,33.881]]},
+  {n:"LEE ST",p:[[-84.410,33.735],[-84.416,33.702],[-84.422,33.670]]},
+  {n:"MARIETTA ST",p:[[-84.392,33.752],[-84.372,33.742],[-84.352,33.736]]},
+  {n:"MORELAND AVE",p:[[-84.349,33.786],[-84.349,33.752],[-84.351,33.718]]},
+  {n:"10TH ST",p:[[-84.412,33.781],[-84.383,33.781],[-84.358,33.782]]}],
+ secondary:[
+  {n:"BOULEVARD",p:[[-84.371,33.742],[-84.373,33.782]]},
+  {n:"DEKALB AVE",p:[[-84.372,33.756],[-84.332,33.751],[-84.291,33.761]]},
+  {n:"HOWELL MILL RD",p:[[-84.421,33.782],[-84.431,33.821],[-84.441,33.852]]},
+  {n:"CLEVELAND AVE",p:[[-84.441,33.681],[-84.381,33.686],[-84.331,33.691]]},
+  {n:"PIEDMONT AVE",p:[[-84.366,33.791],[-84.361,33.812],[-84.356,33.842]]},
+  {n:"D.L. HOLLOWELL PKWY",p:[[-84.421,33.771],[-84.461,33.776],[-84.501,33.781]]},
+  {n:"JUNIPER ST",p:[[-84.386,33.772],[-84.381,33.792],[-84.371,33.812]]},
+  {n:"14TH ST",p:[[-84.402,33.80],[-84.381,33.802],[-84.366,33.801]]},
+  {n:"GLENWOOD AVE",p:[[-84.372,33.735],[-84.336,33.732],[-84.302,33.729]]},
+  {n:"WEST PACES FERRY",p:[[-84.383,33.845],[-84.415,33.848],[-84.448,33.852]]}]
+}};
+const PLACES=[
+ ["FIVE POINTS",-84.391,33.754],["GRANT PARK",-84.370,33.735],["PIEDMONT PARK",-84.373,33.785],
+ ["WEST END",-84.418,33.738],["EAST POINT",-84.440,33.679],["DECATUR",-84.295,33.774],
+ ["GEORGIA TECH",-84.396,33.775],["PONCE CITY MARKET",-84.366,33.772],["CASCADE SPRINGS",-84.470,33.716],
+ ["CHATTAHOOCHEE BEND",-84.480,33.850],["BUCKHEAD",-84.379,33.848],["KIRKWOOD",-84.325,33.752],
+ ["SUMMERHILL",-84.386,33.735],["ADAIR PARK",-84.409,33.726],["SOUTH RIVER FOREST",-84.345,33.690]];
+
+/* ---- Common Ground reader ---- */
+function decodeLine(str){const p=[];let i=0,la=0,ln=0;
+ while(i<str.length){let r=0,s=0,b;
+  do{b=str.charCodeAt(i++)-63;r|=(b&31)<<s;s+=5;}while(b>=32);la+=(r&1)?~(r>>1):(r>>1);
+  r=0;s=0;do{b=str.charCodeAt(i++)-63;r|=(b&31)<<s;s+=5;}while(b>=32);ln+=(r&1)?~(r>>1):(r>>1);
+  p.push([ln/1e5,la/1e5]);}
+ return p;}
+function readLayer(v,bb){
+ if(!v)return[];
+ if(Array.isArray(v))return v.map(x=>Array.isArray(x)?{n:null,p:x}:x);
+ const out=[],inb=p=>p[0]>=bb[0]-.2&&p[0]<=bb[2]+.2&&p[1]>=bb[1]-.2&&p[1]<=bb[3]+.2;
+ String(v).split("|").forEach(s=>{if(s.length<4)return;let p;try{p=decodeLine(s);}catch(e){return;}
+  if(p.length<2)return;let g=p.filter(inb).length/p.length;
+  if(g<.5){const sw=p.map(q=>[q[1],q[0]]);if(sw.filter(inb).length/sw.length>g)p=sw;else return;}
+  out.push({n:null,p});});
+ return out;}
+function streetGrid(bb){
+ const out=[],W=Math.max(bb[0],-84.442),E=Math.min(bb[2],-84.336),
+       S=Math.max(bb[1],33.716),N=Math.min(bb[3],33.806),STEP=.0075;
+ for(let x=W;x<=E+1e-9;x+=STEP){const l=[];for(let y=S;y<=N+1e-9;y+=STEP/2)l.push([+x.toFixed(5),+y.toFixed(5)]);out.push({n:null,p:l});}
+ for(let y=S;y<=N+1e-9;y+=STEP){const l=[];for(let x=W;x<=E+1e-9;x+=STEP/2)l.push([+x.toFixed(5),+y.toFixed(5)]);out.push({n:null,p:l});}
+ return out;}
+
+let BBOX,LAYERS,MX,MY,REAL=false;
+function setGround(src){
+ BBOX=src.bbox||SCHEMATIC.bbox;
+ LAYERS={};
+ ["water","motorway","rail","primary","secondary"].forEach(k=>LAYERS[k]=readLayer(src.layers[k],BBOX));
+ LAYERS.street=src.layers.street?readLayer(src.layers.street,BBOX):streetGrid(BBOX);
+ const LAT0=(BBOX[1]+BBOX[3])/2;
+ MX=111320*Math.cos(LAT0*Math.PI/180);MY=110570;
+}
+setGround(GROUND_BLOB||SCHEMATIC);
+const P=(lng,lat)=>({x:(lng-BBOX[0])*MX,y:(BBOX[3]-lat)*MY});
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+
+/* ===========================================================================
+   NETWORK
+   =========================================================================== */
+let NODES=[],EDGES=[],LINES=[];
+let nodeIndex=new Map();
+const nodeKey=p=>Math.round(p.x/12)+"_"+Math.round(p.y/12);
+function nodeAt(p){const k=nodeKey(p);if(nodeIndex.has(k))return nodeIndex.get(k);
+ const i=NODES.length;NODES.push({x:p.x,y:p.y,e:[]});nodeIndex.set(k,i);return i;}
+function addEdge(a,b,type,built,by){
+ if(a===b)return null;
+ const e={a,b,type,built:!!built,by:by===undefined?null:by,len:dist(NODES[a],NODES[b]),use:0};
+ const i=EDGES.length;EDGES.push(e);NODES[a].e.push(i);NODES[b].e.push(i);return i;}
+function segInt(p1,p2,p3,p4){
+ const d=(p2.x-p1.x)*(p4.y-p3.y)-(p2.y-p1.y)*(p4.x-p3.x);
+ if(Math.abs(d)<1e-9)return null;
+ const t=((p3.x-p1.x)*(p4.y-p3.y)-(p3.y-p1.y)*(p4.x-p3.x))/d;
+ const u=((p3.x-p1.x)*(p2.y-p1.y)-(p3.y-p1.y)*(p2.x-p1.x))/d;
+ if(t<0.001||t>0.999||u<0.001||u>0.999)return null;
+ return {x:p1.x+(p2.x-p1.x)*t,y:p1.y+(p2.y-p1.y)*t};}
+const SUB=170;
+function buildNetwork(){
+ NODES=[];EDGES=[];LINES=[];nodeIndex=new Map();
+ const lines=[];
+ for(const type in LAYERS) LAYERS[type].forEach(f=>lines.push({type,name:f.n,pts:f.p.map(q=>P(q[0],q[1]))}));
+ lines.forEach(L=>{L.cuts=L.pts.map(()=>[]);});
+ for(let i=0;i<lines.length;i++)for(let j=i+1;j<lines.length;j++){
+  const A=lines[i],B=lines[j];
+  for(let a=0;a<A.pts.length-1;a++)for(let b=0;b<B.pts.length-1;b++){
+   const X=segInt(A.pts[a],A.pts[a+1],B.pts[b],B.pts[b+1]);
+   if(!X)continue;A.cuts[a].push(X);B.cuts[b].push(X);}}
+ lines.forEach(L=>{
+  const chain=[];
+  for(let a=0;a<L.pts.length-1;a++){chain.push(L.pts[a]);
+   L.cuts[a].sort((p,q)=>dist(L.pts[a],p)-dist(L.pts[a],q)).forEach(c=>chain.push(c));}
+  chain.push(L.pts[L.pts.length-1]);
+  for(let i=0;i<chain.length-1;i++){
+   const a=chain[i],b=chain[i+1],d=dist(a,b);
+   if(d<1)continue;
+   const n=Math.max(1,Math.round(d/SUB));
+   let prev=nodeAt(a);
+   for(let s=1;s<=n;s++){
+    const p={x:a.x+(b.x-a.x)*s/n,y:a.y+(b.y-a.y)*s/n};
+    const cur=nodeAt(p);addEdge(prev,cur,L.type);prev=cur;}}
+  if(L.name)LINES.push({type:L.type,name:L.name,pts:L.pts});});
+}
+buildNetwork();
+
+/* ===========================================================================
+   TRAVELERS
+   =========================================================================== */
+const WALL=null;
+const T=[
+ {key:"rain",name:"RAIN",color:"#3b82f6",budget:3600,builds:"channel",
+  desc:"Gravity, surface, capture.",
+  world:"CREEK · CULVERT carry you.  FREEWAY · SEALED ROAD refuse you.",
+  read:{water:[.28,"CURRENT"],motorway:[WALL,"CROWNED PAVEMENT"],rail:[1.4,"BALLAST"],primary:[2.2,"SHEET FLOW"],
+        secondary:[1.6,"GUTTER"],street:[1.3,"KERB LINE"],channel:[.15,"CULVERT"],road:[WALL,"SEALED SURFACE"],
+        ramp:[1.2,"KERB CUT"],crossing:[.9,"GRATE"]}},
+ {key:"car",name:"CAR",color:"#ff2e2e",budget:3600,builds:"road",
+  desc:"Speed, grade separation, one way.",
+  world:"FREEWAY · NEW ROAD carry you.  CREEK · CHANNEL · RAIL refuse you.",
+  read:{water:[WALL,"NO BRIDGE"],motorway:[.35,"FREEWAY"],rail:[WALL,"RAIL ONLY"],primary:[.8,"ARTERIAL"],
+        secondary:[1.1,"SIDE STREET"],street:[1.7,"STOP SIGNS"],channel:[WALL,"OPEN CHANNEL"],road:[.5,"NEW ROAD"],
+        ramp:[1.4,"SHARED SURFACE"],crossing:[1.3,"CROSSING WAIT"]}},
+ {key:"chair",name:"WHEELCHAIR",color:"#19e6c8",budget:3000,builds:"ramp",
+  desc:"Grade, width, kerb, threshold.",
+  world:"RAMP · RAIL · QUIET STREET carry you.  FREEWAY · CREEK · NEW ROAD refuse you.",
+  read:{water:[WALL,"CREEK, NO CROSSING"],motorway:[WALL,"GRADE SEPARATION"],rail:[.3,"MARTA"],primary:[1.6,"NO KERB CUTS"],
+        secondary:[1,"SIDEWALK"],street:[.85,"QUIET SIDEWALK"],channel:[WALL,"OPEN CHANNEL"],road:[WALL,"NO SIDEWALK"],
+        ramp:[.35,"RAMP"],crossing:[.7,"LEVEL CROSSING"]}},
+ {key:"frog",name:"FROG",color:"#ffd23f",budget:3400,builds:"crossing",
+  desc:"Moisture, cover, heat, mortality.",
+  world:"CROSSING · CREEK · CULVERT carry you.  FREEWAY · ARTERIAL · NEW ROAD kill you.",
+  read:{water:[.4,"WET CORRIDOR"],motorway:[WALL,"ROAD MORTALITY"],rail:[1.8,"HOT BALLAST"],primary:[WALL,"OPEN ASPHALT"],
+        secondary:[2,"KERB LINE"],street:[1.5,"BACK GARDENS"],channel:[.5,"DAMP CULVERT"],road:[WALL,"ROAD MORTALITY"],
+        ramp:[1.2,"SMOOTH SLOPE"],crossing:[.25,"WILDLIFE CROSSING"]}}
+];
+const read=(t,type)=>T[t].read[type]||[1,"GROUND"];
+const mult=(t,e)=>read(t,e.type)[0];
+
+/* ---- drawn icons. Never a letter in a circle. ---- */
+function icon(c,x,y,r,k,col,onDark){
+ const ink=onDark?"#fff":"#000";
+ c.save();c.translate(x,y);c.lineWidth=Math.max(1.6,r*.18);c.lineJoin="round";c.lineCap="round";
+ c.strokeStyle=ink;c.fillStyle=col;
+ if(k==="rain"){
+  c.beginPath();c.moveTo(0,-r);c.bezierCurveTo(r*.85,-r*.1,r*.7,r*.85,0,r*.85);
+  c.bezierCurveTo(-r*.7,r*.85,-r*.85,-r*.1,0,-r);c.closePath();c.fill();c.stroke();
+ }else if(k==="car"){
+  c.beginPath();c.moveTo(-r,r*.25);c.lineTo(-r*.72,-r*.25);c.lineTo(-r*.28,-r*.5);
+  c.lineTo(r*.4,-r*.5);c.lineTo(r*.8,-r*.15);c.lineTo(r,r*.25);c.lineTo(-r,r*.25);c.closePath();c.fill();c.stroke();
+  [-r*.5,r*.5].forEach(wx=>{c.beginPath();c.arc(wx,r*.45,r*.26,0,7);c.fillStyle=ink;c.fill();});
+ }else if(k==="chair"){
+  c.beginPath();c.arc(-r*.1,r*.28,r*.6,0,7);c.stroke();
+  c.beginPath();c.arc(-r*.1,r*.28,r*.2,0,7);c.fillStyle=col;c.fill();c.stroke();
+  c.beginPath();c.moveTo(-r*.1,-r*.15);c.lineTo(-r*.1,-r*.62);c.moveTo(-r*.1,-r*.35);c.lineTo(r*.55,-r*.35);
+  c.lineTo(r*.75,r*.15);c.stroke();
+  c.beginPath();c.arc(-r*.1,-r*.82,r*.22,0,7);c.fillStyle=col;c.fill();c.stroke();
+ }else{
+  c.beginPath();c.ellipse(0,r*.22,r*.92,r*.6,0,0,7);c.fill();c.stroke();
+  [-r*.45,r*.45].forEach(ex=>{c.beginPath();c.arc(ex,-r*.42,r*.3,0,7);c.fill();c.stroke();
+   c.beginPath();c.arc(ex,-r*.42,r*.11,0,7);c.fillStyle=ink;c.fill();c.fillStyle=col;});
+  c.beginPath();c.moveTo(-r*.95,r*.5);c.lineTo(-r*1.15,r*.85);c.moveTo(r*.95,r*.5);c.lineTo(r*1.15,r*.85);c.stroke();
+ }
+ c.restore();
+}
+function iconSVG(k,col,size){
+ const s=size/2;
+ const wrap=b=>`<g transform="translate(${s},${s})">${b}</g>`;
+ if(k==="rain")return wrap(`<path d="M0 ${-s*.8} C ${s*.7} ${-s*.08}, ${s*.55} ${s*.7}, 0 ${s*.7} C ${-s*.55} ${s*.7}, ${-s*.7} ${-s*.08}, 0 ${-s*.8} Z" fill="${col}" stroke="#000" stroke-width="${s*.16}"/>`);
+ if(k==="car")return wrap(`<path d="M${-s*.8} ${s*.2} L${-s*.58} ${-s*.2} L${-s*.22} ${-s*.4} L${s*.32} ${-s*.4} L${s*.64} ${-s*.12} L${s*.8} ${s*.2} Z" fill="${col}" stroke="#000" stroke-width="${s*.16}"/><circle cx="${-s*.4}" cy="${s*.36}" r="${s*.21}"/><circle cx="${s*.4}" cy="${s*.36}" r="${s*.21}"/>`);
+ if(k==="chair")return wrap(`<circle cx="${-s*.08}" cy="${s*.22}" r="${s*.48}" fill="none" stroke="#000" stroke-width="${s*.16}"/><circle cx="${-s*.08}" cy="${s*.22}" r="${s*.16}" fill="${col}" stroke="#000" stroke-width="${s*.12}"/><path d="M${-s*.08} ${-s*.12} L${-s*.08} ${-s*.5} M${-s*.08} ${-s*.28} L${s*.44} ${-s*.28} L${s*.6} ${s*.12}" fill="none" stroke="#000" stroke-width="${s*.16}" stroke-linecap="round"/><circle cx="${-s*.08}" cy="${-s*.66}" r="${s*.18}" fill="${col}" stroke="#000" stroke-width="${s*.12}"/>`);
+ return wrap(`<ellipse cx="0" cy="${s*.18}" rx="${s*.74}" ry="${s*.48}" fill="${col}" stroke="#000" stroke-width="${s*.16}"/><circle cx="${-s*.36}" cy="${-s*.34}" r="${s*.24}" fill="${col}" stroke="#000" stroke-width="${s*.14}"/><circle cx="${s*.36}" cy="${-s*.34}" r="${s*.24}" fill="${col}" stroke="#000" stroke-width="${s*.14}"/><circle cx="${-s*.36}" cy="${-s*.34}" r="${s*.09}"/><circle cx="${s*.36}" cy="${-s*.34}" r="${s*.09}"/>`);
+}
+
+/* ===========================================================================
+   STATE — four bodies, you wake up in one of them
+   =========================================================================== */
+const rnd=n=>Math.floor(Math.random()*n);
+function Heap(){this.a=[];}
+Heap.prototype.push=function(k,v){const a=this.a;a.push([k,v]);let i=a.length-1;
+ while(i>0){const p=(i-1)>>1;if(a[p][0]<=a[i][0])break;const x=a[p];a[p]=a[i];a[i]=x;i=p;}};
+Heap.prototype.pop=function(){const a=this.a;if(!a.length)return null;const top=a[0],last=a.pop();
+ if(a.length){a[0]=last;let i=0;for(;;){const l=2*i+1,r=l+1;let m=i;
+  if(l<a.length&&a[l][0]<a[m][0])m=l;if(r<a.length&&a[r][0]<a[m][0])m=r;
+  if(m===i)break;const x=a[m];a[m]=a[i];a[i]=x;i=m;}}
+ return top;};
+Heap.prototype.size=function(){return this.a.length;};
+function tree(t,from,limit){
+ const D=new Float64Array(NODES.length).fill(Infinity),PR=new Int32Array(NODES.length).fill(-1),
+       PE=new Int32Array(NODES.length).fill(-1);
+ D[from]=0;const q=new Heap();q.push(0,from);
+ while(q.size()){const top=q.pop(),d=top[0],n=top[1];
+  if(d>D[n])continue;
+  if(limit&&d>limit*1.6)continue;
+  for(const ei of NODES[n].e){const e=EDGES[ei],m=mult(t,e);
+   if(m===WALL)continue;
+   const o=e.a===n?e.b:e.a,nd=d+e.len*m;
+   if(nd<D[o]-.001){D[o]=nd;PR[o]=n;PE[o]=ei;q.push(nd,o);}}}
+ return {D,PR,PE};}
+function pathTo(tr,n){const nodes=[n],edges=[];let c=n,g=0;
+ while(tr.PR[c]!==-1&&g++<6000){edges.push(tr.PE[c]);c=tr.PR[c];nodes.push(c);}
+ return {nodes:nodes.reverse(),edges:edges.reverse(),cost:tr.D[n]};}
+function nodeNear(lng,lat){const c=P(lng,lat);let b=0,bd=1e18;
+ for(let i=0;i<NODES.length;i++){if(NODES[i].e.length<2)continue;const d=dist(NODES[i],c);if(d<bd){bd=d;b=i;}}
+ return b;}
+let G;
+function newGame(){
+ const home=nodeNear(-84.391,33.754);
+ G={turn:0,who:0,bag:[],mode:"move",arrived:0,coach:0,
+    bodies:[0,1,2,3].map(t=>({t,at:home,trips:[]})),
+    dest:null,budget:0,tree:null,reach:null,route:null,drawing:null,
+    say:"",cmp:null,anim:null,balk:null};
+ spreadBodies();
+ newDest();
+ seedGhosts();
+ nextTurn();
+}
+/* Nobody wakes up inside a wall. Each body is seated where its own kind
+   can actually go — rain by a creek, the frog by wet ground, the car on an arterial. */
+function seatFor(t,lng,lat){
+ const c=P(lng,lat),cand=[];
+ for(let i=0;i<NODES.length;i++){
+  const d=dist(NODES[i],c);
+  if(d>1400)continue;
+  let open=0;
+  for(const ei of NODES[i].e) if(mult(t,EDGES[ei])!==WALL) open++;
+  if(open>=2)cand.push([d,i]);}
+ cand.sort((a,b)=>a[0]-b[0]);
+ let best=cand.length?cand[0][1]:nodeNear(lng,lat),bs=-1;
+ for(const [,i] of cand.slice(0,8)){
+  const tr=tree(t,i,T[t].budget);
+  let r=0;
+  for(let k=0;k<EDGES.length;k++){const e=EDGES[k];
+   if(mult(t,e)===WALL)continue;
+   if(tr.D[e.a]<=T[t].budget||tr.D[e.b]<=T[t].budget)r++;}
+  if(r>bs){bs=r;best=i;}}
+ return best;
+}
+function spreadBodies(){                      // four bodies, four quarters of the same city
+ const seats=[[-84.395,33.765],[-84.391,33.754],[-84.373,33.785],[-84.355,33.795]];
+ G.bodies.forEach((b,i)=>{b.at=seatFor(b.t,seats[i][0],seats[i][1]);});
+}
+function newDest(){
+ const cur=G.dest?G.dest.name:null;
+ let pick;do{pick=PLACES[rnd(PLACES.length)];}while(pick[0]===cur);
+ G.dest={name:pick[0],node:nodeNear(pick[1],pick[2])};
+}
+function drawWho(){if(!G.bag.length)G.bag=[0,1,2,3].sort(()=>Math.random()-.5);return G.bag.pop();}
+const me=()=>G.bodies[G.who];
+function recompute(){
+ G.tree=tree(G.who,me().at,T[G.who].budget);
+ const R=new Set();
+ EDGES.forEach((e,i)=>{if(mult(G.who,e)===WALL)return;
+  if(G.tree.D[e.a]<=G.budget||G.tree.D[e.b]<=G.budget)R.add(i);});
+ G.reach=R;}
+const GHOSTS=[];
+function seedGhosts(){
+ GHOSTS.length=0;
+ for(let k=0;k<6;k++){
+  const t=k%4,from=G.bodies[t].at;
+  const tr=tree(t,from,T[t].budget*1.3);
+  let far=-1,fd=0;
+  for(let i=0;i<NODES.length;i++){const d=tr.D[i];if(d<T[t].budget*1.2&&d>fd){fd=d;far=i;}}
+  if(far<0)continue;
+  const p=pathTo(tr,far);
+  p.edges.forEach(ei=>{EDGES[ei].use++;});
+  GHOSTS.push({t,pts:p.nodes.map(n=>({x:NODES[n].x,y:NODES[n].y}))});}}
+
+/* ===========================================================================
+   VIEW
+   =========================================================================== */
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+let VW=0,VH=0,DPR=1,view={s:1,x:0,y:0};
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);
+ VW=cv.clientWidth||window.innerWidth;VH=cv.clientHeight||window.innerHeight;
+ cv.width=VW*DPR;cv.height=VH*DPR;if(ctx&&ctx.setTransform)ctx.setTransform(DPR,0,0,DPR,0,0);}
+function frame(){                              // fit you and the destination in one view
+ const a=NODES[me().at],b=NODES[G.dest.node];
+ const cx=(a.x+b.x)/2,cy=(a.y+b.y)/2;
+ const span=Math.max(2200,Math.hypot(b.x-a.x,b.y-a.y)*1.55);
+ view.s=Math.min(VW,VH)/span;
+ view.x=VW/2-cx*view.s;view.y=VH/2-cy*view.s;}
+const sx=p=>p.x*view.s+view.x,sy=p=>p.y*view.s+view.y;
+const world=(x,y)=>({x:(x-view.x)/view.s,y:(y-view.y)/view.s});
+function nearestNode(w,maxPx){let b=-1,bd=1e18;
+ for(let i=0;i<NODES.length;i++){const d=dist(NODES[i],w);if(d<bd){bd=d;b=i;}}
+ return (maxPx===undefined||bd*view.s<maxPx)?b:-1;}
+function nearestReachable(w){let b=-1,bd=1e18;
+ for(let i=0;i<NODES.length;i++){if(!G.tree||G.tree.D[i]===Infinity)continue;
+  const d=dist(NODES[i],w);if(d<bd){bd=d;b=i;}}return b;}
+
+/* ===========================================================================
+   RENDER
+   =========================================================================== */
+function onScreen(e){const a=NODES[e.a],b=NODES[e.b],M=50;
+ const x1=sx(a),y1=sy(a),x2=sx(b),y2=sy(b);
+ return !(Math.max(x1,x2)<-M||Math.min(x1,x2)>VW+M||Math.max(y1,y2)<-M||Math.min(y1,y2)>VH+M);}
+function batch(list,w,col,dash,alpha){
+ if(!list.length)return;
+ ctx.save();if(alpha!==undefined)ctx.globalAlpha=alpha;
+ ctx.beginPath();
+ for(const e of list){const a=NODES[e.a],b=NODES[e.b];ctx.moveTo(sx(a),sy(a));ctx.lineTo(sx(b),sy(b));}
+ ctx.lineWidth=w;ctx.strokeStyle=col;ctx.lineCap="round";ctx.setLineDash(dash||[]);ctx.stroke();
+ ctx.setLineDash([]);ctx.restore();}
+function poly(pts,w,col,dash,alpha){
+ if(pts.length<2)return;
+ ctx.save();if(alpha!==undefined)ctx.globalAlpha=alpha;
+ ctx.beginPath();ctx.moveTo(sx(pts[0]),sy(pts[0]));
+ for(let i=1;i<pts.length;i++)ctx.lineTo(sx(pts[i]),sy(pts[i]));
+ ctx.lineWidth=w;ctx.strokeStyle=col;ctx.lineJoin="round";ctx.lineCap="round";
+ ctx.setLineDash(dash||[]);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
+function labels(){
+ if(view.s<0.012)return;
+ ctx.save();ctx.textAlign="center";ctx.textBaseline="middle";
+ let n=0;
+ for(const L of LINES){
+  if(n>26)break;
+  let best=null,bl=0;
+  for(let i=0;i<L.pts.length-1;i++){
+   const a=L.pts[i],b=L.pts[i+1];
+   const x1=sx(a),y1=sy(a),x2=sx(b),y2=sy(b);
+   if(Math.max(x1,x2)<0||Math.min(x1,x2)>VW||Math.max(y1,y2)<0||Math.min(y1,y2)>VH)continue;
+   const l=Math.hypot(x2-x1,y2-y1);
+   if(l>bl){bl=l;best=[x1,y1,x2,y2];}}
+  if(!best||bl<70)continue;
+  let ang=Math.atan2(best[3]-best[1],best[2]-best[0]);
+  if(ang>Math.PI/2)ang-=Math.PI;if(ang<-Math.PI/2)ang+=Math.PI;
+  ctx.save();ctx.translate((best[0]+best[2])/2,(best[1]+best[3])/2);ctx.rotate(ang);
+  ctx.font="600 "+(L.type==="motorway"||L.type==="water"?11:9.5)+"px 'IBM Plex Mono',monospace";
+  ctx.lineWidth=3.5;ctx.strokeStyle="#fff";ctx.strokeText(L.name,0,-7);
+  ctx.fillStyle="#000";ctx.globalAlpha=.72;ctx.fillText(L.name,0,-7);
+  ctx.restore();n++;}
+ ctx.restore();}
+function scaleBar(){
+ const target=90,m=target/view.s;
+ const nice=[100,200,500,1000,2000,5000].reduce((a,b)=>Math.abs(b-m)<Math.abs(a-m)?b:a);
+ const w=nice*view.s;
+ const x=12,y=VH-160;
+ ctx.save();ctx.strokeStyle="#000";ctx.lineWidth=2;
+ ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+w,y);ctx.moveTo(x,y-4);ctx.lineTo(x,y+4);
+ ctx.moveTo(x+w,y-4);ctx.lineTo(x+w,y+4);ctx.stroke();
+ ctx.font="600 9px 'IBM Plex Mono',monospace";ctx.fillStyle="#000";ctx.textAlign="left";
+ ctx.fillText(nice>=1000?(nice/1000)+" km":nice+" m",x,y-10);ctx.restore();}
+function render(){
+ if(!ctx)return;
+ ctx.setTransform(DPR,0,0,DPR,0,0);
+ ctx.fillStyle="#fff";ctx.fillRect(0,0,VW,VH);
+ const t=G.who;
+ const vis=[];for(const e of EDGES)if(!e.built&&onScreen(e))vis.push(e);
+ batch(vis,1,"rgba(0,0,0,.34)");
+ const walls=[],fast=[],mid=[],slow=[];
+ for(let i=0;i<EDGES.length;i++){const e=EDGES[i];if(!onScreen(e))continue;
+  const m=read(t,e.type)[0];
+  if(m===WALL){walls.push(e);continue;}
+  if(!G.reach||!G.reach.has(i))continue;
+  (m<=.5?fast:m>=1.5?slow:mid).push(e);}
+ batch(walls,4.5,"#000");
+ batch(slow,1.6,T[t].color,[3,6]);
+ batch(mid,3.4,T[t].color);
+ batch(fast,7.5,T[t].color);
+ ctx.beginPath();
+ for(const e of walls){const A=NODES[e.a],B=NODES[e.b];
+  const mx=(sx(A)+sx(B))/2,my=(sy(A)+sy(B))/2,ang=Math.atan2(sy(B)-sy(A),sx(B)-sx(A))+Math.PI/2;
+  ctx.moveTo(mx+Math.cos(ang)*5,my+Math.sin(ang)*5);ctx.lineTo(mx-Math.cos(ang)*5,my-Math.sin(ang)*5);}
+ ctx.lineWidth=3;ctx.strokeStyle="#000";ctx.stroke();
+ const heat={};
+ for(const e of EDGES){if(!e.use||!onScreen(e))continue;const k=Math.min(6,e.use);(heat[k]=heat[k]||[]).push(e);}
+ for(const k in heat)batch(heat[k],Math.min(15,1.5+k*2.2),"#000",[],Math.min(.5,.12+k*.07));
+ const bw=[],bo={};
+ for(const e of EDGES){if(!e.built||!onScreen(e))continue;
+  if(read(t,e.type)[0]===WALL)bw.push(e);
+  else{const o=e.by===null?0:e.by;(bo[o]=bo[o]||[]).push(e);}}
+ batch(bw,6,"#000",[7,5]);
+ for(const o in bo)batch(bo[o],5,T[o].color);
+ GHOSTS.forEach(g=>poly(g.pts,2,T[g.t].color,[],.20));
+ G.bodies.forEach(b=>b.trips.forEach((g,i)=>
+   poly(g,b.t===G.who?3:2.5,T[b.t].color,b.t===G.who?[]:[7,5],b.t===G.who?.5:.4)));
+ labels();
+ if(G.route){
+  const pts=G.route.nodes.map(n=>NODES[n]);
+  poly(pts,10,T[t].color,[],.35);poly(pts,3.5,"#000");
+  const end=pts[pts.length-1];
+  if(end){ctx.beginPath();ctx.arc(sx(end),sy(end),9,0,7);ctx.lineWidth=3;ctx.strokeStyle="#000";
+   ctx.fillStyle="#fff";ctx.fill();ctx.stroke();}
+  if(G.route.over&&G.route.over.length>1)poly(G.route.over.map(n=>NODES[n]),2,"#000",[3,7],.6);}
+ if(G.drawing&&G.drawing.pts.length>1)poly(G.drawing.pts,5,T[t].color,[9,6]);
+ if(G.balk!==null){const e=EDGES[G.balk];
+  ctx.save();ctx.globalAlpha=.9;batch([e],11,"#000");ctx.restore();}
+ destPin();
+ G.bodies.forEach(b=>{if(b.t!==G.who)body(b,false);});
+ body(me(),true);
+ scaleBar();
+ if(G.cmp!==null){const e=EDGES[G.cmp];
+  const mx=(sx(NODES[e.a])+sx(NODES[e.b]))/2,my=(sy(NODES[e.a])+sy(NODES[e.b]))/2;
+  ctx.beginPath();ctx.arc(mx,my,22,0,7);ctx.lineWidth=3;ctx.strokeStyle="#000";ctx.stroke();}
+}
+function destPin(){
+ const d=NODES[G.dest.node],x=sx(d),y=sy(d);
+ ctx.save();
+ ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-11,y-24);ctx.lineTo(x+11,y-24);ctx.closePath();
+ ctx.fillStyle="#fff";ctx.fill();ctx.lineWidth=3;ctx.strokeStyle="#000";ctx.stroke();
+ ctx.beginPath();ctx.arc(x,y-31,11,0,7);ctx.fillStyle="#fff";ctx.fill();ctx.stroke();
+ ctx.beginPath();ctx.arc(x,y-31,4,0,7);ctx.fillStyle="#000";ctx.fill();
+ ctx.font="700 10px 'IBM Plex Mono',monospace";ctx.textAlign="center";
+ ctx.lineWidth=3.5;ctx.strokeStyle="#fff";ctx.strokeText(G.dest.name,x,y-48);
+ ctx.fillStyle="#000";ctx.fillText(G.dest.name,x,y-48);
+ ctx.restore();}
+function body(b,isMe){
+ const p=(isMe&&G.anim)?G.anim:NODES[b.at];
+ const x=sx(p),y=sy(p);
+ if(isMe){ctx.beginPath();ctx.arc(x,y,24,0,7);ctx.strokeStyle=T[b.t].color;ctx.lineWidth=2.5;ctx.stroke();}
+ ctx.beginPath();ctx.arc(x,y,isMe?16:13,0,7);
+ ctx.fillStyle="#fff";ctx.fill();ctx.lineWidth=isMe?3.5:2.5;ctx.strokeStyle="#000";ctx.stroke();
+ icon(ctx,x,y,isMe?9.5:8,T[b.t].key,T[b.t].color);
+ if(!isMe){ctx.save();ctx.font="700 8.5px 'IBM Plex Mono',monospace";ctx.textAlign="center";
+  ctx.lineWidth=3;ctx.strokeStyle="#fff";ctx.strokeText(T[b.t].name,x,y+23);
+  ctx.fillStyle="#000";ctx.globalAlpha=.8;ctx.fillText(T[b.t].name,x,y+23);ctx.restore();}}
+
+/* ===========================================================================
+   HUD
+   =========================================================================== */
+const $=id=>document.getElementById(id);
+function hud(){
+ const t=T[G.who];
+ $("whoIcon").innerHTML=iconSVG(t.key,t.color,26);
+ $("whoName").textContent=t.name;$("whoName").style.color=t.color;
+ $("whoSub").textContent=(G.mode==="build"?"DRAWING "+t.builds.toUpperCase():t.desc.toUpperCase());
+ $("budNum").textContent=Math.round(G.budget)+" m";
+ $("gaugeFill").style.width=Math.max(0,Math.min(100,G.budget/t.budget*100))+"%";
+ $("gaugeFill").style.background=t.color;
+ $("turnNo").textContent="TURN "+G.turn+" · "+G.arrived+" ARRIVED";
+ $("destName").textContent=G.dest.name;
+ const d=dist(NODES[me().at],NODES[G.dest.node]);
+ $("destDist").textContent=(d>=1000?(d/1000).toFixed(1)+" km":Math.round(d)+" m");
+ $("lens").innerHTML="<b>"+t.name+" SEES</b> — "+t.world;
+ $("bMove").setAttribute("aria-pressed",G.mode==="move");
+ $("bBuild").setAttribute("aria-pressed",G.mode==="build");
+ const s=$("say");if(G.say){s.innerHTML=G.say;s.classList.add("show");}else s.classList.remove("show");
+ const steps=["DRAG FROM YOUR DOT TOWARD THE PIN","NOW TAP BUILD AND DRAW A LINE",
+              "END TURN — YOU WAKE UP AS SOMETHING ELSE",""];
+ $("coach").textContent=steps[Math.min(3,G.coach)];
+ $("coach").style.display=G.coach>=3?"none":"block";}
+function say(h){G.say=h;hud();clearTimeout(say._t);say._t=setTimeout(()=>{G.say="";hud();},4600);}
+
+/* ===========================================================================
+   TURN
+   =========================================================================== */
+function nextTurn(){
+ G.turn++;G.who=drawWho();G.budget=T[G.who].budget;G.route=null;G.balk=null;
+ recompute();frame();showBecome();hud();render();
+ if(G.reach&&G.reach.size===0)
+  say("<b>WALLED IN</b> — nothing here is passable to a "+T[G.who].name+
+      ". Tap BUILD and draw a "+T[G.who].builds.toUpperCase()+" out.");}
+function showBecome(){
+ const b=$("become"),t=T[G.who];
+ $("becomeIcon").innerHTML=iconSVG(t.key,t.color,96);
+ $("becomeName").textContent=t.name;$("becomeName").style.color=t.color;
+ $("becomeDesc").textContent=t.desc;
+ $("becomeWorld").textContent=t.world;
+ b.classList.add("show");
+ setTimeout(()=>b.classList.remove("show"),1500);}
+function endTurn(){
+ if(G.coach===2)G.coach=3;
+ G.bodies.forEach(b=>{if(b.t!==G.who)autoMove(b);});
+ nextTurn();}
+function autoMove(b){                          // the other three are also trying to get there
+ const tr=tree(b.t,b.at,T[b.t].budget);
+ let best=-1,bs=-1e18;
+ const D=NODES[G.dest.node];
+ for(let i=0;i<NODES.length;i++){
+  const c=tr.D[i];if(c>T[b.t].budget)continue;
+  const gain=dist(NODES[b.at],D)-dist(NODES[i],D);
+  const s=gain-c*.05;
+  if(s>bs){bs=s;best=i;}}
+ if(best<0||best===b.at)return;
+ const p=pathTo(tr,best);
+ p.edges.forEach(ei=>EDGES[ei].use++);
+ b.trips.push(p.nodes.map(n=>({x:NODES[n].x,y:NODES[n].y})));
+ if(b.trips.length>8)b.trips.shift();
+ b.at=best;
+ if(dist(NODES[best],D)<260){
+  say("<b>"+T[b.t].name+"</b> reached "+G.dest.name+" first. It reads this city differently to you.");
+  G.arrived++;newDest();}}
+
+/* ===========================================================================
+   INPUT
+   =========================================================================== */
+const pts=new Map();
+let pinch=null,panning=null,press=null;
+function onDown(e){
+ pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pts.size===2){const[a,b]=[...pts.values()];
+  pinch={d:Math.hypot(a.x-b.x,a.y-b.y),s:view.s,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,vx:view.x,vy:view.y};
+  panning=null;G.route=null;G.drawing=null;render();return;}
+ if(pts.size>2)return;
+ const w=world(e.clientX,e.clientY);
+ press={x:e.clientX,y:e.clientY,moved:false,
+   timer:setTimeout(()=>{if(press&&!press.moved)openCompare(w);},400)};
+ if(G.mode==="build"){G.drawing={pts:[w]};return;}
+ const m=NODES[me().at];
+ if(Math.hypot(sx(m)-e.clientX,sy(m)-e.clientY)<52)G.route={nodes:[me().at],edges:[],cost:0,over:null};
+ else panning={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y};}
+function onMove(e){
+ if(!pts.has(e.pointerId))return;
+ pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(press&&Math.hypot(e.clientX-press.x,e.clientY-press.y)>9)press.moved=true;
+ if(pts.size>=2&&pinch){const[a,b]=[...pts.values()];
+  const d=Math.hypot(a.x-b.x,a.y-b.y),k=Math.max(.15,Math.min(9,d/pinch.d));
+  const ns=Math.max(.004,Math.min(.35,pinch.s*k));
+  const wx=(pinch.cx-pinch.vx)/pinch.s,wy=(pinch.cy-pinch.vy)/pinch.s;
+  view.s=ns;view.x=pinch.cx-wx*ns;view.y=pinch.cy-wy*ns;render();return;}
+ if(G.drawing){const w=world(e.clientX,e.clientY);
+  const last=G.drawing.pts[G.drawing.pts.length-1];
+  if(dist(last,w)>40)G.drawing.pts.push(w);
+  render();return;}
+ if(G.route){
+  const w=world(e.clientX,e.clientY);
+  let n=nearestNode(w,120);
+  if(n>=0&&G.tree&&G.tree.D[n]===Infinity){refusalAt(n);n=nearestReachable(w);}
+  if(n>=0&&G.tree){
+   const p=pathTo(G.tree,n);
+   if(p.cost===Infinity)G.route={nodes:[me().at],edges:[],cost:0,over:null};
+   else{let c=0,cut=p.edges.length;
+    for(let i=0;i<p.edges.length;i++){const e2=EDGES[p.edges[i]],add=e2.len*mult(G.who,e2);
+     if(c+add>G.budget){cut=i;break;}c+=add;}
+    G.route={nodes:p.nodes.slice(0,cut+1),edges:p.edges.slice(0,cut),cost:c,
+             over:cut<p.edges.length?p.nodes.slice(cut):null};}}
+  render();return;}
+ if(panning){view.x=panning.vx+(e.clientX-panning.x);view.y=panning.vy+(e.clientY-panning.y);render();}}
+function onUp(e){
+ pts.delete(e.pointerId);
+ if(press)clearTimeout(press.timer);
+ if(pts.size<2)pinch=null;
+ if(G.cmp!==null&&(!press||!press.moved)){G.cmp=null;$("cmp").classList.remove("show");render();press=null;return;}
+ if(G.drawing){const d=G.drawing;G.drawing=null;commitBuild(d.pts);press=null;return;}
+ if(G.route){const r=G.route;G.route=null;if(r.edges.length)travel(r);else render();press=null;return;}
+ panning=null;press=null;}
+function refusalAt(n){
+ for(const ei of NODES[n].e){const e=EDGES[ei];
+  if(read(G.who,e.type)[0]===WALL){G.balk=ei;
+   say("<b>REFUSED</b> — "+read(G.who,e.type)[1]+". Not for what you are. Go around, or build.");return;}}}
+function openCompare(w){
+ let best=-1,bd=1e18;
+ EDGES.forEach((e,i)=>{const m={x:(NODES[e.a].x+NODES[e.b].x)/2,y:(NODES[e.a].y+NODES[e.b].y)/2};
+  const d=dist(m,w);if(d<bd){bd=d;best=i;}});
+ if(best<0||bd*view.s>90)return;
+ G.cmp=best;const e=EDGES[best];
+ $("cmpRows").innerHTML=T.map((tt,i)=>{
+  const [m,nm]=read(i,e.type);
+  const v=m===WALL?"WALL":m<=.5?"LADDER ×"+m:m>=1.5?"CHUTE ×"+m:"×"+m;
+  return '<div class="r"><svg width="16" height="16" viewBox="0 0 16 16">'+iconSVG(tt.key,tt.color,16)+
+   '</svg><span class="nm">'+tt.name+'</span><span>'+nm+' — '+v+'</span></div>';}).join("");
+ $("cmp").classList.add("show");
+ if(navigator.vibrate)navigator.vibrate(8);
+ render();}
+function travel(r){
+ const line=r.nodes.map(n=>({x:NODES[n].x,y:NODES[n].y}));
+ r.edges.forEach(ei=>EDGES[ei].use++);
+ me().trips.push(line);
+ G.budget=Math.max(0,G.budget-r.cost);
+ if(G.coach===0)G.coach=1;
+ const end=r.nodes[r.nodes.length-1];
+ let i=0,f=0;
+ const step=()=>{
+  if(i>=line.length-1){G.anim=null;me().at=end;arrive();recompute();hud();render();return;}
+  f+=.24;
+  if(f>=1){f=0;i++;G.anim=line[Math.min(i,line.length-1)];}
+  else{const a=line[i],b=line[i+1];G.anim={x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f};}
+  render();requestAnimationFrame(step);};
+ if(typeof requestAnimationFrame==="function")step();
+ else{me().at=end;arrive();recompute();hud();render();}}
+function arrive(){
+ if(dist(NODES[me().at],NODES[G.dest.node])<260){
+  G.arrived++;
+  say("<b>ARRIVED</b> at "+G.dest.name+" as the "+T[G.who].name+". Somewhere else now needs reaching.");
+  newDest();frame();}}
+function commitBuild(pl){
+ if(!pl||pl.length<2){render();return;}
+ const L=(()=>{let d=0;for(let i=0;i<pl.length-1;i++)d+=dist(pl[i],pl[i+1]);return d;})();
+ if(L>G.budget){say("<b>NOT ENOUGH</b> — that line costs "+Math.round(L)+" m, you hold "+Math.round(G.budget)+".");render();return;}
+ const type=T[G.who].builds;
+ let prev=nodeAt(pl[0]);
+ const s0=nearestNode(pl[0]);
+ if(s0>=0&&dist(NODES[s0],pl[0])<130&&s0!==prev)addEdge(prev,s0,type,true,G.who);
+ for(let i=1;i<pl.length;i++){const cur=nodeAt(pl[i]);addEdge(prev,cur,type,true,G.who);prev=cur;}
+ const s1=nearestNode(pl[pl.length-1]);
+ if(s1>=0&&dist(NODES[s1],pl[pl.length-1])<130&&s1!==prev)addEdge(prev,s1,type,true,G.who);
+ const cut=sever(pl,type);
+ G.budget-=L;
+ if(G.coach===1)G.coach=2;
+ recompute();hud();render();
+ const victims=T.map((tt,i)=>i).filter(i=>read(i,type)[0]===WALL);
+ say("You laid a <b>"+type.toUpperCase()+"</b>"+(cut?" over "+cut+" existing ways":"")+
+  (victims.length?". It is a wall to the "+victims.map(i=>T[i].name).join(" and the ")+". You will be one of them.":"."));}
+function sever(pl,type){
+ const hit=[];
+ for(let i=0;i<EDGES.length;i++){
+  const e=EDGES[i];if(e.built)continue;
+  const m={x:(NODES[e.a].x+NODES[e.b].x)/2,y:(NODES[e.a].y+NODES[e.b].y)/2};
+  for(let k=0;k<pl.length-1;k++){
+   const A=pl[k],B=pl[k+1],vx=B.x-A.x,vy=B.y-A.y,l2=vx*vx+vy*vy;
+   if(l2<1)continue;
+   let t=((m.x-A.x)*vx+(m.y-A.y)*vy)/l2;t=Math.max(0,Math.min(1,t));
+   if(Math.hypot(m.x-(A.x+vx*t),m.y-(A.y+vy*t))<45){hit.push(i);break;}}
+  if(hit.length>=14)break;}
+ hit.forEach(i=>{const e=EDGES[i];if(!e.was)e.was=e.type;e.type=type;e.built=true;e.by=G.who;});
+ return hit.length;}
+
+/* ===========================================================================
+   IMPORT REAL GROUND
+   =========================================================================== */
+function extractGround(text){
+ let s=text.trim();
+ if(s[0]!=="{"){
+  const m=text.match(/id=["']ground-data["'][^>]*>([\s\S]*?)<\/script>/i);
+  if(m)s=m[1].trim();}
+ const obj=JSON.parse(s);
+ if(!obj.layers)throw new Error("no layers");
+ return obj;}
+function useGround(obj){
+ setGround(obj);buildNetwork();REAL=true;
+ newGame();frame();hud();render();
+ say("<b>REAL GROUND LOADED</b> — "+EDGES.length+" ways, "+LINES.length+" named.");}
+function wireImport(){
+ $("tGround").addEventListener("click",()=>$("imp").classList.add("show"));
+ $("impClose").addEventListener("click",()=>$("imp").classList.remove("show"));
+ $("impGo").addEventListener("click",()=>{
+  try{useGround(extractGround($("impText").value));$("imp").classList.remove("show");}
+  catch(err){alert("Could not read that ground: "+err.message);}});
+ $("impFile").addEventListener("change",ev=>{
+  const f=ev.target.files&&ev.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{useGround(extractGround(String(r.result)));$("imp").classList.remove("show");}
+   catch(err){alert("Could not read that file: "+err.message);}};
+  r.readAsText(f);});}
+
+/* ===========================================================================
+   WIRE
+   =========================================================================== */
+function attach(){
+ cv.addEventListener("pointerdown",onDown);
+ cv.addEventListener("pointermove",onMove);
+ cv.addEventListener("pointerup",onUp);
+ cv.addEventListener("pointercancel",onUp);
+ $("bMove").addEventListener("click",()=>{G.mode="move";hud();render();});
+ $("bBuild").addEventListener("click",()=>{G.mode="build";hud();render();});
+ $("go").addEventListener("click",endTurn);
+ $("tCenter").addEventListener("click",()=>{frame();render();});
+ wireImport();
+ window.addEventListener("resize",()=>{resize();render();});}
+resize();newGame();frame();attach();hud();render();
+window.PG={get G(){return G;},T,get EDGES(){return EDGES;},get NODES(){return NODES;},get LINES(){return LINES;},
+ read,tree,pathTo,render,recompute,view,world,frame,icon,iconSVG,extractGround,useGround};
+</script>
+</body>
+</html>
