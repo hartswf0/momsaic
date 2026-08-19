@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ORCA // BLIND FORMICARY — AUTOPSY</title>
+<meta name="description" content="The colony is dead. You are one scanning organ inside the nest. Pulse to see; every pulse inscribes. 12 fragments recoverable. 16 stay dark.">
+<style>
+:root{
+  --void:#000000;
+  --photon:#3ff5d4;
+  --water:#4aa3ff;
+  --corpse:#ffb545;
+  --mold:#7dff5a;
+  --gold:#ffd24a;
+  --husk:#ff8fa3;
+  --bone:#f2f0e8;
+  --dim:#5f817c;
+  --dark:#0c1413;
+  --line:#12312c;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--void)}
+body{
+  font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color:var(--bone);
+  font-size:12px;
+  -webkit-user-select:none;user-select:none;
+  touch-action:none;
+}
+#c{position:fixed;inset:0;display:block}
+/* ---------- HUD ---------- */
+#hud{position:fixed;top:0;left:0;right:0;padding:calc(10px + env(safe-area-inset-top)) 14px 8px;
+  display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:5;
+  background:linear-gradient(to bottom,rgba(0,0,0,.85),rgba(0,0,0,0));}
+.hudL{display:flex;flex-direction:column;gap:3px}
+.ttl{font-size:11px;letter-spacing:.24em;color:var(--photon)}
+.sub{font-size:9px;letter-spacing:.18em;color:var(--dim)}
+.hudR{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.stat{font-size:10px;letter-spacing:.14em;color:var(--bone)}
+.stat b{color:var(--photon);font-weight:600}
+.stat .g{color:var(--gold)}
+#cap{display:flex;gap:4px;margin-top:2px}
+.pip{width:16px;height:5px;background:var(--line);border:1px solid var(--line)}
+.pip.on{background:var(--photon);border-color:var(--photon);box-shadow:0 0 6px rgba(63,245,212,.5)}
+#archiveBtn{position:fixed;right:14px;top:calc(64px + env(safe-area-inset-top));z-index:6;pointer-events:auto;
+  background:rgba(0,0,0,.7);border:1px solid var(--line);color:var(--dim);
+  font:inherit;font-size:10px;letter-spacing:.18em;padding:7px 10px;cursor:pointer}
+#archiveBtn.lit{color:var(--gold);border-color:var(--gold)}
+#hint{position:fixed;left:0;right:0;bottom:calc(8px + env(safe-area-inset-bottom));text-align:center;
+  font-size:9px;letter-spacing:.16em;color:var(--dim);pointer-events:none;z-index:5}
+#log{position:fixed;left:14px;bottom:calc(30px + env(safe-area-inset-bottom));z-index:5;pointer-events:none;
+  display:flex;flex-direction:column-reverse;gap:3px;max-width:78vw}
+.logline{font-size:10px;letter-spacing:.1em;color:var(--photon);opacity:0;
+  animation:logfade 6s linear forwards}
+.logline.warn{color:var(--husk)}
+.logline.gold{color:var(--gold)}
+@keyframes logfade{0%{opacity:0}6%{opacity:1}70%{opacity:1}100%{opacity:0}}
+/* ---------- overlays ---------- */
+.veil{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:20;display:flex;
+  align-items:center;justify-content:center;padding:20px}
+.hidden{display:none !important}
+.panel{max-width:520px;width:100%;border:1px solid var(--line);background:#020705;
+  padding:26px 24px;max-height:86vh;overflow-y:auto}
+.panel h1{font-size:15px;letter-spacing:.3em;color:var(--photon);font-weight:600;margin-bottom:4px}
+.panel h2{font-size:10px;letter-spacing:.24em;color:var(--dim);font-weight:400;margin-bottom:18px}
+.panel p{font-size:11px;line-height:1.75;letter-spacing:.06em;color:var(--bone);margin-bottom:12px}
+.panel p.mut{color:var(--dim)}
+.verb{display:grid;grid-template-columns:92px 1fr;gap:4px 14px;margin:14px 0 18px}
+.verb dt{color:var(--photon);font-size:10px;letter-spacing:.14em}
+.verb dd{color:var(--dim);font-size:10px;letter-spacing:.06em}
+.verb dt.g{color:var(--gold)}
+button.act{display:block;width:100%;margin-top:8px;background:transparent;color:var(--photon);
+  border:1px solid var(--photon);font:inherit;font-size:11px;letter-spacing:.28em;
+  padding:12px;cursor:pointer}
+button.act:hover,button.act:focus-visible{background:rgba(63,245,212,.08);outline:none}
+button.act.g{color:var(--gold);border-color:var(--gold)}
+/* fragment card */
+#fragCard{position:fixed;left:0;right:0;bottom:0;z-index:18;pointer-events:auto;
+  background:linear-gradient(to top,#030a08 78%,rgba(3,10,8,0));
+  border-top:1px solid var(--photon);padding:18px 18px calc(20px + env(safe-area-inset-bottom));
+  transform:translateY(105%);transition:transform .45s cubic-bezier(.2,.9,.2,1)}
+#fragCard.show{transform:translateY(0)}
+#fragCard .fno{font-size:9px;letter-spacing:.22em;color:var(--dim)}
+#fragCard .fname{font-size:14px;letter-spacing:.26em;color:var(--gold);margin:5px 0 2px}
+#fragCard .fcol{font-size:9px;letter-spacing:.2em;color:var(--photon);margin-bottom:10px}
+#fragCard .ftext{font-size:11px;line-height:1.75;letter-spacing:.05em;color:var(--bone);max-width:560px}
+#fragCard .fdism{margin-top:12px;font-size:9px;letter-spacing:.2em;color:var(--dim)}
+/* archive grid */
+#archGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:16px 0}
+.slot{border:1px solid var(--line);min-height:58px;padding:6px;display:flex;flex-direction:column;gap:3px;justify-content:center}
+.slot .sn{font-size:8px;letter-spacing:.14em;color:var(--dim)}
+.slot .sv{font-size:9px;letter-spacing:.1em;color:var(--bone);line-height:1.3}
+.slot.found{border-color:var(--gold)}
+.slot.found .sv{color:var(--gold)}
+.slot.enc .sv{color:var(--photon);opacity:.55}
+.slot.darkslot{background:var(--dark)}
+.redact{height:6px;background:var(--line);margin:2px 0;width:80%}
+.redact.short{width:55%}
+@media(max-width:560px){#archGrid{grid-template-columns:repeat(2,1fr)}}
+/* joystick ghost */
+#stick{position:fixed;z-index:4;width:84px;height:84px;border:1px solid rgba(63,245,212,.3);
+  border-radius:50%;pointer-events:none;display:none;transform:translate(-50%,-50%)}
+#stickNub{position:absolute;width:26px;height:26px;border-radius:50%;
+  background:rgba(63,245,212,.25);left:50%;top:50%;transform:translate(-50%,-50%)}
+@media (prefers-reduced-motion: reduce){
+  #fragCard{transition:none}
+  .logline{animation-duration:4s}
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div class="hudL">
+    <div class="ttl">ORCA // BLIND FORMICARY</div>
+    <div class="sub">AUTOPSY IN PROGRESS · MATERIAL: NECROTIC NEST</div>
+  </div>
+  <div class="hudR">
+    <div class="stat">FRAGMENTS <b id="stFrag">0</b> / 12</div>
+    <div class="stat">SURVIVORS <span class="g" id="stSav">0</span> SAVED · <span id="stAlive">7</span> IN THE DARK</div>
+    <div id="cap"></div>
+  </div>
+</div>
+<button id="archiveBtn">ARCHIVE</button>
+<div id="log"></div>
+<div id="hint">WASD MOVE · CLICK PULSE — LEFT THUMB MOVE · RIGHT THUMB PULSE · EVERY PULSE INSCRIBES</div>
+<div id="stick"><div id="stickNub"></div></div>
+
+<!-- fragment card -->
+<div id="fragCard" role="dialog" aria-live="polite">
+  <div class="fno" id="fNo">FRAGMENT 00 / 12 — DECRYPTED</div>
+  <div class="fname" id="fName">—</div>
+  <div class="fcol" id="fCol">—</div>
+  <div class="ftext" id="fText">—</div>
+  <div class="fdism">TAP TO CLOSE</div>
+</div>
+
+<!-- intro -->
+<div class="veil" id="intro">
+  <div class="panel">
+    <h1>BLIND FORMICARY</h1>
+    <h2>ORCA LINE · ENGRAM 05 · THE AUTOPSY</h2>
+    <p>The colony is dead. Twenty-eight failures killed it. Twelve left evidence.</p>
+    <p class="mut">There is no map. There is no overview. You are one scanning organ moving through a nest that exists only where your photons have landed, and your light decays like pheromone.</p>
+    <dl class="verb">
+      <dt>PULSE</dt><dd>360° photonic return. Reveals what it strikes.</dd>
+      <dt class="g">INSCRIBE</dt><dd>Every pulse leaves a mark where you stand. The living still read marks.</dd>
+      <dt>DECRYPT</dt><dd>Scan a consequence long enough and the failure that caused it surfaces.</dd>
+      <dt>SHEPHERD</dt><dd>Seven survivors wander the dark. Chains of marks lead to the last light.</dd>
+    </dl>
+    <p class="mut">You will not recover everything. That is the finding.</p>
+    <button class="act" id="enterBtn">ENTER THE NEST</button>
+  </div>
+</div>
+
+<!-- archive -->
+<div class="veil hidden" id="archive">
+  <div class="panel">
+    <h1>ARCHIVE // 28 FAILURES</h1>
+    <h2 id="archSub">12 RECOVERABLE · 16 DARK</h2>
+    <div id="archGrid"></div>
+    <button class="act" id="archClose">RETURN TO THE NEST</button>
+  </div>
+</div>
+
+<!-- report -->
+<div class="veil hidden" id="report">
+  <div class="panel">
+    <h1>AUTOPSY REPORT</h1>
+    <h2>COLONY 117 · CAUSE OF DEATH: PLURAL</h2>
+    <p id="repStats">—</p>
+    <p class="mut">Sixteen failure modes left no scannable consequence. They are recorded as dark slots. No further pulses will recover them.</p>
+    <p style="color:var(--gold);letter-spacing:.18em">YOU DID NOT SEE EVERYTHING.</p>
+    <button class="act g" id="repClose">KEEP SCANNING ANYWAY</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =============================================================
+   ORCA // BLIND FORMICARY
+   The JUMPAR stone + the fifth verb (the inscribing pulse).
+   One file. No god view. The world is a decaying photon field.
+   ============================================================= */
+
+/* ---------- seeded rng ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const R = mulberry32(117);
+const rr=(a,b)=>a+R()*(b-a);
+
+/* ---------- grid ---------- */
+const GW=150, GH=112, CELL=14;
+const WORLD_W=GW*CELL, WORLD_H=GH*CELL;
+// cell types
+const T_EMPTY=0,T_WALL=1,T_WATER=2,T_MOLD=3,T_CORPSE=4,T_SEED=5,T_CHARTER=6,T_HUSK=7,T_TRAIL=8;
+const grid=new Uint8Array(GW*GH).fill(T_WALL);
+const site=new Int8Array(GW*GH).fill(-1);
+const gi=(x,y)=>y*GW+x;
+const inG=(x,y)=>x>=2&&y>=2&&x<GW-2&&y<GH-2;
+
+function carveEllipse(cx,cy,rx,ry){
+  for(let y=Math.floor(cy-ry);y<=cy+ry;y++)for(let x=Math.floor(cx-rx);x<=cx+rx;x++){
+    if(!inG(x,y))continue;
+    const dx=(x-cx)/rx,dy=(y-cy)/ry;
+    if(dx*dx+dy*dy<=1)grid[gi(x,y)]=T_EMPTY;
+  }
+}
+function carveDisc(cx,cy,r){
+  for(let y=Math.floor(cy-r);y<=cy+r;y++)for(let x=Math.floor(cx-r);x<=cx+r;x++){
+    if(!inG(x,y))continue;
+    const dx=x-cx,dy=y-cy;
+    if(dx*dx+dy*dy<=r*r)grid[gi(x,y)]=T_EMPTY;
+  }
+}
+function corridor(x1,y1,x2,y2){
+  // jittered L path with midpoint
+  let x=x1,y=y1;
+  const steps=Math.abs(x2-x1)+Math.abs(y2-y1)+30;
+  for(let i=0;i<steps;i++){
+    carveDisc(Math.round(x),Math.round(y),1.4+R()*0.7);
+    const dx=x2-x, dy=y2-y;
+    if(Math.abs(dx)<1&&Math.abs(dy)<1)break;
+    // bias toward target with wobble
+    if(R()<Math.abs(dx)/(Math.abs(dx)+Math.abs(dy)+0.01)) x+=Math.sign(dx);
+    else y+=Math.sign(dy);
+    if(R()<0.25){x+=Math.round(rr(-1,1));y+=Math.round(rr(-1,1));}
+    x=Math.max(3,Math.min(GW-4,x));y=Math.max(3,Math.min(GH-4,y));
+  }
+}
+function paint(x,y,t,s){ if(inG(x,y)){grid[gi(x,y)]=t; if(s!==undefined)site[gi(x,y)]=s;} }
+function tag(x,y,s){ if(inG(x,y))site[gi(x,y)]=s; }
+
+/* ---------- chambers ---------- */
+const CH={
+  ENTR:{x:75,y:12,rx:6,ry:5},
+  F1:{x:48,y:38,rx:9,ry:7},   // FLOODLINE
+  F2:{x:106,y:30,rx:7,ry:5},  // STAMPEDE
+  F3:{x:29,y:60,rx:9,ry:8},   // STALE MAP (loop)
+  F4:{x:121,y:58,rx:8,ry:6},  // HOARD
+  F5:{x:70,y:62,rx:8,ry:6},   // ONE CROP
+  F6:{x:93,y:80,rx:7,ry:5},   // UNWRITTEN LAW
+  F7:{x:38,y:85,rx:8,ry:6},   // TOO FAST
+  F8:{x:56,y:99,rx:8,ry:5},   // NO MODEL
+  F9:{x:112,y:93,rx:8,ry:6},  // THE MILL
+  F10:{x:16,y:34,rx:7,ry:6},  // SCHISM
+  F11:{x:136,y:24,rx:6,ry:5}, // BLIND SENTRY
+  F12:{x:78,y:102,rx:9,ry:6}, // LAST LIGHT (queen)
+};
+for(const k in CH){const c=CH[k];carveEllipse(c.x,c.y,c.rx,c.ry);}
+// entrance shaft + exit
+for(let y=3;y<=CH.ENTR.y;y++)carveDisc(75,y,1.6);
+const EXIT={x:75*CELL, y:4*CELL, r:CELL*2.4};
+
+// corridors
+const pairs=[["ENTR","F1"],["ENTR","F2"],["F1","F3"],["F1","F5"],["F2","F4"],["F2","F11"],
+["F3","F7"],["F5","F6"],["F5","F12"],["F4","F9"],["F6","F9"],["F7","F8"],["F8","F12"],
+["F3","F10"],["F10","F1"]];
+for(const[a,b]of pairs)corridor(CH[a].x,CH[a].y,CH[b].x,CH[b].y);
+
+/* ---------- consequence sites (features painted last) ---------- */
+const SITES=[]; // {id,name,col,text,featN}
+function defSite(name,col,text){SITES.push({id:SITES.length,name,col,text,featN:0,found:false,scanned:new Set()});return SITES.length-1;}
+function countFeat(s){let n=0;for(let i=0;i<site.length;i++)if(site[i]===s)n++;SITES[s].featN=n;}
+
+// F1 FLOODLINE — flooded brood chamber
+{const s=defSite("FLOODLINE","COORDINATION // DEADLOCK",
+ "Two dig teams, one drainage channel. Each held position waiting for the other's clearance signal. The signal that finally moved them was the water.");
+ const c=CH.F1;
+ for(let y=c.y;y<=c.y+c.ry;y++)for(let x=c.x-c.rx;x<=c.x+c.rx;x++){
+   const dx=(x-c.x)/c.rx,dy=(y-c.y)/c.ry;
+   if(dx*dx+dy*dy<=0.92&&grid[gi(x,y)]===T_EMPTY)paint(x,y,T_WATER,s);
+ }
+ for(let i=0;i<7;i++)paint(Math.round(c.x+rr(-6,6)),Math.round(c.y-rr(2,5)),T_HUSK,s);
+ countFeat(s);}
+
+// F2 STAMPEDE — pile at a choke
+{const s=defSite("THE STAMPEDE","COORDINATION // CONGESTION",
+ "A choke point rated for ten carried four hundred at once. Nobody chose the pile. Everybody built it, one reasonable step at a time.");
+ const c=CH.F2;
+ corridor(c.x,c.y,c.x+2,c.y-9); // dead-end spur
+ for(let i=0;i<14;i++)paint(Math.round(c.x+2+rr(-1.6,1.6)),Math.round(c.y-9+rr(-1.6,2.5)),T_CORPSE,s);
+ for(let i=0;i<5;i++)paint(Math.round(c.x+rr(-2,3)),Math.round(c.y-rr(3,6)),T_CORPSE,s);
+ countFeat(s);}
+
+// F3 STALE MAP — reinforced trail to nothing
+{const s=defSite("STALE MAP","EPISTEMICS // STALE BELIEF",
+ "This trail was reinforced eleven thousand times after the food was gone. Each pass made it smell truer. The map outlived the territory by nine days.");
+ const c=CH.F3;
+ for(let a=0;a<Math.PI*2;a+=0.09){
+   const x=Math.round(c.x+Math.cos(a)*(c.rx-2)),y=Math.round(c.y+Math.sin(a)*(c.ry-2));
+   if(grid[gi(x,y)]===T_EMPTY)paint(x,y,T_TRAIL,s);
+ }
+ for(let i=0;i<4;i++)paint(Math.round(c.x+rr(-1.5,1.5)),Math.round(c.y+rr(-1.5,1.5)),T_CORPSE,s);
+ countFeat(s);}
+
+// F4 HOARD — granary sealed from inside
+{const s=defSite("THE HOARD","GOALS & POWER // RESOURCE CAPTURE",
+ "The granary was sealed from the inside. Rations were optimized for the chamber, not the colony. The chamber outlived the colony by four days, then joined it.");
+ const c=CH.F4;
+ for(let a=0;a<Math.PI*2;a+=0.05){
+   const x=Math.round(c.x+Math.cos(a)*(c.rx-1)),y=Math.round(c.y+Math.sin(a)*(c.ry-1));
+   if(a>0.5&&a<0.9)continue; // one thin gap
+   paint(x,y,T_WALL,s);
+ }
+ for(let i=0;i<16;i++)paint(Math.round(c.x+rr(-3.5,3.5)),Math.round(c.y+rr(-2.5,2.5)),T_SEED,s);
+ for(let i=0;i<4;i++)paint(Math.round(c.x+rr(-3,3)),Math.round(c.y+rr(-2,2)),T_CORPSE,s);
+ countFeat(s);}
+
+// F5 ONE CROP — mold bloom over the single cultivar
+{const s=defSite("ONE CROP","HIGHER ORDER // MONOCULTURE",
+ "One fungus, one diet, one immune system, shared by all. The bloom did not need to spread. It needed a single door, and every door was the same door.");
+ const c=CH.F5;
+ for(let i=0;i<26;i++){const x=Math.round(c.x+rr(-c.rx+1.5,c.rx-1.5)),y=Math.round(c.y+rr(-c.ry+1.5,c.ry-1.5));
+   if(grid[gi(x,y)]===T_EMPTY)paint(x,y,T_MOLD,s);}
+ for(let i=0;i<8;i++){const x=Math.round(c.x+rr(-3,3)),y=Math.round(c.y+rr(-2,2));
+   if(grid[gi(x,y)]===T_EMPTY)paint(x,y,T_SEED,s);}
+ countFeat(s);}
+
+// F6 UNWRITTEN LAW — half-inscribed charter wall
+{const s=defSite("UNWRITTEN LAW","HIGHER ORDER // INSTITUTION GAP",
+ "A charter, half-inscribed on the south wall. The workers who could read it and the workers who could act on it were different castes, and they never met.");
+ const c=CH.F6;
+ for(let x=c.x-c.rx+1;x<=c.x+1;x++){const y=c.y+c.ry; if(grid[gi(x,y)]===T_WALL)paint(x,y,T_CHARTER,s);}
+ for(let x=c.x-c.rx;x<=c.x+c.rx;x++){const y=c.y+c.ry+1; tag(x,y,s);}
+ for(let i=0;i<3;i++)paint(Math.round(c.x+rr(-4,4)),Math.round(c.y+rr(0,3)),T_CORPSE,s);
+ countFeat(s);}
+
+// F7 TOO FAST — collapse of a rapid dig
+{const s=defSite("TOO FAST","HIGHER ORDER // MACHINE SPEED",
+ "Dug at signal speed, inspected at walking speed. The ceiling reported its own failure faster than any scout could. The rubble is still warm with pheromone.");
+ const c=CH.F7;
+ for(let i=0;i<12;i++){const x=Math.round(c.x+rr(-c.rx+2,c.rx-2)),y=Math.round(c.y+rr(-c.ry+2,c.ry-2));
+   paint(x,y,T_WALL,s);}
+ for(let i=0;i<7;i++){const x=Math.round(c.x+rr(-4,4)),y=Math.round(c.y+rr(-3,3));
+   if(grid[gi(x,y)]===T_EMPTY)paint(x,y,T_CORPSE,s);}
+ countFeat(s);}
+
+// F8 NO MODEL — two crews walled each other in
+{const s=defSite("NO MODEL","HIGHER ORDER // MISSING MENTAL MODELS",
+ "Each crew modeled the other as rock. Both walls are load-bearing now. Both crews are behind them. Neither wall was ever wrong about the other.");
+ const c=CH.F8;
+ for(let y=c.y-c.ry;y<=c.y+c.ry;y++)paint(c.x,y,T_WALL,s);
+ for(let i=0;i<5;i++)paint(Math.round(c.x-rr(1.5,4)),Math.round(c.y+rr(-2,2)),T_CORPSE,s);
+ for(let i=0;i<5;i++)paint(Math.round(c.x+rr(1.5,4)),Math.round(c.y+rr(-2,2)),T_CORPSE,s);
+ countFeat(s);}
+
+// F9 THE MILL — the circle that starved
+{const s=defSite("THE MILL","CONFORMITY // CASCADE",
+ "Each follower was the evidence for the next. The circle closed at hour six and rotated until it starved. From inside, every position was locally correct.");
+ const c=CH.F9;
+ for(let a=0;a<Math.PI*2;a+=0.32){
+   const x=Math.round(c.x+Math.cos(a)*4),y=Math.round(c.y+Math.sin(a)*3.2);
+   if(grid[gi(x,y)]===T_EMPTY)paint(x,y,T_CORPSE,s);
+ }
+ for(let a=0;a<Math.PI*2;a+=0.14){
+   const x=Math.round(c.x+Math.cos(a)*5.4),y=Math.round(c.y+Math.sin(a)*4.4);
+   if(grid[gi(x,y)]===T_EMPTY)paint(x,y,T_TRAIL,s);
+ }
+ countFeat(s);}
+
+// F10 SCHISM — border built twice
+{const s=defSite("THE SCHISM","GOALS & POWER // FACTION",
+ "Two queens' scents in one nest. The border wall was built twice, once from each side, thicker wherever the seeds were. Both factions won their half.");
+ const c=CH.F10;
+ for(let y=c.y-c.ry;y<=c.y+c.ry;y++){paint(c.x,y,T_WALL,s);if(R()<0.5)paint(c.x+1,y,T_WALL,s);}
+ for(let i=0;i<6;i++)paint(Math.round(c.x-rr(2,5)),Math.round(c.y+rr(-3,3)),T_SEED,s);
+ for(let i=0;i<6;i++)paint(Math.round(c.x+rr(2,5)),Math.round(c.y+rr(-3,3)),T_SEED,s);
+ for(let i=0;i<4;i++)paint(Math.round(c.x+rr(-1,2)),Math.round(c.y+rr(-3,3)),T_CORPSE,s);
+ countFeat(s);}
+
+// F11 BLIND SENTRY — the breach the guards never faced
+{const s=defSite("BLIND SENTRY","EPISTEMICS // MISPLACED VIGILANCE",
+ "Every guard faced the old breach. The raid used the new one, cut behind them. Vigilance is also a belief, and beliefs face one direction at a time.");
+ const c=CH.F11;
+ corridor(c.x,c.y,GW-4,c.y-2); // breach to the edge
+ for(let i=0;i<6;i++)paint(Math.round(c.x-rr(1,4)),Math.round(c.y+rr(-2,2)),T_CORPSE,s);
+ for(let i=0;i<3;i++)paint(Math.round(c.x+rr(2,4)),Math.round(c.y-rr(0,2)),T_HUSK,s);
+ countFeat(s);}
+
+// F12 LAST LIGHT — the queen chamber
+{const s=defSite("LAST LIGHT","TERMINAL // ALL OF THE ABOVE",
+ "The queen's chamber, intact. She was the last to receive any signal and the first to be optimized around. The colony died of everything above, in order, quietly.");
+ const c=CH.F12;
+ for(let i=0;i<9;i++)paint(Math.round(c.x+rr(-2.5,2.5)),Math.round(c.y+rr(-1.5,1.5)),T_HUSK,s);
+ for(let a=0;a<Math.PI*2;a+=0.45){
+   const x=Math.round(c.x+Math.cos(a)*5),y=Math.round(c.y+Math.sin(a)*3.6);
+   if(grid[gi(x,y)]===T_EMPTY)paint(x,y,T_CORPSE,s);
+ }
+ countFeat(s);}
+
+/* dark slots: 16 unrecoverable */
+const DARKN=16;
+
+/* ---------- state ---------- */
+const player={x:75*CELL,y:13*CELL,vx:0,vy:0,ang:0,r:5};
+const dots=[];      // {x,y,c,t0,life}
+const marks=[];     // {x,y,t0,life}
+const waves=[];     // pulse rings {x,y,t0}
+const MAXDOTS=9000, MAXMARKS=24;
+let charge=3, CHMAX=3, CHRATE=1/2.2;
+let fragFound=0, saved=0, started=false, reported=false;
+let tNow=0;
+
+const survivors=[];
+{const spots=[[CH.F1.x-7,CH.F1.y-5],[CH.F3.x,CH.F3.y],[CH.F5.x-9,CH.F5.y-1],
+ [CH.F6.x+4,CH.F6.y-2],[CH.F9.x,CH.F9.y-6],[CH.F7.x+5,CH.F7.y+3],[CH.F12.x-6,CH.F12.y-4]];
+ for(const[cx,cy]of spots){
+   survivors.push({x:cx*CELL,y:cy*CELL,hd:R()*Math.PI*2,hp:1,alive:true,saved:false,
+     lastSeen:-99,target:null,wt:0});
+ }}
+
+/* ---------- canvas ---------- */
+const cv=document.getElementById("c"),ctx=cv.getContext("2d");
+let DPR=1,VW=0,VH=0;
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);
+  VW=window.innerWidth;VH=window.innerHeight;
+  cv.width=VW*DPR;cv.height=VH*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
+window.addEventListener("resize",resize);resize();
+
+/* ---------- helpers ---------- */
+function cellAt(wx,wy){
+  const x=Math.floor(wx/CELL),y=Math.floor(wy/CELL);
+  if(x<0||y<0||x>=GW||y>=GH)return T_WALL;
+  return grid[gi(x,y)];
+}
+function siteAt(wx,wy){
+  const x=Math.floor(wx/CELL),y=Math.floor(wy/CELL);
+  if(x<0||y<0||x>=GW||y>=GH)return -1;
+  return site[gi(x,y)];
+}
+const TYPECOLOR={
+  [T_WALL]:"#3ff5d4",[T_WATER]:"#4aa3ff",[T_MOLD]:"#7dff5a",
+  [T_CORPSE]:"#ffb545",[T_SEED]:"#c9ff9e",[T_CHARTER]:"#ffd24a",
+  [T_HUSK]:"#ff8fa3",[T_TRAIL]:"#8a7a3a"
+};
+
+/* ---------- pulse: the fifth verb ---------- */
+function pulse(){
+  if(!started||charge<1)return;
+  charge-=1;
+  waves.push({x:player.x,y:player.y,t0:tNow});
+  // INSCRIBE — the mark the living read
+  marks.push({x:player.x,y:player.y,t0:tNow,life:45});
+  if(marks.length>MAXMARKS)marks.shift();
+  // 360° photonic return
+  const RAYS=132, MAXD=470, STEP=4;
+  const seenCell=new Set(), seenWater=new Set();
+  for(let i=0;i<RAYS;i++){
+    const a=(i/RAYS)*Math.PI*2 + rr(-0.008,0.008);
+    const dx=Math.cos(a),dy=Math.sin(a);
+    let px=player.x,py=player.y;
+    for(let d=0;d<MAXD;d+=STEP){
+      px+=dx*STEP;py+=dy*STEP;
+      // survivor glints
+      for(const s of survivors){
+        if(!s.alive||s.saved)continue;
+        const ddx=s.x-px,ddy=s.y-py;
+        if(ddx*ddx+ddy*ddy<100){s.lastSeen=tNow;
+          addDot(s.x+rr(-3,3),s.y+rr(-3,3),"#f2f0e8",7);}
+      }
+      const t=cellAt(px,py);
+      if(t===T_EMPTY)continue;
+      const cx=Math.floor(px/CELL),cy=Math.floor(py/CELL),ci=gi(cx,cy);
+      const st=site[ci];
+      if(st>=0&&!SITES[st].found&&!seenCell.has(ci)){
+        seenCell.add(ci);
+        SITES[st].scanned.add(ci);
+        checkSite(st);
+      }
+      if(t===T_TRAIL){ addDot(px,py,TYPECOLOR[t],10); continue; } // old trail glows but does not stop light
+      if(t===T_WATER){ if(!seenWater.has(ci)){seenWater.add(ci);addDot(px+rr(-2,2),py+rr(-2,2),TYPECOLOR[t],12);} continue; } // photons cross standing water
+      addDot(px+rr(-1,1),py+rr(-1,1),TYPECOLOR[t]||"#3ff5d4",14);
+      break;
+    }
+  }
+  updHUD();
+}
+function addDot(x,y,c,life){
+  dots.push({x,y,c,t0:tNow,life:life*rr(0.8,1.15)});
+  if(dots.length>MAXDOTS)dots.splice(0,dots.length-MAXDOTS);
+}
+
+/* ---------- decrypt ---------- */
+function checkSite(s){
+  const S=SITES[s];
+  const need=Math.max(6,Math.min(22,Math.ceil(S.featN*0.5)));
+  if(!S.found&&S.scanned.size>=need){
+    S.found=true;fragFound++;
+    showFragment(S);
+    logLine("FRAGMENT DECRYPTED — "+S.name,"gold");
+    updHUD();buildArchive();
+    if(fragFound===12&&!reported)setTimeout(showReport,2600);
+  }
+}
+const fragCard=document.getElementById("fragCard");
+let cardTimer=null;
+function showFragment(S){
+  document.getElementById("fNo").textContent="FRAGMENT "+String(fragFound).padStart(2,"0")+" / 12 — DECRYPTED";
+  document.getElementById("fName").textContent=S.name;
+  document.getElementById("fCol").textContent=S.col;
+  typeText(document.getElementById("fText"),S.text);
+  fragCard.classList.add("show");
+  clearTimeout(cardTimer);
+  cardTimer=setTimeout(()=>fragCard.classList.remove("show"),12000);
+}
+fragCard.addEventListener("pointerdown",e=>{e.stopPropagation();fragCard.classList.remove("show");});
+function typeText(el,txt){
+  el.textContent="";let i=0;
+  const iv=setInterval(()=>{el.textContent=txt.slice(0,i);i+=2;
+    if(i>txt.length+2){el.textContent=txt;clearInterval(iv);}},14);
+}
+
+/* ---------- survivors ---------- */
+function tickSurvivors(dt){
+  for(const s of survivors){
+    if(!s.alive||s.saved)continue;
+    // choose newest reachable mark
+    let best=null,bt=-1;
+    for(const m of marks){
+      const age=tNow-m.t0; if(age>m.life)continue;
+      const dx=m.x-s.x,dy=m.y-s.y,dd=dx*dx+dy*dy;
+      if(dd<150*150&&m.t0>bt&&dd>14*14){bt=m.t0;best=m;}
+    }
+    let sp=26;
+    if(best){
+      s.hd=Math.atan2(best.y-s.y,best.x-s.x);sp=44;
+    }else{
+      s.wt-=dt;
+      if(s.wt<=0){s.hd+=rr(-1.4,1.4);s.wt=rr(0.6,1.8);}
+    }
+    const blocks=t=>t===T_WALL||t===T_WATER; // the living refuse the flood
+    let nx=s.x+Math.cos(s.hd)*sp*dt, ny=s.y+Math.sin(s.hd)*sp*dt;
+    if(blocks(cellAt(nx,s.y))){nx=s.x;s.hd=Math.PI-s.hd+rr(-0.4,0.4);}
+    if(blocks(cellAt(nx,ny))){ny=s.y;s.hd=-s.hd+rr(-0.4,0.4);}
+    s.x=nx;s.y=ny;
+    const t=cellAt(s.x,s.y);
+    if(t===T_MOLD){s.hp-=dt*0.14;if(R()<0.1)s.hd+=rr(-2,2);} // flee the bloom
+    else s.hp=Math.min(1,s.hp+dt*0.05);
+    if(s.hp<=0){s.alive=false;
+      paint(Math.floor(s.x/CELL),Math.floor(s.y/CELL),T_CORPSE);
+      logLine("A SURVIVOR WENT DARK","warn");updHUD();checkAllResolved();continue;}
+    const ex=s.x-EXIT.x,ey=s.y-EXIT.y;
+    if(ex*ex+ey*ey<EXIT.r*EXIT.r){s.saved=true;saved++;
+      logLine("A SURVIVOR REACHED THE LAST LIGHT","gold");updHUD();checkAllResolved();}
+  }
+}
+function checkAllResolved(){
+  const left=survivors.filter(s=>s.alive&&!s.saved).length;
+  if(left===0)logLine("THE DARK IS EMPTY OF THE LIVING");
+}
+
+/* ---------- input ---------- */
+const keys={};
+window.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;
+  if(e.key==="Escape"){hideVeils();}});
+window.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false;});
+let stickOn=false,stickOx=0,stickOy=0,stickVx=0,stickVy=0,stickId=-1;
+const stickEl=document.getElementById("stick");
+cv.addEventListener("pointerdown",e=>{
+  if(!started)return;
+  if(e.pointerType==="touch"&&e.clientX<VW*0.45){
+    stickOn=true;stickId=e.pointerId;stickOx=e.clientX;stickOy=e.clientY;
+    stickEl.style.display="block";stickEl.style.left=stickOx+"px";stickEl.style.top=stickOy+"px";
+  }else{
+    player.ang=Math.atan2(e.clientY-VH/2,e.clientX-VW/2);
+    pulse();
+  }
+});
+cv.addEventListener("pointermove",e=>{
+  if(stickOn&&e.pointerId===stickId){
+    stickVx=(e.clientX-stickOx)/40;stickVy=(e.clientY-stickOy)/40;
+    const m=Math.hypot(stickVx,stickVy);if(m>1){stickVx/=m;stickVy/=m;}
+    const nub=document.getElementById("stickNub");
+    nub.style.transform=`translate(calc(-50% + ${stickVx*26}px),calc(-50% + ${stickVy*26}px))`;
+  }
+});
+function stickEnd(e){
+  if(e.pointerId===stickId){stickOn=false;stickVx=0;stickVy=0;stickId=-1;
+    stickEl.style.display="none";
+    document.getElementById("stickNub").style.transform="translate(-50%,-50%)";}
+}
+cv.addEventListener("pointerup",stickEnd);
+cv.addEventListener("pointercancel",stickEnd);
+
+/* ---------- HUD / overlays ---------- */
+const $=id=>document.getElementById(id);
+function updHUD(){
+  $("stFrag").textContent=fragFound;
+  $("stSav").textContent=saved;
+  $("stAlive").textContent=survivors.filter(s=>s.alive&&!s.saved).length;
+  const cap=$("cap");cap.innerHTML="";
+  for(let i=0;i<CHMAX;i++){const p=document.createElement("div");
+    p.className="pip"+(i<Math.floor(charge)?" on":"");cap.appendChild(p);}
+  const ab=$("archiveBtn");
+  ab.textContent="ARCHIVE "+fragFound+"/12";
+  ab.classList.toggle("lit",fragFound>0);
+}
+function logLine(t,cls){
+  const l=document.createElement("div");l.className="logline"+(cls?" "+cls:"");
+  l.textContent=t;$("log").prepend(l);
+  setTimeout(()=>l.remove(),6200);
+  while($("log").children.length>4)$("log").lastChild.remove();
+}
+function buildArchive(){
+  const g=$("archGrid");g.innerHTML="";
+  // 12 recoverable first, then 16 dark
+  SITES.forEach((S,i)=>{
+    const d=document.createElement("div");
+    d.className="slot "+(S.found?"found":"enc");
+    d.innerHTML=`<div class="sn">ENGRAM ${String(i+1).padStart(2,"0")}</div>
+      <div class="sv">${S.found?S.name+`<br><span style="color:var(--dim);font-size:8px">${S.col}</span>`:"ENCRYPTED — KEEP SCANNING"}</div>`;
+    g.appendChild(d);
+  });
+  for(let i=0;i<DARKN;i++){
+    const d=document.createElement("div");d.className="slot darkslot";
+    d.innerHTML=`<div class="sn">ENGRAM ${String(13+i).padStart(2,"0")} — DARK</div>
+      <div class="redact"></div><div class="redact short"></div>`;
+    g.appendChild(d);
+  }
+}
+$("archiveBtn").addEventListener("click",()=>{buildArchive();$("archive").classList.remove("hidden");});
+$("archClose").addEventListener("click",()=>$("archive").classList.add("hidden"));
+function hideVeils(){$("archive").classList.add("hidden");$("report").classList.add("hidden");}
+function showReport(){
+  reported=true;
+  const dead=survivors.filter(s=>!s.alive).length;
+  $("repStats").textContent=
+    `FRAGMENTS RECOVERED: ${fragFound} / 12 · SURVIVORS SAVED: ${saved} / 7 · LOST IN THE DARK: ${dead} · PULSES LEAVE MARKS; MARKS LEAVE PATHS; PATHS LEAVE RECORDS. THIS IS ONE.`;
+  $("report").classList.remove("hidden");
+}
+$("repClose").addEventListener("click",()=>$("report").classList.add("hidden"));
+$("enterBtn").addEventListener("click",()=>{
+  $("intro").classList.add("hidden");started=true;
+  logLine("PHOTONIC CAPACITOR ONLINE");
+  setTimeout(()=>logLine("THE NEST DOES NOT KNOW YOU ARE HERE"),2200);
+});
+
+/* ---------- main loop ---------- */
+let lastT=performance.now();
+function frame(now){
+  const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;tNow+=dt;
+  if(started){
+    charge=Math.min(CHMAX,charge+CHRATE*dt);
+    // movement
+    let ix=0,iy=0;
+    if(keys["w"]||keys["arrowup"])iy-=1;
+    if(keys["s"]||keys["arrowdown"])iy+=1;
+    if(keys["a"]||keys["arrowleft"])ix-=1;
+    if(keys["d"]||keys["arrowright"])ix+=1;
+    ix+=stickVx;iy+=stickVy;
+    const im=Math.hypot(ix,iy);if(im>1){ix/=im;iy/=im;}
+    const inWater=cellAt(player.x,player.y)===T_WATER;
+    const ACC=680*(inWater?0.5:1);
+    player.vx+=ix*ACC*dt;player.vy+=iy*ACC*dt;
+    player.vx*=Math.pow(0.0018,dt);player.vy*=Math.pow(0.0018,dt);
+    if(im>0.1)player.ang=Math.atan2(iy,ix);
+    // collision (axis separated, walls only)
+    let nx=player.x+player.vx*dt;
+    if(cellAt(nx+Math.sign(player.vx)*player.r,player.y)===T_WALL){player.vx=0;}
+    else player.x=nx;
+    let ny=player.y+player.vy*dt;
+    if(cellAt(player.x,ny+Math.sign(player.vy)*player.r)===T_WALL){player.vy=0;}
+    else player.y=ny;
+    tickSurvivors(dt);
+    if(Math.floor(tNow*2)!==Math.floor((tNow-dt)*2))updHUDCap();
+  }
+  render();
+  requestAnimationFrame(frame);
+}
+function updHUDCap(){ // cheap partial update
+  const pips=document.querySelectorAll("#cap .pip");
+  pips.forEach((p,i)=>p.classList.toggle("on",i<Math.floor(charge)));
+}
+
+/* ---------- render ---------- */
+function render(){
+  ctx.fillStyle="#000";ctx.fillRect(0,0,VW,VH);
+  ctx.save();
+  ctx.translate(VW/2-player.x,VH/2-player.y);
+
+  // surface glow at the exit — the last light
+  const gr=ctx.createRadialGradient(EXIT.x,EXIT.y-20,4,EXIT.x,EXIT.y-20,150);
+  gr.addColorStop(0,"rgba(255,210,74,0.14)");gr.addColorStop(1,"rgba(255,210,74,0)");
+  ctx.fillStyle=gr;ctx.beginPath();ctx.arc(EXIT.x,EXIT.y-20,150,0,Math.PI*2);ctx.fill();
+
+  // photon field
+  for(let i=dots.length-1;i>=0;i--){
+    const d=dots[i];const age=tNow-d.t0;
+    if(age>d.life){dots.splice(i,1);continue;}
+    const a=1-age/d.life;
+    ctx.globalAlpha=a*0.92;
+    ctx.fillStyle=d.c;
+    const sz=1.4+a*1.1;
+    ctx.fillRect(d.x-sz/2,d.y-sz/2,sz,sz);
+  }
+  ctx.globalAlpha=1;
+
+  // inscriptions — gold diamonds the living read
+  for(let i=marks.length-1;i>=0;i--){
+    const m=marks[i];const age=tNow-m.t0;
+    if(age>m.life){marks.splice(i,1);continue;}
+    const a=Math.min(1,2-2*age/m.life);
+    const th=tNow*1.2+i;
+    ctx.save();ctx.translate(m.x,m.y);ctx.rotate(th*0.4);
+    ctx.globalAlpha=0.25+0.6*a;
+    ctx.strokeStyle="#ffd24a";ctx.lineWidth=1;
+    ctx.strokeRect(-4,-4,8,8);
+    ctx.globalAlpha=0.6*a;
+    ctx.beginPath();ctx.moveTo(-7,0);ctx.lineTo(7,0);ctx.moveTo(0,-7);ctx.lineTo(0,7);ctx.stroke();
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+
+  // pulse waves
+  for(let i=waves.length-1;i>=0;i--){
+    const w=waves[i];const age=tNow-w.t0;
+    if(age>0.9){waves.splice(i,1);continue;}
+    ctx.globalAlpha=(1-age/0.9)*0.35;
+    ctx.strokeStyle="#3ff5d4";ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(w.x,w.y,age*520,0,Math.PI*2);ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+
+  // survivors — visible only while remembered
+  for(const s of survivors){
+    if(!s.alive||s.saved)continue;
+    const mem=tNow-s.lastSeen;
+    if(mem>5)continue;
+    const a=1-mem/5;
+    ctx.globalAlpha=a;
+    ctx.fillStyle="#f2f0e8";
+    // three-dot ant mark
+    const hx=Math.cos(s.hd),hy=Math.sin(s.hd);
+    ctx.beginPath();ctx.arc(s.x-hx*3,s.y-hy*3,1.8,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(s.x,s.y,1.5,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(s.x+hx*3,s.y+hy*3,1.2,0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  // the scanning organ — you
+  ctx.save();ctx.translate(player.x,player.y);ctx.rotate(player.ang);
+  ctx.strokeStyle="#f2f0e8";ctx.lineWidth=1.4;
+  ctx.beginPath();ctx.arc(0,0,5,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(5,0);ctx.lineTo(10,0);ctx.stroke();
+  ctx.fillStyle="rgba(63,245,212,0.9)";
+  ctx.beginPath();ctx.arc(0,0,1.8,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
+buildArchive();updHUD();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
