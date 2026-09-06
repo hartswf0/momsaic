@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>ARMORY — mixed-reality duel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bk:#000;--wh:#fff;--red:#ff2e2e;--blue:#3b82f6;--teal:#19e6c8;--amber:#ffd23f;
+        --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bk);color:var(--wh);font-family:var(--mono);overflow:hidden;touch-action:none}
+  #out{position:fixed;inset:0;width:100%;height:100%;display:block}
+  #cam{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none}
+  #hud{position:fixed;left:0;right:0;top:0;padding:10px 12px;display:flex;justify-content:space-between;
+       font-size:13px;pointer-events:none;padding-top:max(10px,env(safe-area-inset-top))}
+  #hud b{font-weight:600;font-size:22px;display:block}
+  #hud .r{text-align:right}
+  #panel{position:fixed;left:0;right:0;bottom:0;background:var(--bk);border-top:1px solid var(--wh);
+         padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));font-size:12px;max-height:55vh;overflow:auto}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .row+.row{margin-top:8px}
+  button,a.btn{font:inherit;font-weight:600;background:var(--bk);color:var(--wh);border:1px solid var(--wh);
+         padding:10px 14px;cursor:pointer;text-decoration:none;display:inline-block;min-height:44px}
+  button.go{background:var(--wh);color:var(--bk)}
+  button:focus-visible,a.btn:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+  [hidden]{display:none!important}
+  #msg{min-height:1.2em;margin-top:6px;color:var(--amber)}
+  #props .sw{width:36px;height:36px;border:1px solid var(--wh);cursor:pointer}
+  label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+  input[type=range]{width:90px;accent-color:var(--wh)}
+  details summary{cursor:pointer;list-style:none;padding:6px 0}
+  details summary::before{content:"";display:inline-block;width:0;height:0;border-left:6px solid var(--wh);
+        border-top:4px solid transparent;border-bottom:4px solid transparent;margin-right:6px}
+  details[open] summary::before{transform:rotate(90deg)}
+  pre{white-space:pre-wrap;font-size:11px;line-height:1.35;border-left:1px solid var(--wh);padding-left:8px;margin:6px 0}
+  #testOut li{list-style:none;padding:2px 0}
+  #testOut .ok::before{content:"";display:inline-block;width:8px;height:8px;background:var(--teal);margin-right:8px}
+  #testOut .no::before{content:"";display:inline-block;width:8px;height:8px;background:var(--red);margin-right:8px}
+</style>
+</head>
+<body>
+<canvas id="out"></canvas>
+<video id="cam" playsinline muted autoplay></video>
+<div id="hud"><div>time<b id="hTime">--</b></div><div class="r">round<b id="hRound">-/3</b></div></div>
+<div id="panel">
+  <div class="row" id="acts">
+    <button id="bCam" class="go">Play</button>
+    <button id="bFlip" hidden>Flip camera</button>
+    <button id="bDefaults" hidden>Use default colors</button>
+    <button id="bArmed" hidden class="go">Props set</button>
+    <button id="bRound" hidden class="go">Start round</button>
+    <button id="bStop" hidden>Stop</button>
+    <a id="bSave" class="btn" hidden download="armory-match.webm">Save video</a>
+    <button id="bAgain" hidden class="go">Play again</button>
+  </div>
+  <div class="row" id="props" hidden></div>
+  <div id="msg">Prop the phone up facing the mat. Red plays camera-left, blue camera-right.</div>
+  <details id="tune"><summary>Tune</summary>
+    <div class="row">
+      <label>threshold <input type="range" id="tThresh" min="30" max="200" value="90"></label>
+      <label>split <input type="range" id="tSplit" min="20" max="80" value="50"></label>
+      <label>round s <input type="range" id="tRound" min="15" max="90" value="30"></label>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="tSound" checked> sound</label>
+      <label><input type="checkbox" id="tAuto" checked> rounds start when both sides stand on the mat</label>
+    </div>
+  </details>
+  <details id="tests"><summary>Self-test</summary>
+    <div class="row"><button id="bTest">Run property tests</button><span id="testSum"></span></div>
+    <ul id="testOut"></ul>
+  </details>
+  <details id="theory"><summary>Theory</summary><pre id="genomeView"></pre></details>
+</div>
+
+<script>
+'use strict';
+/* ARMORY v3 — the FORMAL_ECHO realised.
+   Body = set of foreground pixels. Prop = a hue. Kind = shape (moments).
+   Ownership = half-plane. Contact = tip window. Hit = debounced run.
+   Invariants (asserted at runtime, see assertInvariants):
+     I1 score monotone within a round
+     I2 exactly one live round, round <= MAX_ROUNDS
+     I3 a contact run scores at most once per COOLDOWN_MS
+     I4 every drawn body dot is a camera pixel
+     I5 only state-valid actions are visible
+   v3 adds: striking-tip selection (the tip farther from the wielder's own
+   body — kills butt-end and most own-arm hits), synthetic-blob property
+   tests, recorder mimeType fallback, optional tap-to-start, embedded genome. */
+
+const L = Object.freeze({ W:128, MAX_ROUNDS:3, INTRO_MS:3000, ROUND_END_MS:2800, CLEAR_MS:3000,
+  SIDES_HOLD_MS:1500, SIDES_MIN_PX:60, HIT_FRAMES:3, COOLDOWN_MS:600, BLOCK_COOLDOWN_MS:350,
+  MIN_PROP_PX:12, TIP_R:4, MIN_BODY_IN_TIP:3, MAX_SHIELD_IN_TIP:1, SABER_ASPECT:2.2,
+  MAX_PROPS:4, MAX_BURSTS:12, CRATES:6, SUDDEN_MS:15000, TAP_R:3, MAX_TESTS:16 });
+
+const props = [];
+const DEFAULT_HUES = [210,110,0,45];
+const cfg = { thresh:90, split:0.5, hueTol:18, minSat:0.45, minVal:0.3, facing:'environment', roundS:30, sound:true, auto:true };
+const TEAM = { red:{color:'#ff2e2e'}, blue:{color:'#3b82f6'} };
+const match = { state:'IDLE', round:0, wins:{red:0,blue:0}, score:{red:0,blue:0}, prevScore:{red:0,blue:0},
+  roundWinner:null, matchWinner:null, clockEnd:0, stateEnd:0, suddenDeath:false, sidesSince:0, lastBeepSec:-1 };
+const judge = { runs:new Map(), last:new Map(), lastBlock:0 };
+const bursts=[], crates=[]; let shake=0, flash=null;
+
+/* ---- audio ---- */
+let AC=null;
+function audio(){ if(!AC){ AC=new (window.AudioContext||window.webkitAudioContext)(); } if(AC.state==='suspended') AC.resume(); }
+function tone(f,ms,type='square',gain=0.15,slide=0){
+  if(!cfg.sound||!AC) return; const o=AC.createOscillator(), g=AC.createGain(), t=AC.currentTime;
+  o.type=type; o.frequency.setValueAtTime(f,t); if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(40,f+slide),t+ms/1000);
+  g.gain.setValueAtTime(gain,t); g.gain.exponentialRampToValueAtTime(0.001,t+ms/1000);
+  o.connect(g).connect(AC.destination); o.start(t); o.stop(t+ms/1000+0.02);
+}
+const sfx = {
+  tick:()=>tone(880,80), go:()=>{tone(1320,220);setTimeout(()=>tone(1760,300),90);},
+  hit:(team)=>{ tone(team==='red'?220:330,140,'sawtooth',0.2,-120); tone(1200,60,'square',0.08); },
+  block:()=>tone(160,90,'triangle',0.2,40),
+  win:()=>[0,120,240,360].forEach((d,i)=>setTimeout(()=>tone(440*Math.pow(1.26,i),260,'square',0.12),d)),
+  tap:()=>tone(1500,40,'sine',0.1)
+};
+
+/* ---- vision ---- */
+const video=document.getElementById('cam'), out=document.getElementById('out'), ctx=out.getContext('2d');
+const an=document.createElement('canvas'), actx=an.getContext('2d',{willReadFrequently:true});
+let W=L.W, H=96, cls=null, bg=null, frame=null, stream=null;
+class Stat{
+  constructor(){this.reset();}
+  reset(){this.n=0;this.sx=0;this.sy=0;this.sxx=0;this.syy=0;this.sxy=0;this.minx=1e9;this.maxx=-1;this.miny=1e9;this.maxy=-1;}
+  add(x,y){this.n++;this.sx+=x;this.sy+=y;this.sxx+=x*x;this.syy+=y*y;this.sxy+=x*y;
+    if(x<this.minx)this.minx=x;if(x>this.maxx)this.maxx=x;if(y<this.miny)this.miny=y;if(y>this.maxy)this.maxy=y;}
+  get cx(){return this.sx/this.n;} get cy(){return this.sy/this.n;}
+  axis(){ const n=this.n,cx=this.cx,cy=this.cy,a=this.sxx/n-cx*cx,b=this.sxy/n-cx*cy,c=this.syy/n-cy*cy;
+    const th=0.5*Math.atan2(2*b,a-c), q=Math.sqrt(((a-c)/2)**2+b*b);
+    const major=Math.max(1e-6,(a+c)/2+q), minor=Math.max(1e-6,(a+c)/2-q);
+    return {th, half:Math.sqrt(major)*1.75, aspect:Math.sqrt(major/minor)}; }
+  kind(){ return this.axis().aspect>L.SABER_ASPECT ? 'saber' : 'shield'; }
+}
+const stats=[]; for(let i=0;i<2+L.MAX_PROPS;i++) stats.push(new Stat()); stats.bodyL=new Stat(); stats.bodyR=new Stat();
+function hueOf(r,g,b,mx,mn){const d=mx-mn;if(!d)return 0;let h;if(mx===r)h=((g-b)/d)%6;else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;return h<0?h+360:h;}
+const hdist=(a,b)=>{const d=Math.abs(a-b)%360;return d>180?360-d:d;};
+function pxHue(o){ const d=frame.data,r=d[o],g=d[o+1],b=d[o+2],mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+  const s=mx?(mx-mn)/mx:0; return (s>cfg.minSat&&mx/255>cfg.minVal)?hueOf(r,g,b,mx,mn):-1; }
+function setDims(w,h){ W=w;H=h;an.width=W;an.height=H;cls=new Uint8Array(W*H);bg=null;frame=null; }
+
+/* [key]+[classify]+[track], one pass over any drawable source */
+function analyzeFrom(src){
+  actx.drawImage(src,0,0,W,H); frame=actx.getImageData(0,0,W,H);
+  const d=frame.data,n=W*H,splitX=cfg.split*W,np=props.length;
+  for(const s of stats)s.reset(); stats.bodyL.reset(); stats.bodyR.reset();
+  for(let i=0;i<n;i++){
+    const o=i*4; let c=0;
+    if(bg && Math.abs(d[o]-bg[o])+Math.abs(d[o+1]-bg[o+1])+Math.abs(d[o+2]-bg[o+2])>cfg.thresh) c=1;
+    if(c&&np){ const h=pxHue(o); if(h>=0) for(let p=0;p<np;p++){ if(hdist(h,props[p].hue)<cfg.hueTol){c=2+p;break;} } }
+    cls[i]=c;
+    if(c){const x=i%W,y=(i/W)|0;stats[c].add(x,y);if(c===1)(x<splitX?stats.bodyL:stats.bodyR).add(x,y);}
+  }
+}
+/* striking tip: the axis end farther from the wielder's own body centroid.
+   Falls back to the end farther from the split when the wielder is unseen. */
+function strikingTip(st,owner){
+  const ax=st.axis(),cx=st.cx,cy=st.cy,splitX=cfg.split*W;
+  const ends=[1,-1].map(s=>({x:cx+Math.cos(ax.th)*ax.half*s,y:cy+Math.sin(ax.th)*ax.half*s}));
+  const own=owner==='red'?stats.bodyL:stats.bodyR;
+  const key=own.n>=L.MIN_BODY_IN_TIP ? e=>(e.x-own.cx)**2+(e.y-own.cy)**2 : e=>(owner==='red'?e.x:-e.x)-splitX;
+  return ends.sort((a,b)=>key(b)-key(a))[0];
+}
+function contacts(){
+  const found=[],splitX=cfg.split*W,r=L.TIP_R;
+  for(let p=0;p<props.length;p++){
+    const st=stats[2+p]; if(st.n<L.MIN_PROP_PX||st.kind()!=='saber') continue;
+    const owner=st.cx<splitX?'red':'blue', t=strikingTip(st,owner);
+    if((owner==='red')!==(t.x>=splitX)) continue;                 // tip must be in the opponent half
+    let body=0,shield=0;
+    for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const x=(t.x+dx)|0,y=(t.y+dy)|0;if(x<0||y<0||x>=W||y>=H)continue;
+      const c=cls[y*W+x]; if(c===1)body++; else if(c>=2&&c-2!==p&&stats[c].kind()==='shield')shield++;}
+    if(shield>L.MAX_SHIELD_IN_TIP) found.push({prop:p,team:owner,x:t.x,y:t.y,blocked:true});
+    else if(body>=L.MIN_BODY_IN_TIP) found.push({prop:p,team:owner,x:t.x,y:t.y,blocked:false});
+  }
+  return found;
+}
+function adjudicate(now,quiet){
+  const hits=contacts(),seen=new Set(); let scored=null;
+  for(const h of hits){
+    if(h.blocked){ if(now-judge.lastBlock>L.BLOCK_COOLDOWN_MS){judge.lastBlock=now;if(!quiet){sfx.block();shake=Math.max(shake,3);}} continue; }
+    seen.add(h.prop);
+    const run=(judge.runs.get(h.prop)||0)+1; judge.runs.set(h.prop,run);
+    if(run>=L.HIT_FRAMES && now-(judge.last.get(h.prop)||0)>L.COOLDOWN_MS){
+      judge.last.set(h.prop,now); judge.runs.set(h.prop,0);
+      match.score[h.team]++; scored=h.team;
+      if(!quiet){ sfx.hit(h.team); shake=8; flash={team:h.team,t0:now}; if(navigator.vibrate)navigator.vibrate(40);
+        if(bursts.length>=L.MAX_BURSTS)bursts.shift(); bursts.push({x:h.x,y:h.y,t0:now,team:h.team});
+        if(match.suddenDeath) endRound(now); }
+    }
+  }
+  for(const k of judge.runs.keys()) if(!seen.has(k)) judge.runs.set(k,0);
+  return scored;
+}
+function assertInvariants(){
+  const ok = match.score.red>=match.prevScore.red && match.score.blue>=match.prevScore.blue && match.round<=L.MAX_ROUNDS;
+  if(!ok) console.error('invariant violated', JSON.stringify(match));
+  match.prevScore={...match.score}; return ok;
+}
+
+/* ---- state machine: IDLE CLEARING ARM SIDES INTRO FIGHT ROUND_END MATCH_END ---- */
+function setState(s,now){
+  match.state=s; match.stateEnd=now; match.lastBeepSec=-1;
+  if(s==='CLEARING') match.stateEnd=now+L.CLEAR_MS;
+  if(s==='SIDES') match.sidesSince=0;
+  if(s==='INTRO'){match.round++;match.score={red:0,blue:0};match.prevScore={red:0,blue:0};match.roundWinner=null;match.suddenDeath=false;match.stateEnd=now+L.INTRO_MS;}
+  if(s==='FIGHT'){match.clockEnd=now+cfg.roundS*1000;judge.runs.clear();judge.last.clear();sfx.go();}
+  if(s==='ROUND_END'){match.stateEnd=now+L.ROUND_END_MS;sfx.win();}
+  if(s==='MATCH_END'){rec.stop();sfx.win();}
+  renderActions();
+}
+function endRound(now){
+  const {red,blue}=match.score;
+  if(red===blue&&!match.suddenDeath){match.suddenDeath=true;match.clockEnd=now+L.SUDDEN_MS;sfx.go();return;}
+  match.roundWinner=red>blue?'red':'blue'; match.wins[match.roundWinner]++; setState('ROUND_END',now);
+}
+function beginRound(now){ rec.start(); setState('INTRO',now); }
+function countdownBeep(now,end){ const s=Math.ceil((end-now)/1000); if(s!==match.lastBeepSec&&s>0){match.lastBeepSec=s;sfx.tick();} }
+function tick(now){
+  const s=match.state;
+  if(s==='CLEARING'){ countdownBeep(now,match.stateEnd); if(now>=match.stateEnd) capture(now); }
+  else if(s==='SIDES'&&cfg.auto){
+    const both=stats.bodyL.n>=L.SIDES_MIN_PX&&stats.bodyR.n>=L.SIDES_MIN_PX;
+    if(!both) match.sidesSince=0; else if(!match.sidesSince) match.sidesSince=now;
+    else if(now-match.sidesSince>=L.SIDES_HOLD_MS) beginRound(now);
+  }
+  else if(s==='INTRO'){ countdownBeep(now,match.stateEnd); if(now>=match.stateEnd) setState('FIGHT',now); }
+  else if(s==='FIGHT'){ adjudicate(now,false); assertInvariants(); if(match.clockEnd-now<3200) countdownBeep(now,match.clockEnd); if(now>=match.clockEnd) endRound(now); }
+  else if(s==='ROUND_END'&&now>=match.stateEnd){
+    const w=match.wins;
+    if(w.red>=2||w.blue>=2||match.round>=L.MAX_ROUNDS){match.matchWinner=w.red>w.blue?'red':'blue';setState('MATCH_END',now);}
+    else setState('SIDES',now);
+  }
+}
+
+/* ---- recorder, with codec fallback ---- */
+const rec={mr:null,chunks:[],url:null,mime:'',
+  pick(){ const c=['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+    return c.find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m))||''; },
+  start(){ if(!('MediaRecorder'in window)||(this.mr&&this.mr.state==='recording'))return;
+    try{this.mime=this.pick();this.chunks=[];this.mr=new MediaRecorder(out.captureStream(30),this.mime?{mimeType:this.mime}:{});
+      this.mr.ondataavailable=e=>{if(e.data.size)this.chunks.push(e.data);};
+      this.mr.onstop=()=>{if(this.url)URL.revokeObjectURL(this.url);const type=this.mime||'video/webm';
+        this.url=URL.createObjectURL(new Blob(this.chunks,{type}));bSave.href=this.url;bSave.download='armory-match.'+(type.includes('mp4')?'mp4':'webm');bSave.hidden=false;};
+      this.mr.start(500);}catch(e){this.mr=null;} },
+  stop(){ if(this.mr&&this.mr.state!=='inactive')this.mr.stop(); } };
+
+/* ---- compositor ---- */
+let vw=0,vh=0,dpr=1,stage={x:0,y:0,w:0,h:0};
+function resize(){ dpr=Math.min(2,devicePixelRatio||1);vw=innerWidth;vh=innerHeight;out.width=vw*dpr;out.height=vh*dpr;
+  const top=64,bottom=Math.min(vh*0.45,document.getElementById('panel').offsetHeight+16);
+  const aw=vw-24,ah=vh-top-bottom,asp=W/H; let w=aw,h=w/asp; if(h>ah){h=ah;w=h*asp;}
+  stage={x:(vw-w)/2,y:top+(ah-h)/2,w,h}; }
+addEventListener('resize',resize);
+function seedCrates(){crates.length=0;for(let i=0;i<L.CRATES;i++)crates.push({x:Math.random(),y:Math.random(),s:20+Math.random()*30,r:Math.random()*6.3,v:0.02+Math.random()*0.03});}
+function drawArena(){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,vw,vh);
+  ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.globalAlpha=0.35;
+  for(const c of crates){c.y=(c.y+c.v*0.016)%1.2;c.r+=0.01;ctx.save();ctx.translate(c.x*vw,c.y*vh);ctx.rotate(c.r);ctx.strokeRect(-c.s/2,-c.s/2,c.s,c.s);ctx.restore();}
+  ctx.globalAlpha=1;
+  const s=stage,k=0.12;
+  ctx.fillStyle='#000';ctx.fillRect(s.x-s.w*k,s.y-s.h*k*.5,s.w*(1+2*k),s.h*(1+1.5*k));
+  ctx.beginPath();ctx.moveTo(s.x,s.y+s.h);ctx.lineTo(s.x-s.w*k,s.y+s.h+s.h*k);ctx.lineTo(s.x+s.w+s.w*k,s.y+s.h+s.h*k);ctx.lineTo(s.x+s.w,s.y+s.h);
+  ctx.moveTo(s.x,s.y);ctx.lineTo(s.x-s.w*k*.5,s.y-s.h*k*.5);ctx.lineTo(s.x+s.w+s.w*k*.5,s.y-s.h*k*.5);ctx.lineTo(s.x+s.w,s.y);ctx.stroke();
+  ctx.globalAlpha=0.5;const cols=8,rows=Math.round(8*s.h/s.w);ctx.beginPath();
+  for(let i=0;i<=cols;i++){const x=s.x+s.w*i/cols;ctx.moveTo(x,s.y);ctx.lineTo(x,s.y+s.h);}
+  for(let j=0;j<=rows;j++){const y=s.y+s.h*j/rows;ctx.moveTo(s.x,y);ctx.lineTo(s.x+s.w,y);}
+  ctx.stroke();ctx.globalAlpha=1;
+  const sx=s.x+s.w*cfg.split, ready=match.state==='SIDES';
+  const okL=stats.bodyL.n>=L.SIDES_MIN_PX, okR=stats.bodyR.n>=L.SIDES_MIN_PX;
+  ctx.globalAlpha=ready&&okL?0.35:0.12;ctx.fillStyle=TEAM.red.color;ctx.fillRect(s.x,s.y,sx-s.x,s.h);
+  ctx.globalAlpha=ready&&okR?0.35:0.12;ctx.fillStyle=TEAM.blue.color;ctx.fillRect(sx,s.y,s.x+s.w-sx,s.h);ctx.globalAlpha=1;
+  ctx.strokeStyle='#fff';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(sx,s.y);ctx.lineTo(sx,s.y+s.h);ctx.stroke();ctx.setLineDash([]);
+  drawPost(s.x-6,s.y-30,'red');drawPost(s.x+s.w+6,s.y-30,'blue');
+}
+function drawPost(x,y,team){
+  const c=TEAM[team].color,w=54,h=64,px=Math.max(4,Math.min(vw-w-4,team==='red'?x-w:x));
+  const hot=flash&&flash.team===team&&performance.now()-flash.t0<250;
+  ctx.fillStyle=hot?c:'#000';ctx.fillRect(px,y-h,w,h);ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.strokeRect(px,y-h,w,h);
+  ctx.fillStyle=c;ctx.fillRect(px,y-h,w,6);
+  ctx.font='600 26px "IBM Plex Mono",monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=hot?'#000':'#fff';
+  ctx.fillText(String(match.score[team]),px+w/2,y-h/2+4);
+  ctx.font='12px "IBM Plex Mono",monospace';ctx.fillStyle='#fff';
+  ctx.fillText('|'.repeat(match.wins[team])+'.'.repeat(Math.max(0,2-match.wins[team])),px+w/2,y+10);
+}
+function drawBodies(){ /* I4: every dot is a camera pixel */
+  if(!frame)return;const d=frame.data,s=stage,cw=s.w/W,ch=s.h/H,splitX=cfg.split*W;
+  for(const side of['red','blue']){ctx.fillStyle=TEAM[side].color;
+    for(let i=0;i<W*H;i++){if(cls[i]!==1)continue;const x=i%W;if((x<splitX)!==(side==='red'))continue;
+      const y=(i/W)|0,o=i*4,lum=(d[o]*.3+d[o+1]*.59+d[o+2]*.11)/255,r=cw*(0.25+0.7*lum);
+      ctx.fillRect(s.x+x*cw+(cw-r)/2,s.y+y*ch+(ch-r)/2,r,r);}}
+}
+function drawProps(){
+  const s=stage,cw=s.w/W,ch=s.h/H,splitX=cfg.split*W;
+  for(let p=0;p<props.length;p++){const st=stats[2+p];if(st.n<L.MIN_PROP_PX)continue;
+    const col=`hsl(${props[p].hue} 100% 60%)`,cx=s.x+st.cx*cw,cy=s.y+st.cy*ch,ax=st.axis();
+    if(ax.aspect>L.SABER_ASPECT){const dx=Math.cos(ax.th)*ax.half*cw,dy=Math.sin(ax.th)*ax.half*ch;
+      ctx.strokeStyle=col;ctx.lineWidth=cw*2.2;ctx.beginPath();ctx.moveTo(cx-dx,cy-dy);ctx.lineTo(cx+dx,cy+dy);ctx.stroke();
+      ctx.strokeStyle='#fff';ctx.lineWidth=cw*.7;ctx.beginPath();ctx.moveTo(cx-dx,cy-dy);ctx.lineTo(cx+dx,cy+dy);ctx.stroke();
+      const t=strikingTip(st,st.cx<splitX?'red':'blue'); ctx.fillStyle='#fff';ctx.fillRect(s.x+t.x*cw-cw,s.y+t.y*ch-ch,cw*2,ch*2);}
+    else{const rad=Math.max(st.maxx-st.minx,st.maxy-st.miny)*cw/2;
+      ctx.strokeStyle=col;ctx.lineWidth=cw*1.5;ctx.beginPath();ctx.arc(cx,cy,rad,0,6.283);ctx.stroke();
+      ctx.strokeStyle='#fff';ctx.lineWidth=cw*.5;ctx.beginPath();ctx.arc(cx,cy,rad*.55,0,6.283);ctx.stroke();
+      ctx.fillStyle=col;ctx.fillRect(cx-cw*.6,cy-ch*.6,cw*1.2,ch*1.2);}
+  }
+}
+function drawBursts(now){
+  const s=stage,cw=s.w/W,ch=s.h/H;
+  for(let i=bursts.length-1;i>=0;i--){const b=bursts[i],t=(now-b.t0)/500;if(t>1){bursts.splice(i,1);continue;}
+    const x=s.x+b.x*cw,y=s.y+b.y*ch,r=8+t*40;ctx.strokeStyle=TEAM[b.team].color;ctx.lineWidth=2;ctx.globalAlpha=1-t;
+    ctx.beginPath();for(let k=0;k<8;k++){const a=k*Math.PI/4;ctx.moveTo(x+Math.cos(a)*r*.4,y+Math.sin(a)*r*.4);ctx.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r);}ctx.stroke();ctx.globalAlpha=1;}
+}
+function card(text,col,big){
+  ctx.font=`600 ${big?64:26}px "IBM Plex Mono",monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
+  const w=ctx.measureText(text).width+28,h=big?88:48,x=vw/2,y=stage.y+stage.h*.5;
+  ctx.fillStyle='#000';ctx.fillRect(x-w/2,y-h/2,w,h);ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(x-w/2,y-h/2,w,h);
+  ctx.fillStyle=col;ctx.fillText(text,x,y+2);
+}
+function cardTop(t){ctx.font='600 72px "IBM Plex Mono",monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.fillText(t,vw/2,stage.y+stage.h*.25);}
+function drawCard(now){
+  const s=match.state, secs=e=>String(Math.max(1,Math.ceil((e-now)/1000)));
+  if(s==='CLEARING'){card('Everyone off the mat','#ffd23f');cardTop(secs(match.stateEnd));}
+  else if(s==='ARM') card(props.length?'Tap another prop, or Props set':'Hold up a prop and tap it','#19e6c8');
+  else if(s==='SIDES') card(!cfg.auto?'Tap Start round':stats.bodyL.n>=L.SIDES_MIN_PX?(stats.bodyR.n>=L.SIDES_MIN_PX?'Hold still':'Blue: stand on the right'):'Red: stand on the left','#fff');
+  else if(s==='INTRO'){card(`Round ${match.round} of ${L.MAX_ROUNDS}`,'#fff');cardTop(secs(match.stateEnd));}
+  else if(s==='FIGHT'){ if(now-match.stateEnd<800)card('FIGHT','#fff',true); else if(match.suddenDeath)card('Sudden death: next touch wins','#ffd23f'); }
+  else if(s==='ROUND_END')card(`${match.roundWinner} takes round ${match.round}`,TEAM[match.roundWinner].color);
+  else if(s==='MATCH_END')card(`${match.matchWinner} wins the match`,TEAM[match.matchWinner].color,true);
+}
+
+/* ---- HUD / actions (I5) ---- */
+const $=id=>document.getElementById(id);
+const bCam=$('bCam'),bFlip=$('bFlip'),bDefaults=$('bDefaults'),bArmed=$('bArmed'),bRound=$('bRound'),bStop=$('bStop'),bSave=$('bSave'),bAgain=$('bAgain'),msg=$('msg'),propsRow=$('props');
+function renderActions(){
+  const s=match.state;
+  bCam.hidden=s!=='IDLE'; bFlip.hidden=!(s==='CLEARING'||s==='ARM'); bDefaults.hidden=s!=='ARM';
+  bArmed.hidden=!(s==='ARM'&&props.length>0); bRound.hidden=!(s==='SIDES'&&!cfg.auto);
+  bStop.hidden=!(s==='SIDES'||s==='INTRO'||s==='FIGHT'||s==='ROUND_END');
+  bAgain.hidden=s!=='MATCH_END'; if(s!=='MATCH_END')bSave.hidden=true; propsRow.hidden=s!=='ARM';
+  msg.textContent={IDLE:'Prop the phone up facing the mat. Red plays camera-left, blue camera-right.',
+    CLEARING:'Capturing the empty stage.',ARM:'Tap each saber and shield where it appears on screen. Tap a swatch to remove it.',
+    SIDES:cfg.auto?'One player on each side starts the round.':'Everyone in place? Tap Start round.',MATCH_END:'Save the video or play again.'}[s]||'';
+  renderProps(); resize();
+}
+function renderProps(){ propsRow.innerHTML=''; props.forEach((p,i)=>{const b=document.createElement('button');b.className='sw';b.style.background=`hsl(${p.hue} 100% 60%)`;b.title='remove';b.onclick=()=>{props.splice(i,1);sfx.tap();renderActions();};propsRow.append(b);}); }
+function renderHud(now){ $('hTime').textContent=match.state==='FIGHT'?Math.max(0,Math.ceil((match.clockEnd-now)/1000)):'--';
+  $('hRound').textContent=match.round?`${match.round}/${L.MAX_ROUNDS}`:`-/${L.MAX_ROUNDS}`; }
+
+out.addEventListener('pointerdown',e=>{
+  audio(); if(match.state!=='ARM'||!frame||props.length>=L.MAX_PROPS)return;
+  const ax=(e.clientX-stage.x)/stage.w*W, ay=(e.clientY-stage.y)/stage.h*H; if(ax<0||ay<0||ax>=W||ay>=H)return;
+  const hues=[]; for(let dy=-L.TAP_R;dy<=L.TAP_R;dy++)for(let dx=-L.TAP_R;dx<=L.TAP_R;dx++){const x=(ax+dx)|0,y=(ay+dy)|0;if(x<0||y<0||x>=W||y>=H)continue;
+    if(!cls[y*W+x])continue; const h=pxHue((y*W+x)*4); if(h>=0)hues.push(h);}
+  if(hues.length<4){msg.textContent='No coloured prop there. Hold it against the mat and tap right on it.';return;}
+  hues.sort((a,b)=>a-b); const hue=hues[hues.length>>1];
+  if(props.some(p=>hdist(p.hue,hue)<cfg.hueTol)){msg.textContent='Already registered that colour.';return;}
+  props.push({hue}); sfx.tap(); renderActions();
+});
+
+/* ---- camera ---- */
+async function openCamera(){
+  audio(); if(stream)stream.getTracks().forEach(t=>t.stop());
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:cfg.facing,width:{ideal:640},height:{ideal:480}},audio:false});}
+  catch(e){msg.textContent='Camera blocked. Allow camera access, then tap Play.';return;}
+  video.srcObject=stream; await new Promise(r=>{video.onloadedmetadata=r;}); await video.play();
+  const asp=video.videoWidth/video.videoHeight||4/3; setDims(L.W,Math.max(48,Math.round(L.W/asp)));
+  setState('CLEARING',performance.now());
+}
+function capture(now){actx.drawImage(video,0,0,W,H);bg=new Uint8ClampedArray(actx.getImageData(0,0,W,H).data);sfx.go();setState(props.length?'SIDES':'ARM',now);}
+bCam.onclick=openCamera;
+bFlip.onclick=()=>{cfg.facing=cfg.facing==='environment'?'user':'environment';openCamera();};
+bDefaults.onclick=()=>{props.length=0;DEFAULT_HUES.forEach(h=>props.push({hue:h}));sfx.tap();renderActions();};
+bArmed.onclick=()=>{match.round=0;match.wins={red:0,blue:0};setState('SIDES',performance.now());};
+bRound.onclick=()=>beginRound(performance.now());
+bStop.onclick=()=>{rec.stop();match.round=0;match.wins={red:0,blue:0};match.score={red:0,blue:0};setState('ARM',performance.now());};
+bAgain.onclick=()=>{match.round=0;match.wins={red:0,blue:0};match.score={red:0,blue:0};setState('SIDES',performance.now());};
+$('tThresh').oninput=e=>cfg.thresh=+e.target.value; $('tSplit').oninput=e=>cfg.split=e.target.value/100;
+$('tRound').oninput=e=>cfg.roundS=+e.target.value; $('tSound').onchange=e=>cfg.sound=e.target.checked;
+$('tAuto').onchange=e=>{cfg.auto=e.target.checked;renderActions();};
+
+/* ---- property tests on synthetic blobs (the lineage's only proof) ---- */
+function runTests(){
+  const saved={W,H,cls,bg,frame,props:props.slice(),state:match.state,score:{...match.score},runs:new Map(judge.runs),last:new Map(judge.last)};
+  const results=[]; const T=(name,fn)=>{ if(results.length>=L.MAX_TESTS)return; try{results.push({name,ok:!!fn()});}catch(e){results.push({name,ok:false,err:String(e)});} };
+  const tc=document.createElement('canvas'); tc.width=128; tc.height=96; const t=tc.getContext('2d');
+  const clear=()=>{t.fillStyle='#000';t.fillRect(0,0,128,96);};
+  const body=(x)=>{t.fillStyle='#8a8a8a';t.fillRect(x,30,20,50);};              // grey silhouette, right half by default
+  const saber=(x0,y,len)=>{t.fillStyle='hsl(210 100% 55%)';t.fillRect(x0,y-2,len,5);}; // blue bar
+  const shield=(x,y)=>{t.fillStyle='hsl(0 100% 55%)';t.beginPath();t.arc(x,y,9,0,6.283);t.fill();};
+  setDims(128,96); props.length=0; props.push({hue:210},{hue:0});
+  clear(); actx.drawImage(tc,0,0); bg=new Uint8ClampedArray(actx.getImageData(0,0,128,96).data);
+  match.state='FIGHT'; match.score={red:0,blue:0}; judge.runs.clear(); judge.last.clear();
+
+  T('empty stage yields no foreground',()=>{clear();analyzeFrom(tc);return stats[1].n===0&&stats[2].n===0;});
+  T('grey block classifies as body on blue side',()=>{clear();body(90);analyzeFrom(tc);return stats.bodyR.n>500&&stats.bodyL.n===0;});
+  T('blue bar classifies as saber by aspect',()=>{clear();saber(20,50,40);analyzeFrom(tc);return stats[2].kind()==='saber'&&stats[2].axis().aspect>4;});
+  T('red disc classifies as shield by aspect',()=>{clear();shield(40,50);analyzeFrom(tc);return stats[3].kind()==='shield';});
+  T('striking tip is the end away from the wielder',()=>{clear();body(5);saber(24,50,40);analyzeFrom(tc);const tip=strikingTip(stats[2],'red');return tip.x>55;});
+  T('tip in own half does not contact',()=>{clear();body(5);body(90);saber(24,50,30);analyzeFrom(tc);return contacts().length===0;});
+  T('tip touching opponent body contacts for red',()=>{clear();body(5);body(80);saber(45,50,36);analyzeFrom(tc);const c=contacts();return c.length===1&&c[0].team==='red'&&!c[0].blocked;});
+  T('shield over the tip blocks',()=>{clear();body(5);body(80);saber(45,50,36);shield(81,50);analyzeFrom(tc);const c=contacts();return c.length===1&&c[0].blocked;});
+  T('hit needs HIT_FRAMES consecutive frames',()=>{clear();body(5);body(80);saber(45,50,36);let s=null;for(let f=0;f<L.HIT_FRAMES;f++){analyzeFrom(tc);s=adjudicate(1000+f,true);}return s==='red'&&match.score.red===1;});
+  T('cooldown prevents a second score (I3)',()=>{let s=null;for(let f=0;f<L.HIT_FRAMES;f++){analyzeFrom(tc);s=adjudicate(1100+f,true);}return s===null&&match.score.red===1;});
+  T('after cooldown the same run scores again',()=>{let hit=false;for(let f=0;f<L.HIT_FRAMES;f++){analyzeFrom(tc);if(adjudicate(2000+f,true)==='red')hit=true;}return hit&&match.score.red===2;});
+  T('a broken run resets the counter',()=>{judge.runs.clear();judge.last.clear();clear();body(5);body(80);saber(45,50,36);analyzeFrom(tc);adjudicate(3000,true);analyzeFrom(tc);adjudicate(3001,true);clear();analyzeFrom(tc);adjudicate(3002,true);clear();body(5);body(80);saber(45,50,36);analyzeFrom(tc);const s=adjudicate(3003,true);return s===null;});
+  T('score is monotone (I1)',()=>assertInvariants());
+  T('butt end near own body never scores',()=>{judge.runs.clear();judge.last.clear();clear();body(5);saber(26,50,36);analyzeFrom(tc);return contacts().length===0;});
+
+  // restore
+  W=saved.W;H=saved.H;an.width=W;an.height=H;cls=saved.cls;bg=saved.bg;frame=saved.frame;
+  props.length=0;saved.props.forEach(p=>props.push(p));match.state=saved.state;match.score=saved.score;match.prevScore={...saved.score};
+  judge.runs=saved.runs;judge.last=saved.last;
+  const ul=$('testOut');ul.innerHTML='';let pass=0;
+  for(const r of results){const li=document.createElement('li');li.className=r.ok?'ok':'no';li.textContent=r.name+(r.err?' — '+r.err:'');ul.append(li);if(r.ok)pass++;}
+  $('testSum').textContent=`${pass}/${results.length} pass`;
+  renderActions();
+}
+$('bTest').onclick=runTests;
+
+/* ---- main loop ---- */
+function loop(){
+  const now=performance.now();
+  if(video.readyState>=2&&cls&&match.state!=='IDLE'){analyzeFrom(video);tick(now);}
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(shake>0){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=0.85;if(shake<0.3)shake=0;}
+  drawArena(); if(bg&&frame){drawBodies();drawProps();drawBursts(now);}
+  if(flash&&now-flash.t0<120){ctx.fillStyle=TEAM[flash.team].color;ctx.globalAlpha=0.18;ctx.fillRect(-20,-20,vw+40,vh+40);ctx.globalAlpha=1;}
+  drawCard(now); renderHud(now); requestAnimationFrame(loop);
+}
+addEventListener('DOMContentLoaded',()=>{$('genomeView').textContent=document.getElementById('genome').textContent.trim();});
+seedCrates();renderActions();loop();
+</script>
+
+<script type="text/x-yaml" id="genome">
+# CODE_MATH_LINEAGE_GENOME — ARMORY
+title: Camera-refereed duel as pixel-class algebra
+seed: A mat, a camera, foam props. Background subtraction keys bodies; hue keys props; second moments turn blobs into sabers; tip-in-window touch scores. The room is the controller.
+ancestral_formalisms:
+  key_sources:
+    - "Krueger, Videoplace (1974-85) - silhouette as the entire input device"
+    - "Hu 1962, image moments - orientation and elongation from three sums"
+    - "Bradski 1998, CamShift - hue is enough for saturated objects"
+    - "EyeToy: Play 2003 - party games on masks, not skeletons"
+    - "Naur 1985 - programming as theory building"
+  inherited_lessons:
+    - "Do not reconstruct the body; classify pixels and let geometry fall out of moments"
+    - "Ownership is a spatial rule, not an identity problem"
+    - "A hit is a temporal predicate over frames"
+    - "Every visible body dot must be a camera pixel"
+invariants:
+  I1: score monotone within a round
+  I2: one live round, round <= 3
+  I3: a contact run scores at most once per cooldown
+  I4: body rendering is a pure function of camera pixels
+  I5: only state-valid actions are visible
+construction_axis:
+  core_abstractions: [class map, Stat (moments), striking tip, contact, match phase, ceiling table L]
+  reusable_patterns: [single-pass classify-and-accumulate, covariance to orientation, frame-run debounce with cooldown, state-gated affordances, timestamped transients]
+migration_map:
+  - {from: pose skeleton, to: pixel class map + moments, reason: dependency weight and identity leakage across the split}
+  - {from: declared prop kind, to: aspect ratio per frame, reason: setup friction}
+  - {from: buttons, to: timed and occupancy-driven transitions, reason: fun pass}
+  - {from: two symmetric tips, to: striking tip away from wielder body, reason: butt-end and own-arm hits}
+risk_axis:
+  formal_risks: [own-arm hits across split, edge-on shield reads as saber, hue collision with clothing]
+  mitigation_levers: [synthetic-blob property tests (in this file), striking-tip selection, codec fallback, tap-to-start toggle]
+signature_construction_ecology:
+  elegance_logic: "kind is not stored; it is a property of shape. Ownership is not stored; it is a property of place."
+  interface_logic: "tap the thing in the picture to teach the system the thing"
+  intervention_logic: "a $0 arcade cabinet: phone, mat, pool noodles"
+tagline: "#pixel-class-map #moment-geometry #mat-is-the-rule #debounced-touch #camera-only-bodies #single-file-arena"
+
+FORMAL_ECHO: >
+  Build a camera-refereed duel where the only model of a body is a set of foreground pixels and the only model of a prop is a hue.
+  Accumulate moments per class in one pass so orientation, length and kind fall out of a 2x2 covariance, never from stored configuration.
+  Make ownership a half-plane over the mat and contact a predicate on a window around the striking tip.
+  Hold the invariants; prove them with painted blobs, then play under bad light.
+  Push setup toward zero and make every event audible, including blocks.
+</script>
+</body>
+</html>
