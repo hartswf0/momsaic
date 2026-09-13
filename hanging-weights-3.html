@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>hanging weights</title>
+<style>
+  :root{--ink:#e6dfd1;--dim:rgba(230,223,209,.45);--rule:rgba(230,223,209,.18);
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:#0d0d0f;overflow:hidden;
+    font-family:var(--mono);color:var(--ink);font-size:16px}
+  canvas{display:block;position:fixed;top:0;left:0;touch-action:none}
+  .top{position:fixed;top:0;left:0;right:0;z-index:5;pointer-events:none;
+    display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
+    padding:calc(5px + env(safe-area-inset-top)) 11px 0}
+  .title{font-size:9.5px;letter-spacing:.2em;margin:0;line-height:1.4}
+  .rd{font-size:8.5px;line-height:1.5;color:var(--dim);text-align:right;margin:0}
+  .rd b{color:var(--ink);font-weight:400}
+  .rd u{text-decoration:none;color:#e0a07a}
+  .dock{position:fixed;left:0;right:0;bottom:0;z-index:6;
+    padding:5px 9px calc(5px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,rgba(10,10,12,.94) 58%,rgba(10,10,12,0))}
+  .sub{font-size:8.5px;color:var(--dim);line-height:1.5;padding:0 2px 5px}
+  .bar{display:flex;gap:5px}
+  .bar button{flex:1}
+  button{font:inherit;font-size:9px;letter-spacing:.06em;color:var(--ink);background:none;
+    border:1px solid var(--rule);padding:8px 2px;cursor:pointer;display:flex;
+    align-items:center;justify-content:center;gap:4px;min-height:34px}
+  button:active{background:rgba(230,223,209,.12)}
+  button[aria-pressed=true]{background:var(--ink);color:#0d0d0f;border-color:var(--ink)}
+  button:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
+  button svg{width:11px;height:11px;flex:none}
+  button svg *{stroke:currentColor;fill:none;stroke-width:1.3;stroke-linecap:round}
+  .drawer{max-height:0;overflow:hidden;transition:max-height .22s ease}
+  .drawer.open{max-height:380px}
+  .drawer .inner{padding:7px 2px 6px;display:flex;flex-direction:column;gap:6px}
+  .sl{display:flex;align-items:center;gap:8px}
+  .sl label{font-size:8.5px;letter-spacing:.1em;color:var(--dim);width:4.2em;flex:none}
+  .sl output{font-size:8.5px;color:var(--dim);width:2.6em;text-align:right;flex:none}
+  input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:22px;background:none}
+  input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--rule)}
+  input[type=range]::-moz-range-track{height:1px;background:var(--rule)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+    margin-top:-6px;border-radius:50%;background:var(--ink)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:var(--ink)}
+  body.light{--ink:#22201c;--dim:rgba(34,32,28,.52);--rule:rgba(34,32,28,.2)}
+  body.light .dock{background:linear-gradient(to top,rgba(238,234,226,.94) 58%,rgba(238,234,226,0))}
+  body.light button[aria-pressed=true]{color:#eeeae2}
+  button[disabled],input[disabled]{opacity:.3;pointer-events:none}
+  .sl.off label,.sl.off output{opacity:.3}
+  .sub:empty{display:none}
+  @media (min-width:700px){.bar button{flex:0 0 auto;padding:9px 14px}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="top">
+  <p class="title" id="ttl">cascade</p>
+  <p class="rd" id="rd"></p>
+</div>
+<div class="dock">
+  <p class="sub" id="sub"></p>
+  <div class="drawer" id="drawer"><div class="inner">
+    <div class="sl"><label for="breeze">breeze</label>
+      <input id="breeze" type="range" min="0" max="2" step="0.02" value="0.40"><output id="breezev">0.40</output></div>
+    <div class="sl"><label for="seep">seep</label>
+      <input id="seep" type="range" min="0.1" max="2" step="0.02" value="0.8"><output id="seepv">0.80</output></div>
+    <div class="sl"><label for="load">load</label>
+      <input id="load" type="range" min="0.2" max="3" step="0.02" value="1"><output id="loadv">1.00</output></div>
+    <div class="sl"><label for="slack">slack</label>
+      <input id="slack" type="range" min="1.06" max="1.9" step="0.01" value="1.34"><output id="slackv">1.34</output></div>
+    <div class="sl"><label for="vol">volume</label>
+      <input id="vol" type="range" min="0" max="1" step="0.01" value="0.6"><output id="volv">.60</output></div>
+    <div class="bar">
+      <button id="tilt" aria-pressed="false">tilt</button>
+      <button id="haptics" aria-pressed="false">haptics</button>
+      <button id="voice">voice: stone</button>
+    </div>
+    <div class="bar">
+      <button id="resample">resample</button>
+      <button id="turn" aria-pressed="false">turn over</button>
+      <button id="rebuild">rebuild</button>
+    </div>
+  </div></div>
+  <div class="bar">
+    <button id="mode">
+      <span id="modelabel">chime</span></button>
+    <button id="sound" aria-pressed="false">
+      sound</button>
+    <button id="gust">
+      gust</button>
+    <button id="more" aria-pressed="false">
+      more</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =============================================================================
+   THEORY OF THE PROGRAM
+
+   The activity being modelled is not drawing. It is hanging, waiting, and
+   reading. A person fixes anchors to a board, strings a net, hangs lead, and
+   lets the field resolve a form nobody drew. The program is that field plus
+   two instruments for reading what it resolves: one visual, one audible.
+
+   Modules own one part of the theory each:
+     FIELD   the environment: gravity direction, wind, turbulence
+     MATTER  nodes and links; the only mutable physical state
+     SCORE   everything fixed before settling; compiles into MATTER
+     SOLVER  integrate, relax, contact. Touches MATTER and FIELD only.
+     MEASURE bounds, invariants, verification
+     FRAME   the relation between world extent and visible screen band
+     STAGE   three.js representation of MATTER
+     SENSE   voices; reads motion only, never intent
+     HAND    the person's reach into MATTER
+
+   Invariants the code is answerable to:
+     I1  after relax, no link exceeds its rest length beyond tolerance
+     I2  fixed nodes never move
+     I3  resample conserves total load
+     I4  framing is a fixpoint: measured projection error tends to zero
+     I5  gravity is a unit direction times a positive magnitude; sign lives
+         in exactly one place
+     I6  no voice without a physical cause in the same frame
+   ========================================================================== */
+(function(){
+"use strict";
+
+/* ========================================================== FIELD
+   The environment acting on matter. Gravity is a unit direction (aim) times a
+   positive magnitude (pull) — I5. Wind is a vector; each node catches it
+   differently, which is what makes bodies move relative to one another, which
+   is what makes a chime possible at all. */
+var FIELD={
+  /* The phone is the box the model hangs in. Three different things happen to
+     a box you hold, and only one of them is tilt:
+       tilt        — gravity rotates relative to the box
+       carrying    — the box accelerates, so everything in it feels -A
+       twisting    — the box rotates, so everything in it feels centrifugal,
+                     Coriolis and Euler terms
+     Treating all three as "rotate gravity" is what made it feel fake. The
+     accelerometer reports gravity plus linear acceleration summed together;
+     a low pass separates them, and each half does its own job. */
+  pull:0.0060,                       // magnitude only, always positive (I5)
+  aim:{x:0,y:-1,z:0},                // unit direction, the only source of sign
+  wind:{x:0,z:0},
+  breeze:0.40, gust:{x:0,z:0}, shake:0, tilt:false, inertial:false,
+  want:{x:0,y:-1,z:0},
+  gDev:{x:0,y:-9.81,z:0},            // low-passed gravity, device frame
+  linDev:{x:0,y:0,z:0},              // what is left: linear acceleration
+  rotDev:{x:0,y:0,z:0},              // rad/s, device frame
+  rotPrev:{x:0,y:0,z:0},
+  rotDot:{x:0,y:0,z:0},
+  A:{x:0,y:0,z:0},                   // -linear acceleration, model frame, per step^2
+  W:{x:0,y:0,z:0},                   // angular velocity, model frame, rad/step
+  Wd:{x:0,y:0,z:0},                  // angular acceleration, rad/step^2
+  K:0.0060/9.81,                     // world units per (m/s^2), fixed to gravity
+  DT:1/60,
+  bx:{x:1,y:0,z:0},by:{x:0,y:1,z:0},bz:{x:0,y:0,z:-1},
+  basis:function(){
+    var az=FRAME.az,el=FRAME.el;
+    var fx=-Math.cos(el)*Math.sin(az),fy=-Math.sin(el),fz=-Math.cos(el)*Math.cos(az);
+    var rx=-fz,rz=fx,rl=Math.sqrt(rx*rx+rz*rz)||1; rx/=rl; rz/=rl;
+    this.bz.x=fx; this.bz.y=fy; this.bz.z=fz;
+    this.bx.x=rx; this.bx.y=0;  this.bx.z=rz;
+    this.by.x=-rz*fy; this.by.y=rz*fx-rx*fz; this.by.z=rx*fy;
+  },
+  // a device-frame vector into model space: device z points out of the screen
+  toModel:function(dx,dy,dz,out){
+    out.x=this.bx.x*dx+this.by.x*dy-this.bz.x*dz;
+    out.y=this.bx.y*dx+this.by.y*dy-this.bz.y*dz;
+    out.z=this.bx.z*dx+this.by.z*dy-this.bz.z*dz;
+    if(flip>0.5){ out.y=-out.y; out.z=-out.z; }
+    return out;
+  },
+  wave:function(t,p){
+    return 0.42*Math.sin(t*0.31+p)+0.24*Math.sin(t*0.77+1.2+p)
+          +0.16*Math.sin(t*1.63+2.4+p)+0.24*Math.sin(t*4.31+0.6+p)
+          +0.16*Math.sin(t*6.91+2.0+p);
+  },
+  step:function(t){
+    var amp=0.0042*this.breeze*(1+this.shake*2.2);
+    this.wind.x=this.wave(t,0)*amp+this.gust.x;
+    this.wind.z=this.wave(t*0.93,4.1)*amp+this.gust.z;
+    this.gust.x*=0.94; this.gust.z*=0.94; this.shake*=0.97;
+
+    if(this.tilt){
+      this.basis();
+      var g=this.gDev,m=Math.sqrt(g.x*g.x+g.y*g.y+g.z*g.z)||1;
+      this.toModel(-g.x/m,-g.y/m,-g.z/m,this.want);
+      var dt=this.DT;
+      this.toModel(-this.linDev.x*this.K,-this.linDev.y*this.K,-this.linDev.z*this.K,this.A);
+      this.toModel(this.rotDev.x*dt,this.rotDev.y*dt,this.rotDev.z*dt,this.W);
+      this.toModel(this.rotDot.x*dt*dt,this.rotDot.y*dt*dt,this.rotDot.z*dt*dt,this.Wd);
+      this.inertial=true;
+    } else {
+      this.want.x=0; this.want.y=-1; this.want.z=0;
+      this.A.x=this.A.y=this.A.z=0;
+      this.W.x=this.W.y=this.W.z=0;
+      this.Wd.x=this.Wd.y=this.Wd.z=0;
+      this.inertial=false;
+    }
+    var a=this.aim,w=this.want,k=this.tilt?0.30:0.08;
+    a.x+=(w.x-a.x)*k; a.y+=(w.y-a.y)*k; a.z+=(w.z-a.z)*k;
+    var L=Math.sqrt(a.x*a.x+a.y*a.y+a.z*a.z)||1;
+    a.x/=L; a.y/=L; a.z/=L;          // renormalise: I5 holds every frame
+  },
+  blow:function(){
+    var a=Math.random()*Math.PI*2,s=0.0085*(0.6+this.breeze);
+    this.gust.x=Math.cos(a)*s; this.gust.z=Math.sin(a)*s;
+  },
+  // how far the box is off plumb, in degrees — used to decide whether to say so
+  offPlumb:function(){
+    return Math.acos(Math.max(-1,Math.min(1,-this.aim.y)))*180/Math.PI;
+  }
+};
+
+/*<<<CORE*/
+/* ========================================================== MATTER
+   Nodes carry position and prior position (velocity is implied, never stored).
+   Links are one-sided: a string pulls and never pushes. `fixed` nodes have zero
+   inverse mass, which is how I2 is enforced rather than checked. */
+var node={x:[],y:[],z:[],x0:[],y0:[],z0:[],mass:[],load:[],iw:[],fixed:[],
+          area:[],vary:[]};
+var link={a:[],b:[],rest:[]};
+var hung={at:[],base:[],mul:[]};     // loads: which node, how much, times what
+var Ncount=0,Lcount=0,Hcount=0,loadBudget=1;
+
+function addNode(x,y,z,m,fixed,area){
+  node.x.push(x); node.y.push(y); node.z.push(z);
+  node.x0.push(x); node.y0.push(y); node.z0.push(z);
+  node.mass.push(m); node.load.push(0); node.iw.push(0);
+  node.fixed.push(fixed?1:0);
+  node.area.push(area===undefined?0.10:area);
+  node.vary.push(0.55+Math.random()*0.95);   // no two things catch wind alike
+  return node.x.length-1;
+}
+function addLink(a,b,rest){ link.a.push(a); link.b.push(b); link.rest.push(rest); }
+function span(a,b){
+  var dx=node.x[b]-node.x[a],dy=node.y[b]-node.y[a],dz=node.z[b]-node.z[a];
+  return Math.sqrt(dx*dx+dy*dy+dz*dz);
+}
+function hang(at,base){ hung.at.push(at); hung.base.push(base); hung.mul.push(1); }
+
+// a run of string between two existing nodes, given more length than the gap
+function chain(a,b,n,slack,segMass,area){
+  var d=span(a,b),seg=d*slack/n,sag=d*(slack-1)*0.85,ids=[a],i,t;
+  for(i=1;i<n;i++){ t=i/n;
+    ids.push(addNode(node.x[a]+(node.x[b]-node.x[a])*t,
+                     node.y[a]+(node.y[b]-node.y[a])*t-sag*Math.sin(Math.PI*t),
+                     node.z[a]+(node.z[b]-node.z[a])*t,segMass,false,area)); }
+  ids.push(b);
+  for(i=0;i<n;i++) addLink(ids[i],ids[i+1],seg);
+  return ids;
+}
+// a run of string hanging straight down from one node
+function strand(a,len,n,segMass,area){
+  var seg=len/n,ids=[a],i;
+  for(i=1;i<=n;i++) ids.push(addNode(node.x[a],node.y[a]-seg*i,node.z[a],segMass,false,area));
+  for(i=0;i<n;i++) addLink(ids[i],ids[i+1],seg);
+  return ids;
+}
+
+/* ========================================================== SCORE
+   Everything fixed before the field is allowed to act. Two scores share one
+   solver. Anything here is specification; anything the solver produces is
+   realization. The distinction is the whole point: resample redraws the free
+   variables and leaves the score alone. */
+var SCORE={
+  kind:'cascade',
+  slack:1.34,
+  loadScale:1.0,
+  seep:0.8,                                            // how fast the rock gives water
+  tuning:[220.00,261.63,293.66,329.63,392.00,440.00],   // A C D E G A
+  // the plan narrows as it descends: a wide ceiling grid drawn to a point
+  plan:[{nx:4,nz:4,sx:1.70,sz:1.28,y: 0.00},
+        {nx:4,nz:4,sx:1.48,sz:1.12,y:-1.00},
+        {nx:3,nz:3,sx:1.16,sz:0.87,y:-1.92},
+        {nx:3,nz:3,sx:0.82,sz:0.62,y:-2.76},
+        {nx:2,nz:2,sx:0.46,sz:0.34,y:-3.48},
+        {nx:1,nz:1,sx:0.00,sz:0.00,y:-4.14}]
+};
+var tiers=[],tubes=[],clapper=-1,sail=-1;
+var stalac=[],stalag=[],drips=[],FLOOR=-4.20;
+var onStone=null,onSplash=null;                        // hooks: sound belongs outside
+
+function clearMatter(){
+  node={x:[],y:[],z:[],x0:[],y0:[],z0:[],mass:[],load:[],iw:[],fixed:[],area:[],vary:[]};
+  link={a:[],b:[],rest:[]};
+  hung={at:[],base:[],mul:[]};
+  tiers=[];tubes=[];clapper=-1;sail=-1;
+  stalac=[];stalag=[];drips=[];
+}
+// load a point is asked to carry: heaviest over the middle of the vault
+function loadField(x,z){
+  var r=Math.sqrt((x*x)/2.9+(z*z)/1.7);
+  return 0.40+0.90*Math.exp(-r*r*0.95);
+}
+
+function compileCascade(){
+  clearMatter();
+  var lv=[],k,i,j,c,L,nodes;
+  for(k=0;k<SCORE.plan.length;k++){
+    L=SCORE.plan[k]; nodes=[];
+    for(i=0;i<L.nx;i++) for(j=0;j<L.nz;j++){
+      var x=L.nx===1?0:(-L.sx+2*L.sx*i/(L.nx-1));
+      var z=L.nz===1?0:(-L.sz+2*L.sz*j/(L.nz-1));
+      nodes.push({id:addNode(x,L.y,z,0.05,k===0,0.08),x:x,z:z});
+    }
+    lv.push(nodes);
+  }
+  // every node is carried by the two nearest nodes of the tier above
+  for(k=1;k<lv.length;k++) for(i=0;i<lv[k].length;i++){
+    var n=lv[k][i],up=lv[k-1],order=[];
+    for(j=0;j<up.length;j++){
+      var dx=up[j].x-n.x,dz=up[j].z-n.z; order.push({j:j,d:dx*dx+dz*dz});
+    }
+    order.sort(function(p,q){return p.d-q.d;});
+    for(c=0;c<Math.min(2,order.length);c++) chain(up[order[c].j].id,n.id,4,1.05,0.028,0.06);
+  }
+  // within a tier, neighbours joined by a sagging garland
+  for(k=1;k<lv.length;k++){
+    L=SCORE.plan[k]; nodes=lv[k];
+    var cs=[],at=function(i,j){return nodes[i*L.nz+j];},a,b;
+    for(i=0;i<L.nx;i++) for(j=0;j<L.nz;j++){
+      if(i+1<L.nx){a=at(i,j).id;b=at(i+1,j).id;
+        cs.push({ids:chain(a,b,5,SCORE.slack,0.03,0.08),a:a,b:b});}
+      if(j+1<L.nz){a=at(i,j).id;b=at(i,j+1).id;
+        cs.push({ids:chain(a,b,5,SCORE.slack,0.03,0.08),a:a,b:b});}
+    }
+    tiers.push(cs);
+  }
+  // the drops: hung on the garlands, longer where the load is heavier
+  for(k=0;k<tiers.length;k++) for(i=0;i<tiers[k].length;i++){
+    var ids=tiers[k][i].ids;
+    for(j=1;j<ids.length-1;j++){
+      var nd=ids[j],f=loadField(node.x[nd],node.z[nd]);
+      hang(nd,0.075*f);
+      if(j%2===1){
+        var dp=strand(nd,0.26+0.80*f,3,0.022,0.14);
+        hang(dp[dp.length-1],0.42*f);
+      }
+    }
+  }
+  hang(lv[lv.length-1][0].id,0.85);      // the point where everything converges
+  seal();
+}
+
+function compileChime(){
+  clearMatter();
+  var R=0.34,T=SCORE.tuning,i,ang;
+  var hub=addNode(0,0,0,1,true,0);
+  for(i=0;i<T.length;i++){
+    ang=(i/T.length)*Math.PI*2;
+    var anchor=addNode(R*Math.cos(ang),0,R*Math.sin(ang),1,true,0);
+    var hangline=strand(anchor,0.45,2,0.05,0.05);
+    var top=hangline[hangline.length-1];
+    var len=0.95*Math.sqrt(440/T[i]);     // long tube, low note
+    // tubes barely catch wind: if they blew like the sail nothing would strike
+    var tube=strand(top,len,3,0.30,0.06);
+    tubes.push({top:top,nodes:tube,bot:tube[tube.length-1],f:T[i],len:len,last:0,glow:0});
+  }
+  var cl=strand(hub,1.00,4,0.16,0.05);
+  clapper=cl[cl.length-1]; node.mass[clapper]=0.62; node.area[clapper]=0.60;
+  var sl=strand(clapper,0.70,2,0.05,0.10);
+  sail=sl[sl.length-1]; node.mass[sail]=0.14; node.area[sail]=2.00;
+  seal();
+}
+function seal(){
+  Ncount=node.x.length; Lcount=link.a.length; Hcount=hung.at.length;
+  loadBudget=0; for(var i=0;i<Hcount;i++) loadBudget+=hung.base[i];
+}
+/* ---- the cave: the same field, no strings at all
+   Dripstone is not a funicular model. Nothing here hangs in tension; the rock
+   is finished growing and only the water still moves. A bead gathers at each
+   stalactite tip until its own weight takes it, falls as a free body through
+   whatever gravity and wind currently are, and either lands on the stalagmite
+   below it or misses. Tilting the phone is therefore how you play it: at 15
+   degrees a drop drifts about one stone across during its fall. */
+var MAXDRIP=32;
+function compileCave(){
+  clearMatter();
+  var T=[220.00,261.63,293.66,329.63,392.00,440.00,523.25],i,k;
+  // markers so the frame sees the whole room, not only the wet parts
+  for(i=0;i<2;i++) for(k=0;k<2;k++){
+    addNode((i?1.25:-1.25),0,(k?0.55:-0.55),1,true,0);
+    addNode((i?1.25:-1.25),FLOOR,(k?0.55:-0.55),1,true,0);
+  }
+  for(i=0;i<T.length;i++){
+    var t=i/(T.length-1);
+    var x=-1.05+2.10*t, z=-0.09+0.18*Math.sin(Math.PI*t);
+    var h=0.35+0.85*Math.sqrt(440/T[i]);               // taller stone, lower note
+    var tipY=-1.20-0.10*Math.sin(i*1.7);
+    stalac.push({x:x,z:z,tip:tipY,len:-tipY,charge:Math.random(),
+                 rate:0.006+0.010*Math.random(),
+                 node:addNode(x,tipY,z,1,true,0)});
+    stalag.push({x:x,z:z,top:FLOOR+h,h:h,f:T[i],glow:0,last:0,
+                 node:addNode(x,FLOOR+h,z,1,true,0)});
+  }
+  for(i=0;i<MAXDRIP;i++)
+    drips.push({n:addNode(0,-0.6,0,0.02,true,0.60),live:0,from:0,py:0});
+  seal();
+}
+function compile(){
+  if(SCORE.kind==='chime') compileChime();
+  else if(SCORE.kind==='cave') compileCave();
+  else compileCascade();
+}
+
+function freeDrip(){ for(var i=0;i<drips.length;i++) if(!drips[i].live) return i; return -1; }
+function spawnDrip(k,from){
+  var d=drips[k],n=d.n,st=stalac[from];
+  node.x[n]=st.x+(Math.random()-0.5)*0.012;
+  node.y[n]=st.tip;
+  node.z[n]=st.z+(Math.random()-0.5)*0.012;
+  node.x0[n]=node.x[n]; node.y0[n]=node.y[n]+0.0004; node.z0[n]=node.z[n];
+  node.fixed[n]=0; node.iw[n]=1/node.mass[n];
+  d.live=1; d.from=from; d.py=node.y[n];
+}
+function parkDrip(k){
+  var d=drips[k],n=d.n;
+  node.fixed[n]=1; node.iw[n]=0;
+  node.x[n]=0; node.y[n]=-0.6; node.z[n]=0;
+  node.x0[n]=0; node.y0[n]=-0.6; node.z0[n]=0;
+  d.live=0;
+}
+function caveStep(){
+  var i,k,d,n,st,sg,y,dx,dz,v;
+  for(i=0;i<stalac.length;i++){
+    st=stalac[i];
+    st.charge+=SCORE.seep*st.rate;
+    if(st.charge>=1){
+      st.charge=0;
+      k=freeDrip();
+      if(k>=0) spawnDrip(k,i);
+    }
+  }
+  for(k=0;k<drips.length;k++){
+    d=drips[k]; if(!d.live) continue;
+    n=d.n; y=node.y[n];
+    for(i=0;i<stalag.length;i++){
+      sg=stalag[i];
+      if(d.py>=sg.top&&y<sg.top){
+        dx=node.x[n]-sg.x; dz=node.z[n]-sg.z;
+        if(dx*dx+dz*dz<0.0324){                        // an 0.18 target
+          v=Math.abs(y-d.py);
+          sg.glow=1; sg.last=v;
+          if(onStone) onStone(i,Math.min(1,v*5.2));
+          parkDrip(k);
+          break;
+        }
+      }
+    }
+    if(!d.live) continue;
+    if(y<FLOOR){
+      if(onSplash) onSplash(node.x[n],node.z[n],Math.min(1,Math.abs(y-d.py)*4.4));
+      parkDrip(k); continue;
+    }
+    d.py=y;
+  }
+}
+
+// loads resolve into inverse mass; held nodes are momentarily immovable
+var held=-1;
+function resolveLoads(){
+  var i;
+  for(i=0;i<Ncount;i++) node.load[i]=0;
+  for(i=0;i<Hcount;i++) node.load[hung.at[i]]+=hung.base[i]*hung.mul[i]*SCORE.loadScale;
+  for(i=0;i<Ncount;i++) node.iw[i]=node.fixed[i]?0:1/(node.mass[i]+node.load[i]);
+  if(held>=0) node.iw[held]=0;
+}
+
+/* ========================================================== SOLVER
+   Integrate under the field, then relax the links. A link is projected only
+   when stretched, which is what makes it a string rather than a rod (I1). Mass
+   enters only through the inverse-mass split, which is correct for uniform
+   gravity: a heavy bag does not fall faster, it pulls the line harder. */
+var DAMP=0.986,ITER=34,FCAP=0.010;   // fictitious force ceiling, about 1.7 g
+/* A hard flick of the wrist is roughly 1.5 g and passes under the ceiling
+   untouched; anything past it is a phone being thrown about, and clipping it
+   is cheaper than letting the strings tear. Relaxation also buys more passes
+   while the frame is moving hard, since that is exactly when the constraint
+   residual grows. */
+var ITER_MAX=64;
+/* I1 is not free. Gauss-Seidel relaxation leaves residual stretch that falls
+   roughly as 1/ITER, and the measured rise:span moves with it (1.74 at 20
+   iterations, 1.60 at 110). So the string is compliant, not inextensible, and
+   the compliance is declared rather than hidden. EPS is the budget at ITER 34. */
+var EPS=0.045;
+function stepPhysics(){
+  var i,c,a,b,dx,dy,dz,d,wa,wb,sw,f,vx,vy,vz;
+  var x=node.x,y=node.y,z=node.z,x0=node.x0,y0=node.y0,z0=node.z0;
+  var iw=node.iw,fx=node.fixed,ar=node.area,vr=node.vary;
+  var gx=FIELD.pull*FIELD.aim.x,gy=FIELD.pull*FIELD.aim.y,gz=FIELD.pull*FIELD.aim.z;
+  var wx=FIELD.wind.x,wz=FIELD.wind.z;
+  var inert=FIELD.inertial,A=FIELD.A,W=FIELD.W,Wd=FIELD.Wd;
+  var ox=W.x,oy=W.y,oz=W.z,o2=ox*ox+oy*oy+oz*oz;
+  var rx,ry,rz,orr,cx,cy,cz,kx,ky,kz,ex,ey,ez,fxx,fyy,fzz,fl,sc;
+  for(i=0;i<Ncount;i++){
+    if(fx[i]||iw[i]===0) continue;
+    vx=(x[i]-x0[i])*DAMP; vy=(y[i]-y0[i])*DAMP; vz=(z[i]-z0[i])*DAMP;
+    x0[i]=x[i]; y0[i]=y[i]; z0[i]=z[i];
+    x[i]+=vx+gx+wx*ar[i]*vr[i];
+    y[i]+=vy+gy;
+    z[i]+=vz+gz+wz*ar[i]*vr[i];
+    if(inert){
+      // everything in a box that is being carried and turned feels
+      //   -A  +  [r|w|^2 - w(w.r)]  -  2 w×v  -  dw/dt × r
+      rx=x[i]; ry=y[i]; rz=z[i];
+      orr=ox*rx+oy*ry+oz*rz;
+      cx=rx*o2-ox*orr; cy=ry*o2-oy*orr; cz=rz*o2-oz*orr;      // centrifugal
+      kx=-2*(oy*vz-oz*vy); ky=-2*(oz*vx-ox*vz); kz=-2*(ox*vy-oy*vx);  // Coriolis
+      ex=-(Wd.y*rz-Wd.z*ry); ey=-(Wd.z*rx-Wd.x*rz); ez=-(Wd.x*ry-Wd.y*rx); // Euler
+      fxx=A.x+cx+kx+ex; fyy=A.y+cy+ky+ey; fzz=A.z+cz+kz+ez;
+      fl=Math.sqrt(fxx*fxx+fyy*fyy+fzz*fzz);
+      if(fl>FCAP){ sc=FCAP/fl; fxx*=sc; fyy*=sc; fzz*=sc; }
+      x[i]+=fxx; y[i]+=fyy; z[i]+=fzz;
+    }
+  }
+  var la=link.a,lb=link.b,lr=link.rest;
+  var passes=ITER;
+  if(inert){
+    var fm=Math.sqrt(A.x*A.x+A.y*A.y+A.z*A.z)+o2*2;
+    if(fm>FCAP*0.4) passes=Math.min(ITER_MAX,Math.round(ITER*(1+fm/FCAP)));
+  }
+  for(var it=0;it<passes;it++){
+    for(c=0;c<Lcount;c++){
+      a=la[c]; b=lb[c];
+      dx=x[b]-x[a]; dy=y[b]-y[a]; dz=z[b]-z[a];
+      d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+      if(d<=lr[c]||d<1e-9) continue;          // pulls, never pushes
+      wa=iw[a]; wb=iw[b]; sw=wa+wb; if(sw===0) continue;
+      f=(d-lr[c])/(d*sw); dx*=f; dy*=f; dz*=f;
+      x[a]+=dx*wa; y[a]+=dy*wa; z[a]+=dz*wa;
+      x[b]-=dx*wb; y[b]-=dy*wb; z[b]-=dz*wb;
+    }
+  }
+}
+function settle(n){ for(var i=0;i<n;i++) stepPhysics(); }
+function speed(i){
+  var dx=node.x[i]-node.x0[i],dy=node.y[i]-node.y0[i],dz=node.z[i]-node.z0[i];
+  return Math.sqrt(dx*dx+dy*dy+dz*dz);
+}
+
+/* ========================================================== MEASURE
+   Bounds feed the frame. Invariants are checked, not assumed: I1 and I3 are
+   computed each second and reported when they drift. */
+function bounds(){
+  var i,r={x0:1e9,x1:-1e9,y0:1e9,y1:-1e9,z0:1e9,z1:-1e9};
+  for(i=0;i<Ncount;i++){
+    if(node.x[i]<r.x0)r.x0=node.x[i]; if(node.x[i]>r.x1)r.x1=node.x[i];
+    if(node.y[i]<r.y0)r.y0=node.y[i]; if(node.y[i]>r.y1)r.y1=node.y[i];
+    if(node.z[i]<r.z0)r.z0=node.z[i]; if(node.z[i]>r.z1)r.z1=node.z[i];
+  }
+  return r;
+}
+function verify(){
+  var c,a,b,dx,dy,dz,d,worst=0,i,total=0;
+  for(c=0;c<Lcount;c++){
+    a=link.a[c]; b=link.b[c];
+    dx=node.x[b]-node.x[a]; dy=node.y[b]-node.y[a]; dz=node.z[b]-node.z[a];
+    d=Math.sqrt(dx*dx+dy*dy+dz*dz)-link.rest[c];
+    if(d>worst) worst=d;                                   // I1
+  }
+  for(i=0;i<Hcount;i++) total+=hung.base[i]*hung.mul[i];    // I3
+  return {stretch:worst,load:total,budget:loadBudget};
+}
+function invariants(){
+  var r=bounds(),i,load=0,mn=1e9,mx=-1e9,v;
+  for(i=0;i<Hcount;i++){
+    load+=hung.base[i]*hung.mul[i]*SCORE.loadScale;
+    v=hung.base[i]*hung.mul[i];
+    if(v<mn)mn=v; if(v>mx)mx=v;
+  }
+  return {rise:r.y1-r.y0,span:r.x1-r.x0,
+          ratio:(r.y1-r.y0)/Math.max(r.x1-r.x0,1e-6),
+          load:load,spread:mx/Math.max(mn,1e-6)};
+}
+// same score, different realization: redraw the free variables under fixed sum
+function resample(){
+  var i,sum=0;
+  for(i=0;i<Hcount;i++){
+    hung.mul[i]=0.35+Math.pow(Math.random(),1.6)*3.2;
+    sum+=hung.base[i]*hung.mul[i];
+  }
+  var k=loadBudget/Math.max(sum,1e-6);
+  for(i=0;i<Hcount;i++) hung.mul[i]*=k;                    // I3 by construction
+  resolveLoads(); settle(70);
+}
+/*CORE>>>*/
+
+/* ========================================================== STAGE */
+var canvas=document.getElementById('c');
+var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+var scene=new THREE.Scene();
+var camera=new THREE.PerspectiveCamera(38,1,0.05,300);
+var world=new THREE.Group(); scene.add(world);
+var hemi=new THREE.HemisphereLight(0xffffff,0x2a2723,0.8); scene.add(hemi);
+var keyL=new THREE.DirectionalLight(0xfff4e2,0.95); keyL.position.set(4,6,5); scene.add(keyL);
+var fillL=new THREE.DirectionalLight(0x9fb4c8,0.3); fillL.position.set(-5,-2,-4); scene.add(fillL);
+var DARK=new THREE.Color(0x0d0d0f),PALE=new THREE.Color(0xeeeae2);
+var STR_D=new THREE.Color(0xd8cdb6),STR_L=new THREE.Color(0x3b362e);
+var DRP_D=new THREE.Color(0xd3c2a0),DRP_L=new THREE.Color(0xf3efe7);
+var WAT_D=new THREE.Color(0xbcd9e8),WAT_L=new THREE.Color(0x8fb6cc);
+var STN_D=new THREE.Color(0x9a9186),STN_L=new THREE.Color(0xbdb4a6);
+var MET_D=new THREE.Color(0xb9c2c6),MET_L=new THREE.Color(0x8d949a);
+scene.background=DARK.clone();
+scene.fog=new THREE.Fog(DARK.clone(),9,30);
+
+var lineMesh,dropMesh,tubeMesh,clapMesh,sailMesh,plateMesh,linePos,plumbMesh,plumbPos,stoneMesh,stoneMat;
+var strMat,dropMat,tubeMat,clapMat;
+// a pendant drop: pinched to a point where it meets the string, widest just
+// past halfway, round at the bottom. A bag is the opposite shape.
+function dropGeometry(){
+  var pts=[],i,t,r,u,H=0.26,R=0.058,tc=0.55;
+  for(i=0;i<=20;i++){
+    t=i/20;
+    if(t<=tc) r=R*Math.pow(Math.sin((t/tc)*Math.PI/2),1.55);
+    else{ u=(t-tc)/(1-tc); r=R*Math.sqrt(Math.max(0,1-u*u)); }
+    pts.push(new THREE.Vector2(Math.max(r,0.0015),-t*H));
+  }
+  return new THREE.LatheGeometry(pts,12);
+}
+function buildStage(){
+  while(world.children.length){
+    var o=world.children[0];
+    if(o.geometry)o.geometry.dispose(); if(o.material)o.material.dispose();
+    world.remove(o);
+  }
+  dropMesh=tubeMesh=clapMesh=sailMesh=plateMesh=stoneMesh=null;
+  stoneMat=null; dropMat=null; tubeMat=null; clapMat=null;
+  linePos=new Float32Array(Lcount*6);
+  var g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(linePos,3));
+  strMat=new THREE.LineBasicMaterial({color:STR_D.clone(),transparent:true,opacity:0.5});
+  lineMesh=new THREE.LineSegments(g,strMat); lineMesh.frustumCulled=false; world.add(lineMesh);
+
+  if(SCORE.kind==='cascade'){
+    dropMat=new THREE.MeshStandardMaterial({color:DRP_D.clone(),roughness:0.33,metalness:0.05});
+    dropMesh=new THREE.InstancedMesh(dropGeometry(),dropMat,Math.max(Hcount,1));
+    dropMesh.frustumCulled=false;
+    dropMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    world.add(dropMesh);
+    var L0=SCORE.plan[0],ag=new THREE.BufferGeometry(),av=[],d=0.06,i,j;
+    for(i=0;i<L0.nx;i++) for(j=0;j<L0.nz;j++){
+      var x=-L0.sx+2*L0.sx*i/(L0.nx-1),z=-L0.sz+2*L0.sz*j/(L0.nz-1);
+      av.push(x-d,0,z,x+d,0,z, x,0,z-d,x,0,z+d);
+    }
+    ag.setAttribute('position',new THREE.Float32BufferAttribute(av,3));
+    plateMesh=new THREE.LineSegments(ag,new THREE.LineBasicMaterial(
+      {color:STR_D.clone(),transparent:true,opacity:0.45}));
+    world.add(plateMesh);
+  } else if(SCORE.kind==='cave'){
+    // water, not lead: the same drop geometry, read wet
+    dropMat=new THREE.MeshStandardMaterial({color:WAT_D.clone(),roughness:0.06,
+      metalness:0.0,transparent:true,opacity:0.92});
+    dropMesh=new THREE.InstancedMesh(dropGeometry(),dropMat,drips.length+stalac.length);
+    dropMesh.frustumCulled=false;
+    dropMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    world.add(dropMesh);
+    var cg=new THREE.ConeGeometry(1,1,7);
+    cg.translate(0,0.5,0);                       // base at the origin, tip at +1
+    stoneMat=new THREE.MeshStandardMaterial({color:STN_D.clone(),roughness:0.96,
+      metalness:0,flatShading:true});
+    stoneMesh=new THREE.InstancedMesh(cg,stoneMat,stalac.length+stalag.length);
+    stoneMesh.frustumCulled=false;
+    stoneMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    world.add(stoneMesh);
+    var fg=new THREE.BufferGeometry(),fv=[],ii;
+    for(ii=-6;ii<=6;ii++){ var tt=ii*0.21;
+      fv.push(-1.3,FLOOR,tt, 1.3,FLOOR,tt, tt*0.85,FLOOR,-0.62, tt*0.85,FLOOR,0.62); }
+    fg.setAttribute('position',new THREE.Float32BufferAttribute(fv,3));
+    plateMesh=new THREE.LineSegments(fg,new THREE.LineBasicMaterial(
+      {color:STR_D.clone(),transparent:true,opacity:0.16}));
+    world.add(plateMesh);
+  } else {
+    tubeMat=new THREE.MeshStandardMaterial({color:MET_D.clone(),roughness:0.28,metalness:0.85});
+    var tg=new THREE.CylinderGeometry(0.036,0.036,1,10,1,true);
+    tg.translate(0,-0.5,0);
+    tubeMesh=new THREE.InstancedMesh(tg,tubeMat,tubes.length);
+    tubeMesh.frustumCulled=false;
+    tubeMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    world.add(tubeMesh);
+    clapMat=new THREE.MeshStandardMaterial({color:DRP_D.clone(),roughness:0.7,metalness:0.1});
+    clapMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.17,0.17,0.045,24),clapMat);
+    world.add(clapMesh);
+    sailMesh=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.34,0.012),clapMat);
+    world.add(sailMesh);
+    plateMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.03,28),clapMat);
+    world.add(plateMesh);
+  }
+  var pg2=new THREE.BufferGeometry();
+  plumbPos=new Float32Array(6);
+  pg2.setAttribute('position',new THREE.BufferAttribute(plumbPos,3));
+  plumbMesh=new THREE.LineSegments(pg2,new THREE.LineBasicMaterial(
+    {color:0xe0a07a,transparent:true,opacity:0.85}));
+  plumbMesh.frustumCulled=false; plumbMesh.visible=false;
+  world.add(plumbMesh);
+}
+var _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_p=new THREE.Vector3(),
+    _s=new THREE.Vector3(),_dv=new THREE.Vector3(),_YA=new THREE.Vector3(0,1,0),
+    _XA=new THREE.Vector3(1,0,0);
+function syncStage(){
+  var c,a,b,i,o=0;
+  for(c=0;c<Lcount;c++){ a=link.a[c]; b=link.b[c];
+    linePos[o++]=node.x[a];linePos[o++]=node.y[a];linePos[o++]=node.z[a];
+    linePos[o++]=node.x[b];linePos[o++]=node.y[b];linePos[o++]=node.z[b]; }
+  lineMesh.geometry.attributes.position.needsUpdate=true;
+  if(SCORE.kind==='cascade'&&dropMesh){
+    for(i=0;i<Hcount;i++){
+      var n=hung.at[i],sc=Math.pow(hung.base[i]*hung.mul[i]/0.26,0.36);
+      _p.set(node.x[n],node.y[n],node.z[n]); _s.set(sc,sc,sc);
+      _m.compose(_p,_q,_s); dropMesh.setMatrixAt(i,_m);
+    }
+    dropMesh.instanceMatrix.needsUpdate=true;
+  } else if(SCORE.kind==='cave'&&dropMesh&&stoneMesh){
+    var nStal=stalac.length;
+    for(i=0;i<nStal;i++){
+      var sc2=stalac[i],rr=0.15+0.05*Math.sin(i*2.3);
+      _p.set(sc2.x,0,sc2.z);
+      _q.setFromAxisAngle(_XA,Math.PI);          // hang the cone from the roof
+      _s.set(rr,sc2.len,rr);
+      _m.compose(_p,_q,_s); stoneMesh.setMatrixAt(i,_m);
+    }
+    _q.identity();
+    for(i=0;i<stalag.length;i++){
+      var sg2=stalag[i],rg=0.17+0.05*Math.sin(i*1.7)+sg2.glow*0.02;
+      _p.set(sg2.x,FLOOR,sg2.z); _s.set(rg,sg2.h,rg);
+      _m.compose(_p,_q,_s); stoneMesh.setMatrixAt(nStal+i,_m);
+      sg2.glow*=0.90;
+    }
+    stoneMesh.instanceMatrix.needsUpdate=true;
+    for(i=0;i<drips.length;i++){
+      var dd=drips[i],sd=dd.live?0.62:0;
+      _p.set(node.x[dd.n],node.y[dd.n],node.z[dd.n]); _s.set(sd,sd,sd);
+      _m.compose(_p,_q,_s); dropMesh.setMatrixAt(i,_m);
+    }
+    for(i=0;i<nStal;i++){                        // the bead still gathering
+      var st2=stalac[i],sb=0.66*Math.pow(Math.max(st2.charge,0),0.6);
+      _p.set(st2.x,st2.tip+0.02,st2.z); _s.set(sb,sb,sb);
+      _m.compose(_p,_q,_s); dropMesh.setMatrixAt(drips.length+i,_m);
+    }
+    dropMesh.instanceMatrix.needsUpdate=true;
+  } else if(tubeMesh){
+    for(i=0;i<tubes.length;i++){
+      var t=tubes[i],tp=t.top,bt=t.bot;
+      _p.set(node.x[tp],node.y[tp],node.z[tp]);
+      _dv.set(node.x[bt]-node.x[tp],node.y[bt]-node.y[tp],node.z[bt]-node.z[tp]);
+      var len=_dv.length()||t.len;
+      _dv.divideScalar(len);
+      _q.setFromUnitVectors(_YA,_dv.negate());
+      var w=1+t.glow*0.10;
+      _s.set(w,len,w);
+      _m.compose(_p,_q,_s); tubeMesh.setMatrixAt(i,_m);
+      t.glow*=0.88;
+    }
+    tubeMesh.instanceMatrix.needsUpdate=true;
+    if(clapMesh&&clapper>=0) clapMesh.position.set(node.x[clapper],node.y[clapper],node.z[clapper]);
+    if(sailMesh&&sail>=0) sailMesh.position.set(node.x[sail],node.y[sail],node.z[sail]);
+  }
+  // a plumb line is a claim about now only once down has stopped being down
+  if(plumbMesh){
+    var off=FIELD.inertial&&FIELD.offPlumb()>3;
+    plumbMesh.visible=off;
+    if(off){
+      var g=FIELD.aim,r2=bounds(),len=Math.max(0.5,(r2.y1-r2.y0)*0.17);
+      plumbPos[0]=0;plumbPos[1]=0;plumbPos[2]=0;
+      plumbPos[3]=g.x*len;plumbPos[4]=g.y*len;plumbPos[5]=g.z*len;
+      plumbMesh.geometry.attributes.position.needsUpdate=true;
+    }
+  }
+}
+// inversion: the same object, reflected. Tension reads as compression.
+var flip=0,flipTarget=0;
+function applyFlip(){
+  world.rotation.x=Math.PI*flip;
+  var bg=DARK.clone().lerp(PALE,flip);
+  scene.background.copy(bg); scene.fog.color.copy(bg);
+  var sc=STR_D.clone().lerp(STR_L,flip);
+  if(strMat){strMat.color.copy(sc); strMat.opacity=0.50+0.26*flip;}
+  if(dropMat) dropMat.color.copy(DRP_D.clone().lerp(DRP_L,flip));
+  if(tubeMat) tubeMat.color.copy(MET_D.clone().lerp(MET_L,flip));
+  if(clapMat) clapMat.color.copy(DRP_D.clone().lerp(DRP_L,flip));
+  if(stoneMat) stoneMat.color.copy(STN_D.clone().lerp(STN_L,flip));
+  if(dropMat&&SCORE.kind==='cave') dropMat.color.copy(WAT_D.clone().lerp(WAT_L,flip));
+  hemi.intensity=0.80+0.50*flip; keyL.intensity=0.95+0.25*flip;
+  document.body.classList.toggle('light',flip>0.5);
+  SENSE.space();
+}
+
+/* ========================================================== FRAME
+   Open-loop framing was correct arithmetic and the wrong picture, with no way
+   to notice. So the frame is a controller: project the bounding box through the
+   real camera, measure the box that actually lands, and correct distance and
+   aim from that error until it is zero (I4). It also owns both the drawing
+   buffer and the CSS size, because a canvas with no CSS size lays out at its
+   intrinsic pixel size and silently pushes a centred render off-screen. */
+var FRAME={
+  az:0.55, el:0.10, zoom:1.0, dist:9, padTop:64, padBot:112,
+  target:new THREE.Vector3(),
+  _v:new THREE.Vector3(),_rt:new THREE.Vector3(),_up:new THREE.Vector3(),
+  _fw:new THREE.Vector3(),_Y:new THREE.Vector3(0,1,0),
+  measureChrome:function(){
+    var d=document.querySelector('.dock'),t=document.querySelector('.top');
+    if(d) this.padBot=d.offsetHeight+8;
+    if(t) this.padTop=t.offsetHeight+8;
+  },
+  aim:function(){
+    var r=this.dist;
+    camera.position.set(
+      this.target.x+r*Math.cos(this.el)*Math.sin(this.az),
+      this.target.y+r*Math.sin(this.el),
+      this.target.z+r*Math.cos(this.el)*Math.cos(this.az));
+    camera.lookAt(this.target);
+    camera.updateMatrixWorld(true);
+    // the renderer refreshes this, not the camera; the loop must not read stale
+    camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+  },
+  correct:function(k){
+    if(Ncount===0) return;
+    world.updateMatrixWorld(true);
+    this.aim();
+    var r=bounds(),xs=[r.x0,r.x1],ys=[r.y0,r.y1],zs=[r.z0,r.z1];
+    var minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9,a,b,c,near=false;
+    for(a=0;a<2;a++)for(b=0;b<2;b++)for(c=0;c<2;c++){
+      this._v.set(xs[a],ys[b],zs[c]).applyMatrix4(world.matrixWorld)
+             .applyMatrix4(camera.matrixWorldInverse);
+      if(this._v.z>-0.2){ near=true; break; }
+      this._v.applyMatrix4(camera.projectionMatrix);
+      if(this._v.x<minx)minx=this._v.x; if(this._v.x>maxx)maxx=this._v.x;
+      if(this._v.y<miny)miny=this._v.y; if(this._v.y>maxy)maxy=this._v.y;
+    }
+    if(near){ this.dist*=1.6; return; }
+    var H=window.innerHeight||800;
+    var yTop=1-2*this.padTop/H, yBot=-1+2*this.padBot/H;
+    var wantW=1.88/this.zoom, wantH=(yTop-yBot)/this.zoom;
+    var s=Math.max((maxx-minx)/wantW,(maxy-miny)/wantH);
+    this.dist=Math.max(1.2,Math.min(80,this.dist*(1+(s-1)*k)));
+    var ex=(minx+maxx)/2, ey=(miny+maxy)/2-(yTop+yBot)/2;
+    var tV=Math.tan(camera.fov*Math.PI/360),tH=tV*camera.aspect;
+    this._fw.set(-Math.cos(this.el)*Math.sin(this.az),-Math.sin(this.el),
+                 -Math.cos(this.el)*Math.cos(this.az)).normalize();
+    this._rt.crossVectors(this._fw,this._Y).normalize();
+    this._up.crossVectors(this._rt,this._fw).normalize();
+    this.target.addScaledVector(this._rt,ex*this.dist*tH*k);
+    this.target.addScaledVector(this._up,ey*this.dist*tV*k);
+  },
+  snap:function(){
+    if(Ncount===0) return;
+    var r=bounds();
+    world.updateMatrixWorld(true);
+    this.target.set((r.x0+r.x1)/2,(r.y0+r.y1)/2,(r.z0+r.z1)/2)
+               .applyMatrix4(world.matrixWorld);
+    this.dist=6;
+    for(var i=0;i<50;i++) this.correct(1.0);
+  },
+  parallax:function(){
+    if(!FIELD.inertial) return;
+    var dx=FIELD.aim.x,dy=FIELD.aim.y+1,dz=FIELD.aim.z;
+    var r=dx*this._rt.x+dy*this._rt.y+dz*this._rt.z;
+    var u=dx*this._up.x+dy*this._up.y+dz*this._up.z;
+    var k=this.dist*0.075;
+    camera.position.addScaledVector(this._rt,r*k);
+    camera.position.addScaledVector(this._up,u*k);
+    camera.lookAt(this.target);
+    camera.updateMatrixWorld(true);
+    camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+  },
+  resize:function(){
+    var w=window.innerWidth,h=window.innerHeight;
+    renderer.setSize(w,h);                 // buffer and CSS size together
+    camera.aspect=w/h; camera.updateProjectionMatrix();
+    this.measureChrome(); this.snap();
+  }
+};
+
+/* ========================================================== SENSE
+   Voices are events with physical causes (I6). A tube rings because something
+   struck it; a drop sounds because it swung faster than a measured threshold.
+   Nothing sounds on its own. A tube's timbre is inharmonic — 1 : 2.76 : 5.40 :
+   8.93 are the free-free bar modes — which is what makes it read as metal. */
+var SENSE={
+  ac:null,master:null,tone:null,comp:null,fb:null,noise:null,
+  on:false,vol:0.6,live:0,sounders:[],SPD:0.0028,
+  voice:'native',            // native | eno | jaar | radio
+  lastEno:0, jaarCount:0, tapeSrc:null, tapeGain:null,
+  /* Every strike in every score arrives here. What it becomes is the only
+     thing the voice setting changes: the physics above it is untouched. */
+  hit:function(kind,f,amp){
+    if(this.voice==='radio'){
+      if(!this.on) return;
+      RADIO.build();
+      var idx=(kind==='stone'||kind==='tube')?Math.round(f)%RADIO.bank.length
+                                             :Math.round(f/37)%RADIO.bank.length;
+      RADIO.hit(idx,amp);
+      return;
+    }
+    if(!this.on||!this.ac) return;
+    if(this.voice==='eno') return this.eno(f,amp);
+    if(this.voice==='jaar') return this.jaar(kind,f,amp);
+    if(kind==='tube') this.ring(f,amp);
+    else if(kind==='stone'){ this.stone(f,amp); this.droplet(f*3.1,amp*0.45); }
+    else if(kind==='drop') this.plink(f,amp);
+    else if(kind==='splash') this.droplet(f,amp);
+  },
+  /* ENO. The strike stops being an attack. Every event becomes a long tone
+     with a slow swell, snapped to one chord, and a hard gate on how often a
+     new one may start — the sparseness is the piece, not a side effect. */
+  ENOS:[138.59,155.56,174.61,207.65,233.08],      // Db Eb F Ab Bb
+  snapEno:function(f){
+    var best=this.ENOS[0],bd=1e9,i,k,c,d;
+    for(k=0;k<3;k++) for(i=0;i<this.ENOS.length;i++){
+      c=this.ENOS[i]*Math.pow(2,k);
+      d=Math.abs(Math.log(c/f));
+      if(d<bd){bd=d;best=c;}
+    }
+    return best;
+  },
+  eno:function(f,amp){
+    var ac=this.ac,t=ac.currentTime;
+    if(t-this.lastEno<0.62) return;
+    this.lastEno=t;
+    if(!this.budget()) return;
+    var p=this.snapEno(f),dur=6+Math.random()*8,i;
+    var bus=ac.createGain(); bus.gain.value=0.0001;
+    bus.gain.exponentialRampToValueAtTime(Math.min(1,0.35+amp*0.65)*0.085,t+0.9);
+    bus.gain.setValueAtTime(Math.min(1,0.35+amp*0.65)*0.085,t+dur*0.45);
+    bus.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    var lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1500; lp.Q.value=0.3;
+    bus.connect(lp); this.pan(lp).connect(this.master);
+    var det=[-3.5,0,4.5];
+    for(i=0;i<3;i++){
+      var o=ac.createOscillator(); o.type=i===2?'triangle':'sine';
+      o.frequency.value=p*(i===2?2:1);
+      o.detune.value=det[i];
+      var g=ac.createGain(); g.gain.value=i===2?0.22:0.5;
+      o.connect(g); g.connect(bus); o.start(t); o.stop(t+dur+0.2);
+    }
+    this.spend(Math.min(dur,4.5));
+  },
+  /* JAAR. Physics arrives whenever it arrives; this puts it on a grid before
+     letting it speak, with the offbeats pushed late. Space, sub, and a tape
+     bed underneath. The model keeps its own time; the music borrows one. */
+  jaar:function(kind,f,amp){
+    var ac=this.ac,now=ac.currentTime,G=60/108/4,sw;
+    var n=Math.ceil(now/G),t=n*G;
+    if(n%2) t+=G*0.19;                            // swing the offbeats
+    if(!this.budget()) return;
+    var bus=ac.createGain(); bus.gain.value=Math.min(1,amp);
+    this.pan(bus).connect(this.master);
+    this.jaarCount++;
+    if(kind==='tube'||kind==='stone'){
+      var bp=ac.createBiquadFilter(); bp.type='bandpass';
+      bp.frequency.setValueAtTime(420,t);
+      bp.frequency.exponentialRampToValueAtTime(180,t+0.22);
+      bp.Q.value=3.2; bp.connect(bus);
+      var g=ac.createGain();
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.30,t+0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.24);
+      g.connect(bp);
+      var base=f/2;
+      for(var i=0;i<2;i++){
+        var o=ac.createOscillator(); o.type='sawtooth';
+        o.frequency.value=base*(i?1.4983:1);      // a flat fifth, on purpose
+        o.detune.value=i?7:-6;
+        o.connect(g); o.start(t); o.stop(t+0.3);
+      }
+      this.spend(0.4);
+    } else if(kind==='splash'||this.jaarCount%7===0){
+      var so=ac.createOscillator(); so.type='sine';
+      so.frequency.setValueAtTime(64,t);
+      so.frequency.exponentialRampToValueAtTime(37,t+0.20);
+      var sg=ac.createGain();
+      sg.gain.setValueAtTime(0.0001,t);
+      sg.gain.exponentialRampToValueAtTime(0.55,t+0.01);
+      sg.gain.exponentialRampToValueAtTime(0.0001,t+0.34);
+      so.connect(sg); sg.connect(bus); so.start(t); so.stop(t+0.36);
+      this.spend(0.4);
+    } else if(this.noise){
+      var s2=ac.createBufferSource(); s2.buffer=this.noise;
+      var hp=ac.createBiquadFilter(); hp.type='highpass';
+      hp.frequency.value=2800+Math.random()*2600; hp.Q.value=0.7;
+      var ng=ac.createGain();
+      ng.gain.setValueAtTime(0.20,t);
+      ng.gain.exponentialRampToValueAtTime(0.0004,t+0.018);
+      s2.connect(hp); hp.connect(ng); ng.connect(bus);
+      s2.start(t); s2.stop(t+0.03);
+      this.spend(0.1);
+    }
+  },
+  tape:function(on){
+    if(!this.ac) return;
+    if(on&&!this.tapeSrc){
+      var ac=this.ac,n=Math.floor(ac.sampleRate*2),b=ac.createBuffer(1,n,ac.sampleRate);
+      var d=b.getChannelData(0),last=0;
+      for(var i=0;i<n;i++){ last=(last*0.86)+(Math.random()*2-1)*0.14; d[i]=last; }
+      var src=ac.createBufferSource(); src.buffer=b; src.loop=true;
+      var lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900;
+      var g=ac.createGain(); g.gain.value=0.035;
+      src.connect(lp); lp.connect(g); g.connect(this.master);
+      src.start(); this.tapeSrc=src; this.tapeGain=g;
+    } else if(!on&&this.tapeSrc){
+      try{ this.tapeSrc.stop(); }catch(e){}
+      this.tapeSrc=null; this.tapeGain=null;
+    }
+  },
+  start:function(){
+    if(this.ac) return;
+    var C=window.AudioContext||window.webkitAudioContext; if(!C) return;
+    var ac=new C(); this.ac=ac;
+    this.master=ac.createGain(); this.master.gain.value=0;
+    this.tone=ac.createBiquadFilter(); this.tone.type='lowpass';
+    this.tone.frequency.value=6500; this.tone.Q.value=0.2;
+    this.comp=ac.createDynamicsCompressor();
+    this.comp.threshold.value=-15; this.comp.knee.value=14; this.comp.ratio.value=5;
+    this.comp.attack.value=0.005; this.comp.release.value=0.26;
+    this.master.connect(this.tone); this.tone.connect(this.comp);
+    this.comp.connect(ac.destination);
+    // two short delays at unrelated times read as a room, not an echo
+    var d1=ac.createDelay(1),f1=ac.createGain(),w1=ac.createGain();
+    var d2=ac.createDelay(1),f2=ac.createGain(),w2=ac.createGain();
+    d1.delayTime.value=0.211; f1.gain.value=0.20; w1.gain.value=0.20;
+    d2.delayTime.value=0.367; f2.gain.value=0.16; w2.gain.value=0.15;
+    this.tone.connect(d1); d1.connect(f1); f1.connect(d1); d1.connect(w1); w1.connect(this.comp);
+    this.tone.connect(d2); d2.connect(f2); f2.connect(d2); d2.connect(w2); w2.connect(this.comp);
+    this.d1=d1; this.d2=d2; this.f1=f1; this.f2=f2; this.fb=f1;
+    var n=Math.floor(ac.sampleRate*0.25);
+    this.noise=ac.createBuffer(1,n,ac.sampleRate);
+    var d=this.noise.getChannelData(0);
+    for(var i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+  },
+  // the room is part of the instrument: a cave is darker and holds on longer
+  space:function(){
+    if(!this.ac) return;
+    var cave=SCORE.kind==='cave',v=this.voice;
+    var cut=cave?3600:6500, d1=cave?0.31:0.211, d2=cave?0.53:0.367;
+    var f1=cave?0.40:0.20, f2=cave?0.34:0.16;
+    if(v==='eno'){ cut=2200; d1=0.41; d2=0.77; f1=0.52; f2=0.44; }
+    if(v==='jaar'){ cut=1500; d1=60/108/2; d2=60/108*0.75; f1=0.58; f2=0.40; }
+    this.tone.frequency.value=cut+(v==='eno'?900:3500)*flip;
+    this.d1.delayTime.value=d1; this.d2.delayTime.value=d2;
+    this.f1.gain.value=Math.min(0.7,f1+0.18*flip);
+    this.f2.gain.value=Math.min(0.7,f2+0.14*flip);
+    this.tape(v==='jaar'&&this.on);
+  },
+  // struck dripstone: closer to harmonic than metal, and much shorter
+  stone:function(f,amp){
+    if(!this.on||!this.ac||!this.budget()) return;
+    var ac=this.ac,t=ac.currentTime,i;
+    var R=[1,2.68,5.12],G=[1,0.30,0.11],D=[1,0.42,0.22];
+    var base=0.95*Math.pow(330/f,0.35);
+    var bus=ac.createGain(); bus.gain.value=Math.min(1,amp)*0.34;
+    this.pan(bus).connect(this.master);
+    for(i=0;i<R.length;i++){
+      var o=ac.createOscillator(); o.type='sine';
+      o.frequency.value=f*R[i]*(1+(Math.random()-0.5)*0.006);
+      var g=ac.createGain(),dur=base*D[i];
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(G[i],t+0.002);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.connect(g); g.connect(bus); o.start(t); o.stop(t+dur+0.04);
+    }
+    if(this.noise){
+      var sN=ac.createBufferSource(); sN.buffer=this.noise;
+      var bp=ac.createBiquadFilter(); bp.type='bandpass';
+      bp.frequency.value=f*2.6; bp.Q.value=1.6;
+      var ng=ac.createGain(); ng.gain.setValueAtTime(0.16,t);
+      ng.gain.exponentialRampToValueAtTime(0.0004,t+0.03);
+      sN.connect(bp); bp.connect(ng); ng.connect(bus); sN.start(t); sN.stop(t+0.04);
+    }
+    this.spend(base+0.1);
+  },
+  // a water drop is a bubble collapsing, so its pitch rises as it shrinks
+  droplet:function(f,amp){
+    if(!this.on||!this.ac) return;
+    var ac=this.ac,t=ac.currentTime;
+    var o=ac.createOscillator(); o.type='sine';
+    o.frequency.setValueAtTime(f,t);
+    o.frequency.exponentialRampToValueAtTime(f*2.3,t+0.055);
+    var g=ac.createGain();
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(Math.min(1,amp)*0.22,t+0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.09);
+    var out=this.pan(g); o.connect(g); out.connect(this.master);
+    o.start(t); o.stop(t+0.11);
+  },
+  budget:function(){ if(this.live>13) return false; this.live++; return true; },
+  spend:function(t){ var s=this; setTimeout(function(){s.live=Math.max(0,s.live-1);},t*1000); },
+  pan:function(n){
+    if(!this.ac.createStereoPanner) return n;
+    var p=this.ac.createStereoPanner(); p.pan.value=(Math.random()*2-1)*0.55;
+    n.connect(p); return p;
+  },
+  ring:function(f,amp,decay){
+    if(!this.on||!this.ac||!this.budget()) return;
+    var ac=this.ac,t=ac.currentTime,i;
+    var R=[1,2.76,5.40,8.93],G=[1,0.40,0.17,0.075],D=[1,0.46,0.24,0.13];
+    var base=(decay||3.4)*Math.pow(440/f,0.45);       // low tubes hold on longer
+    var bus=ac.createGain(); bus.gain.value=Math.min(1,amp)*0.30;
+    this.pan(bus).connect(this.master);
+    for(i=0;i<R.length;i++){
+      var o=ac.createOscillator(); o.type='sine';
+      o.frequency.value=f*R[i]*(1+(Math.random()-0.5)*0.004);
+      var g=ac.createGain(),dur=base*D[i];
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(G[i],t+0.003);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.connect(g); g.connect(bus); o.start(t); o.stop(t+dur+0.05);
+    }
+    if(this.noise){
+      var s=ac.createBufferSource(); s.buffer=this.noise;
+      var bp=ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=f*5; bp.Q.value=0.9;
+      var ng=ac.createGain(); ng.gain.setValueAtTime(0.09,t);
+      ng.gain.exponentialRampToValueAtTime(0.0004,t+0.05);
+      s.connect(bp); bp.connect(ng); ng.connect(bus); s.start(t); s.stop(t+0.06);
+    }
+    this.spend(base+0.2);
+  },
+  plink:function(f,amp,decay){
+    if(!this.on||!this.ac||!this.budget()) return;
+    var ac=this.ac,t=ac.currentTime,dur=(decay||0.85)*Math.pow(330/f,0.3);
+    var bus=ac.createGain(); bus.gain.value=Math.min(1,amp)*0.13;
+    this.pan(bus).connect(this.master);
+    var rs=[1,2.01,3.02],gs=[1,0.26,0.09];
+    for(var i=0;i<rs.length;i++){
+      var o=ac.createOscillator(); o.type='sine'; o.frequency.value=f*rs[i];
+      var g=ac.createGain(),d=dur*Math.pow(0.6,i);
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(gs[i],t+0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+      o.connect(g); g.connect(bus); o.start(t); o.stop(t+d+0.03);
+    }
+    this.spend(dur+0.1);
+  },
+  thud:function(amp){
+    if(!this.on||!this.ac||!this.noise) return;
+    var ac=this.ac,t=ac.currentTime;
+    var s=ac.createBufferSource(); s.buffer=this.noise;
+    var bp=ac.createBiquadFilter(); bp.type='bandpass';
+    bp.frequency.value=140+Math.random()*200; bp.Q.value=2.4;
+    var g=ac.createGain();
+    g.gain.setValueAtTime(Math.min(0.4,amp*0.22),t);
+    g.gain.exponentialRampToValueAtTime(0.0006,t+0.3);
+    s.connect(bp); bp.connect(g); g.connect(this.master); s.start(t); s.stop(t+0.32);
+  },
+  // which drops are allowed a voice, and at what pitch: deeper drops ring lower
+  tune:function(){
+    this.sounders=[];
+    if(SCORE.kind!=='cascade') return;
+    var r=bounds(),h=Math.max(r.y1-r.y0,1e-6),T=SCORE.tuning,i,n,d,idx;
+    for(i=0;i<Hcount;i+=9){
+      n=hung.at[i];
+      d=(node.y[n]-r.y0)/h;
+      idx=Math.max(0,Math.min(T.length-1,Math.round(d*(T.length-1))));
+      this.sounders.push({n:n,f:T[idx]*(d>0.62?2:1),last:0});
+    }
+  },
+  // the cascade plays itself: motion is the only thing that can make a sound
+  listen:function(now){
+    if(!this.on||!this.ac||SCORE.kind!=='cascade') return;
+    for(var i=0;i<this.sounders.length;i++){
+      var s=this.sounders[i],sp=speed(s.n);
+      if(sp>this.SPD&&now-s.last>300){
+        s.last=now;
+        var amp=Math.min(1,(sp-this.SPD)*170);
+        this.hit('drop',s.f,amp);
+        if(amp>0.62) HAPTIC.fire(7);          // only the ones you would feel
+      }
+    }
+  }
+};
+
+/* the clapper meeting a tube: separate them, and ring the one that was struck */
+function contact(now){
+  if(clapper<0) return;
+  var i,j,t,n,dx,dz,d,R=0.205,push,rel,best,bd;
+  for(i=0;i<tubes.length;i++){
+    t=tubes[i]; best=-1; bd=1e9;
+    for(j=0;j<t.nodes.length;j++){
+      var dy=Math.abs(node.y[t.nodes[j]]-node.y[clapper]);
+      if(dy<bd){bd=dy;best=t.nodes[j];}
+    }
+    if(best<0||bd>0.35) continue;
+    n=best;
+    dx=node.x[n]-node.x[clapper]; dz=node.z[n]-node.z[clapper];
+    d=Math.sqrt(dx*dx+dz*dz);
+    if(d>R||d<1e-6) continue;
+    rel=Math.abs((node.x[n]-node.x0[n])-(node.x[clapper]-node.x0[clapper]))+
+        Math.abs((node.z[n]-node.z0[n])-(node.z[clapper]-node.z0[clapper]));
+    push=(R-d)/d*0.5;
+    node.x[n]+=dx*push; node.z[n]+=dz*push;
+    node.x[clapper]-=dx*push; node.z[clapper]-=dz*push;
+    node.x0[n]=node.x[n]-(node.x[n]-node.x0[n])*0.4;
+    node.z0[n]=node.z[n]-(node.z[n]-node.z0[n])*0.4;
+    if(now-t.last>110&&rel>0.0016){
+      t.last=now; t.glow=1;
+      var amp=Math.min(1,rel*46);
+      SENSE.hit('tube',t.f,amp); HAPTIC.strike(amp);
+    }
+  }
+}
+
+/* ========================================================== HAND */
+var HAND={
+  ptrs:{},lastDist:0,moved:0,downX:0,downY:0,downAt:0,heldW:0,
+  ray:new THREE.Raycaster(),ndc:new THREE.Vector2(),
+  plane:new THREE.Plane(),hit:new THREE.Vector3(),dir:new THREE.Vector3(),
+  proj:new THREE.Vector3(),
+  setNdc:function(cx,cy){
+    var r=canvas.getBoundingClientRect();
+    this.ndc.x=((cx-r.left)/r.width)*2-1;
+    this.ndc.y=-((cy-r.top)/r.height)*2+1;
+  },
+  // a finger is wider than a drop, so fall back to nearest on screen
+  nearest:function(cx,cy,list,radius){
+    var r=canvas.getBoundingClientRect(),best=-1,bd=radius*radius,i,n,dx,dy,d2;
+    for(i=0;i<list.length;i++){
+      n=list[i];
+      this.proj.set(node.x[n],node.y[n],node.z[n]);
+      world.localToWorld(this.proj); this.proj.project(camera);
+      if(this.proj.z>1) continue;
+      dx=(this.proj.x*0.5+0.5)*r.width+r.left-cx;
+      dy=(-this.proj.y*0.5+0.5)*r.height+r.top-cy;
+      d2=dx*dx+dy*dy;
+      if(d2<bd){bd=d2;best=i;}
+    }
+    return best;
+  },
+  pick:function(cx,cy){
+    if(SCORE.kind==='cascade'){
+      if(!dropMesh||!Hcount) return null;
+      this.setNdc(cx,cy); this.ray.setFromCamera(this.ndc,camera);
+      var h=this.ray.intersectObject(dropMesh,false);
+      if(h.length&&h[0].instanceId!=null)
+        return {kind:'drop',i:h[0].instanceId,node:hung.at[h[0].instanceId]};
+      var k=this.nearest(cx,cy,hung.at,30);
+      return k<0?null:{kind:'drop',i:k,node:hung.at[k]};
+    }
+    if(SCORE.kind==='cave'){
+      var cl=[],cm=[],j;
+      for(j=0;j<stalag.length;j++){ cl.push(stalag[j].node); cm.push({kind:'stone',i:j,node:stalag[j].node}); }
+      for(j=0;j<stalac.length;j++){ cl.push(stalac[j].node); cm.push({kind:'tip',i:j,node:stalac[j].node}); }
+      var ck=this.nearest(cx,cy,cl,46);
+      return ck<0?null:cm[ck];
+    }
+    var list=[],map=[],i;
+    for(i=0;i<tubes.length;i++){ list.push(tubes[i].bot); map.push({kind:'tube',i:i,node:tubes[i].bot}); }
+    if(clapper>=0){ list.push(clapper); map.push({kind:'clapper',i:-1,node:clapper}); }
+    if(sail>=0){ list.push(sail); map.push({kind:'sail',i:-1,node:sail}); }
+    var k2=this.nearest(cx,cy,list,44);
+    return k2<0?null:map[k2];
+  },
+  tap:function(t){
+    if(t.kind==='stone'){
+      var sg=stalag[t.i];
+      sg.glow=1; SENSE.hit('stone',sg.f,0.9); HAPTIC.strike(0.9);
+      return;
+    }
+    if(t.kind==='tip'){
+      var k=freeDrip();
+      if(k>=0){ spawnDrip(k,t.i); stalac[t.i].charge=0; HAPTIC.touch(); }
+      return;
+    }
+    if(t.kind==='tube'){
+      var tb=tubes[t.i];
+      SENSE.hit('tube',tb.f,0.85); tb.glow=1; HAPTIC.strike(0.9);
+      node.x0[tb.bot]=node.x[tb.bot]-0.035*Math.cos(FRAME.az);
+      node.z0[tb.bot]=node.z[tb.bot]+0.035*Math.sin(FRAME.az);
+      
+    } else if(t.kind==='drop'){
+      var n=t.node,T=SCORE.tuning;
+      node.x0[n]=node.x[n]-0.05*Math.cos(FRAME.az);
+      node.z0[n]=node.z[n]+0.05*Math.sin(FRAME.az);
+      var r=bounds(),d=(node.y[n]-r.y0)/Math.max(r.y1-r.y0,1e-6);
+      SENSE.hit('drop',T[Math.max(0,Math.min(T.length-1,Math.round(d*(T.length-1))))]*2,0.75);
+      HAPTIC.fire(9);
+      
+    } else {
+      var n2=t.node;
+      node.x0[n2]=node.x[n2]-0.07*Math.cos(FRAME.az);
+      node.z0[n2]=node.z[n2]+0.07*Math.sin(FRAME.az);
+      
+    }
+  }
+};
+function noteName(f){
+  var names=['A','C','D','E','G','A'],i=SCORE.tuning.indexOf(f);
+  return i<0?'a tube':names[i];
+}
+canvas.addEventListener('pointerdown',function(e){
+  canvas.setPointerCapture(e.pointerId);
+  HAND.ptrs[e.pointerId]={x:e.clientX,y:e.clientY};
+  HAND.moved=0; HAND.downX=e.clientX; HAND.downY=e.clientY; HAND.downAt=performance.now();
+  if(Object.keys(HAND.ptrs).length===1){
+    var t=HAND.pick(e.clientX,e.clientY);
+    if(t&&t.kind!=='stone'&&t.kind!=='tip'){                    // rock does not move
+      held=t.node; HAND.heldW=node.iw[held]; node.iw[held]=0;
+      HAPTIC.touch();
+      camera.getWorldDirection(HAND.dir);
+      _p.set(node.x[held],node.y[held],node.z[held]); world.localToWorld(_p);
+      HAND.plane.setFromNormalAndCoplanarPoint(HAND.dir,_p);
+    }
+  }
+});
+canvas.addEventListener('pointermove',function(e){
+  var p=HAND.ptrs[e.pointerId]; if(!p) return;
+  var ids=Object.keys(HAND.ptrs);
+  if(ids.length===2){
+    HAND.ptrs[e.pointerId]={x:e.clientX,y:e.clientY};
+    var a=HAND.ptrs[ids[0]],b=HAND.ptrs[ids[1]],d=Math.hypot(a.x-b.x,a.y-b.y);
+    if(HAND.lastDist) FRAME.zoom=Math.max(0.35,Math.min(2.6,FRAME.zoom*(HAND.lastDist/d)));
+    HAND.lastDist=d; HAND.moved+=20; return;
+  }
+  var dx=e.clientX-p.x,dy=e.clientY-p.y;
+  HAND.moved+=Math.abs(dx)+Math.abs(dy);
+  if(held>=0){
+    HAND.setNdc(e.clientX,e.clientY); HAND.ray.setFromCamera(HAND.ndc,camera);
+    if(HAND.ray.ray.intersectPlane(HAND.plane,HAND.hit)){
+      world.worldToLocal(HAND.hit);
+      node.x[held]=HAND.hit.x; node.y[held]=HAND.hit.y; node.z[held]=HAND.hit.z;
+      node.x0[held]=HAND.hit.x; node.y0[held]=HAND.hit.y; node.z0[held]=HAND.hit.z;
+    }
+  } else {
+    FRAME.az-=dx*0.006;
+    FRAME.el=Math.max(-1.2,Math.min(1.3,FRAME.el+dy*0.005));
+  }
+  HAND.ptrs[e.pointerId]={x:e.clientX,y:e.clientY};
+});
+function letGo(e){
+  if(held>=0){
+    node.iw[held]=HAND.heldW;
+    node.x0[held]=node.x[held]; node.y0[held]=node.y[held]; node.z0[held]=node.z[held];
+    if(HAND.moved>8){ SENSE.thud(0.4); HAPTIC.fire(13); }
+    held=-1;
+  } else if(HAND.moved<7&&performance.now()-HAND.downAt<520){
+    var t=HAND.pick(HAND.downX,HAND.downY);
+    if(t) HAND.tap(t);
+  }
+  delete HAND.ptrs[e.pointerId];
+  if(Object.keys(HAND.ptrs).length<2) HAND.lastDist=0;
+  resolveLoads();
+}
+canvas.addEventListener('pointerup',letGo);
+canvas.addEventListener('pointercancel',letGo);
+canvas.addEventListener('wheel',function(e){
+  e.preventDefault();
+  FRAME.zoom=Math.max(0.35,Math.min(2.6,FRAME.zoom*(1+e.deltaY*0.0012)));
+},{passive:false});
+
+/* The accelerometer reports gravity and linear acceleration summed. A low pass
+   holds the slow part (gravity); the residual is what the hand is doing. The
+   gyroscope gives the twist. Each is stored raw in device coordinates and
+   mapped into the model each frame, because the model can be orbited while the
+   phone stays still. */
+var lastAcc=null;
+function onMotion(e){
+  var a=e.accelerationIncludingGravity;
+  var dt=(e.interval?e.interval/1000:1/60);
+  if(a&&a.x!=null){
+    var g=FIELD.gDev,k=0.14;                       // tau about 0.2 s
+    g.x+=(a.x-g.x)*k; g.y+=(a.y-g.y)*k; g.z+=(a.z-g.z)*k;
+    var L=FIELD.linDev,lk=0.55;                    // keep the snap, lose the hiss
+    L.x+=((a.x-g.x)-L.x)*lk; L.y+=((a.y-g.y)-L.y)*lk; L.z+=((a.z-g.z)-L.z)*lk;
+    if(lastAcc){
+      var d=Math.abs(a.x-lastAcc.x)+Math.abs(a.y-lastAcc.y)+Math.abs(a.z-lastAcc.z);
+      if(d>7) FIELD.shake=Math.min(1,FIELD.shake+d*0.02);
+    }
+    lastAcc={x:a.x,y:a.y,z:a.z};
+  }
+  var r=e.rotationRate;
+  if(r&&r.alpha!=null){
+    var D=Math.PI/180,R=FIELD.rotDev,P=FIELD.rotPrev,rk=0.35;
+    // spec: alpha about device z, beta about x, gamma about y
+    var nx=r.beta*D,ny=r.gamma*D,nz=r.alpha*D;
+    P.x=R.x; P.y=R.y; P.z=R.z;
+    R.x+=(nx-R.x)*rk; R.y+=(ny-R.y)*rk; R.z+=(nz-R.z)*rk;
+    FIELD.rotDot.x=(R.x-P.x)/dt; FIELD.rotDot.y=(R.y-P.y)/dt; FIELD.rotDot.z=(R.z-P.z)/dt;
+  }
+}
+function enableTilt(){
+  var D=window.DeviceMotionEvent;
+  if(!D){ note('this device reports no motion sensor'); return; }
+  if(typeof D.requestPermission==='function'){
+    D.requestPermission().then(function(s){
+      if(s==='granted'){ window.addEventListener('devicemotion',onMotion); setTilt(true); }
+      else note('motion access declined');
+    }).catch(function(){ note('motion access declined'); });
+  } else { window.addEventListener('devicemotion',onMotion); setTilt(true); }
+}
+function setTilt(v){
+  FIELD.tilt=v;
+  if(!v){ FIELD.inertial=false; FIELD.rotDev={x:0,y:0,z:0}; FIELD.rotDot={x:0,y:0,z:0};
+          FIELD.linDev={x:0,y:0,z:0}; }
+  else HAPTIC.pattern([0,14]);
+  document.getElementById('tilt').setAttribute('aria-pressed',v?'true':'false');
+  note('');
+}
+
+/* ========================================================== RADIO
+   HANGING RADIO. Each body is tuned to a different station, and striking it
+   opens that station for as long as the blow was hard. Nothing is mixed and
+   nothing is faded by hand: the physics is the fader. Streams stay closed
+   until a body first needs one, so an idle cave costs no bandwidth. */
+var RADIO={
+  bank:[
+    {n:'Drone Zone',      c:'dronezone'},
+    {n:'Deep Space One',  c:'deepspaceone'},
+    {n:'The Dark Zone',   c:'darkzone'},
+    {n:'cliqhop idm',     c:'cliqhop'},
+    {n:'Groove Salad',    c:'groovesalad'},
+    {n:'Thistle Radio',   c:'thistle'},
+    {n:'Boot Liquor',     c:'bootliquor'}
+  ],
+  hosts:['ice1','ice2','ice5'],
+  els:[],lev:[],state:[],host:[],ready:false,
+  build:function(){
+    if(this.ready) return;
+    for(var i=0;i<this.bank.length;i++){
+      var a=new Audio();
+      a.preload='none'; a.volume=0; a.loop=false;
+      this.els.push(a); this.lev.push(0); this.state.push('idle'); this.host.push(0);
+    }
+    this.ready=true;
+  },
+  url:function(i){ return 'https://'+this.hosts[this.host[i]]+'.somafm.com/'+this.bank[i].c+'-128-mp3'; },
+  wake:function(i){
+    var st=this.state[i];
+    if(st==='on'||st==='opening'||st==='dead') return;
+    var a=this.els[i],self=this;
+    this.state[i]='opening';
+    a.src=this.url(i);
+    a.onerror=function(){
+      if(self.host[i]<self.hosts.length-1){ self.host[i]++; self.state[i]='idle'; self.wake(i); }
+      else self.state[i]='dead';
+    };
+    a.onplaying=function(){ self.state[i]='on'; };
+    var pr=a.play();
+    if(pr&&pr.catch) pr.catch(function(){ self.state[i]='blocked'; });
+  },
+  hit:function(i,amp){
+    i=((i%this.bank.length)+this.bank.length)%this.bank.length;
+    this.wake(i);
+    this.lev[i]=Math.min(1,this.lev[i]+Math.min(1,amp)*0.85);
+  },
+  tick:function(vol){
+    for(var i=0;i<this.els.length;i++){
+      this.lev[i]*=0.972;
+      if(this.lev[i]<0.004) this.lev[i]=0;
+      try{ this.els[i].volume=Math.max(0,Math.min(1,this.lev[i]*vol)); }catch(e){}
+    }
+  },
+  loudest:function(){
+    var b=-1,bv=0.02,i;
+    for(i=0;i<this.lev.length;i++) if(this.lev[i]>bv){bv=this.lev[i];b=i;}
+    return b;
+  },
+  dead:function(){ var n=0; for(var i=0;i<this.state.length;i++) if(this.state[i]==='dead'||this.state[i]==='blocked') n++; return n; },
+  silence:function(){
+    for(var i=0;i<this.els.length;i++){
+      this.lev[i]=0;
+      try{ this.els[i].pause(); this.els[i].volume=0; }catch(e){}
+      if(this.state[i]!=='dead') this.state[i]='idle';
+    }
+  }
+};
+
+/* ========================================================== HAPTIC
+   One channel, duration only — the Vibration API has no intensity. So loudness
+   is spent as length, and a hard throttle keeps a busy chime from becoming a
+   continuous buzz, which reads as a broken phone rather than a struck tube. */
+var HAPTIC={
+  on:false, last:0, budget:0,
+  supported:(typeof navigator!=='undefined'&&!!navigator.vibrate),
+  fire:function(ms){
+    if(!this.on||!this.supported) return;
+    var n=performance.now();
+    if(n-this.last<58) return;                 // never a buzz
+    this.budget=Math.max(0,this.budget-(n-this.last)*0.05);
+    if(this.budget>26) return;                 // and never a sustained one
+    this.budget+=ms; this.last=n;
+    try{ navigator.vibrate(ms); }catch(e){}
+  },
+  strike:function(amp){ this.fire(Math.round(5+Math.min(1,amp)*20)); },
+  touch:function(){ this.fire(5); },
+  pattern:function(p){
+    if(!this.on||!this.supported) return;
+    this.last=performance.now();
+    try{ navigator.vibrate(p); }catch(e){}
+  }
+};
+
+/* the cave's two events, wired to the two instruments that read them */
+onStone=function(i,amp){
+  var sg=stalag[i];
+  SENSE.hit('stone',sg.f,amp);
+  HAPTIC.strike(amp*0.75);
+};
+onSplash=function(x,z,amp){
+  SENSE.hit('splash',380+Math.random()*420,amp*0.30);
+};
+
+/* ========================================================== ASSEMBLY */
+function build(){
+  compile(); resolveLoads(); buildStage(); applyFlip();
+  settle(SCORE.kind==='cascade'?90:60);
+  SENSE.tune(); FRAME.snap();
+}
+var rd=document.getElementById('rd');
+var resampled=false;
+/* A readout line is a claim about now. In chime the model states itself by
+   moving and sounding, so it claims nothing. In cascade only the consequence
+   of load and slack is shown, plus spread once a resample has made it mean
+   something, plus the solver-drift warning when it is no longer quiet. */
+var KINDS=['cascade','chime','cave'];
+function nextKind(){ return KINDS[(KINDS.indexOf(SCORE.kind)+1)%KINDS.length]; }
+var VOICES=['native','eno','jaar','radio'];
+var VOICE_LABEL={native:'stone',eno:'eno',jaar:'jaar',radio:'radio'};
+function readout(){
+  if(SENSE.voice==='radio'){
+    var i=RADIO.loudest(),d=RADIO.dead(),out='';
+    out=i<0?'<b>hanging radio</b>':'<b>'+RADIO.bank[i].n+'</b>';
+    if(d) out+='<br><u>'+d+' station'+(d>1?'s':'')+' unreachable</u>';
+    rd.innerHTML=out; return;
+  }
+  if(SCORE.kind!=='cascade'){ rd.innerHTML=''; return; }
+  var v=invariants(),chk=verify();
+  var s='rise:span <b>'+v.ratio.toFixed(2)+':1</b>';
+  if(resampled) s+='<br>spread <b>'+v.spread.toFixed(1)+'\u00d7</b>';
+  if(chk.stretch>EPS*2||Math.abs(chk.load-chk.budget)>0.01*chk.budget)
+    s+='<br><u>solver drift</u>';
+  rd.innerHTML=s;
+}
+/* An operation is shown as available only in the states where it is true.
+   Elsewhere it stays in place and inert, so the surface does not move. */
+function ctl(id,on){
+  var el=document.getElementById(id);
+  el.disabled=!on;
+  if(el.parentNode.classList.contains('sl')) el.parentNode.classList.toggle('off',!on);
+}
+function surface(){
+  var cascade=SCORE.kind==='cascade',cave=SCORE.kind==='cave';
+  ctl('load',cascade); ctl('slack',cascade);
+  ctl('resample',cascade); ctl('turn',cascade);
+  ctl('seep',cave);
+  ctl('vol',SENSE.on);
+  ctl('tilt',!!window.DeviceMotionEvent);
+  ctl('haptics',HAPTIC.supported);
+  document.getElementById('voice').textContent='voice: '+VOICE_LABEL[SENSE.voice];
+  document.getElementById('ttl').textContent=SCORE.kind;
+  document.getElementById('modelabel').textContent=nextKind();
+}
+function note(t){ document.getElementById('sub').textContent=t; }
+
+window.addEventListener('resize',function(){FRAME.resize();});
+window.addEventListener('orientationchange',function(){setTimeout(function(){FRAME.resize();},250);});
+
+var frame=0,t0=performance.now();
+function loop(){
+  requestAnimationFrame(loop);
+  var now=performance.now();
+  FIELD.step((now-t0)/1000);
+  stepPhysics();
+  if(SCORE.kind==='chime') contact(now);
+  else if(SCORE.kind==='cave') caveStep();
+  syncStage();
+  if(Math.abs(flip-flipTarget)>0.0005){ flip+=(flipTarget-flip)*0.075; applyFlip(); }
+  FRAME.correct(0.14); FRAME.parallax();
+  if((frame%12)===0) readout();
+  if((frame%3)===0) SENSE.listen(now);
+  if(SENSE.voice==='radio'&&SENSE.on&&RADIO.ready) RADIO.tick(SENSE.vol);
+  frame++;
+  renderer.render(scene,camera);
+}
+
+/* ========================================================== CONTROLS */
+function bind(id,ev,fn){document.getElementById(id).addEventListener(ev,fn);}
+bind('breeze','input',function(){
+  FIELD.breeze=parseFloat(this.value);
+  document.getElementById('breezev').textContent=FIELD.breeze.toFixed(2);
+});
+bind('load','input',function(){
+  SCORE.loadScale=parseFloat(this.value);
+  document.getElementById('loadv').textContent=SCORE.loadScale.toFixed(2);
+  resolveLoads();
+});
+var st=0;
+bind('slack','input',function(){
+  SCORE.slack=parseFloat(this.value);
+  document.getElementById('slackv').textContent=SCORE.slack.toFixed(2);
+  clearTimeout(st); st=setTimeout(function(){ if(SCORE.kind==='cascade') build(); },90);
+});
+bind('vol','input',function(){
+  SENSE.vol=parseFloat(this.value);
+  document.getElementById('volv').textContent=SENSE.vol.toFixed(2).slice(1);
+  if(SENSE.ac&&SENSE.on) SENSE.master.gain.setTargetAtTime(SENSE.vol*0.55,SENSE.ac.currentTime,0.1);
+});
+bind('turn','click',function(){
+  flipTarget=flipTarget>0.5?0:1;
+  this.setAttribute('aria-pressed',flipTarget>0.5?'true':'false');
+
+});
+bind('sound','click',function(){
+  SENSE.start(); if(!SENSE.ac) return;
+  if(SENSE.ac.state==='suspended') SENSE.ac.resume();
+  SENSE.on=!SENSE.on;
+  this.setAttribute('aria-pressed',SENSE.on?'true':'false');
+  SENSE.master.gain.setTargetAtTime(SENSE.on?SENSE.vol*0.55:0,SENSE.ac.currentTime,0.25);
+  if(SENSE.voice==='radio'){ if(SENSE.on) RADIO.build(); else RADIO.silence(); }
+  SENSE.space(); surface();
+});
+bind('gust','click',function(){ FIELD.blow(); HAPTIC.pattern([0,16,45,9,70,5]); });
+bind('voice','click',function(){
+  var i=(VOICES.indexOf(SENSE.voice)+1)%VOICES.length;
+  var was=SENSE.voice;
+  SENSE.voice=VOICES[i];
+  this.textContent='voice: '+VOICE_LABEL[SENSE.voice];
+  if(was==='radio') RADIO.silence();
+  if(SENSE.voice==='radio'&&SENSE.on) RADIO.build();
+  SENSE.space();
+  readout();
+});
+bind('seep','input',function(){
+  SCORE.seep=parseFloat(this.value);
+  document.getElementById('seepv').textContent=SCORE.seep.toFixed(2);
+});
+bind('tilt','click',function(){ if(FIELD.tilt) setTilt(false); else enableTilt(); });
+bind('haptics','click',function(){
+  HAPTIC.on=!HAPTIC.on;
+  this.setAttribute('aria-pressed',HAPTIC.on?'true':'false');
+  if(HAPTIC.on) HAPTIC.pattern([0,10,50,18]);
+});
+bind('resample','click',function(){
+  resample(); resampled=true;
+});
+bind('rebuild','click',function(){ resampled=false; build(); note(''); });
+bind('more','click',function(){
+  var open=document.getElementById('drawer').classList.toggle('open');
+  this.setAttribute('aria-pressed',open?'true':'false');
+  setTimeout(function(){ FRAME.measureChrome(); FRAME.snap(); },260);
+});
+bind('mode','click',function(){
+  SCORE.kind=nextKind();
+  if(SCORE.kind!=='cascade'){
+    flipTarget=0; document.getElementById('turn').setAttribute('aria-pressed','false');
+  }
+  resampled=false; build(); note(''); surface(); SENSE.space();
+
+});
+
+FRAME.measureChrome(); FRAME.resize(); build(); applyFlip(); surface(); FRAME.snap(); loop();
+})();
+</script>
+</body>
+</html>
