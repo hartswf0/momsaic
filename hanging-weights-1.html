@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>hanging weights</title>
+<style>
+  :root{--ink:#e6dfd1;--dim:rgba(230,223,209,.45);--rule:rgba(230,223,209,.18);
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:#0d0d0f;overflow:hidden;
+    font-family:var(--mono);color:var(--ink);font-size:16px}
+  canvas{display:block;position:fixed;inset:0;touch-action:none}
+
+  .top{position:fixed;top:0;left:0;right:0;z-index:5;pointer-events:none;
+    display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
+    padding:calc(5px + env(safe-area-inset-top)) 11px 0}
+  .title{font-size:9.5px;letter-spacing:.2em;margin:0;line-height:1.4}
+  .rd{font-size:8.5px;line-height:1.5;color:var(--dim);text-align:right;margin:0}
+  .rd b{color:var(--ink);font-weight:400}
+
+  .dock{position:fixed;left:0;right:0;bottom:0;z-index:6;
+    padding:5px 9px calc(5px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top,rgba(10,10,12,.94) 58%,rgba(10,10,12,0))}
+  .sub{font-size:8.5px;color:var(--dim);line-height:1.5;padding:0 2px 5px}
+  .bar{display:flex;gap:5px}
+  .bar button{flex:1}
+  button{font:inherit;font-size:9px;letter-spacing:.06em;color:var(--ink);background:none;
+    border:1px solid var(--rule);padding:8px 2px;cursor:pointer;display:flex;
+    align-items:center;justify-content:center;gap:4px;min-height:34px}
+  button:active{background:rgba(230,223,209,.12)}
+  button[aria-pressed=true]{background:var(--ink);color:#0d0d0f;border-color:var(--ink)}
+  button:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
+  button svg{width:11px;height:11px;flex:none}
+  button svg *{stroke:currentColor;fill:none;stroke-width:1.3;stroke-linecap:round}
+
+  .drawer{max-height:0;overflow:hidden;transition:max-height .22s ease}
+  .drawer.open{max-height:300px}
+  .drawer .inner{padding:7px 2px 6px;display:flex;flex-direction:column;gap:6px}
+  .sl{display:flex;align-items:center;gap:8px}
+  .sl label{font-size:8.5px;letter-spacing:.1em;color:var(--dim);width:4.2em;flex:none}
+  .sl output{font-size:8.5px;color:var(--dim);width:2.6em;text-align:right;flex:none}
+  input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:22px;background:none}
+  input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--rule)}
+  input[type=range]::-moz-range-track{height:1px;background:var(--rule)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+    margin-top:-6px;border-radius:50%;background:var(--ink)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:var(--ink)}
+  body.light{--ink:#22201c;--dim:rgba(34,32,28,.52);--rule:rgba(34,32,28,.2)}
+  body.light .dock{background:linear-gradient(to top,rgba(238,234,226,.94) 58%,rgba(238,234,226,0))}
+  body.light button[aria-pressed=true]{color:#eeeae2}
+  @media (min-width:700px){.bar button{flex:0 0 auto;padding:9px 14px}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="top">
+  <p class="title" id="ttl">hanging weights</p>
+  <p class="rd" id="rd"></p>
+</div>
+
+<div class="dock">
+  <p class="sub" id="sub">Tap a drop to pluck it. Tilt the phone and the whole cascade leans.</p>
+  <div class="drawer" id="drawer"><div class="inner">
+    <div class="sl"><label for="breeze">breeze</label>
+      <input id="breeze" type="range" min="0" max="2" step="0.02" value="0.40"><output id="breezev">0.40</output></div>
+    <div class="sl"><label for="load">load</label>
+      <input id="load" type="range" min="0.2" max="3" step="0.02" value="1"><output id="loadv">1.00</output></div>
+    <div class="sl"><label for="slack">slack</label>
+      <input id="slack" type="range" min="1.06" max="1.9" step="0.01" value="1.34"><output id="slackv">1.34</output></div>
+    <div class="sl"><label for="vol">volume</label>
+      <input id="vol" type="range" min="0" max="1" step="0.01" value="0.6"><output id="volv">.60</output></div>
+    <div class="bar">
+      <button id="tilt" aria-pressed="false">tilt</button>
+      <button id="resample">resample</button>
+      <button id="turn" aria-pressed="false">turn over</button>
+      <button id="rebuild">rebuild</button>
+    </div>
+  </div></div>
+  <div class="bar">
+    <button id="mode">
+      <svg viewBox="0 0 12 12"><path d="M2 2v3M4.5 2v5M7 2v4M9.5 2v6"/></svg><span id="modelabel">chime</span></button>
+    <button id="sound" aria-pressed="false">
+      <svg viewBox="0 0 12 12"><path d="M2 4.5h2l3-2.5v8l-3-2.5H2z"/><path d="M9 4a3 3 0 0 1 0 4"/></svg>sound</button>
+    <button id="gust">
+      <svg viewBox="0 0 12 12"><path d="M1 4h6a1.6 1.6 0 1 0-1.6-1.6"/><path d="M1 7.2h8a1.6 1.6 0 1 1-1.6 1.6"/></svg>gust</button>
+    <button id="more" aria-pressed="false">
+      <svg viewBox="0 0 12 12"><path d="M2 8.5h8M2 5.5h8"/></svg>more</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+var dragIdx=-1;
+
+/*<<<CORE*/
+var PX=[],PY=[],PZ=[],OX=[],OY=[],OZ=[],MASS=[],EXTRA=[],W=[],PIN=[],WA=[],WV=[];
+var CA=[],CB=[],CR=[];
+var bagNode=[],bagBase=[],bagMul=[];
+var tiers=[],tubes=[],clapper=-1,sail=-1;
+var N=0,M=0,B=0,baseTotal=1;
+var MODE='cascade';
+
+var GRAV=0.0060,DAMP=0.986,ITER=20;
+var loadScale=1.0,slack=1.34;
+var GX=0,GY=-1,GZ=0;            // gravity direction, unit, driven by the phone
+var WINDX=0,WINDZ=0;
+
+var LEVELS=[
+  {nx:4,nz:4,sx:1.70,sz:1.28,y: 0.00},
+  {nx:4,nz:4,sx:1.48,sz:1.12,y:-1.00},
+  {nx:3,nz:3,sx:1.16,sz:0.87,y:-1.92},
+  {nx:3,nz:3,sx:0.82,sz:0.62,y:-2.76},
+  {nx:2,nz:2,sx:0.46,sz:0.34,y:-3.48},
+  {nx:1,nz:1,sx:0.00,sz:0.00,y:-4.14}
+];
+var PENT=[220.00,261.63,293.66,329.63,392.00,440.00];
+
+function addP(x,y,z,m,pin,wa){
+  PX.push(x);PY.push(y);PZ.push(z);OX.push(x);OY.push(y);OZ.push(z);
+  MASS.push(m);EXTRA.push(0);PIN.push(pin?1:0);W.push(0);WA.push(wa===undefined?0.10:wa);
+  WV.push(0.55+Math.random()*0.95);   // no two things catch the wind alike
+  return PX.length-1;
+}
+function link(a,b,r){CA.push(a);CB.push(b);CR.push(r);}
+function dist(a,b){var dx=PX[b]-PX[a],dy=PY[b]-PY[a],dz=PZ[b]-PZ[a];
+  return Math.sqrt(dx*dx+dy*dy+dz*dz);}
+function chain(ia,ib,n,sl,segMass,wa){
+  var d=dist(ia,ib),seg=d*sl/n,sag=d*(sl-1)*0.85,ids=[ia],i,t;
+  for(i=1;i<n;i++){t=i/n;
+    ids.push(addP(PX[ia]+(PX[ib]-PX[ia])*t,
+                  PY[ia]+(PY[ib]-PY[ia])*t-sag*Math.sin(Math.PI*t),
+                  PZ[ia]+(PZ[ib]-PZ[ia])*t,segMass,false,wa));}
+  ids.push(ib);
+  for(i=0;i<n;i++) link(ids[i],ids[i+1],seg);
+  return ids;
+}
+function strand(ia,len,n,segMass,wa){
+  var seg=len/n,ids=[ia],i;
+  for(i=1;i<=n;i++) ids.push(addP(PX[ia],PY[ia]-seg*i,PZ[ia],segMass,false,wa));
+  for(i=0;i<n;i++) link(ids[i],ids[i+1],seg);
+  return ids;
+}
+function bag(node,base){bagNode.push(node);bagBase.push(base);bagMul.push(1);}
+function loadField(x,z){
+  var r=Math.sqrt((x*x)/2.9+(z*z)/1.7);
+  return 0.40+0.90*Math.exp(-r*r*0.95);
+}
+function clearModel(){
+  PX=[];PY=[];PZ=[];OX=[];OY=[];OZ=[];MASS=[];EXTRA=[];W=[];PIN=[];WA=[];WV=[];
+  CA=[];CB=[];CR=[];bagNode=[];bagBase=[];bagMul=[];
+  tiers=[];tubes=[];clapper=-1;sail=-1;
+}
+
+/* ---- the cascade: Gaudi's funicular model, plan narrowing to a point ---- */
+function buildCascade(){
+  clearModel();
+  var k,i,j,a,b,c,L,nodes,lv=[];
+  for(k=0;k<LEVELS.length;k++){
+    L=LEVELS[k];nodes=[];
+    for(i=0;i<L.nx;i++) for(j=0;j<L.nz;j++){
+      var x=L.nx===1?0:(-L.sx+2*L.sx*i/(L.nx-1));
+      var z=L.nz===1?0:(-L.sz+2*L.sz*j/(L.nz-1));
+      nodes.push({id:addP(x,L.y,z,0.05,k===0,0.08),x:x,z:z});
+    }
+    lv.push(nodes);
+  }
+  for(k=1;k<lv.length;k++) for(i=0;i<lv[k].length;i++){
+    var n=lv[k][i],up=lv[k-1],order=[];
+    for(j=0;j<up.length;j++){
+      var dx=up[j].x-n.x,dz=up[j].z-n.z; order.push({j:j,d:dx*dx+dz*dz});
+    }
+    order.sort(function(p,q){return p.d-q.d;});
+    for(c=0;c<Math.min(2,order.length);c++) chain(up[order[c].j].id,n.id,4,1.05,0.028,0.06);
+  }
+  for(k=1;k<lv.length;k++){
+    L=LEVELS[k];nodes=lv[k];
+    var cs=[],at=function(i,j){return nodes[i*L.nz+j];};
+    for(i=0;i<L.nx;i++) for(j=0;j<L.nz;j++){
+      if(i+1<L.nx){a=at(i,j).id;b=at(i+1,j).id;cs.push({ids:chain(a,b,5,slack,0.03,0.08),a:a,b:b});}
+      if(j+1<L.nz){a=at(i,j).id;b=at(i,j+1).id;cs.push({ids:chain(a,b,5,slack,0.03,0.08),a:a,b:b});}
+    }
+    tiers.push(cs);
+  }
+  for(k=0;k<tiers.length;k++) for(i=0;i<tiers[k].length;i++){
+    var ids=tiers[k][i].ids;
+    for(j=1;j<ids.length-1;j++){
+      var nd=ids[j],f=loadField(PX[nd],PZ[nd]);
+      bag(nd,0.075*f);
+      if(j%2===1){
+        var dp=strand(nd,0.26+0.80*f,3,0.022,0.14);
+        bag(dp[dp.length-1],0.42*f);
+      }
+    }
+  }
+  bag(lv[lv.length-1][0].id,0.85);
+  finish();
+}
+
+/* ---- the chime: tuned tubes, a swinging clapper, a sail to catch the wind ---- */
+function buildChime(){
+  clearModel();
+  var R=0.34,i,ang,x,z;
+  var hub=addP(0,0,0,1,true,0);
+  for(i=0;i<PENT.length;i++){
+    ang=(i/PENT.length)*Math.PI*2;
+    x=R*Math.cos(ang); z=R*Math.sin(ang);
+    var anchor=addP(x,0,z,1,true,0);
+    var hang=strand(anchor,0.45,2,0.05,0.05);
+    var top=hang[hang.length-1];
+    var len=0.95*Math.sqrt(440/PENT[i]);
+    var tube=strand(top,len,3,0.30,0.06);
+    tubes.push({top:top,nodes:tube,bot:tube[tube.length-1],f:PENT[i],len:len,last:0});
+  }
+  var cl=strand(hub,1.00,4,0.16,0.05);
+  clapper=cl[cl.length-1]; MASS[clapper]=0.62; WA[clapper]=0.60;
+  var sl=strand(clapper,0.70,2,0.05,0.10);
+  sail=sl[sl.length-1]; MASS[sail]=0.14; WA[sail]=2.00;
+  finish();
+}
+function finish(){
+  N=PX.length;M=CA.length;B=bagNode.length;
+  baseTotal=0; for(var i=0;i<B;i++) baseTotal+=bagBase[i];
+}
+function buildModel(){ if(MODE==='chime') buildChime(); else buildCascade(); }
+
+function applyLoad(){
+  var i;
+  for(i=0;i<N;i++) EXTRA[i]=0;
+  for(i=0;i<B;i++) EXTRA[bagNode[i]]+=bagBase[i]*bagMul[i]*loadScale;
+  for(i=0;i<N;i++) W[i]=PIN[i]?0:1/(MASS[i]+EXTRA[i]);
+  if(dragIdx>=0) W[dragIdx]=0;
+}
+function simulate(){
+  var i,c,a,b,dx,dy,dz,L,wa,wb,sw,f,vx,vy,vz,gx=GRAV*GX,gy=GRAV*GY,gz=GRAV*GZ;
+  for(i=0;i<N;i++){
+    if(PIN[i]||W[i]===0) continue;
+    vx=(PX[i]-OX[i])*DAMP; vy=(PY[i]-OY[i])*DAMP; vz=(PZ[i]-OZ[i])*DAMP;
+    OX[i]=PX[i];OY[i]=PY[i];OZ[i]=PZ[i];
+    PX[i]+=vx+gx+WINDX*WA[i]*WV[i];
+    PY[i]+=vy+gy;
+    PZ[i]+=vz+gz+WINDZ*WA[i]*WV[i];
+  }
+  for(var it=0;it<ITER;it++){
+    for(c=0;c<M;c++){
+      a=CA[c];b=CB[c];
+      dx=PX[b]-PX[a];dy=PY[b]-PY[a];dz=PZ[b]-PZ[a];
+      L=Math.sqrt(dx*dx+dy*dy+dz*dz);
+      if(L<=CR[c]||L<1e-9) continue;      // a string pulls; it never pushes
+      wa=W[a];wb=W[b];sw=wa+wb; if(sw===0) continue;
+      f=(L-CR[c])/(L*sw); dx*=f;dy*=f;dz*=f;
+      PX[a]+=dx*wa;PY[a]+=dy*wa;PZ[a]+=dz*wa;
+      PX[b]-=dx*wb;PY[b]-=dy*wb;PZ[b]-=dz*wb;
+    }
+  }
+}
+function bounds(){
+  var i,r={x0:1e9,x1:-1e9,y0:1e9,y1:-1e9,z0:1e9,z1:-1e9};
+  for(i=0;i<N;i++){
+    if(PX[i]<r.x0)r.x0=PX[i]; if(PX[i]>r.x1)r.x1=PX[i];
+    if(PY[i]<r.y0)r.y0=PY[i]; if(PY[i]>r.y1)r.y1=PY[i];
+    if(PZ[i]<r.z0)r.z0=PZ[i]; if(PZ[i]>r.z1)r.z1=PZ[i];
+  }
+  return r;
+}
+/*CORE>>>*/
+
+function speed(i){
+  var dx=PX[i]-OX[i],dy=PY[i]-OY[i],dz=PZ[i]-OZ[i];
+  return Math.sqrt(dx*dx+dy*dy+dz*dz);
+}
+// the clapper meets a tube: push them apart and ring the one that was struck
+function collide(now){
+  if(clapper<0) return;
+  var i,j,t,n,dx,dz,d,RR=0.205,push,rel;
+  for(i=0;i<tubes.length;i++){
+    t=tubes[i];
+    var best=-1,bd=1e9;
+    for(j=0;j<t.nodes.length;j++){
+      var dy=Math.abs(PY[t.nodes[j]]-PY[clapper]);
+      if(dy<bd){bd=dy;best=t.nodes[j];}
+    }
+    if(best<0||bd>0.35) continue;
+    n=best;
+    dx=PX[n]-PX[clapper]; dz=PZ[n]-PZ[clapper];
+    d=Math.sqrt(dx*dx+dz*dz);
+    if(d>RR||d<1e-6) continue;
+    rel=Math.abs((PX[n]-OX[n])-(PX[clapper]-OX[clapper]))+
+        Math.abs((PZ[n]-OZ[n])-(PZ[clapper]-OZ[clapper]));
+    push=(RR-d)/d*0.5;
+    PX[n]+=dx*push; PZ[n]+=dz*push;
+    PX[clapper]-=dx*push; PZ[clapper]-=dz*push;
+    OX[n]=PX[n]-(PX[n]-OX[n])*0.4; OZ[n]=PZ[n]-(PZ[n]-OZ[n])*0.4;
+    if(now-t.last>110&&rel>0.0016){
+      t.last=now;
+      ringTube(t.f,Math.min(1,rel*46));
+      t.glow=1;
+    }
+  }
+}
+
+/* ============================================================ renderer */
+var canvas=document.getElementById('c');
+var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+var scene=new THREE.Scene();
+var camera=new THREE.PerspectiveCamera(38,1,0.05,300);
+var world=new THREE.Group(); scene.add(world);
+var hemi=new THREE.HemisphereLight(0xffffff,0x2a2723,0.8); scene.add(hemi);
+var key=new THREE.DirectionalLight(0xfff4e2,0.95); key.position.set(4,6,5); scene.add(key);
+var fill=new THREE.DirectionalLight(0x9fb4c8,0.3); fill.position.set(-5,-2,-4); scene.add(fill);
+
+var DARK=new THREE.Color(0x0d0d0f),LIGHTC=new THREE.Color(0xeeeae2);
+var STR_D=new THREE.Color(0xd8cdb6),STR_L=new THREE.Color(0x3b362e);
+var BAG_D=new THREE.Color(0xd3c2a0),BAG_L=new THREE.Color(0xf3efe7);
+var MET_D=new THREE.Color(0xb9c2c6),MET_L=new THREE.Color(0x8d949a);
+scene.background=DARK.clone();
+scene.fog=new THREE.Fog(DARK.clone(),9,30);
+
+var lineMesh,dropMesh,tubeMesh,clapMesh,sailMesh,plateMesh,linePos;
+var strMat,dropMat,tubeMat,clapMat;
+function dropGeometry(){
+  var pts=[],i,t,r,u,H=0.26,R=0.058,tc=0.55;
+  for(i=0;i<=20;i++){
+    t=i/20;
+    if(t<=tc){ r=R*Math.pow(Math.sin((t/tc)*Math.PI/2),1.55); }       // neck
+    else{ u=(t-tc)/(1-tc); r=R*Math.sqrt(Math.max(0,1-u*u)); }        // bulb
+    pts.push(new THREE.Vector2(Math.max(r,0.0015),-t*H));
+  }
+  return new THREE.LatheGeometry(pts,12);
+}
+function clearWorld(){
+  while(world.children.length){
+    var o=world.children[0];
+    if(o.geometry)o.geometry.dispose(); if(o.material)o.material.dispose();
+    world.remove(o);
+  }
+  dropMesh=tubeMesh=clapMesh=sailMesh=plateMesh=null;
+}
+function buildMeshes(){
+  clearWorld();
+  linePos=new Float32Array(M*6);
+  var g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(linePos,3));
+  strMat=new THREE.LineBasicMaterial({color:STR_D.clone(),transparent:true,opacity:0.5});
+  lineMesh=new THREE.LineSegments(g,strMat); lineMesh.frustumCulled=false; world.add(lineMesh);
+
+  if(MODE==='cascade'){
+    dropMat=new THREE.MeshStandardMaterial({color:BAG_D.clone(),roughness:0.33,metalness:0.05});
+    dropMesh=new THREE.InstancedMesh(dropGeometry(),dropMat,Math.max(B,1));
+    dropMesh.frustumCulled=false;
+    dropMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    world.add(dropMesh);
+    var L0=LEVELS[0],ag=new THREE.BufferGeometry(),av=[],d=0.06,i,j;
+    for(i=0;i<L0.nx;i++) for(j=0;j<L0.nz;j++){
+      var x=-L0.sx+2*L0.sx*i/(L0.nx-1),z=-L0.sz+2*L0.sz*j/(L0.nz-1);
+      av.push(x-d,0,z,x+d,0,z, x,0,z-d,x,0,z+d);
+    }
+    ag.setAttribute('position',new THREE.Float32BufferAttribute(av,3));
+    plateMesh=new THREE.LineSegments(ag,new THREE.LineBasicMaterial(
+      {color:STR_D.clone(),transparent:true,opacity:0.45}));
+    world.add(plateMesh);
+  } else {
+    tubeMat=new THREE.MeshStandardMaterial({color:MET_D.clone(),roughness:0.28,metalness:0.85});
+    var tg=new THREE.CylinderGeometry(0.036,0.036,1,10,1,true);
+    tg.translate(0,-0.5,0);                       // origin at the top of the tube
+    tubeMesh=new THREE.InstancedMesh(tg,tubeMat,tubes.length);
+    tubeMesh.frustumCulled=false;
+    tubeMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    world.add(tubeMesh);
+    clapMat=new THREE.MeshStandardMaterial({color:BAG_D.clone(),roughness:0.7,metalness:0.1});
+    clapMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.17,0.17,0.045,24),clapMat);
+    world.add(clapMesh);
+    sailMesh=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.34,0.012),clapMat);
+    world.add(sailMesh);
+    plateMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.03,28),clapMat);
+    world.add(plateMesh);
+  }
+}
+var _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_p=new THREE.Vector3(),
+    _s=new THREE.Vector3(),_d=new THREE.Vector3(),_YA=new THREE.Vector3(0,1,0);
+function updateMeshes(){
+  var c,a,b,i,o=0;
+  for(c=0;c<M;c++){a=CA[c];b=CB[c];
+    linePos[o++]=PX[a];linePos[o++]=PY[a];linePos[o++]=PZ[a];
+    linePos[o++]=PX[b];linePos[o++]=PY[b];linePos[o++]=PZ[b];}
+  lineMesh.geometry.attributes.position.needsUpdate=true;
+
+  if(MODE==='cascade'&&dropMesh){
+    for(i=0;i<B;i++){
+      var n=bagNode[i],sc=Math.pow(bagBase[i]*bagMul[i]/0.26,0.36);
+      _p.set(PX[n],PY[n],PZ[n]); _s.set(sc,sc,sc);
+      _m.compose(_p,_q,_s); dropMesh.setMatrixAt(i,_m);
+    }
+    dropMesh.instanceMatrix.needsUpdate=true;
+  } else if(tubeMesh){
+    for(i=0;i<tubes.length;i++){
+      var t=tubes[i],tp=t.top,bt=t.bot;
+      _p.set(PX[tp],PY[tp],PZ[tp]);
+      _d.set(PX[bt]-PX[tp],PY[bt]-PY[tp],PZ[bt]-PZ[tp]);
+      var len=_d.length()||t.len;
+      _d.divideScalar(len);
+      _q.setFromUnitVectors(_YA,_d.negate());
+      var w=1+(t.glow?t.glow*0.10:0);
+      _s.set(w,len,w);
+      _m.compose(_p,_q,_s); tubeMesh.setMatrixAt(i,_m);
+      if(t.glow) t.glow*=0.88;
+    }
+    tubeMesh.instanceMatrix.needsUpdate=true;
+    if(clapMesh&&clapper>=0) clapMesh.position.set(PX[clapper],PY[clapper],PZ[clapper]);
+    if(sailMesh&&sail>=0) sailMesh.position.set(PX[sail],PY[sail],PZ[sail]);
+  }
+}
+
+/* ============================================================ flip */
+var flip=0,flipTarget=0;
+function applyFlip(){
+  world.rotation.x=Math.PI*flip;
+  var bg=DARK.clone().lerp(LIGHTC,flip);
+  scene.background.copy(bg); scene.fog.color.copy(bg);
+  var sc=STR_D.clone().lerp(STR_L,flip);
+  if(strMat){strMat.color.copy(sc);strMat.opacity=0.50+0.26*flip;}
+  if(dropMat) dropMat.color.copy(BAG_D.clone().lerp(BAG_L,flip));
+  if(tubeMat) tubeMat.color.copy(MET_D.clone().lerp(MET_L,flip));
+  if(clapMat) clapMat.color.copy(BAG_D.clone().lerp(BAG_L,flip));
+  hemi.intensity=0.80+0.50*flip; key.intensity=0.95+0.25*flip;
+  document.body.classList.toggle('light',flip>0.5);
+  if(TONE) TONE.frequency.value=6500+3500*flip;
+  if(FB) FB.gain.value=0.20+0.22*flip;
+}
+
+/* ======================================================= framing (closed loop)
+   The camera is corrected from what actually lands on screen: project the model's
+   bounding box through the real camera, measure the box in pixels, and push the
+   distance and aim until it sits inside the band left between the chrome. */
+var az=0.55,el=0.10,zoom=1.0,fitRad=9;
+var camTarget=new THREE.Vector3();
+var PAD_TOP=64,PAD_BOT=112;
+function measureChrome(){
+  var d=document.querySelector('.dock'),t=document.querySelector('.top');
+  if(d) PAD_BOT=d.offsetHeight+8;
+  if(t) PAD_TOP=t.offsetHeight+8;
+}
+var _v=new THREE.Vector3(),_rt=new THREE.Vector3(),_up=new THREE.Vector3(),
+    _fw=new THREE.Vector3(),_UPY=new THREE.Vector3(0,1,0);
+function placeCamera(){
+  var r=fitRad;
+  camera.position.set(
+    camTarget.x+r*Math.cos(el)*Math.sin(az),
+    camTarget.y+r*Math.sin(el),
+    camTarget.z+r*Math.cos(el)*Math.cos(az));
+  camera.lookAt(camTarget);
+  camera.updateMatrixWorld(true);
+  camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+}
+function frameStep(k){
+  if(N===0) return;
+  world.updateMatrixWorld(true);
+  placeCamera();
+  var r=bounds(),xs=[r.x0,r.x1],ys=[r.y0,r.y1],zs=[r.z0,r.z1];
+  var minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9,a,b,c,near=false;
+  for(a=0;a<2;a++)for(b=0;b<2;b++)for(c=0;c<2;c++){
+    _v.set(xs[a],ys[b],zs[c]).applyMatrix4(world.matrixWorld)
+      .applyMatrix4(camera.matrixWorldInverse);
+    if(_v.z>-0.2){ near=true; break; }
+    _v.applyMatrix4(camera.projectionMatrix);
+    if(_v.x<minx)minx=_v.x; if(_v.x>maxx)maxx=_v.x;
+    if(_v.y<miny)miny=_v.y; if(_v.y>maxy)maxy=_v.y;
+  }
+  if(near){ fitRad*=1.6; return; }
+  var H=window.innerHeight||800;
+  var yTop=1-2*PAD_TOP/H, yBot=-1+2*PAD_BOT/H;
+  var cyD=(yTop+yBot)/2;
+  var wantW=0.94*2/zoom, wantH=(yTop-yBot)/zoom;
+  var s=Math.max((maxx-minx)/wantW,(maxy-miny)/wantH);
+  fitRad*=1+(s-1)*k;
+  fitRad=Math.max(1.2,Math.min(80,fitRad));
+  var ex=(minx+maxx)/2-0, ey=(miny+maxy)/2-cyD;
+  var tV=Math.tan(camera.fov*Math.PI/360),tH=tV*camera.aspect;
+  _fw.set(-Math.cos(el)*Math.sin(az),-Math.sin(el),-Math.cos(el)*Math.cos(az)).normalize();
+  _rt.crossVectors(_fw,_UPY).normalize();
+  _up.crossVectors(_rt,_fw).normalize();
+  camTarget.addScaledVector(_rt,ex*fitRad*tH*k);
+  camTarget.addScaledVector(_up,ey*fitRad*tV*k);
+}
+function snapFrame(){
+  if(N===0) return;
+  var r=bounds();
+  world.updateMatrixWorld(true);
+  camTarget.set((r.x0+r.x1)/2,(r.y0+r.y1)/2,(r.z0+r.z1)/2).applyMatrix4(world.matrixWorld);
+  fitRad=6;
+  for(var i=0;i<50;i++) frameStep(1.0);
+}
+
+/* ============================================================ build */
+function build(){
+  buildModel(); applyLoad(); buildMeshes(); applyFlip();
+  for(var i=0;i<(MODE==='chime'?60:90);i++) simulate();
+  makeSounders();
+  snapFrame();
+}
+
+/* ============================================================ pointer */
+var ptrs={},lastDist=0,moved=0,downX=0,downY=0,downAt=0,dragW=0,dragBag=-1;
+var ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
+var dragPlane=new THREE.Plane(),hitPt=new THREE.Vector3(),camDir=new THREE.Vector3(),
+    _proj=new THREE.Vector3();
+function setNdc(cx,cy){
+  var r=canvas.getBoundingClientRect();
+  ndc.x=((cx-r.left)/r.width)*2-1;
+  ndc.y=-((cy-r.top)/r.height)*2+1;
+}
+function screenNear(cx,cy,list,radius){
+  var r=canvas.getBoundingClientRect(),best=-1,bd=radius*radius,i,n,dx,dy,d2;
+  for(i=0;i<list.length;i++){
+    n=list[i];
+    _proj.set(PX[n],PY[n],PZ[n]);
+    world.localToWorld(_proj); _proj.project(camera);
+    if(_proj.z>1) continue;
+    dx=(_proj.x*0.5+0.5)*r.width+r.left-cx;
+    dy=(-_proj.y*0.5+0.5)*r.height+r.top-cy;
+    d2=dx*dx+dy*dy;
+    if(d2<bd){bd=d2;best=i;}
+  }
+  return best;
+}
+function pickTarget(cx,cy){
+  if(MODE==='cascade'){
+    if(!dropMesh||!B) return null;
+    setNdc(cx,cy); ray.setFromCamera(ndc,camera);
+    var h=ray.intersectObject(dropMesh,false);
+    if(h.length&&h[0].instanceId!=null) return {kind:'drop',i:h[0].instanceId,node:bagNode[h[0].instanceId]};
+    var k=screenNear(cx,cy,bagNode,30);
+    return k<0?null:{kind:'drop',i:k,node:bagNode[k]};
+  }
+  var list=[],map=[],i;
+  for(i=0;i<tubes.length;i++){ list.push(tubes[i].bot); map.push({kind:'tube',i:i,node:tubes[i].bot}); }
+  if(clapper>=0){ list.push(clapper); map.push({kind:'clapper',i:-1,node:clapper}); }
+  if(sail>=0){ list.push(sail); map.push({kind:'sail',i:-1,node:sail}); }
+  var k2=screenNear(cx,cy,list,44);
+  return k2<0?null:map[k2];
+}
+canvas.addEventListener('pointerdown',function(e){
+  canvas.setPointerCapture(e.pointerId);
+  ptrs[e.pointerId]={x:e.clientX,y:e.clientY};
+  moved=0;downX=e.clientX;downY=e.clientY;downAt=performance.now();
+  if(Object.keys(ptrs).length===1){
+    var t=pickTarget(e.clientX,e.clientY);
+    if(t){
+      dragIdx=t.node;dragBag=t;dragW=W[dragIdx];W[dragIdx]=0;
+      camera.getWorldDirection(camDir);
+      _p.set(PX[dragIdx],PY[dragIdx],PZ[dragIdx]); world.localToWorld(_p);
+      dragPlane.setFromNormalAndCoplanarPoint(camDir,_p);
+    }
+  }
+});
+canvas.addEventListener('pointermove',function(e){
+  var p=ptrs[e.pointerId]; if(!p) return;
+  var ids=Object.keys(ptrs);
+  if(ids.length===2){
+    ptrs[e.pointerId]={x:e.clientX,y:e.clientY};
+    var a=ptrs[ids[0]],b=ptrs[ids[1]],d=Math.hypot(a.x-b.x,a.y-b.y);
+    if(lastDist) zoom=Math.max(0.35,Math.min(2.6,zoom*(lastDist/d)));
+    lastDist=d;moved+=20;return;
+  }
+  var dx=e.clientX-p.x,dy=e.clientY-p.y;
+  moved+=Math.abs(dx)+Math.abs(dy);
+  if(dragIdx>=0){
+    setNdc(e.clientX,e.clientY); ray.setFromCamera(ndc,camera);
+    if(ray.ray.intersectPlane(dragPlane,hitPt)){
+      world.worldToLocal(hitPt);
+      PX[dragIdx]=hitPt.x;PY[dragIdx]=hitPt.y;PZ[dragIdx]=hitPt.z;
+      OX[dragIdx]=hitPt.x;OY[dragIdx]=hitPt.y;OZ[dragIdx]=hitPt.z;
+    }
+  } else {
+    az-=dx*0.006; el=Math.max(-1.2,Math.min(1.3,el+dy*0.005));
+  }
+  ptrs[e.pointerId]={x:e.clientX,y:e.clientY};
+});
+function release(e){
+  if(dragIdx>=0){
+    W[dragIdx]=dragW;
+    OX[dragIdx]=PX[dragIdx];OY[dragIdx]=PY[dragIdx];OZ[dragIdx]=PZ[dragIdx];
+    if(moved>8) strike(0.4);
+    dragIdx=-1;
+  } else if(moved<7&&performance.now()-downAt<520){
+    var t=pickTarget(downX,downY);
+    if(t) tap(t);
+  }
+  dragBag=-1;
+  delete ptrs[e.pointerId];
+  if(Object.keys(ptrs).length<2) lastDist=0;
+  applyLoad();
+}
+canvas.addEventListener('pointerup',release);
+canvas.addEventListener('pointercancel',release);
+canvas.addEventListener('wheel',function(e){
+  e.preventDefault(); zoom=Math.max(0.35,Math.min(2.6,zoom*(1+e.deltaY*0.0012)));
+},{passive:false});
+
+function tap(t){
+  if(t.kind==='tube'){
+    var tb=tubes[t.i];
+    ringTube(tb.f,0.85); tb.glow=1;
+    OX[tb.bot]=PX[tb.bot]-0.035*Math.cos(az);
+    OZ[tb.bot]=PZ[tb.bot]+0.035*Math.sin(az);
+    note('struck '+noteName(tb.f));
+  } else if(t.kind==='drop'){
+    var n=t.node;
+    OX[n]=PX[n]-0.05*Math.cos(az); OZ[n]=PZ[n]+0.05*Math.sin(az);
+    var d=Math.max(0,Math.min(1,-PY[n]/6));
+    plink(PENT[Math.round((1-d)*(PENT.length-1))]*2,0.75,1.5);
+    note('plucked a drop — deeper drops ring lower');
+  } else {
+    var n2=t.node;
+    OX[n2]=PX[n2]-0.07*Math.cos(az); OZ[n2]=PZ[n2]+0.07*Math.sin(az);
+    note('pushed the clapper — it will find the tubes');
+  }
+}
+function noteName(f){
+  var names=['A','C','D','E','G','A'],i=PENT.indexOf(f);
+  return i<0?'a tube':names[i];
+}
+
+/* ============================================================ audio */
+var AC=null,MASTER=null,TONE=null,COMP=null,FB=null,noiseBuf=null,audioOn=false,vol=0.6,live=0;
+function audioInit(){
+  if(AC) return;
+  var Ctx=window.AudioContext||window.webkitAudioContext; if(!Ctx) return;
+  AC=new Ctx();
+  MASTER=AC.createGain(); MASTER.gain.value=0;
+  TONE=AC.createBiquadFilter(); TONE.type='lowpass';
+  TONE.frequency.value=6500+3500*flip; TONE.Q.value=0.2;
+  COMP=AC.createDynamicsCompressor();
+  COMP.threshold.value=-15; COMP.knee.value=14; COMP.ratio.value=5;
+  COMP.attack.value=0.005; COMP.release.value=0.26;
+  MASTER.connect(TONE); TONE.connect(COMP); COMP.connect(AC.destination);
+  // two short delays at unrelated times read as a room rather than an echo
+  var d1=AC.createDelay(1.0),f1=AC.createGain(),w1=AC.createGain();
+  var d2=AC.createDelay(1.0),f2=AC.createGain(),w2=AC.createGain();
+  d1.delayTime.value=0.211; f1.gain.value=0.20; w1.gain.value=0.20;
+  d2.delayTime.value=0.367; f2.gain.value=0.16; w2.gain.value=0.15;
+  TONE.connect(d1); d1.connect(f1); f1.connect(d1); d1.connect(w1); w1.connect(COMP);
+  TONE.connect(d2); d2.connect(f2); f2.connect(d2); d2.connect(w2); w2.connect(COMP);
+  FB=f1;
+  var n=Math.floor(AC.sampleRate*0.25);
+  noiseBuf=AC.createBuffer(1,n,AC.sampleRate);
+  var d=noiseBuf.getChannelData(0);
+  for(var i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+}
+function budget(){ if(live>13) return false; live++; return true; }
+function spend(t){ setTimeout(function(){ live=Math.max(0,live-1); },t*1000); }
+function pan(node){
+  if(!AC.createStereoPanner) return node;
+  var p=AC.createStereoPanner(); p.pan.value=(Math.random()*2-1)*0.55;
+  node.connect(p); return p;
+}
+// a struck tube is inharmonic: 1 : 2.76 : 5.40 : 8.93 are the free-free bar modes,
+// and the low tubes hold on much longer than the high ones
+var TR=[1,2.76,5.40,8.93],TG=[1,0.40,0.17,0.075],TD=[1,0.46,0.24,0.13];
+function ringTube(f,amp,decay){
+  if(!audioOn||!AC||!budget()) return;
+  var t=AC.currentTime,i,base=(decay||3.4)*Math.pow(440/f,0.45);
+  var bus=AC.createGain(); bus.gain.value=Math.min(1,amp)*0.30;
+  pan(bus).connect(MASTER);
+  for(i=0;i<TR.length;i++){
+    var o=AC.createOscillator(); o.type='sine';
+    o.frequency.value=f*TR[i]*(1+(Math.random()-0.5)*0.004);
+    var g=AC.createGain(),dur=base*TD[i];
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(TG[i],t+0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(bus); o.start(t); o.stop(t+dur+0.05);
+  }
+  if(noiseBuf){
+    var sN=AC.createBufferSource(); sN.buffer=noiseBuf;
+    var bp=AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=f*5; bp.Q.value=0.9;
+    var ng=AC.createGain(); ng.gain.setValueAtTime(0.09,t);
+    ng.gain.exponentialRampToValueAtTime(0.0004,t+0.05);
+    sN.connect(bp); bp.connect(ng); ng.connect(bus); sN.start(t); sN.stop(t+0.06);
+  }
+  spend(base+0.2);
+}
+// a drop is soft and nearly harmonic, and dies away quickly
+function plink(f,amp,decay){
+  if(!audioOn||!AC||!budget()) return;
+  var t=AC.currentTime,dur=(decay||0.85)*Math.pow(330/f,0.3);
+  var bus=AC.createGain(); bus.gain.value=Math.min(1,amp)*0.13;
+  pan(bus).connect(MASTER);
+  var rs=[1,2.01,3.02],gs=[1,0.26,0.09];
+  for(var i=0;i<rs.length;i++){
+    var o=AC.createOscillator(); o.type='sine';
+    o.frequency.value=f*rs[i];
+    var g=AC.createGain(),d=dur*Math.pow(0.6,i);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(gs[i],t+0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(g); g.connect(bus); o.start(t); o.stop(t+d+0.03);
+  }
+  spend(dur+0.1);
+}
+function strike(amp){
+  if(!audioOn||!AC||!noiseBuf) return;
+  var t=AC.currentTime;
+  var src=AC.createBufferSource(); src.buffer=noiseBuf;
+  var bp=AC.createBiquadFilter(); bp.type='bandpass';
+  bp.frequency.value=140+Math.random()*200; bp.Q.value=2.4;
+  var g=AC.createGain();
+  g.gain.setValueAtTime(Math.min(0.4,amp*0.22),t);
+  g.gain.exponentialRampToValueAtTime(0.0006,t+0.3);
+  src.connect(bp); bp.connect(g); g.connect(MASTER);
+  src.start(t); src.stop(t+0.32);
+}
+// the cascade plays itself: a drop that swings hard enough sounds its own note
+var sounders=[];
+function makeSounders(){
+  sounders=[];
+  if(MODE!=='cascade') return;
+  var r=bounds(),i,n,d,idx,h=Math.max(r.y1-r.y0,1e-6);
+  for(i=0;i<B;i+=9){
+    n=bagNode[i];
+    d=(PY[n]-r.y0)/h;                       // 0 at the point, 1 at the ceiling
+    idx=Math.max(0,Math.min(PENT.length-1,Math.round(d*(PENT.length-1))));
+    sounders.push({n:n,f:PENT[idx]*(d>0.62?2:1),last:0});
+  }
+}
+var SPD=0.0028;
+function audioTick(now){
+  if(!audioOn||!AC||MODE!=='cascade') return;
+  for(var i=0;i<sounders.length;i++){
+    var s=sounders[i],sp=speed(s.n);
+    if(sp>SPD&&now-s.last>300){
+      s.last=now;
+      plink(s.f,Math.min(1,(sp-SPD)*170));
+    }
+  }
+}
+
+/* ============================================================ tilt + wind */
+var tiltOn=false,gustX=0,gustZ=0,shake=0,lastA=null;
+var gTarget=new THREE.Vector3(0,-1,0),gNow=new THREE.Vector3(0,-1,0),_gv=new THREE.Vector3();
+function onMotion(e){
+  var a=e.accelerationIncludingGravity; if(!a||a.x==null) return;
+  var m=Math.sqrt(a.x*a.x+a.y*a.y+a.z*a.z)||1;
+  // gravity in the phone's own frame, then rotated into the frame you are looking at
+  var gx=-a.x/m, gy=-a.y/m, gz=-a.z/m;
+  _fw.set(-Math.cos(el)*Math.sin(az),-Math.sin(el),-Math.cos(el)*Math.cos(az)).normalize();
+  _rt.crossVectors(_fw,_UPY).normalize();
+  _up.crossVectors(_rt,_fw).normalize();
+  _gv.set(0,0,0)
+     .addScaledVector(_rt,gx).addScaledVector(_up,gy).addScaledVector(_fw,-gz)
+     .normalize();
+  if(flip>0.5) _gv.set(_gv.x,-_gv.y,-_gv.z);
+  gTarget.copy(_gv);
+  if(lastA){
+    var d=Math.abs(a.x-lastA.x)+Math.abs(a.y-lastA.y)+Math.abs(a.z-lastA.z);
+    if(d>7){ shake=Math.min(1,shake+d*0.02); }
+  }
+  lastA={x:a.x,y:a.y,z:a.z};
+}
+function enableTilt(){
+  var D=window.DeviceMotionEvent;
+  if(!D){ note('this device reports no motion sensor'); return; }
+  if(typeof D.requestPermission==='function'){
+    D.requestPermission().then(function(s){
+      if(s==='granted'){ window.addEventListener('devicemotion',onMotion); tiltSet(true); }
+      else note('motion access was declined');
+    }).catch(function(){ note('motion access was declined'); });
+  } else {
+    window.addEventListener('devicemotion',onMotion); tiltSet(true);
+  }
+}
+function tiltSet(v){
+  tiltOn=v;
+  document.getElementById('tilt').setAttribute('aria-pressed',v?'true':'false');
+  if(v) note('tilt the phone — gravity follows it');
+}
+var breeze=0.40;
+function windTick(t){
+  var w1=0.42*Math.sin(t*0.31)+0.24*Math.sin(t*0.77+1.2)+0.16*Math.sin(t*1.63+2.4)
+        +0.24*Math.sin(t*4.31+0.6)+0.16*Math.sin(t*6.91+2.0);
+  var w2=0.42*Math.sin(t*0.27+4)+0.24*Math.sin(t*0.69+2.1)+0.16*Math.sin(t*1.41+0.7)
+        +0.24*Math.sin(t*3.87+1.9)+0.16*Math.sin(t*7.43+0.3);
+  var amp=0.0042*breeze*(1+shake*2.2);
+  WINDX=w1*amp+gustX; WINDZ=w2*amp+gustZ;
+  gustX*=0.94; gustZ*=0.94; shake*=0.97;
+  if(tiltOn){ gNow.lerp(gTarget,0.12); }
+  else gNow.lerp(_gv.set(0,-1,0),0.08);
+  GX=gNow.x; GY=gNow.y; GZ=gNow.z;
+}
+function gust(){
+  var a=Math.random()*Math.PI*2;
+  gustX=Math.cos(a)*0.0085*(0.6+breeze);
+  gustZ=Math.sin(a)*0.0085*(0.6+breeze);
+  note('gust');
+}
+
+/* ============================================================ readout */
+var rd=document.getElementById('rd');
+function readout(){
+  var r=bounds();
+  if(MODE==='chime'){
+    rd.innerHTML='<b>'+tubes.length+'</b> tubes &middot; A C D E G A<br>'+
+      'breeze <b>'+breeze.toFixed(2)+'</b>'+(tiltOn?' &middot; tilt on':'')+'<br>'+
+      'drop <b>'+(r.y1-r.y0).toFixed(2)+'</b>';
+  } else {
+    var i,load=0,mn=1e9,mx=-1e9;
+    for(i=0;i<B;i++){
+      load+=bagBase[i]*bagMul[i]*loadScale;
+      var v=bagBase[i]*bagMul[i];
+      if(v<mn)mn=v; if(v>mx)mx=v;
+    }
+    rd.innerHTML='<b>'+B+'</b> drops &middot; <b>'+N+'</b> nodes<br>'+
+      'load <b>'+load.toFixed(1)+'</b> &middot; spread <b>'+(mx/Math.max(mn,1e-6)).toFixed(1)+'\u00d7</b><br>'+
+      'rise:span <b>'+((r.y1-r.y0)/Math.max(r.x1-r.x0,1e-6)).toFixed(2)+':1</b>';
+  }
+}
+function note(t){ document.getElementById('sub').textContent=t; }
+
+/* ============================================================ loop */
+function resize(){
+  var w=window.innerWidth,h=window.innerHeight;
+  renderer.setSize(w,h);
+  camera.aspect=w/h; camera.updateProjectionMatrix();
+  measureChrome(); snapFrame();
+}
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',function(){setTimeout(resize,250);});
+
+var frame=0,t0=performance.now();
+function loop(){
+  requestAnimationFrame(loop);
+  var now=performance.now();
+  windTick((now-t0)/1000);
+  simulate();
+  if(MODE==='chime') collide(now);
+  updateMeshes();
+  if(Math.abs(flip-flipTarget)>0.0005){ flip+=(flipTarget-flip)*0.075; applyFlip(); }
+  frameStep(0.14);
+  if((frame%12)===0) readout();
+  if((frame%3)===0) audioTick(now);
+  frame++;
+  renderer.render(scene,camera);
+}
+
+/* ============================================================ controls */
+function bind(id,ev,fn){document.getElementById(id).addEventListener(ev,fn);}
+bind('breeze','input',function(){
+  breeze=parseFloat(this.value); document.getElementById('breezev').textContent=breeze.toFixed(2);
+});
+bind('load','input',function(){
+  loadScale=parseFloat(this.value);
+  document.getElementById('loadv').textContent=loadScale.toFixed(2); applyLoad();
+});
+var st=0;
+bind('slack','input',function(){
+  slack=parseFloat(this.value);
+  document.getElementById('slackv').textContent=slack.toFixed(2);
+  clearTimeout(st); st=setTimeout(function(){ if(MODE==='cascade') build(); },90);
+});
+bind('vol','input',function(){
+  vol=parseFloat(this.value);
+  document.getElementById('volv').textContent=vol.toFixed(2).slice(1);
+  if(AC&&audioOn) MASTER.gain.setTargetAtTime(vol*0.55,AC.currentTime,0.1);
+});
+bind('turn','click',function(){
+  flipTarget=flipTarget>0.5?0:1;
+  this.setAttribute('aria-pressed',flipTarget>0.5?'true':'false');
+  note(flipTarget>0.5?'tension becomes compression':'hanging again');
+});
+bind('sound','click',function(){
+  audioInit(); if(!AC) return;
+  if(AC.state==='suspended') AC.resume();
+  audioOn=!audioOn;
+  this.setAttribute('aria-pressed',audioOn?'true':'false');
+  MASTER.gain.setTargetAtTime(audioOn?vol*0.55:0,AC.currentTime,0.25);
+  if(audioOn) note(MODE==='chime'?'the wind plays it — tap a tube to strike it yourself'
+                                 :'each tier is a voice, tuned by its own sag');
+});
+bind('gust','click',gust);
+bind('tilt','click',function(){ if(tiltOn){ tiltSet(false); } else enableTilt(); });
+bind('resample','click',function(){
+  if(MODE!=='cascade'){ note('resampling applies to the cascade'); return; }
+  var i,sum=0;
+  for(i=0;i<B;i++){ bagMul[i]=0.35+Math.pow(Math.random(),1.6)*3.2; sum+=bagBase[i]*bagMul[i]; }
+  var k=(baseTotal||1)/Math.max(sum,1e-6);
+  for(i=0;i<B;i++) bagMul[i]*=k;
+  applyLoad();
+  for(i=0;i<70;i++) simulate();
+  note('same score, new realization');
+});
+bind('rebuild','click',function(){ build(); note('rebuilt'); });
+bind('more','click',function(){
+  var open=document.getElementById('drawer').classList.toggle('open');
+  this.setAttribute('aria-pressed',open?'true':'false');
+  setTimeout(function(){ measureChrome(); snapFrame(); },260);
+});
+bind('mode','click',function(){
+  MODE=MODE==='chime'?'cascade':'chime';
+  document.getElementById('modelabel').textContent=MODE==='chime'?'drops':'chime';
+  document.getElementById('ttl').textContent=MODE==='chime'?'wind chime':'hanging weights';
+  build();
+  note(MODE==='chime'
+    ?'six tuned tubes, a clapper and a sail — the breeze plays it'
+    :'the cascade again — tap a drop to pluck it');
+});
+
+measureChrome(); resize(); build(); applyFlip(); snapFrame(); loop();
+})();
+</script>
+</body>
+</html>
