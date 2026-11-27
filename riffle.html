@@ -281,7 +281,7 @@ let roi = null, roiCv = null, missN = 0, scanI = 0, bodyH = .5;
 const SCAN = [null]; [[.7, [0, .3]], [.5, [0, .25, .5]], [.34, [0, .22, .44, .66]]].forEach(([sz, ps]) => ps.forEach(y => ps.forEach(x => SCAN.push({ s: sz, x, y }))));
 const ZOOM = Q.get('zoom') !== '0';
 function detect(now) {
-  if (SIM) { lm = synth(); if (window.__pose) window.__pose(lm); return; }
+  if (SIM) { lm = synth(); if (window.__pose) window.__pose(lm); const v = lm.filter(p => p.visibility > .5); if (v.length > 7) { const ys = v.map(p => p.y), xs = v.map(p => p.x); bodyH += (Math.max(Math.max(...ys) - Math.min(...ys), Math.max(...xs) - Math.min(...xs)) - bodyH) * .1; } return; }
   if (!landmarker || vid.readyState < 2 || vid.currentTime === lastVT) return;
   lastVT = vid.currentTime; asp = vid.videoWidth / vid.videoHeight;
   let src = vid; const r = roi;
@@ -316,6 +316,7 @@ function framing() { // what is wrong with the picture, if anything
   if (x0 < .03 || x1 > .97) return 'side';
   return bh < .18 ? 'far' : 'part';
 }
+const FRAME_WORD = { none: 'STEP INTO VIEW', bed: 'SHOW YOUR LEGS', close: 'STEP BACK', low: 'TILT PHONE DOWN', high: 'TILT PHONE UP', side: 'MOVE TO MIDDLE', far: 'COME CLOSER', part: 'SHOW YOUR LEGS', '': 'HOLD STILL' };
 const FRAME_SAY = { none: 'Step into the frame.', bed: 'Move the phone until it shows your legs.', close: 'Too close. Step back.', low: 'Your legs are cut off. Tilt the phone down, or step back.', high: 'Your head is cut off. Tilt the phone up, or step back.', side: 'Move to the middle of the frame.', far: 'Too far. Come closer.', part: 'Turn so the camera sees your legs.' };
 const vis = i => lm[i].visibility > .5;
 const visLegs = need => [0, 1].filter(k => need.every(i => vis(i + k)));
@@ -470,7 +471,13 @@ function update(dt) {
     const timed = EX[G.id].sig === 'timer' || PACED;
     if (timed) G.seen += dt * .4;
     else if (seen(G.id)) { signal(dt); G.seen += dt; }                    // the resting pose is measured while the ring fills
-    else { G.seen = Math.max(0, G.seen - dt * 2); if ((G.nag += dt) > 9) { G.nag = -6; say(FRAME_SAY[framing()] || 'Step back until your whole body is in the frame.'); } }
+    else G.seen = Math.max(0, G.seen - dt * 2);
+    if (!timed) {   // say what to change as soon as it changes, and tick like a parking sensor: slow when lost, fast when close, steady when read
+      const code = framing(); if (code !== G.code) { G.code = code; G.codeT = 0; } else G.codeT = (G.codeT || 0) + dt;
+      if (G.codeT > 1 && G.saidCode !== code) { G.saidCode = code; G.nag = 0; say(code ? FRAME_SAY[code] : 'Good. I can read you. Hold still.'); }
+      if (code && (G.nag += dt) > 9) { G.nag = 0; say(FRAME_SAY[code]); }
+      if ((G.tick = (G.tick || 0) - dt) <= 0) { if (code) { G.tick = code === 'none' ? 1.1 : .5; tone(code === 'none' ? 330 : 440, .07, 'sine', .18); } else { G.tick = .22; tone(660 + G.seen * 180, .09, 'sine', .16); } }
+    }
     if (G.seen > 1.6) { st = 'play'; SFX.ready(); say(VO[G.id][2] + (HINTED || PACED ? '' : EX[G.id].env === 'bed' ? ' Show a thumbs up to skip. An open hand to stop.' : ' Raise one hand to skip. Both hands to stop.')); HINTED = true; }
     return;
   }
@@ -849,15 +856,15 @@ function sceneTitle() {
   const lp = clamp((t - 7.2) / 1.25), ant = t > 6.5 && t < 7.2 ? Math.sin((t - 6.5) / .7 * Math.PI) : 0, fx0 = W * .3, fx1 = W * .68, inAir = lp > 0 && lp < 1;
   const fxx = lerp(fx0, fx1, lp) + (lp >= 1 ? Math.min(1, (t - 8.45) * .5) * W * .05 : 0), fyy = inAir ? wy + u * 6 - Math.sin(lp * Math.PI) * H * .23 : wy + u * (11 + ant * 7) + Math.sin(T * 1.4) * u * 1.2, rot = inAir ? Math.atan2(-Math.cos(lp * Math.PI) * H * .23 * Math.PI, fx1 - fx0) : ant * .22;
   plane(2, () => {
-    boulder(W * .86, wy + u * 1.5, u * 13, u * 6, 1); c.save(); c.translate(W * .86, wy - u * 4); c.scale(-1, 1); dog(u * 11, 'sit', clamp(inAir ? Math.sin(lp * Math.PI) * 1.4 : .1)); c.restore();
+    boulder(W * .86, wy + u * 1.5, u * 13, u * 6, 1); const dk = clamp(el / 1.25), dh = dk < 1 ? Math.abs(Math.sin(dk * Math.PI * 2.5)) * u * 7 * (1 - dk * .3) : 0; c.save(); c.translate(lerp(W * 1.5, W * .86, ease(dk)), wy - u * 4 - dh); c.scale(-1, 1); dog(u * 11, dk < 1 ? 'run' : 'sit', clamp(inAir ? Math.sin(lp * Math.PI) * 1.4 : el < 2.2 ? 1 : .1)); c.restore();
     c.save(); c.translate(fxx, fyy); c.rotate(rot); c.scale(1 + (inAir ? .16 * Math.sin(lp * Math.PI) : -ant * .1), 1 - (inAir ? .1 * Math.sin(lp * Math.PI) : -ant * .12)); c.globalAlpha = inAir ? 1 : .25 + .75 * th; trout(u * 34, T * (inAir ? 26 : 5 + ant * 14), inAir ? .6 : 0); c.restore(); c.globalAlpha = 1;
     [[7.2, fx0 + u * 8], [8.45, fx1]].forEach(([t0, x]) => { const k = t - t0; if (k > 0 && k < 1.4) { ripples(x, wy, k / 1.4); drops(x, wy, k, 11, 1); } });
     for (let i = 0; i < 4; i++) { const k = clamp((t - 6 - i * .5) / 4); if (k <= 0 || th < .5) continue; const x = W * (.14 + i * .2) + Math.sin(T * 1.3 + i * 2) * u * 3, y = lerp(wy, H * (.2 + (i % 2) * .1), ease(k)) + Math.sin(T * 2.2 + i) * u * 3; c.save(); c.translate(x, y); if (i % 2) c.scale(-1, 1); c.rotate(-.35); c.globalAlpha = Math.min(1, th * 2 - 1 + .0001) ; dun(u * 9, Math.abs(Math.sin(T * 22 + i))); c.restore(); } c.globalAlpha = 1; });
   // the lettering rides the waterline on its own sheet, between the action and the reeds
   plane(9, () => { const word = 'RIFFLE', fs = Math.min(W * .17, H * .15), sp = fs * .7, x0 = W / 2 - sp * 2.5; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.font = `900 ${fs}px ui-rounded,"SF Pro Rounded","Arial Rounded MT Bold",system-ui,sans-serif`; c.lineJoin = 'round';
-    [...word].forEach((ch, i) => { const k = clamp((el - .5 - i * .16) / .45), pop = k <= 0 ? 0 : 1 + Math.sin(k * Math.PI) * .25 * (1 - k * .3), x = x0 + i * sp, y = H * .3 + Math.sin(T * 1.7 + i * .9) * u * 1.1; if (!pop) return;
+    [...word].forEach((ch, i) => { const k = clamp((el - 1.3 - i * .17) / .75), back = 1 + 2.70158 * Math.pow(k - 1, 3) + 1.70158 * Math.pow(k - 1, 2), pop = k <= 0 ? 0 : 1 + Math.sin(k * Math.PI) * .2, x = x0 + i * sp, y = lerp(wy + fs * .9, H * .3, back) + (k >= 1 ? Math.sin(T * 1.7 + i * .9) * u * 1.1 : 0); if (!pop) return; if (k < 1) { ripples(x, wy, k); drops(x, wy, k * .8, 7, .9); }
       c.save(); c.translate(x, y); c.rotate(Math.sin(T * 1.3 + i * 1.7) * .035); c.scale(pop, pop); c.lineWidth = fs * .16; c.strokeStyle = C.ink; c.strokeText(ch, jit(i), jit(i + 5)); c.fillStyle = mix('#d8cfb6', '#f6f0e0', th); c.fillText(ch, 0, 0); c.fillStyle = C.amber; c.globalAlpha = th; c.fillRect(-fs * .26, fs * .12, fs * .52, fs * .055); c.restore(); });
-    const k2 = clamp((el - 1.8) / .6); c.globalAlpha = k2; c.font = `800 ${Math.min(W * .046, u * 5)}px ui-rounded,system-ui,sans-serif`; c.lineWidth = u * 1.2; c.strokeStyle = '#0e2226cc'; c.strokeText('MOVE YOUR BODY.  MEND THE CREEK.', W / 2, H * .3 + fs * .46); c.fillStyle = C.cream; c.fillText('MOVE YOUR BODY.  MEND THE CREEK.', W / 2, H * .3 + fs * .46); c.globalAlpha = 1; });
+    const k2 = clamp((el - 3.1) / .6); c.globalAlpha = k2; c.font = `800 ${Math.min(W * .046, u * 5)}px ui-rounded,system-ui,sans-serif`; c.lineWidth = u * 1.2; c.strokeStyle = '#0e2226cc'; c.strokeText('MOVE YOUR BODY.  MEND THE CREEK.', W / 2, H * .3 + fs * .46); c.fillStyle = C.cream; c.fillText('MOVE YOUR BODY.  MEND THE CREEK.', W / 2, H * .3 + fs * .46); c.globalAlpha = 1; });
   // sheets 1 and 0: reeds at the lens, then the mask
   plane(.9, () => { for (let i = 0; i < 16; i++) { const side = i % 2 ? 1 : -1, x = W / 2 + side * (W * .38 + (i * 37 % 9) * u * 4.5), hgt = H * (.26 + (i * 13 % 7) * .035), sway = Math.sin(T * 1.1 + i) * u * 2.5, tip = [x + sway + side * u * 2, H * 1.02 - hgt];
       c.strokeStyle = mix('#2a2418', '#16321f', th); c.lineWidth = u * 1.5; c.lineCap = 'round'; c.beginPath(); c.moveTo(x, H * 1.05); c.quadraticCurveTo(x + jit(i, 2), H * 1.02 - hgt * .5, tip[0], tip[1]); c.stroke();
@@ -869,32 +876,55 @@ function sceneTitle() {
 
 /* ---------- how to play: five commands, each shown being done ---------- */
 const HOW = [
-  { cap: ['PROP THE PHONE.', 'STEP BACK.'], say: 'Prop the phone up. Step back until your whole body is in the frame.', dur: 6 },
+  { cap: ['LEAN THE PHONE UP.', 'WAIST HIGH.'], say: 'Lean the phone against something, about waist high, with the screen facing you.', dur: 6.5 },
+  { cap: ['TAKE 3 BIG STEPS BACK.', 'HEAD TO FEET IN VIEW.'], say: 'Take three big steps back, until the phone sees you from head to feet.', dur: 8 },
+  { cap: ['THE FIGURE IS YOU.', 'GREEN = READING YOU.'], say: 'The figure on the screen is you. Red and ticking means move. Green and a steady tone means it is reading you.', dur: 9 },
   { cap: ['MOVE.', 'THE RAILS FILL.'], say: 'Move. The tone rises and the rails fill.', dur: 5.5 },
   { cap: ['HOLD.', 'GREEN COUNTS ONE.'], say: 'Hold until the rails turn green. That counts one.', dur: 5.5 },
   { cap: ['EACH REP', 'CLEANS THE CREEK.'], say: 'Each rep cleans the creek.', dur: 5.5 },
   { cap: ['ONE ARM: SKIP.', 'TWO ARMS: STOP.'], say: 'Raise one arm to skip. Raise both arms to stop. Stop any time. Every rep is saved.', dur: 8 },
 ];
-let HW = { i: 0, t: 0 }, HOVR = null;
+let HW = { i: 0, t: 0 };
 function howStart() { st = 'howto'; HW = { i: 0, t: 0 }; $('title').hidden = true; home.hidden = true; xBtn.hidden = false; audio(); ambient(true); say(HOW[0].say, true); }
 function howNext() { HW.i++; HW.t = 0; if (HW.i >= HOW.length) { S.seenIntro = true; save(); return goHome(); } say(HOW[HW.i].say, true); }
 function sceneHow() {
-  const i = HW.i, t = HW.t, cx = W / 2, cy = H * .4, z = Math.min(W * .44, H * .27);
-  creek(H * .3, H * .86); if (i !== 3) { c.fillStyle = '#0e2226d8'; c.fillRect(0, 0, W, H); }
-  const rails = (s, on) => { const bw = Math.max(12, u * 3.4), y0 = H * .14, bh = H * .5; [0, W - bw].forEach(x => { c.fillStyle = '#ffffff22'; c.fillRect(x, y0, bw, bh); c.fillStyle = on ? '#7ee081' : C.amber; c.fillRect(x, y0 + bh * (1 - s), bw, bh * s); c.fillStyle = C.cream; c.fillRect(x, y0 - u * .8, bw, u * .8); }); };
-  if (i === 0) { const k = ease(clamp((t - .8) / 2.6)), fw = z * 1.05, fh = z * 1.5, ok = k > .97; c.save(); c.beginPath(); c.roundRect(cx - fw / 2, cy - fh / 2, fw, fh, u * 3); c.clip(); c.fillStyle = '#12343a'; c.fillRect(cx - fw / 2, cy - fh / 2, fw, fh); demo('abd', cx, cy + lerp(fh * .75, fh * .16, k), lerp(z * 2.1, z * .72, k), 0); c.restore();
-    c.lineWidth = u * 1.4; c.strokeStyle = ok ? '#7ee081' : `rgba(226,102,79,${.6 + .4 * Math.sin(T * 6)})`; c.beginPath(); c.roundRect(cx - fw / 2, cy - fh / 2, fw, fh, u * 3); c.stroke();
-    if (ok) { c.strokeStyle = '#7ee081'; c.lineWidth = u * 2; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); c.moveTo(cx + fw * .22, cy - fh * .36); c.lineTo(cx + fw * .3, cy - fh * .3); c.lineTo(cx + fw * .4, cy - fh * .42); c.stroke(); } }
-  if (i === 1) { const q = t % 3.2, p = q < 1.3 ? ease(q / 1.3) : q < 1.8 ? 1 : q < 2.9 ? 1 - ease((q - 1.8) / 1.1) : 0; demo('kick', cx, cy + z * .25, z, p); rails(p, false); }
-  if (i === 2) { const p = ease(clamp(t / 1.2)), hd = clamp((t - 1.2) / 1.3), n = hd >= 1; demo('kick', cx, cy + z * .25, z, p); rails(p, p >= 1); if (p >= 1 && !n) ring(cx, cy - z * .95, u * 6, hd, '#7ee081');
-    if (n) { const k = clamp((t - 2.5) / .3), sc = 1 + Math.sin(k * Math.PI) * .4; c.font = `800 ${u * 20 * sc}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.fillStyle = '#7ee081'; c.fillText('1', cx, cy - z * .78); } }
-  if (i === 3) { const hh = clamp(t / 4); if (hh > .45) { c.globalAlpha = clamp((hh - .45) * 3); c.save(); c.translate(cx + Math.sin(T * .8) * W * .12, H * .56); trout(u * 34, T * 6); c.restore(); c.globalAlpha = 1; } }
-  if (i === 4) { const up = ease(clamp((t % 4) / .8)), fig = (x, n, sym) => { c.save(); c.translate(x, cy + z * .2); c.scale(z * .9, z * .9); c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = C.cream; c.lineWidth = .075; c.fillStyle = C.cream; c.beginPath(); c.arc(0, -.62, .1, 0, TAU); c.fill(); c.beginPath(); c.moveTo(0, -.48); c.lineTo(0, -.02); c.lineTo(-.1, .44); c.moveTo(0, -.02); c.lineTo(.1, .44); c.stroke();
+  const i = HW.i, t = HW.t, cx = W / 2, cy = H * .4, z = Math.min(W * .44, H * .27), GRN = '#7ee081';
+  creek(H * .3, H * .86); if (i !== 5) { c.fillStyle = '#0e2226e0'; c.fillRect(0, 0, W, H); }
+  const rails = (s, on) => { const bw = Math.max(12, u * 3.4), y0 = H * .14, bh = H * .5; [0, W - bw].forEach(x => { c.fillStyle = '#ffffff22'; c.fillRect(x, y0, bw, bh); c.fillStyle = on ? GRN : C.amber; c.fillRect(x, y0 + bh * (1 - s), bw, bh * s); c.fillStyle = C.cream; c.fillRect(x, y0 - u * .8, bw, u * .8); }); };
+  const person = (x, fy, hgt, col, pose = 0) => { c.strokeStyle = col; c.fillStyle = col; c.lineWidth = hgt * .055; c.lineCap = 'round'; c.lineJoin = 'round'; const hp = fy - hgt * .47, sh = fy - hgt * .8; c.beginPath(); c.arc(x, fy - hgt * .91, hgt * .075, 0, TAU); c.fill(); c.beginPath(); c.moveTo(x, sh); c.lineTo(x, hp); c.lineTo(x - hgt * .07 - pose * hgt * .1, fy); c.moveTo(x, hp); c.lineTo(x + hgt * .07 + pose * hgt * .12, fy - Math.abs(pose) * hgt * .05); c.moveTo(x, sh + hgt * .04); c.lineTo(x - hgt * .12, hp); c.moveTo(x, sh + hgt * .04); c.lineTo(x + hgt * .12, hp); c.stroke(); };
+  if (i < 2) {      // the room from the side: table, phone, what the phone can see, and you
+    const fy = H * .58, lx = W * .2, tabH = H * .13, hgt = H * .24, k0 = i === 0 ? ease(clamp((t - .6) / 1.4)) : 1, tilt = lerp(1.35, .2, k0), ly = fy - tabH - u * 5;
+    c.strokeStyle = '#ffffff55'; c.lineWidth = u * .7; c.lineCap = 'round'; c.beginPath(); c.moveTo(W * .04, fy); c.lineTo(W * .96, fy); c.stroke();
+    c.strokeStyle = '#c9b98a'; c.lineWidth = u * 1.3; c.beginPath(); c.moveTo(lx - u * 12, fy - tabH); c.lineTo(lx + u * 7, fy - tabH); c.moveTo(lx - u * 9, fy - tabH); c.lineTo(lx - u * 9, fy); c.moveTo(lx + u * 4, fy - tabH); c.lineTo(lx + u * 4, fy); c.stroke();
+    c.fillStyle = '#8a7a66'; c.fillRect(lx - u * 8, fy - tabH - u * 7.5, u * 5, u * 7);                                          // the mug it leans on
+    const steps = i === 1 ? clamp((t - .8) / 3.6) * 3 : 0, whole = Math.floor(steps), fr = steps - whole, d = i === 0 ? W * .1 : lerp(W * .1, W * .6, (whole + ease(clamp(fr * 1.6))) / 3), need = hgt * .98, fits = i === 1 && d > need * .92, ccol = i === 0 ? '#f6f0e0' : fits ? GRN : C.red;
+    if (k0 > .9) { const reach = W * .78, ang = .5, axis = -.12; c.fillStyle = ccol; c.globalAlpha = .16 + (fits ? .1 : 0); c.beginPath(); c.moveTo(lx, ly); c.lineTo(lx + Math.cos(axis - ang) * reach, ly + Math.sin(axis - ang) * reach); c.lineTo(lx + Math.cos(axis + ang) * reach, ly + Math.sin(axis + ang) * reach); c.fill(); c.globalAlpha = .8; c.strokeStyle = ccol; c.lineWidth = u * .5; c.setLineDash([u * 1.5, u * 1.5]); [-ang, ang].forEach(a => { c.beginPath(); c.moveTo(lx, ly); c.lineTo(lx + Math.cos(axis + a) * reach, ly + Math.sin(axis + a) * reach); c.stroke(); }); c.setLineDash([]); c.globalAlpha = 1; }
+    c.save(); c.translate(lx - u * 2, fy - tabH); c.rotate(-tilt); c.fillStyle = '#0e2226'; c.strokeStyle = C.cream; c.lineWidth = u * .6; c.beginPath(); c.roundRect(-u * 1, -u * 10, u * 2, u * 10, u * .6); c.fill(); c.stroke(); c.restore();
+    if (i === 0) { c.strokeStyle = C.amber; c.lineWidth = u * .7; c.setLineDash([u, u * 1.4]); c.beginPath(); c.moveTo(lx + u * 12, fy); c.lineTo(lx + u * 12, fy - tabH - u * 5); c.stroke(); c.setLineDash([]); person(lx + u * 22, fy, hgt, '#f6f0e088'); c.fillStyle = C.amber; c.beginPath(); c.arc(lx + u * 22, fy - hgt * .47, u * 1.6, 0, TAU); c.fill(); c.strokeStyle = C.amber; c.setLineDash([u, u * 1.4]); c.beginPath(); c.moveTo(lx + u * 4, fy - hgt * .47); c.lineTo(lx + u * 20, fy - hgt * .47); c.stroke(); c.setLineDash([]); }
+    else { person(lx + d, fy - (fr > 0 && fr < .6 ? Math.sin(fr / .6 * Math.PI) * u * 1.5 : 0), hgt, fits ? GRN : C.red, fr > 0 && fr < .6 ? Math.sin(fr / .6 * Math.PI) : 0);
+      for (let n = 1; n <= Math.min(3, whole + (fr > .55 ? 1 : 0)); n++) { const x = lx + lerp(W * .1, W * .6, n / 3); c.fillStyle = C.amber; c.beginPath(); c.ellipse(x - u * 2, fy + u * 2.6, u * 2.2, u * 1, 0, 0, TAU); c.fill(); c.font = `800 ${u * 5}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.fillText(n, x - u * 2, fy + u * 9.5); }
+      if (fits) { c.strokeStyle = GRN; c.lineWidth = u * 2; c.beginPath(); c.moveTo(lx + d - u * 4, fy - hgt * 1.14); c.lineTo(lx + d - u * 1, fy - hgt * 1.08); c.lineTo(lx + d + u * 4, fy - hgt * 1.22); c.stroke(); }
+      c.font = `700 ${Math.min(W * .042, u * 4.2)}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.fillStyle = '#f6f0e0bb'; c.fillText('about 2 to 3 metres  ·  7 to 10 feet', cx, fy + u * 17); }
+  }
+  if (i === 2) {      // the phone screen: the same person half out of frame (red, ticking), then stepping back in (green)
+    const fw = z * 1.15, fh = z * 1.7, k = ease(clamp((t - 2.2) / 2.2)), ok = k > .96, col = ok ? GRN : C.red;
+    c.fillStyle = '#12343a'; c.beginPath(); c.roundRect(cx - fw / 2, cy - fh / 2, fw, fh, u * 4); c.fill();
+    c.save(); c.beginPath(); c.roundRect(cx - fw / 2, cy - fh / 2, fw, fh, u * 4); c.clip(); const hgt = lerp(fh * 1.5, fh * .74, k), fy = cy + lerp(fh * .95, fh * .4, k); person(cx, fy, hgt, '#0e2226'); c.lineWidth = hgt * .05; person(cx, fy, hgt * 1, col); c.restore();
+    c.lineWidth = u * 1.4; c.strokeStyle = col; c.beginPath(); c.roundRect(cx - fw / 2, cy - fh / 2, fw, fh, u * 4); c.stroke();
+    const tk = ok ? 1 : (t * (1.5 + k * 3)) % 1; c.fillStyle = col; for (let n = 0; n < 3; n++) { c.globalAlpha = ok ? 1 : (tk < .35 ? 1 : .25); c.beginPath(); c.arc(cx + (n - 1) * u * 5, cy + fh / 2 + u * 6, u * (ok ? 1.8 : 1.3), 0, TAU); c.fill(); } c.globalAlpha = 1;
+    if (ok) { c.fillRect(cx - u * 5, cy + fh / 2 + u * 5.2, u * 10, u * 1.6); }
+  }
+  if (i === 3) { const q = t % 3.2, p = q < 1.3 ? ease(q / 1.3) : q < 1.8 ? 1 : q < 2.9 ? 1 - ease((q - 1.8) / 1.1) : 0; demo('kick', cx, cy + z * .25, z, p); rails(p, false); }
+  if (i === 4) { const p = ease(clamp(t / 1.2)), hd = clamp((t - 1.2) / 1.3), n = hd >= 1; demo('kick', cx, cy + z * .25, z, p); rails(p, p >= 1); if (p >= 1 && !n) ring(cx, cy - z * .95, u * 6, hd, GRN);
+    if (n) { const k = clamp((t - 2.5) / .3), sc = 1 + Math.sin(k * Math.PI) * .4; c.font = `800 ${u * 20 * sc}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.fillStyle = GRN; c.fillText('1', cx, cy - z * .78); } }
+  if (i === 5) { const hh = clamp(t / 4); if (hh > .45) { c.globalAlpha = clamp((hh - .45) * 3); c.save(); c.translate(cx + Math.sin(T * .8) * W * .12, H * .56); trout(u * 34, T * 6); c.restore(); c.globalAlpha = 1; } }
+  if (i === 6) { const up = ease(clamp((t % 4) / .8)), fig = (x, n, sym) => { c.save(); c.translate(x, cy + z * .2); c.scale(z * .9, z * .9); c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = C.cream; c.lineWidth = .075; c.fillStyle = C.cream; c.beginPath(); c.arc(0, -.62, .1, 0, TAU); c.fill(); c.beginPath(); c.moveTo(0, -.48); c.lineTo(0, -.02); c.lineTo(-.1, .44); c.moveTo(0, -.02); c.lineTo(.1, .44); c.stroke();
       [-1, 1].forEach(sd => { const r = sd > 0 || n > 1, a = r ? up : 0; c.strokeStyle = r ? C.amber : C.cream; c.beginPath(); c.moveTo(0, -.44); c.lineTo(sd * lerp(.17, .2, a), lerp(-.22, -.64, a)); c.lineTo(sd * lerp(.19, .16, a), lerp(0, -.94, a)); c.stroke(); });
-      c.fillStyle = n > 1 ? C.red : '#7ee081'; c.globalAlpha = up; if (sym) [-.13, .05].forEach(o => { c.beginPath(); c.moveTo(o, -1.36); c.lineTo(o + .17, -1.22); c.lineTo(o, -1.08); c.fill(); }); else c.fillRect(-.12, -1.34, .24, .24); c.restore(); c.globalAlpha = 1; };
+      c.fillStyle = n > 1 ? C.red : GRN; c.globalAlpha = up; if (sym) [-.13, .05].forEach(o => { c.beginPath(); c.moveTo(o, -1.36); c.lineTo(o + .17, -1.22); c.lineTo(o, -1.08); c.fill(); }); else c.fillRect(-.12, -1.34, .24, .24); c.restore(); c.globalAlpha = 1; };
     fig(cx - W * .22, 1, true); fig(cx + W * .22, 2, false); }
-  const fs = Math.min(W * .085, u * 9); c.textAlign = 'center'; c.font = `800 ${fs}px ui-rounded,system-ui,sans-serif`; c.lineJoin = 'round'; HOW[i].cap.forEach((ln, j) => { const y = H * .76 + j * fs * 1.25; c.lineWidth = fs * .22; c.strokeStyle = '#0e2226'; c.strokeText(ln, cx, y); c.fillStyle = j ? C.amber : C.cream; c.fillText(ln, cx, y); });
+  const fs = Math.min(W * .078, u * 8.6); c.textAlign = 'center'; c.font = `800 ${fs}px ui-rounded,system-ui,sans-serif`; c.lineJoin = 'round'; HOW[i].cap.forEach((ln, j) => { const y = H * .775 + j * fs * 1.25; c.lineWidth = fs * .22; c.strokeStyle = '#0e2226'; c.strokeText(ln, cx, y); c.fillStyle = j ? C.amber : C.cream; c.fillText(ln, cx, y); });
   HOW.forEach((_, j) => { c.fillStyle = j === i ? C.cream : '#ffffff44'; c.beginPath(); c.arc(cx + (j - (HOW.length - 1) / 2) * u * 5, H * .94, u * (j === i ? 1.4 : 1), 0, TAU); c.fill(); });
+  c.fillStyle = '#ffffff22'; c.fillRect(0, H - u * 1.2, W, u * 1.2); c.fillStyle = C.amber; c.fillRect(0, H - u * 1.2, W * (i + clamp(t / HOW[i].dur)) / HOW.length, u * 1.2);
 }
 
 /* ---------- pictograms: how to move, where the phone goes, the camera inset ---------- */
@@ -974,6 +1004,50 @@ function stepBack(x, y, z, lying) { // prop the phone, move back until the body 
   c.restore();
 }
 
+/* ---------- seeing that you are read ----------
+   bones() draws the tracked body. Cream = read. Amber = the limb being measured, green once it reaches the target.
+   Red and dashed = a part this exercise needs and the camera cannot see.
+   coach() is the placement screen: the camera as a mirror, your bones on top, a zone to stand in, and a distance
+   gauge whose green band is where to be. avatar() keeps the same bones in the creek while you play. */
+function bones(P, lw) {
+  const e = EX[G.id], need = i => e.core.includes(i) || e.leg.some(j => j === i || j + 1 === i), act = st === 'play' && e.leg.length ? [23, 25, 27, 31].map(i => i + G.side) : [];
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  [1.9, 1].forEach(k => BONES.forEach(([a, b]) => {
+    const ok = vis(a) && vis(b); if (!ok && !(need(a) && need(b))) return; const [x1, y1] = P(a), [x2, y2] = P(b);
+    c.lineWidth = lw * k; c.setLineDash(ok ? [] : [lw, lw * 1.7]); c.globalAlpha = ok ? 1 : .55 + .4 * Math.sin(T * 8);
+    c.strokeStyle = k > 1 ? '#0e2226' : !ok ? C.red : act.includes(a) && act.includes(b) ? (G.hold > 0 || G.sd >= 1 ? '#7ee081' : C.amber) : C.cream;
+    c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+  }));
+  c.setLineDash([]); c.globalAlpha = 1;
+  if (vis(0) && vis(11) && vis(12)) { const [hx, hy] = P(0), [ax, ay] = P(11), [bx, by] = P(12), r = Math.max(lw * 1.4, Math.hypot(ax - bx, ay - by) * .2); c.fillStyle = '#0e2226'; c.beginPath(); c.arc(hx, hy, r + lw * .45, 0, TAU); c.fill(); c.fillStyle = C.cream; c.beginPath(); c.arc(hx, hy, r, 0, TAU); c.fill(); }
+}
+function coach(lostMode) {
+  const vw = asp, sc = Math.min(W * .84 / vw, H * .7), dw = vw * sc, dh = sc, code = framing(), ok = code === '', col = ok ? '#7ee081' : code === 'none' ? '#f6f0e0' : C.red;
+  c.fillStyle = '#0b1b1e'; c.fillRect(0, 0, W, H);
+  if (!SIM && camOn && vid.readyState >= 2) { c.save(); c.translate(W, 0); c.scale(-1, 1); c.drawImage(vid, (W - dw) / 2, (H - dh) / 2, dw, dh); c.restore(); c.fillStyle = '#0b1b1e66'; c.fillRect((W - dw) / 2, (H - dh) / 2, dw, dh); }   // the camera as a mirror
+  const zx = (W - dw) / 2, zy = (H - dh) / 2, zw = dw, zh = dh, per = 2 * (zw + zh);   // the zone is the edge of the camera's picture
+  if (SIM || !camOn) { c.fillStyle = '#12343a'; c.fillRect(zx, zy, zw, zh); }
+  c.save(); c.beginPath(); c.rect(zx, zy, zw, zh); c.clip(); if (lm) bones(i => [W / 2 + (.5 - lm[i].x) * dw, H / 2 + (lm[i].y - .5) * dh], Math.max(5, u * 1.7)); c.restore();
+  c.lineWidth = u * .9; c.strokeStyle = col; c.globalAlpha = .9; c.setLineDash([u * 3, u * 3]); c.beginPath(); c.roundRect(zx, zy, zw, zh, u * 5); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+  if (ok && !lostMode) { c.lineWidth = u * 1.8; c.strokeStyle = '#7ee081'; c.setLineDash([per * clamp(G.seen / 1.6), per]); c.beginPath(); c.roundRect(zx, zy, zw, zh, u * 5); c.stroke(); c.setLineDash([]); }
+  // distance gauge: the marker is how much of the picture your body fills. Green band = stand here.
+  const gx = W - Math.max(22, u * 6.5), gy = H * .22, gh = H * .5, gw = Math.max(12, u * 3), yv = v => gy + gh * (1 - clamp((v - .05) / .95)), have = lm && lm.filter(p => p.visibility > .5).length > 3;
+  c.fillStyle = '#0e2226cc'; c.beginPath(); c.roundRect(gx - gw, gy - u * 9, gw * 3, gh + u * 18, gw); c.fill();
+  c.fillStyle = '#ffffff22'; c.fillRect(gx, gy, gw, gh); c.fillStyle = '#f2b84b99'; c.fillRect(gx, yv(.42), gw, yv(.16) - yv(.42)); c.fillStyle = '#7ee081'; c.fillRect(gx, yv(.9), gw, yv(.42) - yv(.9));
+  const man = (y, z) => { c.strokeStyle = C.cream; c.fillStyle = C.cream; c.lineWidth = z * .16; c.lineCap = 'round'; c.beginPath(); c.arc(gx + gw / 2, y - z * .8, z * .2, 0, TAU); c.fill(); c.beginPath(); c.moveTo(gx + gw / 2, y - z * .55); c.lineTo(gx + gw / 2, y); c.lineTo(gx + gw / 2 - z * .22, y + z * .55); c.moveTo(gx + gw / 2, y); c.lineTo(gx + gw / 2 + z * .22, y + z * .55); c.moveTo(gx + gw / 2 - z * .3, y - z * .2); c.lineTo(gx + gw / 2 + z * .3, y - z * .2); c.stroke(); };
+  man(gy - u * 3.4, u * 4.4); man(gy + gh + u * 4.6, u * 2.2);                       // big figure = near, small figure = far
+  if (have) { const y = yv(bodyH); c.fillStyle = C.cream; c.beginPath(); c.moveTo(gx - u * 1, y); c.lineTo(gx - u * 4.4, y - u * 2.4); c.lineTo(gx - u * 4.4, y + u * 2.4); c.fill(); c.fillRect(gx - u * .5, y - u * .5, gw + u, u); }
+  const word = lostMode && ok ? 'HOLD STILL' : FRAME_WORD[code], fs = Math.min(W * .1, u * 10); c.font = `800 ${fs}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineJoin = 'round'; c.lineWidth = fs * .24; c.strokeStyle = '#0e2226'; c.strokeText(word, W / 2, Math.max(zy - u * 4, fs * 1.6)); c.fillStyle = col; c.fillText(word, W / 2, Math.max(zy - u * 4, fs * 1.6));
+  const dz = Math.min(W * .13, H * .07), dy = Math.min(H - dz * 1.2, zy + zh + dz * 1.5); demo(G.id, W / 2, dy, dz, demoP());
+}
+function avatar() {
+  if (!lm) return; const v = lm.filter(p => p.visibility > .5); if (v.length < 4) return;
+  const land = W > H, h = land ? H * .44 : H * .24, bx = land ? W * .14 : W * .2, by = land ? H * .6 : H * .73;
+  const xs = v.map(p => p.x * asp), ys = v.map(p => p.y), span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)), cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
+  const A = G.av || (G.av = { s: span, x: cx, y: cy }); A.s += (span - A.s) * .04; A.x += (cx - A.x) * .06; A.y += (cy - A.y) * .06; const sc = h / A.s;
+  c.fillStyle = '#0e222677'; c.beginPath(); c.ellipse(bx, by, h * .5, h * .62, 0, 0, TAU); c.fill();
+  bones(i => [bx - (lm[i].x * asp - A.x) * sc, by + (lm[i].y - A.y) * sc], Math.max(4, u * 1.4));
+}
 function cmdRing() { // a held command fills a ring big enough to read from across the room
   if (!CMD.k || CMD.latch || CMD.t < .2) return; const r = u * 20, go = CMD.k === 'go';
   c.fillStyle = '#0e2226cc'; c.beginPath(); c.arc(W / 2, H / 2, r * 1.25, 0, TAU); c.fill(); ring(W / 2, H / 2, r, CMD.t / CMD.need, go ? '#7ee081' : C.red);
@@ -988,21 +1062,18 @@ function draw() {
   SCENES[G.id]();
   const land = W > H, e = EX[G.id], timed = e.sig === 'timer' || PACED, lying = e.env === 'bed';
   if (st === 'intro') {
-    c.fillStyle = '#0e2226cc'; c.fillRect(0, 0, W, H);
-    const ok = seen(G.id), pw = land ? Math.min(W * .36, H * .7 * asp) : Math.min(W * .62, H * .4 * asp), ph = pw / asp, dz = land ? Math.min(H * .34, W * .2) : Math.min(W * .34, H * .19);
-    if (timed) { demo(G.id, W / 2, H * .42, dz * 1.2, demoP()); ring(W / 2, H * .72, u * 7, G.seen / 1.6); }
-    else if (land) { demo(G.id, W * .27, H * .56, dz, demoP()); pip(W * .73 - pw / 2, H / 2 - ph / 2, pw, G.seen / 1.6, !ok); if (!ok) stepBack(W * .27, H * .9, u * 9, lying); }
-    else { demo(G.id, W / 2, H * .27, dz, demoP()); pip(W / 2 - pw / 2, H * .46, pw, G.seen / 1.6, !ok); if (!ok) stepBack(W / 2, H * .46 + ph + u * 9, u * 11, lying); }
+    if (timed) { c.fillStyle = '#0e2226cc'; c.fillRect(0, 0, W, H); const dz = land ? Math.min(H * .34, W * .2) : Math.min(W * .34, H * .19); demo(G.id, W / 2, H * .42, dz * 1.2, demoP()); ring(W / 2, H * .72, u * 7, G.seen / 1.6); }
+    else coach(false);
     cmdRing(); return;
   }
   if (st === 'play') {
     const lost = !timed && G.lost > 1;
-    if (lost) { const pw = Math.min(W * .6, H * .5 * asp), ph = pw / asp; c.fillStyle = '#0e2226bb'; c.fillRect(0, 0, W, H); pip(W / 2 - pw / 2, H / 2 - ph / 2, pw, 0, true); stepBack(W / 2, H / 2 + ph / 2 + u * 9, u * 10, lying); }
+    if (lost) coach(true);
     else {
       // the body's signal as two side rails: they fill toward the top, and turn green while the hold counts
       const s = clamp(G.sd, 0, 1), bw = Math.max(12, u * 3.4), y0 = H * .16, bh = H * .66, on = G.hold > 0 || s >= 1;
       [0, W - bw].forEach(x => { c.fillStyle = '#0e222688'; c.fillRect(x, y0, bw, bh); c.fillStyle = on ? '#7ee081' : C.amber; c.fillRect(x, y0 + bh * (1 - s), bw, bh * s); c.fillStyle = C.cream; c.fillRect(x, y0 - u * .8, bw, u * .8); });
-      c.font = `700 ${u * 17}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineWidth = u * 1.6; c.strokeStyle = '#0e2226cc'; c.lineJoin = 'round'; c.strokeText(G.n, W / 2, Math.max(10, u * 3)); c.fillStyle = C.cream; c.fillText(G.n, W / 2, Math.max(10, u * 3)); c.textBaseline = 'alphabetic';
+      c.font = `700 ${u * 17}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineWidth = u * 1.6; c.strokeStyle = '#0e2226cc'; c.lineJoin = 'round'; c.strokeText(G.n, W / 2, Math.max(10, u * 3)); c.fillStyle = C.cream; c.fillText(G.n, W / 2, Math.max(10, u * 3)); c.textBaseline = 'alphabetic'; if (!timed) avatar();
     }
     pebbles(H - Math.max(u * 6, 26)); cmdRing(); return;
   }
@@ -1023,7 +1094,7 @@ function frame(now) {
   const dt = clamp((now - last) / 1000, 0, .05); last = now; T += dt;
   try {
     if (camOn || SIM) { if (st !== 'load') detect(now); hands(now); }
-    const how3 = st === 'howto' && HW.i === 3, b = how3 ? clamp(HW.t / 4) : st === 'howto' ? 0 : Q.get('health') != null ? +Q.get('health') : baseHealth(), part = st === 'home' || st === 'howto' || st === 'title' ? 0 : clamp((sessDone + (st === 'done' ? 0 : clamp(G.px / reps()))) / sessTotal);
+    const how3 = st === 'howto' && HW.i === 5, b = how3 ? clamp(HW.t / 4) : st === 'howto' ? 0 : Q.get('health') != null ? +Q.get('health') : baseHealth(), part = st === 'home' || st === 'howto' || st === 'title' ? 0 : clamp((sessDone + (st === 'done' ? 0 : clamp(G.px / reps()))) / sessTotal);
     HEALTH += (b + (1 - b) * .75 * part - HEALTH) * (1 - Math.exp(-dt * (how3 ? 6 : 1.5))); PUSH = st === 'play' && G.lost < 1 ? clamp(G.sd, 0, 1) : 0;
     update(dt); draw(); soundFrame(dt);
   } catch (e) { console.error(e); }      // one bad frame must not stop the session
