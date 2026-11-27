@@ -200,11 +200,11 @@ let freeStatus='',freePulse=-100,bodyStarted=false,touchMode=false,motionRAF=0,m
 let bodyControl={active:false,x:.5,y:.57,tx:.5,ty:.57,points:[],prior:new Map(),last:0,source:'none',fish:[],dogX:.78,crayX:.5,crayY:.62};
 function clearBody(){bodyControl={active:false,x:.5,y:.57,tx:.5,ty:.57,points:[],prior:new Map(),last:0,source:'none',fish:[],dogX:.78,crayX:.5,crayY:.62};motionPrev=null;cancelAnimationFrame(motionRAF);motionRAF=0}
 const SOUND_ASSETS=[{"id":"creek","file":"Flowing-water-100019.ogg","author":"Fg2","license":"Public domain","description":"19-second flowing water field recording","source":"https://commons.wikimedia.org/wiki/File:Flowing-water-100019.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/2/26/Flowing-water-100019.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/2/26/Flowing-water-100019.ogg/Flowing-water-100019.ogg.mp3"},{"id":"trickle","file":"Swale.ogg","author":"Ksd5","license":"CC0 1.0","description":"A small swale flowing into a stream","source":"https://commons.wikimedia.org/wiki/File:Swale.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/8/84/Swale.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/8/84/Swale.ogg/Swale.ogg.mp3"},{"id":"birds","file":"Indigobunting.ogg","author":"U.S. Fish and Wildlife Service","license":"Public domain (US government)","description":"Indigo bunting call","source":"https://commons.wikimedia.org/wiki/File:Indigobunting.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/d/d2/Indigobunting.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d2/Indigobunting.ogg/Indigobunting.ogg.mp3"},{"id":"frogs","file":"Spring_Peeper_(Pseudacris_crucifer).ogg","author":"Don Becker","license":"CC0 1.0","description":"Spring peeper call","source":"https://commons.wikimedia.org/wiki/File:Spring_Peeper_(Pseudacris_crucifer).ogg","url":"https://upload.wikimedia.org/wikipedia/commons/e/e9/Spring_Peeper_(Pseudacris_crucifer).ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/e/e9/Spring_Peeper_(Pseudacris_crucifer).ogg/Spring_Peeper_(Pseudacris_crucifer).ogg.mp3"},{"id":"insects","file":"Field_cricket_unedited.ogg","author":"Thatcher","license":"CC BY-SA 3.0","description":"North American field cricket; unedited recording","source":"https://commons.wikimedia.org/wiki/File:Field_cricket_unedited.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/0/0d/Field_cricket_unedited.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/0/0d/Field_cricket_unedited.ogg/Field_cricket_unedited.ogg.mp3"},{"id":"dog","file":"George_vuf_1996.ogg","author":"Broadbeer","license":"Public domain","description":"Labrador bark","source":"https://commons.wikimedia.org/wiki/File:George_vuf_1996.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/4/4c/George_vuf_1996.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4c/George_vuf_1996.ogg/George_vuf_1996.ogg.mp3"},{"id":"splash","file":"Bathtub_water_splashes.ogg","author":"gradha","license":"Public domain","description":"Recorded water splashes","source":"https://commons.wikimedia.org/wiki/File:Bathtub_water_splashes.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/8/83/Bathtub_water_splashes.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/8/83/Bathtub_water_splashes.ogg/Bathtub_water_splashes.ogg.mp3"},{"id":"bubbles","file":"Water_bubbles_chortling.ogg","author":"stephan","license":"Public domain","description":"Real water bubbles","source":"https://commons.wikimedia.org/wiki/File:Water_bubbles_chortling.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/4/4b/Water_bubbles_chortling.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4b/Water_bubbles_chortling.ogg/Water_bubbles_chortling.ogg.mp3"},{"id":"gravel","file":"Assorted_gravel_rock_and_stones.ogg","author":"stephan","license":"Public domain","description":"Gravel and stone Foley","source":"https://commons.wikimedia.org/wiki/File:Assorted_gravel_rock_and_stones.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/a/a3/Assorted_gravel_rock_and_stones.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a3/Assorted_gravel_rock_and_stones.ogg/Assorted_gravel_rock_and_stones.ogg.mp3"},{"id":"sloshing","file":"Water_sloshing_in_a_small_bottle.ogg","author":"tamanders","license":"Public domain","description":"Sloshing water Foley","source":"https://commons.wikimedia.org/wiki/File:Water_sloshing_in_a_small_bottle.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/1/1b/Water_sloshing_in_a_small_bottle.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/1/1b/Water_sloshing_in_a_small_bottle.ogg/Water_sloshing_in_a_small_bottle.ogg.mp3"}];
-const recorded={buffers:new Map(),pending:new Map(),loops:new Map(),master:null,started:false,lastMix:0,lastShots:new Map(),lastMessage:''};
+const recorded={buffers:new Map(),pending:new Map(),loops:new Map(),master:null,started:false,lastMix:0,lastShots:new Map(),failed:new Set(),lastMessage:''};
 function audioStatus(){
  const el=$('audioState');if(!el)return;
  const count=recorded.buffers.size;
- const label=!soundOn?'Sound off · tap speaker':!audio||audio.state!=='running'?'Tap speaker for sound':count?'Sound on · field recordings '+count+'/'+SOUND_ASSETS.length:'Sound on · loading nature sounds';
+ const label=!soundOn?'Sound off · tap speaker':!audio||audio.state!=='running'?'Tap speaker for sound':count?'Sound on · recordings '+count+'/'+SOUND_ASSETS.length+(recorded.failed.size?' · fallback available':''):recorded.failed.size===SOUND_ASSETS.length?'Sound on · synthesized fallback':'Sound on · loading nature sounds';
  if(label!==recorded.lastMessage){recorded.lastMessage=label;el.textContent=label}
 }
 function rmsLevel(buffer){
@@ -227,12 +227,12 @@ async function loadRecording(id){
     const buffer=await audio.decodeAudioData(bytes);
     if(buffer.duration<.1)throw Error('Invalid audio');
     const item={buffer,rms:rmsLevel(buffer)};
-    recorded.buffers.set(id,item);
+    recorded.buffers.set(id,item);recorded.failed.delete(id);
     if(['creek','trickle','birds','frogs','insects'].includes(id))ensureLoop(id);
     audioStatus();updateSoundMix(true);return item;
    }catch(e){clearTimeout(timer)}
   }
-  return null;
+  recorded.failed.add(id);audioStatus();return null;
  })();
  recorded.pending.set(id,task);return task;
 }
@@ -246,7 +246,7 @@ function startRecordedAudio(){
  if(!recorded.started){
   recorded.started=true;
   // Start the creek and immediate interaction sounds first; remaining layers arrive without blocking play.
-  Promise.allSettled(['creek','splash','trickle'].map(loadRecording)).then(()=>Promise.allSettled(['birds','frogs','insects','dog','bubbles','gravel','sloshing'].map(loadRecording))).then(audioStatus);
+  Promise.allSettled(['creek','splash','trickle','dog','bubbles','gravel','sloshing','birds','frogs','insects'].map(loadRecording)).then(audioStatus);
  }
  updateSoundMix(true);
  audio.resume().then(audioStatus).catch(audioStatus);
