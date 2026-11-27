@@ -100,7 +100,54 @@
 .title-audio{color:#c4d1b8;font-size:11px;text-decoration:underline;text-underline-offset:3px}
 #sound[aria-pressed=true]{background:#d2e6ae;color:#17372f}
 @media(max-height:520px) and (orientation:landscape){#audioState{font-size:10px}.title-audio{display:none}}
-</style></head><body><div class="app" id="app"><canvas id="world" aria-hidden="true"></canvas><div class="shade"></div><main class="hud" aria-label="Creekkeeper game"><div class="top"><div class="brand"><div class="brandmark" id="mark"></div><div style="min-width:0"><div class="eyebrow">CREEKKEEPER</div><div class="title" id="worldTitle">Living waters</div></div></div><div class="topactions"><button class="iconbtn" id="ptSetup" aria-label="Physical therapist setup" title="Physical therapist setup"></button><button class="iconbtn" id="cameraCheck" aria-label="Open live camera"></button><button class="iconbtn" id="sound" aria-label="Turn sound on" aria-pressed="false"></button><button class="iconbtn" id="pause" aria-label="Pause or stop"></button></div></div><div class="middle"><div class="cam" id="cam"><video id="video" autoplay playsinline webkit-playsinline muted></video><canvas id="pose"></canvas><div class="camlabel"><span class="dot" id="camDot"></span><span id="camText">Camera</span></div></div></div><div class="bottom"><div class="statusbar" id="status"><span class="dot ok"></span> FIELD STATION</div><div id="audioState" role="status">Sound off</div><div id="restoreHUD" aria-label="Virtual creek condition"><div class="restore-seeds" id="restoreSeeds"></div><span id="restoreText">Muddy water</span></div><div class="caption" id="prompt">A creek comes to life.</div><div class="subcaption" id="hint">Move gently. Discover slowly.</div><div class="measure" id="measure" role="meter" aria-label="Movement progress" aria-valuemin="0" aria-valuemax="100"><div id="measureFill"></div></div><div class="progressWrap"><div class="progress" id="progress" aria-hidden="true"></div><span class="counter" id="counter"></span></div><div class="buttons"><button class="primary" id="act">Explore</button><button class="secondary" id="touchPlay" aria-label="Play without camera">Play</button><button class="secondary" id="worlds" aria-label="Choose game"></button></div></div></main><section id="titleScreen" aria-label="Creekkeeper title and how to play" hidden><div class="title-heading"><h1>Creekkeeper</h1><p>Move gently. Restore a creek.</p></div><canvas id="introFilm" width="800" height="450" role="img" aria-label="Animated demonstration: a seated player makes a small gesture, a ripple spreads into muddy water, then plants and fish return."></canvas><p id="introCue">Put your phone on a stand.</p><div class="title-controls"><button class="primary" id="beginBody">Start body play</button><button class="secondary" id="beginTouch">Play by touch</button></div><p class="title-note">Allow the camera. Use only movements already approved by your physical therapist. Rest whenever needed. <a class="title-audio" href="audio/" target="_blank" rel="noopener">Sound library</a></p></section><div id="toast" class="toast" role="status"></div><div class="sr" id="announce" aria-live="polite"></div><div class="overlay" id="overlay"><section class="panel welcome" id="panel" role="dialog" aria-modal="true" aria-label="Creekkeeper setup"></section></div></div>
+/* Single-screen, one-action edition. */
+.app.simple .hud{padding:max(10px,env(safe-area-inset-top)) 12px max(10px,env(safe-area-inset-bottom));gap:6px}
+.app.simple .top{align-items:center}
+.app.simple .brandmark,.app.simple .eyebrow,.app.simple #ptSetup,.app.simple #cameraCheck,.app.simple #pause,.app.simple #worlds,.app.simple #status,.app.simple #audioState,.app.simple #measure,.app.simple .progressWrap{display:none!important}
+.app.simple .title{font-size:clamp(25px,6vw,36px)}
+.app.simple #sound{height:48px;width:48px}
+.app.simple .middle{margin:0;display:flex;justify-content:center;align-items:flex-start}
+.app.simple .cam{position:relative;left:auto;top:auto;width:min(88vw,460px);height:auto;max-height:100%;aspect-ratio:4/3;border:3px solid #dceab3;border-radius:18px;flex-shrink:1}
+.app.simple .cam.motion-flash{border-color:#f8ffb5;box-shadow:0 0 24px #e4ffa9b5}
+.app.simple .cam .camlabel{font-size:14px;min-height:31px;z-index:2;padding:5px 10px}
+.app.simple .bottom{width:min(100%,530px);gap:7px;padding:10px 12px;background:#0c2522df;border:1px solid #d0e3bb36;border-radius:22px}
+.app.simple .caption{font:700 clamp(25px,6.5vw,36px)/1.05 system-ui,sans-serif;text-align:center}
+.app.simple .subcaption{font-size:clamp(13px,3.5vw,16px);min-height:0;line-height:1.3;text-align:center}
+.app.simple #restoreHUD{display:flex!important;font-size:13px}
+.app.simple .restore-seeds i{width:17px;height:17px}
+.app.simple .buttons{display:flex;justify-content:center;flex-wrap:nowrap}
+.app.simple .buttons .primary{width:100%;min-height:64px;font-size:23px}
+.app.simple #touchPlay{min-width:76px;font-size:14px}
+.app.simple #touchPlay[hidden]{display:none!important}
+.app.simple .toast{top:48%;font-size:16px}
+#titleScreen.simple-title{display:flex;justify-content:center;gap:clamp(8px,2vh,18px);padding:18px}
+#titleScreen.simple-title[hidden]{display:none}
+.simple-title .title-heading h1{font-size:clamp(48px,13vw,86px)}
+.simple-title .title-heading p{font-size:clamp(17px,4.8vw,24px)}
+.simple-title #introFilm{max-height:37dvh;max-width:660px}
+.simple-title #introCue{display:none}
+.simple-title #beginBody{min-height:82px;font-size:clamp(27px,7vw,38px);border-radius:20px}
+.simple-title #beginTouch{border:0;background:transparent;min-height:45px;color:#e8edce;text-decoration:underline}
+.simple-title .title-note{font-size:12px;line-height:1.3;max-width:42ch}
+.simple-title .advanced-link{display:inline-block;color:#b9cbb0;font-size:12px;padding:8px;text-decoration:underline}
+@media(max-height:550px) and (orientation:landscape){
+ #titleScreen.simple-title{display:grid;grid-template-columns:1.1fr 1fr;grid-template-rows:auto auto auto;align-content:center;gap:7px 18px;padding:12px}
+ .simple-title #introFilm{grid-column:1;grid-row:1 / 4;max-height:84dvh;width:100%}
+ .simple-title .title-heading{grid-column:2;grid-row:1}
+ .simple-title .title-heading h1{font-size:clamp(34px,6vw,60px)}
+ .simple-title .title-controls{grid-column:2;grid-row:2}
+ .simple-title #beginBody{min-height:60px;font-size:26px}
+ .simple-title #beginTouch{min-height:33px;font-size:14px}
+ .simple-title .title-note{grid-column:2;grid-row:3;font-size:11px}
+ .app.simple .middle{align-items:stretch;justify-content:flex-start}
+ .app.simple .cam{width:min(44vw,370px);max-height:calc(100dvh - 80px);aspect-ratio:auto;height:100%}
+ .app.simple .bottom{position:absolute;right:12px;bottom:12px;width:min(49vw,490px);gap:5px;padding:8px}
+ .app.simple .buttons .primary{min-height:52px;font-size:20px}
+ .app.simple .caption{font-size:24px}
+ .app.simple .subcaption{font-size:13px}
+}
+@media(max-height:600px) and (orientation:portrait){.simple-title #introFilm{max-height:30dvh}.simple-title #beginBody{min-height:65px}.simple-title .title-heading h1{font-size:45px}.app.simple .bottom{gap:5px;padding:8px}.app.simple .buttons .primary{min-height:54px}.app.simple .caption{font-size:25px}}
+</style></head><body><div class="app simple" id="app"><canvas id="world" aria-hidden="true"></canvas><div class="shade"></div><main class="hud" aria-label="Creekkeeper game"><div class="top"><div class="brand"><div class="brandmark" id="mark"></div><div style="min-width:0"><div class="eyebrow">CREEKKEEPER</div><div class="title" id="worldTitle">Living waters</div></div></div><div class="topactions"><button class="iconbtn" id="ptSetup" aria-label="Physical therapist setup" title="Physical therapist setup"></button><button class="iconbtn" id="cameraCheck" aria-label="Open live camera"></button><button class="iconbtn" id="sound" aria-label="Turn sound on" aria-pressed="false"></button><button class="iconbtn" id="pause" aria-label="Pause or stop"></button></div></div><div class="middle"><div class="cam" id="cam"><video id="video" autoplay playsinline webkit-playsinline muted></video><canvas id="pose"></canvas><div class="camlabel"><span class="dot" id="camDot"></span><span id="camText">Camera</span></div></div></div><div class="bottom"><div class="statusbar" id="status"><span class="dot ok"></span> FIELD STATION</div><div id="audioState" role="status">Sound off</div><div id="restoreHUD" aria-label="Virtual creek condition"><div class="restore-seeds" id="restoreSeeds"></div><span id="restoreText">Muddy water</span></div><div class="caption" id="prompt">A creek comes to life.</div><div class="subcaption" id="hint">Move gently. Discover slowly.</div><div class="measure" id="measure" role="meter" aria-label="Movement progress" aria-valuemin="0" aria-valuemax="100"><div id="measureFill"></div></div><div class="progressWrap"><div class="progress" id="progress" aria-hidden="true"></div><span class="counter" id="counter"></span></div><div class="buttons"><button class="primary" id="act">Explore</button><button class="secondary" id="touchPlay" aria-label="Play without camera">Play</button><button class="secondary" id="worlds" aria-label="Choose game"></button></div></div></main><section id="titleScreen" class="simple-title" aria-label="Creekkeeper title and how to play" hidden><div class="title-heading"><h1>Creekkeeper</h1><p>Move gently. Restore a creek.</p></div><canvas id="introFilm" width="800" height="450" role="img" aria-label="Animated demonstration: a seated player makes a small gesture, a ripple spreads into muddy water, then plants and fish return."></canvas><p id="introCue">Put your phone on a stand.</p><div class="title-controls"><button class="primary" id="beginBody">Start body play</button><button class="secondary" id="beginTouch">Play by touch</button></div><p class="title-note">Tap Play, allow the camera, and move as approved. Rest whenever needed.<br><a class="advanced-link" href="advanced.html">Therapist setup &amp; more games</a></p></section><div id="toast" class="toast" role="status"></div><div class="sr" id="announce" aria-live="polite"></div><div class="overlay" id="overlay"><section class="panel welcome" id="panel" role="dialog" aria-modal="true" aria-label="Creekkeeper setup"></section></div></div>
 <script>
 'use strict';
 const $=id=>document.getElementById(id), clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
@@ -179,12 +226,14 @@ for(let p of restoration.patches){const age=t-p.t;if(age<0||age>2.8)continue;con
 if(restoration.visual>.45){for(let i=0;i<4;i++){const x=W*(.18+i*.21)+Math.sin(t*.7+i)*18,y=water+H*(.15+rand(i+423)*.22);bug(x,y,Math.min(W,H)/650,i%3)}}
 // action events: rings, bubbles, leaves
 for(let b of bursts){let age=t-b.t,alpha=clamp(1-age/3.2);if(alpha<=0)continue;if(b.kind==='bubbles'){for(let i=0;i<9;i++){let yy=b.y-age*(22+i*2)-i*10,xx=b.x+Math.sin(age*2+i)*15+(i-4)*5;ctx.beginPath();ctx.arc(xx,yy,3+i%4,0,Math.PI*2);ctx.strokeStyle=`rgba(229,249,217,${alpha*.65})`;ctx.lineWidth=1.2;ctx.stroke();ellipse(xx-1,yy-1,1,1,`rgba(255,255,236,${alpha})`)}}else{for(let i=0;i<3;i++){let r=(age*85-i*23);if(r<1)continue;ctx.beginPath();ctx.ellipse(b.x,b.y,r,r*.35,0,0,Math.PI*2);ctx.strokeStyle=`rgba(218,245,197,${alpha*.90})`;ctx.lineWidth=3;ctx.stroke()}}}bursts=bursts.filter(b=>t-b.t<3.2);
+// Add animals to the single creek as habitat returns.
+if(phase==='free'&&restoration.visual>.55){const f=clamp((restoration.visual-.55)/.45);if(f>.1){ctx.save();ctx.globalAlpha=f;cray(W*.76+Math.sin(t*.6)*W*.04,water+(H-water)*.62,Math.min(W,H)/420);ctx.restore()}}if(phase==='free'&&restoration.visual>.78){const f=clamp((restoration.visual-.78)/.22);ctx.save();ctx.globalAlpha=f;dog(W*.85,hor*.90,Math.min(1.15,Math.min(W,H)/340));ctx.restore()}
 // visual body controller: visible point and responding water, no target or score
 if(live){let x=control.x*W,y=control.y*H,r=17+Math.sin(t*2)*4;ctx.save();ctx.strokeStyle='#f4ffbccc';ctx.lineWidth=2.4;ctx.beginPath();ctx.ellipse(x,y,r,r*.45,0,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='#d6f9c56c';ctx.lineWidth=1.4;ctx.beginPath();ctx.ellipse(x,y,r*1.9,r*.82,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#f9ffdb';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();ctx.restore()}
 // vignette
 let vig=ctx.createRadialGradient(W*.5,H*.48,Math.min(W,H)*.22,W*.5,H*.48,Math.max(W,H)*.75);vig.addColorStop(0,'#0b2e2c00');vig.addColorStop(1,'#0a262b77');ctx.fillStyle=vig;ctx.fillRect(0,0,W,H)
 }
-function frame(ts){if(lastFrame&&ts-lastFrame<(!$('overlay').hidden?125:stream?55:33)){requestAnimationFrame(frame);return}if(!lastFrame)lastFrame=ts;const dt=Math.min(.05,(ts-lastFrame)/1000);lastFrame=ts;if(!paused&&phase!=='rest')clock+=dt*(reduceMotion?.25:1);if(!paused){fishBoost*=.992;netLift*=.995;restoration.visual+=(restoration.stage/5-restoration.visual)*.065;if(audio&&soundOn)updateSoundMix()}if(W&&H&&$('titleScreen').hidden)river(clock);requestAnimationFrame(frame)}requestAnimationFrame(frame);
+function frame(ts){if(lastFrame&&ts-lastFrame<(!$('overlay').hidden?125:stream?55:33)){requestAnimationFrame(frame);return}if(!lastFrame)lastFrame=ts;const dt=Math.min(.05,(ts-lastFrame)/1000);lastFrame=ts;if(!paused&&phase!=='rest')clock+=dt*(reduceMotion?.25:1);if(!paused){fishBoost*=.992;netLift*=.995;restoration.visual+=(restoration.stage/5-restoration.visual)*.085}if(audio&&soundOn)updateSoundMix();if(W&&H&&$('titleScreen').hidden)river(clock);requestAnimationFrame(frame)}requestAnimationFrame(frame);
 let audio=null,noiseNode=null,ambient=null,audioDecided=false,creekFilter=null;function enableAudio(){
  try{
   if(!audio)audio=new (window.AudioContext||window.webkitAudioContext)();
@@ -202,9 +251,10 @@ function showPanel(html,cls=''){let p=$('panel');p.className='panel '+cls;p.inne
 function hidePanel(){$('overlay').hidden=true}
 
 const restoration={stage:0,visual:0,lastAt:-Infinity,patches:[]};
+let simpleRest=false,permissionError='',poseLoading=false,lastVisibleMotion=-100,motionAnchor=new Map();
 let freeStatus='',freePulse=-100,bodyStarted=false,touchMode=false,motionRAF=0,motionCanvas=null,motionContext=null,motionPrev=null,motionLast=0;
 let bodyControl={active:false,x:.5,y:.57,tx:.5,ty:.57,points:[],prior:new Map(),last:0,source:'none',fish:[],dogX:.78,crayX:.5,crayY:.62};
-function clearBody(){bodyControl={active:false,x:.5,y:.57,tx:.5,ty:.57,points:[],prior:new Map(),last:0,source:'none',fish:[],dogX:.78,crayX:.5,crayY:.62};motionPrev=null;cancelAnimationFrame(motionRAF);motionRAF=0}
+function clearBody(){motionAnchor.clear();lastVisibleMotion=-100;bodyControl={active:false,x:.5,y:.57,tx:.5,ty:.57,points:[],prior:new Map(),last:0,source:'none',fish:[],dogX:.78,crayX:.5,crayY:.62};motionPrev=null;cancelAnimationFrame(motionRAF);motionRAF=0}
 const SOUND_ASSETS=[{"id":"creek","file":"Flowing-water-100019.ogg","author":"Fg2","license":"Public domain","description":"19-second flowing water field recording","source":"https://commons.wikimedia.org/wiki/File:Flowing-water-100019.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/2/26/Flowing-water-100019.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/2/26/Flowing-water-100019.ogg/Flowing-water-100019.ogg.mp3"},{"id":"trickle","file":"Swale.ogg","author":"Ksd5","license":"CC0 1.0","description":"A small swale flowing into a stream","source":"https://commons.wikimedia.org/wiki/File:Swale.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/8/84/Swale.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/8/84/Swale.ogg/Swale.ogg.mp3"},{"id":"birds","file":"Indigobunting.ogg","author":"U.S. Fish and Wildlife Service","license":"Public domain (US government)","description":"Indigo bunting call","source":"https://commons.wikimedia.org/wiki/File:Indigobunting.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/d/d2/Indigobunting.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d2/Indigobunting.ogg/Indigobunting.ogg.mp3"},{"id":"frogs","file":"Spring_Peeper_(Pseudacris_crucifer).ogg","author":"Don Becker","license":"CC0 1.0","description":"Spring peeper call","source":"https://commons.wikimedia.org/wiki/File:Spring_Peeper_(Pseudacris_crucifer).ogg","url":"https://upload.wikimedia.org/wikipedia/commons/e/e9/Spring_Peeper_(Pseudacris_crucifer).ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/e/e9/Spring_Peeper_(Pseudacris_crucifer).ogg/Spring_Peeper_(Pseudacris_crucifer).ogg.mp3"},{"id":"insects","file":"Field_cricket_unedited.ogg","author":"Thatcher","license":"CC BY-SA 3.0","description":"North American field cricket; unedited recording","source":"https://commons.wikimedia.org/wiki/File:Field_cricket_unedited.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/0/0d/Field_cricket_unedited.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/0/0d/Field_cricket_unedited.ogg/Field_cricket_unedited.ogg.mp3"},{"id":"dog","file":"George_vuf_1996.ogg","author":"Broadbeer","license":"Public domain","description":"Labrador bark","source":"https://commons.wikimedia.org/wiki/File:George_vuf_1996.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/4/4c/George_vuf_1996.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4c/George_vuf_1996.ogg/George_vuf_1996.ogg.mp3"},{"id":"splash","file":"Bathtub_water_splashes.ogg","author":"gradha","license":"Public domain","description":"Recorded water splashes","source":"https://commons.wikimedia.org/wiki/File:Bathtub_water_splashes.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/8/83/Bathtub_water_splashes.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/8/83/Bathtub_water_splashes.ogg/Bathtub_water_splashes.ogg.mp3"},{"id":"bubbles","file":"Water_bubbles_chortling.ogg","author":"stephan","license":"Public domain","description":"Real water bubbles","source":"https://commons.wikimedia.org/wiki/File:Water_bubbles_chortling.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/4/4b/Water_bubbles_chortling.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4b/Water_bubbles_chortling.ogg/Water_bubbles_chortling.ogg.mp3"},{"id":"gravel","file":"Assorted_gravel_rock_and_stones.ogg","author":"stephan","license":"Public domain","description":"Gravel and stone Foley","source":"https://commons.wikimedia.org/wiki/File:Assorted_gravel_rock_and_stones.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/a/a3/Assorted_gravel_rock_and_stones.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a3/Assorted_gravel_rock_and_stones.ogg/Assorted_gravel_rock_and_stones.ogg.mp3"},{"id":"sloshing","file":"Water_sloshing_in_a_small_bottle.ogg","author":"tamanders","license":"Public domain","description":"Sloshing water Foley","source":"https://commons.wikimedia.org/wiki/File:Water_sloshing_in_a_small_bottle.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/1/1b/Water_sloshing_in_a_small_bottle.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/1/1b/Water_sloshing_in_a_small_bottle.ogg/Water_sloshing_in_a_small_bottle.ogg.mp3"}];
 const recorded={buffers:new Map(),pending:new Map(),loops:new Map(),master:null,started:false,lastMix:0,lastShots:new Map(),failed:new Set(),lastMessage:'',lastEffect:-100,nextWildlife:0,lastWildlife:-100,wildlifeIndex:0};
 function audioStatus(){
@@ -285,7 +335,7 @@ function ensureLoop(id){
 function updateSoundMix(force=false){
  if(!audio)return;
  const t=audio.currentTime;if(!force&&t-recorded.lastMix<.25)return;recorded.lastMix=t;
- const h=clamp(restoration.visual),active=soundOn&&!document.hidden;
+ const h=clamp(restoration.visual),active=soundOn&&!document.hidden&&!simpleRest;
  // One water bed, not two competing beds. Crossfade only as habitat changes.
  const both=recorded.loops.has('creek')&&recorded.loops.has('trickle');
  const fade=h*h*(3-2*h);
@@ -396,17 +446,22 @@ function ecologySound(k='ripples',x=.5){
 }
 function updateBody(points,source,t){
  if(phase!=='free'||paused||document.hidden||!points.length)return;
- const c=bodyControl,prev=c.prior;
- let moves=points.map(p=>({...p,m:prev.has(p.id)?Math.hypot(p.x-prev.get(p.id).x,p.y-prev.get(p.id).y):0}));
- let moving=moves.filter(p=>p.m>.008&&p.m<.34).sort((a,b)=>b.m-a.m);
- let target=moving[0]||moves.find(p=>p.id===15||p.id===16)||moves[0];
- c.active=true;c.source=source;c.last=t;c.tx=clamp(target.x);c.ty=.42+clamp(target.y)*.42;c.points=points;c.prior=new Map(points.map(p=>[p.id,p]));
- if(moving.length&&t-freePulse>460){
-  freePulse=t;
-  ecologyEvent(c.tx*W,c.ty*H,true);
-  for(let p of moving.slice(1,3))bursts.push({x:clamp(p.x)*W,y:(.42+clamp(p.y)*.42)*H,t:clock,kind:'ripple'});
+ const c=bodyControl;
+ if(c.source!==source){c.prior.clear();motionAnchor.clear()}
+ const moved=[];
+ for(const p of points){
+  const a=motionAnchor.get(p.id);
+  if(!a){motionAnchor.set(p.id,{x:p.x,y:p.y});continue}
+  const delta=Math.hypot(p.x-a.x,p.y-a.y);
+  if(delta>=.013&&delta<.32)moved.push({...p,m:delta});
+  else if(delta>=.32)motionAnchor.set(p.id,{x:p.x,y:p.y});
  }
+ moved.sort((a,b)=>b.m-a.m);
+ const target=moved[0]||points.find(p=>p.id===15||p.id===16)||points[0];
+ c.active=true;c.source=source;c.last=t;c.tx=clamp(target.x);c.ty=.43+clamp(target.y)*.32;c.points=points;c.prior=new Map(points.map(p=>[p.id,p]));
+ if(moved.length&&t-freePulse>500){freePulse=t;for(const p of points)motionAnchor.set(p.id,{x:p.x,y:p.y});signalMotion();ecologyEvent(c.tx*W,c.ty*H,true)}
 }
+
 function ecologyEvent(x,y,fromBody=false){
  if(phase!=='free'||paused)return;
  const k=mode.id,c=bodyControl;count++;discoveries=Math.min(30,discoveries+1);
@@ -423,45 +478,44 @@ function ecologyEvent(x,y,fromBody=false){
 }
 function motionLoop(token){
  if(token!==cameraToken||!stream||phase!=='free')return;
- if(!motionCanvas){motionCanvas=document.createElement('canvas');motionCanvas.width=64;motionCanvas.height=48;motionContext=motionCanvas.getContext('2d',{willReadFrequently:true})}
+ if(!motionCanvas){motionCanvas=document.createElement('canvas');motionCanvas.width=80;motionCanvas.height=60;motionContext=motionCanvas.getContext('2d',{willReadFrequently:true})}
  const step=t=>{
   if(token!==cameraToken||!stream||phase!=='free')return;
-  if((!modelReady||!trackStatus)&&VIDEO.readyState>=2&&t-motionLast>=110&&!document.hidden){
+  if((!modelReady||!trackStatus)&&VIDEO.readyState>=2&&t-motionLast>=100&&!document.hidden&&!paused){
    motionLast=t;
    try{
-    motionContext.drawImage(VIDEO,0,0,64,48);const d=motionContext.getImageData(0,0,64,48).data,gray=new Uint8Array(3072);
-    let n=0,x=0,y=0;
-    for(let i=0;i<gray.length;i++){gray[i]=(d[i*4]*.299+d[i*4+1]*.587+d[i*4+2]*.114)|0;if(motionPrev&&Math.abs(gray[i]-motionPrev[i])>23){n++;x+=i%64;y+=Math.floor(i/64)}}
-    if(n>=14&&n<1200){const p={id:'motion',x:1-x/n/63,y:y/n/47};updateBody([p],'motion',t);
-     // The fallback responds to local motion even when its centroid stays still.
-     if(t-freePulse>650){freePulse=t;ecologyEvent(p.x*W,(.42+p.y*.42)*H,true)}
-     if($('freeStatus'))$('freeStatus').textContent=modelReady?'MOTION · FIND BODY':'MOTION CAMERA · LOADING POSE';
-    }
+    motionContext.drawImage(VIDEO,0,0,80,60);const d=motionContext.getImageData(0,0,80,60).data,gray=new Uint8Array(4800);let n=0,x=0,y=0;
+    for(let i=0;i<gray.length;i++){gray[i]=(d[i*4]*.299+d[i*4+1]*.587+d[i*4+2]*.114)|0;if(motionPrev&&Math.abs(gray[i]-motionPrev[i])>15){n++;x+=i%80;y+=Math.floor(i/80)}}
+    if(n>=16&&n<1600){
+     const p={id:'motion',x:1-x/n/79,y:y/n/59},c=bodyControl;c.active=true;c.source='motion';c.last=t;c.tx=clamp(p.x);c.ty=.43+clamp(p.y)*.32;c.points=[p];
+     if(t-freePulse>700){freePulse=t;signalMotion();ecologyEvent(c.tx*W,c.ty*H,true)}
+     if(POSE.width!==VIDEO.videoWidth||POSE.height!==VIDEO.videoHeight){POSE.width=VIDEO.videoWidth||640;POSE.height=VIDEO.videoHeight||480}
+     PC.clearRect(0,0,POSE.width,POSE.height);PC.strokeStyle='#e4f8b9';PC.lineWidth=4;PC.beginPath();PC.arc(p.x*POSE.width,p.y*POSE.height,22,0,Math.PI*2);PC.stroke();
+    }else if(!trackStatus)PC.clearRect(0,0,POSE.width,POSE.height);
     motionPrev=gray;
    }catch(e){}
   }else if(modelReady&&trackStatus)motionPrev=null;
   motionRAF=requestAnimationFrame(step);
  };cancelAnimationFrame(motionRAF);motionRAF=requestAnimationFrame(step);
 }
+
 function renderFree(){
- $('worldTitle').textContent=mode.name;
- $('cam').classList.toggle('show',!!stream);
- $('measure').classList.remove('show');
- $('worlds').disabled=false;$('worlds').textContent='Next ›';$('worlds').setAttribute('aria-label','Next creek game');
- $('ptSetup').disabled=loading;
- $('status').innerHTML='<span class="dot '+(trackStatus?'ok':'')+'"></span><span id="freeStatus"></span>';
- $('freeStatus').textContent=freeStatus||(stream?(modelReady?(trackStatus?'BODY CONNECTED':'LOOKING FOR BODY'):'MOTION CAMERA · LOADING POSE'):(touchMode?'TOUCH PLAY':'BODY PLAY'));
- $('prompt').textContent=restoration.stage===5?'Creek restored':mode.name;
- $('hint').textContent=stream?'Move only as approved. Watch the water change.':touchMode?'Tap the creek. Watch it change.':'Start the camera to play with your body.';
- $('act').innerHTML=loading&&!stream?'Allow camera…':!stream&&!touchMode?icon('cam')+' Start body play':stream&&!modelReady&&!loading?icon('cam')+' Retry body tracking':icon('water')+' '+mode.action;
- $('act').disabled=loading&&!stream;
- $('touchPlay').style.display=stream||touchMode||loading?'none':'flex';$('touchPlay').textContent='Touch';
- $('pause').innerHTML=icon(stream||loading?'stop':paused?'play':'pause');$('pause').setAttribute('aria-label',stream||loading?'Stop camera':paused?'Resume':'Pause');
- $('cameraCheck').setAttribute('aria-pressed',String(!!stream));$('cameraCheck').setAttribute('aria-label',stream?'Enlarge camera':'Start body play');
+ const hasCamera=!!stream;
+ $('worldTitle').textContent='Creekkeeper';
+ $('cam').classList.toggle('show',hasCamera);
+ $('measure').classList.remove('show');$('worlds').disabled=true;$('ptSetup').disabled=true;
+ $('status').innerHTML='<span id="freeStatus"></span>';$('freeStatus').textContent=freeStatus;
+ $('prompt').textContent=loading&&!hasCamera?'Allow the camera':permissionError&&!hasCamera?'Camera unavailable':simpleRest?'Rest a while':restoration.stage===5?'Creek restored':hasCamera?'Move gently':touchMode?'Touch the water':'Ready to play';
+ $('hint').textContent=loading&&!hasCamera?'Tap Allow in the browser.':permissionError&&!hasCamera?permissionError:simpleRest?'Your creek will wait for you.':hasCamera?'Move only as approved. Watch the creek change.':touchMode?'Tap anywhere on the creek.':'Tap Play to begin.';
+ $('act').innerHTML=loading&&!hasCamera?'Waiting for camera…':hasCamera?icon('stop')+' Rest':simpleRest?icon('play')+' Resume':touchMode?icon('water')+' Make a ripple':icon('play')+' Play';
+ $('act').disabled=loading&&!hasCamera;
+ const alt=$('touchPlay');alt.hidden=hasCamera||(!permissionError&&!simpleRest);alt.style.display=alt.hidden?'none':'flex';alt.textContent='Touch';
+ $('camText').textContent=trackStatus?'Body tracked':'Camera on';
 }
+
 function freeTouch(x=W*.5,y=H*.56){
- if(phase!=='free'||paused||!$('overlay').hidden)return;
- startSound();touchMode=true;if(!stream&&!loading)renderHUD();ecologyEvent(x,y,false);
+ if(phase!=='free'||paused||!$('overlay').hidden||stream||loading||!touchMode)return;
+ startSound();ecologyEvent(x,y,false);
 }
 
 function nextFree(){
@@ -472,9 +526,16 @@ function nextFree(){
 
 function welcome(){
  if(stream||loading)stopCamera();
- phase='free';input='demo';paused=false;session=null;setup=null;freeStatus='';freePulse=-100;count=0;touchMode=false;bodyStarted=false;clearBody();mode=modes[0];resetScene();resetRestoration();
+ phase='free';input='demo';paused=false;simpleRest=false;permissionError='';poseLoading=false;session=null;setup=null;freeStatus='';freePulse=-100;count=0;touchMode=false;bodyStarted=false;clearBody();mode=modes[0];resetScene();resetRestoration();
  hidePanel();renderHUD();
 }
+function startTouchSimple(){if(stream||loading)stopCamera();simpleRest=false;permissionError='';paused=false;touchMode=true;renderHUD();startSound()}
+function restSimple(){stopCamera();paused=true;simpleRest=true;permissionError='';touchMode=false;renderHUD();if(audio)updateSoundMix(true)}
+function signalMotion(){
+ lastVisibleMotion=performance.now();const cam=$('cam');cam.classList.add('motion-flash');$('camText').textContent='Movement detected';
+ setTimeout(()=>{if(performance.now()-lastVisibleMotion>=500){cam.classList.remove('motion-flash');$('camText').textContent=trackStatus?'Body tracked':'Camera on'}},550);
+}
+
 function freePose(lm,seen,t){
  if(!seen||!lm||document.hidden||paused)return;
  const pts=[11,12,15,16,23,24,25,26,27,28,29,30,31,32].filter(i=>lm[i]&&(lm[i].visibility??1)>.55&&Number.isFinite(lm[i].x)&&Number.isFinite(lm[i].y)&&lm[i].x>=0&&lm[i].x<=1&&lm[i].y>=0&&lm[i].y<=1).map(i=>({id:i,x:1-lm[i].x,y:lm[i].y}));
@@ -483,31 +544,26 @@ function freePose(lm,seen,t){
 
 async function quickCamera(){
  if(phase!=='free')welcome();
- startSound();paused=false;touchMode=false;bodyStarted=true;
- if(loading)return;
- if(stream&&modelReady){stopCamera();freeStatus='';renderHUD();return}
- let existing=stream;
- if(!existing)stopCamera();
- let token=cameraToken;loading=true;modelReady=false;freeStatus='ALLOW CAMERA';renderHUD();
+ if(loading||stream)return;
+ startSound();paused=false;simpleRest=false;permissionError='';touchMode=false;bodyStarted=true;stopCamera();
+ const token=cameraToken;loading=true;modelReady=false;poseLoading=false;freeStatus='ALLOW CAMERA';renderHUD();
  try{
-  if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia)throw Error('Open in Chrome or Safari over HTTPS.');
-  const cameraRequest=existing?Promise.resolve(existing):navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'user'},width:{ideal:480},height:{ideal:360},frameRate:{ideal:20,max:24}}});
-  const modelRequest=prepareModel();
-  const media=await cameraRequest;
-  if(token!==cameraToken){if(!existing)media.getTracks().forEach(t=>t.stop());return}
+  if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia)throw Error('Use Chrome or Safari to open the game.');
+  const media=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'user'},width:{ideal:640},height:{ideal:480},frameRate:{ideal:20,max:24}}});
+  if(token!==cameraToken){media.getTracks().forEach(t=>t.stop());return}
   stream=media;restoreCamera();VIDEO.muted=true;VIDEO.srcObject=media;
-  if(!existing)for(const t of media.getVideoTracks())t.addEventListener('ended',()=>{if(token!==cameraToken)return;if(input==='camera'&&['playing','rest'].includes(phase)){finishEarly();return}welcome();freeStatus='CAMERA DISCONNECTED';renderHUD()});
-  freeStatus='MOTION CAMERA · LOADING POSE';renderHUD();
-  await VIDEO.play();if(token!==cameraToken)return;
+  for(const t of media.getVideoTracks())t.addEventListener('ended',()=>{if(token!==cameraToken)return;stopCamera();permissionError='Camera disconnected. Tap Play to reconnect.';renderHUD()});
+  loading=false;freeStatus='CAMERA ON';renderHUD();
+  VIDEO.play().catch(()=>{if(token===cameraToken)$('camText').textContent='Tap camera to start video'});
   motionLoop(token);
-  landmarker=await modelTimeout(modelRequest,35000);
-  if(token!==cameraToken)return;
-  loading=false;modelReady=true;lastVideoTime=-1;lastInfer=0;lastGood=0;freeStatus='';renderHUD();runPose(++runToken);
+  // Pose loading cannot block local motion play.
+  poseLoading=true;
+  prepareModel().then(m=>{if(token!==cameraToken||!stream)return;landmarker=m;modelReady=true;poseLoading=false;lastVideoTime=-1;lastInfer=0;lastGood=0;runPose(++runToken)}).catch(()=>{if(token!==cameraToken)return;poseLoading=false;modelReady=false});
  }catch(e){
   if(token!==cameraToken)return;
-  loading=false;modelReady=false;
-  freeStatus=e?.name==='NotAllowedError'?'CAMERA BLOCKED · ALLOW IN BROWSER':stream?'CAMERA ON · RETRY TRACKING':e?.name==='NotFoundError'?'NO CAMERA FOUND':'CAMERA UNAVAILABLE';
-  renderHUD();toast(e?.name==='NotAllowedError'?'Allow camera in browser site settings.':String(e?.message||'Camera unavailable'));
+  stopCamera();loading=false;modelReady=false;
+  permissionError=e?.name==='NotAllowedError'?'Allow camera access in your browser, then tap Play.':e?.name==='NotFoundError'?'No camera found. Use Touch instead.':'Open in Chrome or Safari and tap Play again.';
+  renderHUD();
  }
 }
 
@@ -520,7 +576,7 @@ function configure(m){mode=m;phase='setup';showPanel(`<div class="kicker">Step 1
 function pausePanel(reason=''){paused=true;phase='rest';setMeter(0);if(session){session.state='needNeutral';session.hits=0}renderHUD();showPanel(`<div class="kicker">Rest</div><h2>Take your time.</h2><p>${reason||'Your progress is saved for this session.'}</p>${input==='camera'?`<p class="micro" id="restTracking">${trackStatus?'Camera ready.':'Camera needs a clear view.'}</p>`:''}<button class="primary" id="resume" ${input==='camera'&&!trackStatus?'disabled':''}>${icon('play')} Resume</button><button class="secondary" id="finish">${icon('stop')} End session</button><p class="micro">${input==='camera'?'Resume only when comfortable and approved. Start from your calibrated neutral position.':'No time limit.'}</p>`);$('resume').onclick=resume;$('finish').onclick=finishEarly}
 function resume(){if(input==='camera'&&(!stream||!trackStatus)){if($('restTracking'))$('restTracking').textContent='Camera needs a clear view first.';return}paused=false;phase='playing';if(session){session.state='needNeutral';session.hits=0;session.smooth=null;lastGood=performance.now()}hidePanel();renderHUD()}
 function finishEarly(){stopCamera();phase='complete';paused=false;renderHUD();showPanel(`<div class="kicker">Session ended</div><h2>Enough for now.</h2><p>${count} / ${limit} game-detected repetitions. Rest whenever needed.</p><button class="primary" id="home">Home</button>`);$('home').onclick=welcome}
-$('act').onclick=()=>{if(phase==='free'){if((!stream&&!touchMode)||(stream&&!modelReady&&!loading)){quickCamera();return}freeTouch();return}if(phase==='playing'){input==='demo'?reward():pausePanel()}else if(phase==='rest')resume();else if(phase==='complete')completePanel();else welcome()};$('touchPlay').onclick=()=>{touchMode=true;startSound();renderHUD();freeTouch()};$('worlds').onclick=()=>{if(phase==='free'){nextFree();return}if(input==='camera'&&phase==='playing')return;picker('demo',Math.floor(modes.indexOf(mode)/5))};$('pause').onclick=()=>{if(phase==='free'){if(stream||loading){stopCamera();freeStatus='';renderHUD()}else{paused=!paused;renderHUD()}return}if(phase==='playing')pausePanel();else if(phase==='rest')resume();else welcome()};
+$('act').onclick=()=>{if(phase==='free'){if(stream){restSimple();return}if(touchMode){freeTouch();return}quickCamera();return}if(phase==='playing'){input==='demo'?reward():pausePanel()}else if(phase==='rest')resume();else if(phase==='complete')completePanel();else welcome()};$('touchPlay').onclick=()=>{startTouchSimple()};$('worlds').onclick=()=>{if(phase==='free'){nextFree();return}if(input==='camera'&&phase==='playing')return;picker('demo',Math.floor(modes.indexOf(mode)/5))};$('pause').onclick=()=>{if(phase==='free'){if(stream||loading){stopCamera();freeStatus='';renderHUD()}else{paused=!paused;renderHUD()}return}if(phase==='playing')pausePanel();else if(phase==='rest')resume();else welcome()};
 // Camera and calibrated movement recognition. No clinical joint-angle or safety claims.
 const CDN='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21';
 const MODEL='https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
@@ -528,7 +584,7 @@ const VIDEO=$('video'),POSE=$('pose'),PC=POSE.getContext('2d');
 const links=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[27,29],[29,31],[27,31],[24,26],[26,28],[28,30],[30,32],[28,32]];
 function stopCamera(){clearBody();cameraToken++;$('cam').classList.remove('expanded');runToken++;loading=false;cancelAnimationFrame(rafPose);rafPose=0;if(stream){for(let t of stream.getTracks())t.stop();stream=null}VIDEO.srcObject=null;trackStatus=false;lastMetric=null;lastPose=null;calSamples=[];lastVideoTime=-1;PC.clearRect(0,0,POSE.width,POSE.height);restoreCamera();$('cam').classList.remove('show')}
 function restoreCamera(){const cam=$('cam');if(VIDEO.parentNode!==cam){cam.prepend(POSE);cam.prepend(VIDEO)}}
-function updateCameraLabel(ok){trackStatus=ok;if(phase==='free'&&$('freeStatus')&&!loading&&modelReady){$('freeStatus').textContent=ok?'BODY CONNECTED':'MOTION CAMERA · FIND BODY';$('status').querySelector('.dot')?.classList.toggle('ok',ok)}$('camDot').classList.toggle('ok',ok);$('camText').textContent=ok?'Tracking':'Find body';let cd=$('calDot');if(cd){cd.classList.toggle('ok',ok);$('calStatus').textContent=ok?'Body in view':'Adjust camera view'}if(input==='camera'&&phase==='rest'&&$('resume')){ $('resume').disabled=!ok; if($('restTracking'))$('restTracking').textContent=ok?'Camera ready.':'Camera needs a clear view.';}if(input==='camera')$('status').innerHTML=`<span class="dot ${ok?'ok':''}"></span>CAMERA • ${ok?'TRACKING':'CHECK VIEW'}`}
+function updateCameraLabel(ok){trackStatus=ok;if(phase==='free'&&$('freeStatus')&&!loading&&modelReady){$('freeStatus').textContent=ok?'BODY CONNECTED':'MOTION CAMERA · FIND BODY';$('status').querySelector('.dot')?.classList.toggle('ok',ok)}$('camDot').classList.toggle('ok',ok);if(phase!=='free'||performance.now()-lastVisibleMotion>550)$('camText').textContent=ok?'Body tracked':stream?'Camera on':'Camera off';let cd=$('calDot');if(cd){cd.classList.toggle('ok',ok);$('calStatus').textContent=ok?'Body in view':'Adjust camera view'}if(input==='camera'&&phase==='rest'&&$('resume')){ $('resume').disabled=!ok; if($('restTracking'))$('restTracking').textContent=ok?'Camera ready.':'Camera needs a clear view.';}if(input==='camera')$('status').innerHTML=`<span class="dot ${ok?'ok':''}"></span>CAMERA • ${ok?'TRACKING':'CHECK VIEW'}`}
 function renderPose(lm){let vw=VIDEO.videoWidth||640,vh=VIDEO.videoHeight||480;if(POSE.width!==vw||POSE.height!==vh){POSE.width=vw;POSE.height=vh}PC.clearRect(0,0,vw,vh);if(!lm)return;PC.lineCap='round';PC.lineJoin='round';PC.lineWidth=Math.max(4,vw/115);const good=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&(p.visibility??1)>.55&&p.x>=0&&p.x<=1&&p.y>=0&&p.y<=1;let hi=setup?.side==='right'?[24,26,28,30,32]:[23,25,27,29,31];for(let [a,b] of links){if(!good(lm[a])||!good(lm[b]))continue;PC.beginPath();PC.moveTo((1-lm[a].x)*vw,lm[a].y*vh);PC.lineTo((1-lm[b].x)*vw,lm[b].y*vh);PC.strokeStyle=hi.includes(a)&&hi.includes(b)?'#aaff66':'#f8fff5';PC.stroke()}for(let i=11;i<33;i++){let p=lm[i];if(!good(p))continue;PC.beginPath();PC.arc((1-p.x)*vw,p.y*vh,Math.max(4,vw/100),0,Math.PI*2);PC.fillStyle=hi.includes(i)?'#c7ec99':'#f3f4dd';PC.fill()}}
 function metric(lm,spec,side,w,h){if(!lm||!spec||!w||!h)return null;const idx=side==='left'?[11,23,25,27,29,31]:[12,24,26,28,30,32],other=side==='left'?24:23;const good=i=>{let p=lm[i];return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&(p.visibility??1)>=.65&&(p.presence??1)>=.5&&p.x>.005&&p.x<.995&&p.y>.005&&p.y<.995};const pt=i=>[lm[i].x*w,lm[i].y*h];const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);const angle=(a,b,c)=>{let u=[a[0]-b[0],a[1]-b[1]],v=[c[0]-b[0],c[1]-b[1]],n=Math.hypot(...u)*Math.hypot(...v);return n>9?Math.acos(clamp((u[0]*v[0]+u[1]*v[1])/n,-1,1))*180/Math.PI:null};const [sh,hip,knee,ank,heel,toe]=idx;
 // Use image-plane motion, not an inferred anatomical range of motion.
@@ -618,10 +674,10 @@ document.addEventListener('visibilitychange',()=>{if(audio)updateSoundMix(true);
 $('ptSetup').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="4" r="2"/><path d="M5 9h14M12 6v8m0 0-4 7m4-7 4 7"/></svg>';
 $('ptSetup').onclick=()=>{if(phase==='free'&&!loading)setupStart()};
 $('cameraCheck').innerHTML=icon('cam');
-world.addEventListener('pointerup',e=>{if(phase==='free'&&e.isPrimary!==false){const r=world.getBoundingClientRect();freeTouch(e.clientX-r.left,e.clientY-r.top)}});
+world.addEventListener('pointerup',e=>{if(phase==='free'&&touchMode&&!stream&&e.isPrimary!==false){const r=world.getBoundingClientRect();freeTouch(e.clientX-r.left,e.clientY-r.top)}});
 
 $('cameraCheck').onclick=()=>{if(phase==='free'){if(stream&&modelReady){$('cam').classList.toggle('expanded')}else quickCamera();return}if(input==='camera'&&stream&&phase==='playing'){$('cam').classList.toggle('expanded');return}if(phase==='playing'&&input==='demo'){welcome();quickCamera();return}if(!stream&&!loading){welcome();quickCamera()}};
-$('cam').onclick=()=>{if(phase==='free'||(input==='camera'&&phase==='playing'))$('cam').classList.toggle('expanded')};
+$('cam').onclick=()=>{if(stream&&VIDEO.paused)VIDEO.play().catch(()=>{})};
 
 /* INTRO X-SHEET — classical cutout/hand-inked multiplane animation.
    Thumbnail choices: A creek-only reveal; B body/creek split; C overhead watershed.
@@ -688,8 +744,8 @@ function introFrame(ms){
 function showTitle(){welcome();$('titleScreen').hidden=false;introStart=0;lastCue='';cancelAnimationFrame(introRAF);introRAF=requestAnimationFrame(introFrame)}
 function dismissTitle(){ $('titleScreen').hidden=true;cancelAnimationFrame(introRAF);introRAF=0;welcome();startSound();}
 $('beginBody').onclick=()=>{dismissTitle();quickCamera()};
-$('beginTouch').onclick=()=>{dismissTitle();touchMode=true;renderHUD();};
-$('beginBody').innerHTML=icon('cam')+' Start body play';
-$('beginTouch').innerHTML=icon('water')+' Play by touch';
+$('beginTouch').onclick=()=>{dismissTitle();startTouchSimple();};
+$('beginBody').innerHTML=icon('play')+' Play';
+$('beginTouch').textContent='Play by touch instead';
 showTitle();
 </script></body></html>
