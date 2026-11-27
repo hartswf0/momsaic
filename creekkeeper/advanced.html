@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=yes"><meta name="theme-color" content="#122c2b"><title>Creekkeeper</title><link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin><link rel="preconnect" href="https://storage.googleapis.com" crossorigin>
+<style>
+:root{color-scheme:dark;--ink:#f4f1dc;--muted:#c4d1bd;--dark:#102c2b;--green:#d4e8a5;--line:rgba(231,246,216,.22);font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#102c2b}button,input,select{font:inherit}button{touch-action:manipulation;cursor:pointer;color:inherit}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #fff4b7;outline-offset:3px}button:disabled{opacity:.4;cursor:default}.app{position:relative;height:100%;height:100dvh;isolation:isolate;overflow:hidden;background:#183f3b}#world{position:absolute;inset:0;width:100%;height:100%;display:block} .shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(7,30,27,.55),transparent 24%,transparent 52%,rgba(8,30,28,.73));}.hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:max(12px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}.hud button,.hud .cam{pointer-events:auto}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.brand{display:flex;align-items:center;gap:8px;min-width:0}.brandmark{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:#153c36cc}.brandmark svg{width:23px;height:23px}.eyebrow{font-size:10px;letter-spacing:.19em;font-weight:750;text-transform:uppercase;color:#d9e5c9}.title{font-family:Georgia,serif;font-weight:400;font-size:clamp(20px,4.8vw,34px);line-height:1.08;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.topactions{display:flex;gap:7px}.iconbtn{width:48px;height:48px;background:#153531e6;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;backdrop-filter:blur(12px);flex-shrink:0}.iconbtn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.iconbtn[aria-pressed=true]{background:#d2e6ae;color:#16352b}.middle{flex:1;position:relative;min-height:0;margin-top:8px}.cam{position:absolute;left:0;top:0;width:clamp(114px,29vw,190px);aspect-ratio:4/3;background:#102a29;border:1px solid #cde5bb88;border-radius:14px;overflow:hidden;box-shadow:0 5px 20px #09231f66;display:none}.cam.show{display:block}.cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}.cam video{transform:scaleX(-1)}.cam .camlabel{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:6px;background:#112b28db;padding:5px 8px;font-size:11px}.dot{width:8px;height:8px;border-radius:50%;background:#e8c67d;display:inline-block;flex-shrink:0}.dot.ok{background:#c5e9a3}.bottom{align-self:center;width:min(100%,520px);display:flex;flex-direction:column;align-items:center;gap:10px}.caption{font-family:Georgia,serif;font-size:clamp(23px,5.5vw,35px);text-align:center;text-shadow:0 2px 8px #071b1b;line-height:1.12}.subcaption{font-size:13px;color:#dfebd0;text-align:center;text-shadow:0 1px 6px #102e2c;min-height:17px}.progress{display:flex;align-items:center;gap:7px;justify-content:center;max-width:100%;flex-wrap:wrap;min-height:16px}.progress i{display:block;width:12px;height:12px;border:1px solid #d4e6c3aa;border-radius:50%;background:#173e3a99}.progress i.done{background:#d8e9ab;border-color:#e7f5c9;box-shadow:0 0 8px #e6ffb34a}.counter{font-size:12px;letter-spacing:.06em;font-variant-numeric:tabular-nums;color:#e0e9d6}.buttons{display:grid;grid-template-columns:1fr auto;gap:9px;width:100%}.primary,.secondary{min-height:52px;border-radius:17px;padding:10px 18px;font-weight:730;font-size:16px;border:1px solid transparent;display:flex;align-items:center;justify-content:center;gap:9px}.primary{background:#d6e8ad;color:#173829;box-shadow:0 5px 20px #0d27254d}.primary:active{transform:scale(.985)}.secondary{background:#153732e8;border-color:var(--line);color:var(--ink)}.primary svg,.secondary svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.progressWrap{display:flex;align-items:center;gap:10px}.measure{width:min(260px,75vw);height:6px;border-radius:10px;background:#1a3938;border:1px solid #d6ebc255;overflow:hidden;display:none}.measure.show{display:block}.measure div{height:100%;background:#d7ec9f;width:0%;transition:width .09s linear}.statusbar{font-size:11px;letter-spacing:.06em;color:#d8e7cc;display:flex;gap:6px;align-items:center}.overlay{position:absolute;inset:0;z-index:5;display:grid;place-items:center;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));background:#09272570;backdrop-filter:blur(5px)}.overlay[hidden]{display:none}.panel{width:min(100%,470px);max-height:100%;background:#102f2cf2;border:1px solid #bbd5b944;border-radius:25px;padding:clamp(14px,3.6vw,27px);box-shadow:0 12px 65px #061a1a80;display:flex;flex-direction:column;gap:13px;position:relative;overflow:hidden}.panel h1,.panel h2,.panel p{margin:0}.panel h1,.panel h2{font-family:Georgia,serif;font-weight:400;line-height:1.03}.panel h1{font-size:clamp(40px,11vw,64px);letter-spacing:-.06em}.panel h2{font-size:clamp(25px,6vw,36px);letter-spacing:-.035em}.panel p{font-size:14px;line-height:1.4;color:#d1dfc9}.panel .micro{font-size:11px;color:#afc1ac;line-height:1.3}.panel .primary,.panel .secondary{width:100%}.panel .actions{display:flex;gap:8px}.panel .actions>*{flex:1}.panel .close{position:absolute;right:12px;top:12px;width:40px;height:40px}.panel .kicker{color:#c9e2a7;font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-weight:700}.welcome{background:linear-gradient(160deg,#12332eea,#0e2926ed);margin-top:15vh}.welcome .intro{font-size:16px}.modegrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.tile{border-radius:14px;border:1px solid #c1d6ad35;background:#193e37;min-height:64px;display:flex;align-items:center;gap:9px;text-align:left;padding:10px}.tile.active{border-color:#d8eba4;background:#294f40}.tile .tileicon{font-size:25px;flex-shrink:0;width:34px;text-align:center}.tile strong{font-size:13px;display:block;line-height:1.15}.tile small{font-size:11px;color:#b9cdb5;display:block;line-height:1.2;margin-top:4px}.pagination{display:flex;align-items:center;justify-content:space-between;gap:8px}.pagination .secondary{width:auto;min-height:41px;padding:6px 12px;font-size:13px}.field{display:flex;flex-direction:column;gap:5px;font-size:13px;color:#d8e5cc}.field select,.field input[type=number]{min-height:45px;padding:8px 12px;border-radius:11px;background:#173e36;color:var(--ink);border:1px solid #bbd5af55;font-size:16px;width:100%}.fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}.check{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.3;color:#dbe9d4}.check input{accent-color:#d6e8ad;width:21px;height:21px;flex-shrink:0;margin:0}.setupnote{border-left:2px solid #dbdba3;padding:1px 0 1px 9px}.calview{position:relative;width:100%;height:min(30dvh,200px);min-height:80px;background:#0a211f;border-radius:12px;overflow:hidden;border:1px solid var(--line)}.calview video,.calview canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}.calview video{transform:scaleX(-1)}.calview .statusbar{position:absolute;left:8px;bottom:8px;background:#102c2ce0;padding:4px 8px;border-radius:8px}.toast{position:absolute;top:22%;left:50%;transform:translateX(-50%);max-width:80%;padding:9px 16px;border-radius:30px;background:#163e35ee;border:1px solid #d4e9b672;color:#e8f6d5;text-align:center;font-size:13px;z-index:4;opacity:0;transition:opacity .2s;pointer-events:none}.toast.show{opacity:1}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.rest .caption{color:#f4e8c8}.error{color:#ffe0ab!important}.hidden{display:none!important}.summarynum{font-family:Georgia,serif;font-size:52px;color:#d5eab2;line-height:.95}.portraitOnly{display:none}@media(max-height:520px) and (orientation:landscape){.hud{padding:8px 12px;}.brandmark{width:32px;height:32px}.title{font-size:23px}.eyebrow{font-size:9px}.iconbtn{width:42px;height:42px}.bottom{gap:4px;width:min(72%,520px)}.caption{font-size:23px}.subcaption{font-size:11px;min-height:12px}.progress i{width:9px;height:9px}.primary,.secondary{min-height:42px;border-radius:12px;font-size:14px;padding:6px 11px}.panel{padding:12px 16px;gap:7px;max-width:610px;border-radius:17px}.panel h2{font-size:25px}.panel h1{font-size:39px}.panel p{font-size:12px;line-height:1.25}.panel .micro{font-size:10px}.welcome{margin-top:0;max-width:430px}.modegrid{grid-template-columns:repeat(3,1fr);gap:6px}.tile{min-height:47px;padding:5px}.tile .tileicon{font-size:19px;width:25px}.tile strong{font-size:12px}.tile small{font-size:10px}.panel .close{width:34px;height:34px;right:8px;top:8px}.calview{height:28dvh;min-height:62px}.fields{gap:6px}.field select,.field input[type=number]{min-height:36px;padding:4px 8px}.check{font-size:11px}.check input{width:17px;height:17px}.pagination .secondary{min-height:34px}.cam{width:135px}.setupnote{font-size:11px!important}}@media(max-height:355px) and (orientation:landscape){.panel{gap:5px;padding:9px 12px}.panel .micro{font-size:9px}.panel h2{font-size:22px}.tile{min-height:41px}.panel .actions button{min-height:36px}.calview{height:24dvh}.panel .primary,.panel .secondary{min-height:36px}.panel p{font-size:11px}.field select,.field input[type=number]{min-height:31px}.check{font-size:10px}}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* Camera-first revision */
+.cam{width:min(46vw,270px);max-height:100%;aspect-ratio:4/3;border:2px solid #d7ebad;cursor:pointer;background:#081d1a}
+.cam.expanded{width:min(85vw,520px);height:100%;aspect-ratio:auto;z-index:3}
+.cam video,.calview video{display:block;opacity:1}
+.cam canvas,.calview canvas{pointer-events:none;display:block}
+.camlabel{z-index:2}
+.camera-panel{width:min(100%,560px);gap:9px}
+.camera-panel .calview{height:min(45dvh,340px);min-height:90px;flex-shrink:0}
+.camera-panel .actions button{padding:8px;font-size:14px}
+.camera-panel h2{padding-right:0}
+@media(max-height:520px) and (orientation:landscape){.cam{width:min(27vw,210px)}.camera-panel{gap:5px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center}.camera-panel .calview{grid-column:1;grid-row:1 / span 5;height:min(74dvh,280px)}.camera-panel .kicker,.camera-panel h2,.camera-panel p,.camera-panel .actions{grid-column:2}.camera-panel .actions{flex-wrap:wrap}.camera-panel .actions button{min-height:38px}.cam.expanded{width:48vw}}
+@media(max-height:600px) and (orientation:portrait){.camera-panel .calview{height:35dvh}}
+/* Quick start: stable full-screen camera and low-cost setup rendering */
+.welcome{margin-top:0}
+.quickstart{gap:10px}
+.quickstart .primary{min-height:70px;font-size:21px}
+.quickstart .primary svg{width:30px;height:30px}
+.quickstart h1{font-size:clamp(36px,9vw,54px)}
+.camera-panel .calview{height:min(54dvh,420px);min-height:90px}
+.camera-panel h2{font-size:clamp(22px,5.5vw,32px)}
+.camera-panel .statusbar{z-index:3}
+.camera-panel .actions{gap:8px}
+.camera-panel .actions button{min-height:49px}
+@media(max-height:550px) and (orientation:landscape){.camera-panel .calview{height:min(68dvh,300px)}.camera-panel .actions button{min-height:38px}.quickstart .primary{min-height:48px}.quickstart h1{font-size:34px}}
+@media(max-height:600px) and (orientation:portrait){.camera-panel .calview{height:37dvh}}
+/* Instant field station */
+.app.free .progressWrap,.app.free .measure{display:none}
+.app.free .bottom{gap:8px}
+.app.free .caption{font-size:clamp(25px,6vw,38px)}
+.app.free .subcaption{max-width:35ch}
+.app.free .buttons{grid-template-columns:minmax(0,1fr) auto auto}
+.app.free .buttons .primary{min-height:64px;font-size:19px}
+.app.free .buttons .secondary{padding:8px 10px;min-width:54px;font-size:13px;white-space:nowrap}
+#touchPlay{display:none}
+.app.free #touchPlay{display:flex}
+.app.free .cam{width:min(63vw,340px);max-height:100%;aspect-ratio:4/3;cursor:pointer}
+.app.free .cam.expanded{width:min(100%,560px);height:100%;aspect-ratio:auto}
+.app.free .camlabel{font-size:12px}
+.app.free .topactions{gap:5px}
+.app.free .statusbar{max-width:100%;text-align:center}
+@media(max-height:520px) and (orientation:landscape){.app.free .cam{width:min(36vw,240px)}.app.free .cam.expanded{width:55vw}.app.free .bottom{gap:4px}.app.free .buttons .primary{min-height:44px;font-size:16px}.app.free .caption{font-size:23px}}
+@media(max-width:350px){.app.free .buttons .secondary{min-width:48px;padding:8px}.app.free .buttons .primary{font-size:15px}.app.free .cam{width:65vw}}
+/* Touch-first, zero setup */
+#world{touch-action:manipulation}
+.app.free #world{cursor:pointer}
+.app.free .buttons{grid-template-columns:minmax(0,1fr) auto}
+.app.free #touchPlay{display:none}
+.app.free .bottom{gap:5px}
+.app.free .buttons .primary{min-height:66px;font-size:clamp(16px,4.7vw,23px);padding:8px 12px}
+.app.free .buttons .secondary{font-size:16px;min-width:70px}
+.app.free #status{display:none}
+.app.free.camera-active #status{display:flex}
+.app.free #hint{font-size:14px}
+.app.free #ptSetup{display:grid}
+#ptSetup{display:none}
+.app.free .cam{width:min(53vw,290px)}
+.app.free .cam.expanded{width:min(100%,560px)}
+@media(max-width:360px){.app.free .topactions{gap:4px}.app.free .topactions .iconbtn{width:38px;height:38px}.app.free .brandmark{display:none}}
+@media(max-height:520px) and (orientation:landscape){.app.free .buttons .primary{min-height:44px}.app.free .cam{width:min(33vw,200px)}.app.free .cam.expanded{width:55vw}}
+/* Body as controller */
+.app.free .cam{width:min(54vw,290px);border:2px solid #e0edb3}
+.app.free #status{display:flex;font-size:11px}
+.app.free .bottom{gap:6px}
+.app.free .caption{font-size:clamp(23px,5.5vw,32px)}
+.app.free .buttons{grid-template-columns:minmax(0,1fr) auto auto}
+.app.free .subcaption{max-width:45ch}
+.app.free .buttons .primary{min-height:60px}
+.app.free .cam.expanded{width:min(100%,650px);height:100%}
+.app.free .camlabel{font-size:12px}
+@media(max-height:520px) and (orientation:landscape){.app.free .cam{width:min(37vw,250px);max-height:100%}.app.free .cam.expanded{width:55vw}.app.free .buttons .primary{min-height:44px}.app.free .bottom{gap:3px}.app.free .caption{font-size:22px}.app.free .subcaption{font-size:12px}}
+/* The living title card — a little multiplane cartoon */
+#titleScreen{position:absolute;inset:0;z-index:12;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(7px,2vh,18px);padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:#172f2c;color:#f8f0d7;overflow:hidden}
+#titleScreen[hidden]{display:none}
+.title-heading{text-align:center;flex-shrink:0}
+.title-heading h1{font-family:Georgia,serif;font-weight:400;letter-spacing:-.065em;font-size:clamp(42px,11vw,86px);line-height:.95;margin:0}
+.title-heading p{margin:8px 0 0;color:#c9dcb4;font-size:clamp(14px,4vw,20px)}
+#introFilm{width:min(100%,700px);height:auto;min-height:0;max-height:42dvh;aspect-ratio:16/9;object-fit:contain;display:block;border-radius:18px;background:#203e3a;flex:0 1 auto}
+#introCue{margin:0;min-height:1.35em;text-align:center;font-weight:700;font-size:clamp(15px,4.5vw,20px);color:#f6f2d7}
+.title-controls{width:min(100%,470px);display:grid;gap:8px;flex-shrink:0}
+.title-controls .primary{min-height:63px;font-size:21px;border-radius:18px}
+.title-controls .secondary{min-height:45px;font-size:15px;border-radius:15px}
+.title-note{font-size:11px;color:#c1d0b6;margin:0;text-align:center;max-width:46ch;line-height:1.25}
+#restoreHUD{display:none;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;color:#e7edd2;font-size:12px;font-weight:700;text-shadow:0 1px 4px #142b27}
+.app.free #restoreHUD,.app.guided #restoreHUD{display:flex}
+.restore-seeds{display:flex;gap:5px}
+.restore-seeds i{display:block;width:13px;height:13px;border:1px solid #e2e7b9;border-radius:80% 20% 80% 20%;background:#735f43;transform:rotate(-12deg)}
+.restore-seeds i.grown{background:#cce99b;box-shadow:0 0 7px #b5e6a170}
+#restoreText{min-width:100px;text-align:center}
+.app.free .caption{font-size:clamp(21px,5vw,30px)}
+.app.free .cam{border:2px solid #d8e6b1}
+@media(max-height:540px) and (orientation:landscape){#titleScreen{display:grid;grid-template-columns:1.25fr 1fr;grid-template-rows:auto auto auto;align-content:center;gap:8px 22px}.title-heading{grid-column:2;grid-row:1}.title-heading h1{font-size:clamp(36px,7vw,66px)}.title-heading p{font-size:14px}.title-controls{grid-column:2;grid-row:2}.title-controls .primary{min-height:47px;font-size:17px}.title-controls .secondary{min-height:37px;font-size:13px}#introFilm{grid-column:1;grid-row:1 / span 2;max-height:72dvh;width:100%}#introCue{grid-column:1;grid-row:3;font-size:15px}.title-note{grid-column:2;grid-row:3;font-size:10px}}
+@media(max-height:600px) and (orientation:portrait){#introFilm{max-height:35dvh}.title-controls .primary{min-height:52px}.title-controls .secondary{min-height:39px}.title-heading h1{font-size:43px}}
+/* Recorded soundscape feedback */
+#audioState{display:none;font-size:11px;color:#e6edca;text-shadow:0 1px 4px #172c29}
+.app.free #audioState,.app.guided #audioState{display:block}
+.title-audio{color:#c4d1b8;font-size:11px;text-decoration:underline;text-underline-offset:3px}
+#sound[aria-pressed=true]{background:#d2e6ae;color:#17372f}
+@media(max-height:520px) and (orientation:landscape){#audioState{font-size:10px}.title-audio{display:none}}
+</style></head><body><div class="app" id="app"><canvas id="world" aria-hidden="true"></canvas><div class="shade"></div><main class="hud" aria-label="Creekkeeper game"><div class="top"><div class="brand"><div class="brandmark" id="mark"></div><div style="min-width:0"><div class="eyebrow">CREEKKEEPER</div><div class="title" id="worldTitle">Living waters</div></div></div><div class="topactions"><button class="iconbtn" id="ptSetup" aria-label="Physical therapist setup" title="Physical therapist setup"></button><button class="iconbtn" id="cameraCheck" aria-label="Open live camera"></button><button class="iconbtn" id="sound" aria-label="Turn sound on" aria-pressed="false"></button><button class="iconbtn" id="pause" aria-label="Pause or stop"></button></div></div><div class="middle"><div class="cam" id="cam"><video id="video" autoplay playsinline webkit-playsinline muted></video><canvas id="pose"></canvas><div class="camlabel"><span class="dot" id="camDot"></span><span id="camText">Camera</span></div></div></div><div class="bottom"><div class="statusbar" id="status"><span class="dot ok"></span> FIELD STATION</div><div id="audioState" role="status">Sound off</div><div id="restoreHUD" aria-label="Virtual creek condition"><div class="restore-seeds" id="restoreSeeds"></div><span id="restoreText">Muddy water</span></div><div class="caption" id="prompt">A creek comes to life.</div><div class="subcaption" id="hint">Move gently. Discover slowly.</div><div class="measure" id="measure" role="meter" aria-label="Movement progress" aria-valuemin="0" aria-valuemax="100"><div id="measureFill"></div></div><div class="progressWrap"><div class="progress" id="progress" aria-hidden="true"></div><span class="counter" id="counter"></span></div><div class="buttons"><button class="primary" id="act">Explore</button><button class="secondary" id="touchPlay" aria-label="Play without camera">Play</button><button class="secondary" id="worlds" aria-label="Choose game"></button></div></div></main><section id="titleScreen" aria-label="Creekkeeper title and how to play" hidden><div class="title-heading"><h1>Creekkeeper</h1><p>Move gently. Restore a creek.</p></div><canvas id="introFilm" width="800" height="450" role="img" aria-label="Animated demonstration: a seated player makes a small gesture, a ripple spreads into muddy water, then plants and fish return."></canvas><p id="introCue">Put your phone on a stand.</p><div class="title-controls"><button class="primary" id="beginBody">Start body play</button><button class="secondary" id="beginTouch">Play by touch</button></div><p class="title-note">Allow the camera. Use only movements already approved by your physical therapist. Rest whenever needed. <a class="title-audio" href="audio/" target="_blank" rel="noopener">Sound library</a></p></section><div id="toast" class="toast" role="status"></div><div class="sr" id="announce" aria-live="polite"></div><div class="overlay" id="overlay"><section class="panel welcome" id="panel" role="dialog" aria-modal="true" aria-label="Creekkeeper setup"></section></div></div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id), clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const icons={water:'<path d="M2 8q5-5 10 0t10 0M2 13q5-5 10 0t10 0M2 18q5-5 10 0t10 0"/>',sound:'<path d="M3 9h4l5-4v14l-5-4H3zM16 8q4 4 0 8M19 5q7 7 0 14"/>',mute:'<path d="M3 9h4l5-4v14l-5-4H3zM16 9l6 6m0-6l-6 6"/>',pause:'<path d="M9 5v14M15 5v14" stroke-width="3"/>',play:'<path d="M8 5l12 7-12 7z"/>',stop:'<rect x="6" y="6" width="12" height="12" rx="2"/>',grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',cam:'<rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="12" cy="12" r="4"/>',x:'<path d="M6 6l12 12M18 6L6 18"/>',arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',check:'<path d="M4 12l5 5L20 6"/>',leaf:'<path d="M20 4C7 2 3 9 6 16s15 4 14-12ZM4 20l12-12"/>'};
+function icon(n){return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${icons[n]||icons.water}</svg>`}
+const modes=[
+{id:'ripples',name:'Ripples',exercise:'Ankle pumps',glyph:'≈',action:'Make a ripple',reward:'A new current',cue:'Ankle movement',metric:'ankle',view:'Side view',scene:'water'},
+{id:'stones',name:'Under the rock',exercise:'Heel slides',glyph:'◒',action:'Reveal a specimen',reward:'A specimen discovered',cue:'Heel slide',metric:'knee',view:'Side view',scene:'macro'},
+{id:'channels',name:'River branches',exercise:'Bed hip abduction',glyph:'⑂',action:'Open a channel',reward:'A channel opens',cue:'Leg slide',metric:'abduction',view:'Face-on / foot-end view',scene:'water'},
+{id:'trout',name:'Trout stream',exercise:'Seated knee extension',glyph:'🐟',action:'Send the trout upstream',reward:'The trout moves upstream',cue:'Knee movement',metric:'knee',view:'Side view',scene:'water'},
+{id:'stepping',name:'Stepping stones',exercise:'Seated marching',glyph:'◉',action:'Reveal a stepping stone',reward:'A stone revealed',cue:'Knee lift',metric:'hip',view:'Side view',scene:'water'},
+{id:'bubbles',name:'Bubbles',exercise:'Seated heel raises',glyph:'○',action:'Release bubbles',reward:'Fish gather',cue:'Heel movement',metric:'heel',view:'Side view',scene:'water'},
+{id:'dog',name:'Creek companion',exercise:'Standing hip abduction',glyph:'🐾',action:'Call the dog',reward:'Your companion comes closer',cue:'Side movement',metric:'abduction',view:'Front view',scene:'bank'},
+{id:'crayfish',name:'Crawdad country',exercise:'Standing hip extension',glyph:'🦞',action:'Explore the riverbed',reward:'A little farther',cue:'Backward movement',metric:'hip',view:'Side view',scene:'macro'},
+{id:'net',name:'Field sampling',exercise:'Standing hip flexion',glyph:'⌗',action:'Lift the sampling net',reward:'A new insect observed',cue:'Knee lift',metric:'hip',view:'Side view',scene:'water'},
+{id:'horizon',name:'Above & below',exercise:'Sit-to-stand',glyph:'↕',action:'Change the viewpoint',reward:'A new perspective',cue:'Transfer movement',metric:'hip',view:'Side view',scene:'water'}];
+let mode=modes[0],phase='welcome',input='demo',count=0,limit=5,paused=false,page=0,soundOn=false,toastTimer,setup=null,session=null,stream=null,landmarker=null,loading=false,cameraToken=0,runToken=0,calSamples=[],lastMetric=null,lastGood=0,trackStatus=false,rafPose=0,lastVideoTime=-1,lastInfer=0,lastInferStamp=0,lastPose=null,progressValue=0;
+$('mark').innerHTML=icon('water');$('sound').innerHTML=icon('mute');$('pause').innerHTML=icon('pause');$('worlds').innerHTML=icon('grid');
+const world=$('world');let ctx=world.getContext('2d',{alpha:false});let W=0,H=0,D=1,clock=0,lastFrame=0;const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function rand(seed){let x=Math.sin(seed*127.1+311.7)*43758.5453123;return x-Math.floor(x)}
+function gradient(x,y,x2,y2,stops){let g=ctx.createLinearGradient(x,y,x2,y2);for(const [p,c] of stops)g.addColorStop(p,c);return g}
+function ellipse(x,y,rx,ry,fill,rot=0){ctx.beginPath();ctx.ellipse(x,y,Math.max(.01,rx),Math.max(.01,ry),rot,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill()}
+function path(points,fill,stroke,width=1){ctx.beginPath();for(let i=0;i<points.length;i++)i?ctx.lineTo(...points[i]):ctx.moveTo(...points[i]);ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=width;ctx.stroke()}}
+function line(x1,y1,x2,y2,color,width=1){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke()}
+const rockData=Array.from({length:130},(_,i)=>({x:rand(i+1),y:rand(i+333),r:rand(i+725),a:rand(i+1100),h:rand(i+1900)}));
+const fishData=Array.from({length:13},(_,i)=>({x:rand(i+442),y:.2+rand(i+481)*.55,s:.55+rand(i+89)*.7,phase:rand(i+951)*6.28,d:i%3===0?-1:1,kind:i%4}));
+let bursts=[],discoveries=0,dogTravel=0,crayTravel=0,netLift=0,viewShift=0,channel=0,fishBoost=0,stoneReveal=0;
+function resetScene(){bursts=[];discoveries=0;dogTravel=0;crayTravel=0;netLift=0;viewShift=0;channel=0;fishBoost=0;stoneReveal=0}
+function resize(){let r=world.getBoundingClientRect();D=Math.min(devicePixelRatio||1,1.25);W=r.width;H=r.height;world.width=Math.round(W*D);world.height=Math.round(H*D);ctx.setTransform(D,0,0,D,0,0)}
+new ResizeObserver(resize).observe(world);resize();
+function rock(x,y,r,a=0,h=.5){ctx.save();ctx.translate(x,y);ctx.rotate(a);let ry=r*(.47+h*.22);ellipse(2,ry*.65,r*1.07,ry*.7,'#0b292768');ctx.beginPath();ctx.moveTo(-r,.1*ry);ctx.bezierCurveTo(-r*.97,-ry*.67,-r*.5,-ry,r*.05,-ry);ctx.bezierCurveTo(r*.72,-ry*1.04,r*1.05,-ry*.31,r,ry*.28);ctx.bezierCurveTo(r*.76,ry*.9,-r*.63,ry*.9,-r,.1*ry);ctx.fillStyle=gradient(-r*.6,-ry,r*.4,ry,[[0,h>.65?'#a7ae79':'#a6afa0'],[.4,h>.65?'#667c4d':'#697e73'],[1,'#304e49']]);ctx.fill();ctx.strokeStyle='#b9c9a744';ctx.lineWidth=.8;ctx.stroke();for(let j=0;j<5;j++){let xx=(rand(j*17+h*100)-.5)*r*1.5,yy=(rand(j+73+a*200)-.5)*ry;ellipse(xx,yy,r*(.025+rand(j+9)*.09),Math.max(.7,ry*.04),'#d5ddba35',-.25)}if(h>.67){for(let j=0;j<8;j++)ellipse((rand(j+88)-.5)*r*1.4,-ry*.62+rand(j+117)*ry*.25,r*.15,ry*.18,'#819a4f88',-.2)}ctx.restore()}
+function leaves(x,y,s,phase=0){ctx.save();ctx.translate(x,y);let len=s*(1+.08*Math.sin(clock+phase));for(let i=0;i<5;i++){let a=(i-2)*.25+.07*Math.sin(clock*.8+i+phase);ctx.save();ctx.rotate(a);ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(-len*.26,-len*.55,0,-len);ctx.quadraticCurveTo(len*.13,-len*.5,0,0);ctx.fillStyle=['#4d805e','#7a9c62','#b3bc76'][i%3];ctx.fill();line(0,-len*.08,0,-len*.83,'#cee0a13a',.7);ctx.restore()}ctx.restore()}
+function fish(x,y,s,dir,kind,phase){ctx.save();ctx.translate(x,y);ctx.scale(dir*s,s);let wag=Math.sin(clock*3.2+phase)*5;const body=kind===1?'#b7bc7e':kind===2?'#9baeb0':'#a9b68a';ctx.beginPath();ctx.moveTo(-24,0);ctx.lineTo(-43,-13+wag);ctx.quadraticCurveTo(-37,0,-43,13+wag);ctx.closePath();ctx.fillStyle='#77937d';ctx.fill();ctx.beginPath();ctx.moveTo(-28,0);ctx.bezierCurveTo(-17,-17,14,-18,30,-5);ctx.quadraticCurveTo(38,0,29,6);ctx.bezierCurveTo(11,17,-14,15,-28,0);ctx.fillStyle=gradient(0,-17,0,15,[[0,'#405f54'],[.38,body],[.72,'#c5c5a1'],[1,'#e6d7ac']]);ctx.fill();ctx.strokeStyle='#314e45';ctx.lineWidth=.7;ctx.stroke();path([[-5,-12],[2,-23],[14,-12]],'#708875','#405e55',.6);path([[4,8],[-1,20],[15,10]],'#be8f62','#6c7560',.6);path([[-16,9],[-23,16],[-9,10]],'#8da084');ctx.beginPath();ctx.moveTo(-21,2);ctx.quadraticCurveTo(4,7,27,1);ctx.strokeStyle=kind===0?'#d18c71aa':'#607a65aa';ctx.lineWidth=2;ctx.stroke();for(let j=0;j<22;j++){let xx=-20+rand(j+kind*20)*42,yy=-9+rand(j+42+kind*30)*15;if(Math.abs(yy)<10-Math.abs(xx-2)*.12){ellipse(xx,yy,.9,.8,kind===0?'#e8d6a5':'#4a6c5c');if(kind===0&&j%4===0)ellipse(xx,yy,.85,.8,'#bd795a')}}ellipse(23,-3,3,3,'#e5d4a3');ellipse(23.5,-3,1.7,1.8,'#122b27');ellipse(24,-3.7,.6,.6,'#fff5d2');ctx.beginPath();ctx.moveTo(15,-9);ctx.quadraticCurveTo(11,1,15,9);ctx.strokeStyle='#526c61';ctx.lineWidth=.8;ctx.stroke();line(28,3,34,2,'#425b51',.6);ctx.restore()}
+function bug(x,y,s,kind=0){ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.rotate(Math.sin(clock*.6+x)*.08);if(kind===2){for(let i=0;i<7;i++){let yy=(i-3)*7;ellipse(Math.sin(i*2)*2,yy,14-i*.4,7,'#88795b');for(let j=0;j<5;j++)ellipse((rand(i*10+j)-.5)*23,yy+(rand(j+i*11+7)-.5)*8,3+rand(j+29)*2,2.5+rand(i+j+69)*2,['#b9b4a0','#7c8779','#95846a'][j%3],rand(j+i)*2)}ellipse(0,-29,6,8,'#815b39');for(let i=0;i<3;i++){line(-4,-24+i*4,-13,-29+i*5,'#bb9664',1.3);line(4,-24+i*4,13,-29+i*5,'#bb9664',1.3)}}else{let c=kind===1?'#8b7845':'#ac955e';for(let i=0;i<3;i++){let y0=-9+i*7;for(let d of [-1,1]){ctx.beginPath();ctx.moveTo(d*3,y0);ctx.lineTo(d*(13+i*2),y0-7);ctx.lineTo(d*(20+i*2),y0+4);ctx.strokeStyle='#a99261';ctx.lineWidth=1.6;ctx.stroke()}}for(let i=0;i<8;i++)ellipse(0,-10+i*4,6-i*.43,3,c);ellipse(0,-17,6,5,'#665b37');ellipse(-4,-18,1.4,1.4,'#253729');ellipse(4,-18,1.4,1.4,'#253729');for(let d of [-1,1]){line(d*3,-20,d*10,-34,'#c0a675',.9);line(d*2,19,d*8,39,'#c0a675',1)}if(kind===0)line(0,19,0,41,'#c0a675',1);path([[-5,-9],[-11,8],[-4,4],[0,-4]],'#8d8657');path([[5,-9],[11,8],[4,4],[0,-4]],'#8d8657')}ctx.restore()}
+function cray(x,y,s){ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.rotate(-.12);for(let i=0;i<4;i++)for(let d of [-1,1]){ctx.beginPath();ctx.moveTo(d*8,-4+i*7);ctx.lineTo(d*(22+i*1.5),-9+i*8);ctx.lineTo(d*31,4+i*7);ctx.strokeStyle='#ad8255';ctx.lineWidth=2.2;ctx.stroke()}for(let i=0;i<6;i++){ellipse(0,8+i*6,11-i*.8,6,'#875f3e');ctx.beginPath();ctx.ellipse(0,7+i*6,10-i*.7,4,0,Math.PI,2*Math.PI);ctx.strokeStyle='#d2a271';ctx.lineWidth=1;ctx.stroke()}ellipse(0,-5,13,17,gradient(-11,-10,11,8,[[0,'#d3a575'],[.5,'#916647'],[1,'#604b39']]));for(let d of [-1,1]){line(d*9,-13,d*26,-29,'#b07c51',5);ellipse(d*26,-34,8,14,'#b08050',d*.33);path([[d*20,-39],[d*18,-54],[d*27,-45]],'#b08050');path([[d*30,-39],[d*37,-52],[d*33,-39]],'#c28e5e');ellipse(d*8,-19,2.6,2.6,'#151e1a');ctx.beginPath();ctx.moveTo(d*5,-18);ctx.quadraticCurveTo(d*15,-43,d*49,-63);ctx.strokeStyle='#c4a378';ctx.lineWidth=1;ctx.stroke()}for(let i=-1;i<=1;i++)ellipse(i*8,43,8,9,'#a4774a',i*.4);ctx.restore()}
+function dog(x,y,s){ctx.save();ctx.translate(x,y);ctx.scale(s,s);ellipse(0,57,47,9,'#16342f66');let leg=Math.sin(clock*4.2)*2;for(let side of [-1,1]){ctx.beginPath();ctx.moveTo(side*20,14);ctx.quadraticCurveTo(side*26,39+leg,side*23,52);ctx.strokeStyle='#b88753';ctx.lineWidth=14;ctx.lineCap='round';ctx.stroke();ellipse(side*23,53,10,5,'#d9b67d')}ctx.beginPath();ctx.moveTo(29,8);ctx.quadraticCurveTo(61,-12,46,-42+Math.sin(clock*2)*7);ctx.strokeStyle='#c39b66';ctx.lineWidth=12;ctx.lineCap='round';ctx.stroke();ellipse(0,4,31,39,gradient(-30,-20,30,30,[[0,'#e7c98f'],[.6,'#c39b66'],[1,'#98744d']]));ellipse(0,16,18,28,'#e2c18a');ellipse(0,-27,25,24,'#cda16a');ellipse(-24,-23,11,24,'#9e7248',.18);ellipse(24,-23,11,24,'#9e7248',-.18);ellipse(0,-16,15,12,'#e0bd86');ellipse(0,-15,8,5,'#332f28');ellipse(-10,-31,3,3,'#2b3028');ellipse(10,-31,3,3,'#2b3028');ellipse(-9,-32,1,1,'#fff4d6');ellipse(11,-32,1,1,'#fff4d6');ctx.beginPath();ctx.moveTo(-9,-8);ctx.quadraticCurveTo(0,-1,9,-8);ctx.strokeStyle='#795c42';ctx.lineWidth=2;ctx.stroke();ctx.beginPath();ctx.moveTo(-17,-3);ctx.quadraticCurveTo(0,5,17,-3);ctx.strokeStyle='#487b6a';ctx.lineWidth=6;ctx.stroke();ellipse(0,5,4,5,'#d7d89f');ctx.restore()}
+let bedCache=null,bedKey='';
+function paintBed(water,scale){
+ const key=[W,H,D,water].join('/');
+ if(!bedCache||key!==bedKey){
+  const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(W*D));cv.height=Math.max(1,Math.round(H*D));
+  const layer=cv.getContext('2d');if(!layer)return;
+  const original=ctx;
+  try{ctx=layer;ctx.setTransform(D,0,0,D,0,0);
+   for(let i=0;i<rockData.length;i++){let a=rockData[i],y=water+(H-water)*(a.y*.92+.08),pers=(y-water)/(H-water),r=(5+a.r*19)*(.5+pers*1.6)*Math.max(.8,scale);rock(a.x*W,y,r,(a.a-.5)*.7,a.h)}
+   bedCache=cv;bedKey=key;
+  }finally{ctx=original}
+ }
+ if(bedCache)ctx.drawImage(bedCache,0,0,W,H)
+}
+function river(t){const control=bodyControl,live=phase==='free'&&control.active&&(performance.now()-control.last<2500);if(live){control.x+=(control.tx-control.x)*.19;control.y+=(control.ty-control.y)*.19}const hor=H*(mode.scene==='bank'?.39:mode.id==='horizon'?(.31+viewShift*.29):.29);const water=hor+H*.13;let scale=Math.min(W,H)/390;ctx.fillStyle=gradient(0,0,0,H,[[0,'#76936b'],[.16,'#4f7966'],[.34,'#2d716b'],[.72,'#255d58'],[1,'#143e3b']]);ctx.fillRect(0,0,W,H);
+// layered Appalachian woodland
+for(let j=0;j<3;j++){for(let i=0;i<16;i++){let x=rand(i+82+j*29)*W,y=hor*(.1+rand(i+333+j*37)*.9),r=(30+rand(i+789+j*17)*90)*Math.max(.75,scale);ellipse(x,y,r,r*.75,['#355d4f','#4d7859','#6d8a61'][j]+'ad');if(j===1)line(x,y-r,x-6*scale,hor+5,'#334d42aa',3*scale)}}
+for(let i=0;i<8;i++){let x=(i/7)*W+(rand(i+10)-.5)*40;let r=W*.06+rand(i+33)*W*.045;rock(x,hor+rand(i+52)*H*.06,r,(rand(i+71)-.5)*.3,.8)}
+// Layered waterfall, broken by the rounded limestone ledges.
+let wx=W*.54,ww=W*.20;ctx.save();ctx.beginPath();ctx.moveTo(wx-ww*.65,hor-H*.035);ctx.bezierCurveTo(wx-ww*.35,hor-H*.045,wx+ww*.18,hor-H*.025,wx+ww*.55,hor-H*.04);ctx.bezierCurveTo(wx+ww*.6,hor+H*.01,wx+ww*.55,water-H*.045,wx+ww*.98,water);ctx.bezierCurveTo(wx+ww*.34,water+H*.024,wx-ww*.53,water+H*.018,wx-ww*.92,water);ctx.bezierCurveTo(wx-ww*.55,water-H*.04,wx-ww*.65,hor+H*.03,wx-ww*.65,hor-H*.035);ctx.closePath();ctx.fillStyle=gradient(0,hor-8,0,water+10,[[0,'#d2e0bc'],[.28,'#8bb3a2'],[.65,'#98c0b0'],[1,'#66968a']]);ctx.fill();ctx.clip();for(let i=0;i<40;i++){let f=i/39,x=wx-ww*.84+f*ww*1.68,y=hor-H*.05+((t*(18+i%4*5)+rand(i+59)*H*.19)%(H*.19));ctx.beginPath();ctx.moveTo(x+Math.sin(f*8)*4,y);ctx.quadraticCurveTo(x+Math.sin(f*6)*4,y+H*.026,x+(f-.5)*9,y+H*.048);ctx.strokeStyle=i%3?'#e8f0d24a':'#f6f3d7a0';ctx.lineWidth=.7+rand(i+52)*1.7;ctx.stroke()}ctx.restore();for(let i=0;i<12;i++){let x=wx+(rand(i+110)-.5)*ww*1.5,y=water-2+Math.sin(i*2+t)*2;ellipse(x,y,5+rand(i+18)*9,1+rand(i+90)*2,'#d9e8cf71')}
+// surface and submerged bed
+ctx.fillStyle=gradient(0,water,0,H,[[0,'#417d77'],[.15,'#377b76'],[.58,'#2c625b'],[1,'#1d453d']]);ctx.fillRect(0,water,W,H-water);
+paintBed(water,scale);
+// wide shafts of light
+ctx.save();ctx.globalCompositeOperation='screen';let sun=ctx.createRadialGradient(W*.73,water-H*.12,3,W*.65,water+H*.16,H*.68);sun.addColorStop(0,'#d7e7ae44');sun.addColorStop(.6,'#81c6ab10');sun.addColorStop(1,'#81c6ab00');ctx.fillStyle=sun;ctx.fillRect(0,water,W,H-water);for(let i=0;i<4;i++)path([[W*(.6+i*.04),water],[W*(.38+i*.10),H],[W*(.55+i*.1),H],[W*(.65+i*.045),water]],'#bfe6b008');ctx.restore();
+for(let i=0;i<20;i++){let y=water+(H-water)*rand(i+166),x=rand(i+172)*W,rr=20+rand(i+441)*W*.13;ctx.beginPath();ctx.moveTo(x-rr,y);ctx.bezierCurveTo(x-rr*.4,y-6+Math.sin(t+i)*3,x+rr*.4,y+7,x+rr,y-1);ctx.strokeStyle='#cee6bd19';ctx.lineWidth=1;ctx.stroke()}
+for(let i=0;i<10;i++){let x=rand(i+282)*W,y=water+(H-water)*(.4+rand(i+83)*.6);ctx.save();ctx.globalAlpha=.14+.86*restoration.visual;leaves(x,y,(22+rand(i+666)*35)*Math.max(.8,scale)*(.25+.75*restoration.visual),i);ctx.restore()}
+// water surface and moving reflections
+for(let i=0;i<15;i++){let y=water-3+rand(i+666)*H*.06,x=(rand(i+499)*W+t*(5+i%4)*1.4)%W;line(x-20,y,x+25+rand(i+9)*30,y+1,'#d9eed665',.9)}
+let big=Math.max(.72,Math.min(1.8,Math.min(W,H)/390));let num=Math.max(0,Math.min(13,Math.round((mode.scene==='macro'||mode.scene==='bank'?5:12)*restoration.visual)));for(let i=0;i<num;i++){let f=fishData[i],x=((f.x*W+f.d*t*(10+i%3*4)+fishBoost*(i===0?38:4))%(W+120)+W+120)%(W+120)-60;let y=water+(H-water)*f.y+Math.sin(t*.7+f.phase)*8,dir=f.d;if(live){let z=control.fish[i]||(control.fish[i]={x,y,dir});let tx=control.x*W+Math.cos(t*1.1+f.phase)*(30+i*6)*big,ty=Math.max(water+12,control.y*H+Math.sin(t*.85+f.phase)*(14+i*3)*big);let dx=tx-z.x,dy=ty-z.y;z.x+=dx*.08;z.y+=dy*.08;if(Math.abs(dx)>2)z.dir=dx>0?1:-1;x=z.x;y=z.y;dir=z.dir}else if(control.fish[i]){let z=control.fish[i];z.x+=(x-z.x)*.06;z.y+=(y-z.y)*.06;dir=z.dir;x=z.x;y=z.y}fish(x,y,big*f.s*(i===0?1.5:.78),dir,f.kind,f.phase)}
+if(mode.scene==='macro'){let cx=W*.5,cy=H*.59,bs=Math.min(W,H)/370;rock(W*.10,H*.72,W*.19,-.15,.78);rock(W*.92,H*.73,W*.16,.12,.8);if(mode.id==='stones'){let offset=stoneReveal?Math.min(1,stoneReveal)*W*.20:0;rock(cx-offset,cy-35*bs,W*.28,-.14,.82);for(let i=0;i<Math.min(5,Math.floor(restoration.visual*6));i++){bug(cx+(i%3-1)*66*bs,cy+45*bs+Math.floor(i/3)*43*bs,bs*(i===0?1.2:.85),i%3)}}else{cray(live?(control.crayX+=(control.x-control.crayX)*.055)*W:cx+Math.sin(crayTravel*.8)*W*.22,live?(control.crayY+=(control.y-control.crayY)*.055)*H:cy-((crayTravel*22)%(H*.16)),bs*1.6);bug(W*.23,H*.67,bs*.7,2)}}
+if(mode.id==='stepping'){for(let i=0;i<5;i++){let f=i/4,x=W*(.52+Math.sin(i*2.2)*.19),y=water+H*(.025+f*.42);rock(x,y,W*(.055+f*.055),-.12,.82);if(i<discoveries){ctx.beginPath();ctx.ellipse(x,y,W*(.052+f*.052),W*(.025+f*.025),-.1,0,Math.PI*2);ctx.strokeStyle='#e5e7a9b5';ctx.lineWidth=2;ctx.stroke()}}}
+if(mode.id==='channels'){let c=channel;for(let k=0;k<2;k++){ctx.beginPath();ctx.moveTo(W*.5,water+H*.09);ctx.quadraticCurveTo(W*(.5+(k?1:-1)*(.08+c*.035)),H*.58,W*(k?.95:.05),H*.75);ctx.strokeStyle='#c4e4ce'+(c>0?'66':'25');ctx.lineWidth=3+c*1.4;ctx.stroke()}}
+if(mode.id==='net'){let nx=live?W*(.25+control.x*.5):W*.62,ny=live?H*(.43+control.y*.23)-netLift*H*.13:water+H*.22-netLift*H*.16;line(W*1.03,ny+H*.20,nx,ny,'#bca279',7*scale);ctx.beginPath();ctx.ellipse(nx,ny,W*.15,H*.045,-.25,0,Math.PI*2);ctx.strokeStyle='#dcc6a0';ctx.lineWidth=5*scale;ctx.stroke();for(let i=0;i<8;i++)line(nx-W*.14+i*W*.035,ny,nx,ny+H*.12,'#e9e2b686',1);for(let j=1;j<4;j++)line(nx-W*.14*(1-j/4),ny+j*H*.03,nx+W*.14*(1-j/4),ny+j*H*.03,'#e9e2b686',.7);if(discoveries)bug(nx,ny-12*scale,scale*.6,discoveries%3)}
+if(mode.scene==='bank'){ctx.beginPath();ctx.moveTo(W*.72,hor);ctx.bezierCurveTo(W*.92,hor+H*.13,W*.49,H*.7,W*.55,H);ctx.lineTo(W,H);ctx.lineTo(W,hor);ctx.closePath();ctx.fillStyle=gradient(W*.5,hor,W,H,[[0,'#829171'],[.5,'#a7a584'],[1,'#647c61']]);ctx.fill();for(let i=0;i<19;i++){let y=hor+rand(i+437)*(H-hor),x=W*(.78+rand(i+351)*.22);leaves(x,y,20+rand(i+100)*20,i)}let dy=H*(.48+Math.min(dogTravel,5)*.035);dog(live?(control.dogX+=(Math.max(.60,Math.min(.91,control.x))-control.dogX)*.07)*W:W*.78,live?H*(.48+Math.max(0,control.y-.42)*.65):dy,Math.max(.75,Math.min(2.3,scale*(1.0+dogTravel*.10))))}
+// A muddy watershed changes into a clear living one. Local clearings grow at the body-driven impact points.
+const damage=1-restoration.visual;ctx.save();ctx.globalAlpha=damage*.72;ctx.fillStyle=gradient(0,water,0,H,[[0,'#736445'],[.4,'#756146'],[1,'#51483a']]);ctx.fillRect(0,water,W,H-water);ctx.restore();
+for(let i=0;i<11;i++){if(i/11<restoration.visual)continue;const x=W*(.08+rand(i+957)*.84),y=water+(H-water)*(.13+rand(i+423)*.72);ctx.save();ctx.globalAlpha=damage*.8;ctx.translate(x,y);ctx.rotate(rand(i+777)*3);line(-12,0,13,-3,'#433c2c',3.5);line(-1,-1,8,-10,'#66503a',2);ctx.restore()}
+for(let p of restoration.patches){const age=t-p.t;if(age<0||age>2.8)continue;const rad=(.045+.19*clamp(age/2.8))*Math.min(W,H);const xx=p.x*W,yy=p.y*H;ctx.save();ctx.globalAlpha=(1-age/2.8)*.72;let g=ctx.createRadialGradient(xx,yy,0,xx,yy,rad);g.addColorStop(0,'#ccebd49c');g.addColorStop(1,'#87e2ad00');ctx.fillStyle=g;ctx.fillRect(xx-rad,yy-rad,rad*2,rad*2);ctx.restore()}
+if(restoration.visual>.45){for(let i=0;i<4;i++){const x=W*(.18+i*.21)+Math.sin(t*.7+i)*18,y=water+H*(.15+rand(i+423)*.22);bug(x,y,Math.min(W,H)/650,i%3)}}
+// action events: rings, bubbles, leaves
+for(let b of bursts){let age=t-b.t,alpha=clamp(1-age/3.2);if(alpha<=0)continue;if(b.kind==='bubbles'){for(let i=0;i<9;i++){let yy=b.y-age*(22+i*2)-i*10,xx=b.x+Math.sin(age*2+i)*15+(i-4)*5;ctx.beginPath();ctx.arc(xx,yy,3+i%4,0,Math.PI*2);ctx.strokeStyle=`rgba(229,249,217,${alpha*.65})`;ctx.lineWidth=1.2;ctx.stroke();ellipse(xx-1,yy-1,1,1,`rgba(255,255,236,${alpha})`)}}else{for(let i=0;i<3;i++){let r=(age*85-i*23);if(r<1)continue;ctx.beginPath();ctx.ellipse(b.x,b.y,r,r*.35,0,0,Math.PI*2);ctx.strokeStyle=`rgba(218,245,197,${alpha*.90})`;ctx.lineWidth=3;ctx.stroke()}}}bursts=bursts.filter(b=>t-b.t<3.2);
+// visual body controller: visible point and responding water, no target or score
+if(live){let x=control.x*W,y=control.y*H,r=17+Math.sin(t*2)*4;ctx.save();ctx.strokeStyle='#f4ffbccc';ctx.lineWidth=2.4;ctx.beginPath();ctx.ellipse(x,y,r,r*.45,0,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='#d6f9c56c';ctx.lineWidth=1.4;ctx.beginPath();ctx.ellipse(x,y,r*1.9,r*.82,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#f9ffdb';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();ctx.restore()}
+// vignette
+let vig=ctx.createRadialGradient(W*.5,H*.48,Math.min(W,H)*.22,W*.5,H*.48,Math.max(W,H)*.75);vig.addColorStop(0,'#0b2e2c00');vig.addColorStop(1,'#0a262b77');ctx.fillStyle=vig;ctx.fillRect(0,0,W,H)
+}
+function frame(ts){if(lastFrame&&ts-lastFrame<(!$('overlay').hidden?125:stream?55:33)){requestAnimationFrame(frame);return}if(!lastFrame)lastFrame=ts;const dt=Math.min(.05,(ts-lastFrame)/1000);lastFrame=ts;if(!paused&&phase!=='rest')clock+=dt*(reduceMotion?.25:1);if(!paused){fishBoost*=.992;netLift*=.995;restoration.visual+=(restoration.stage/5-restoration.visual)*.065;if(audio&&soundOn)updateSoundMix()}if(W&&H&&$('titleScreen').hidden)river(clock);requestAnimationFrame(frame)}requestAnimationFrame(frame);
+let audio=null,noiseNode=null,ambient=null,audioDecided=false,creekFilter=null;function enableAudio(){
+ try{
+  if(!audio)audio=new (window.AudioContext||window.webkitAudioContext)();
+  audio.resume().catch(()=>{});
+  if(soundOn)startRecordedAudio();else updateSoundMix(true);
+ }catch(e){}
+}
+function chime(){} // No arcade reward sounds.
+$('sound').onclick=()=>{audioDecided=true;soundOn=!soundOn;$('sound').innerHTML=icon(soundOn?'sound':'mute');$('sound').setAttribute('aria-pressed',soundOn);$('sound').setAttribute('aria-label',soundOn?'Mute sound':'Turn sound on');enableAudio()};
+function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');$('announce').textContent=msg;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),1800)}
+function drawProgress(){let n=Math.min(limit,12),done=limit<=12?count:Math.floor(count/limit*n);$('progress').innerHTML=Array.from({length:n},(_,i)=>`<i class="${i<done?'done':''}"></i>`).join('');$('counter').textContent=`${count} / ${limit}`}
+function setMeter(v){progressValue=clamp(v);$('measureFill').style.width=(progressValue*100)+'%';$('measure').setAttribute('aria-valuenow',Math.round(progressValue*100))}
+function renderHUD(){updateRestoreHUD(); $('app').classList.toggle('free',phase==='free');$('app').classList.toggle('camera-active',!!stream||loading);if(phase==='free'){renderFree();return}$('worlds').innerHTML=icon('grid');$('worlds').setAttribute('aria-label','Choose game');$('worldTitle').textContent=mode.name;let isCamera=input==='camera';$('cam').classList.toggle('show',isCamera&&!!stream&&['playing','rest'].includes(phase));$('measure').classList.toggle('show',isCamera&&phase==='playing');$('worlds').disabled=isCamera&&['playing','rest'].includes(phase);$('status').innerHTML=`<span class="dot ${!isCamera||trackStatus?'ok':''}"></span>${isCamera?'CAMERA • GUIDED SESSION':'TOUCH DEMO'}`;$('pause').innerHTML=icon(phase==='rest'?'play':'pause');$('pause').setAttribute('aria-label',phase==='rest'?'Resume or stop':'Pause or stop');$('app').classList.toggle('rest',phase==='rest');if(phase==='playing'){ $('prompt').textContent=isCamera?'Move at your own pace.':mode.action;$('hint').textContent=isCamera?'Return to your starting position.':'No camera or exercise needed.';$('act').innerHTML=isCamera?icon('stop')+' Rest':icon('water')+' '+mode.action;$('act').disabled=false}else if(phase==='rest'){ $('prompt').textContent='Take a rest.';$('hint').textContent='The creek can wait.';$('act').innerHTML=icon('play')+' Resume'}else if(phase==='complete'){ $('prompt').textContent='A little more life.';$('hint').textContent='Your session is complete.';$('act').innerHTML=icon('arrow')+' Continue'}else{$('act').innerHTML=icon('play')+' Explore'}drawProgress()}
+function showPanel(html,cls=''){let p=$('panel');p.className='panel '+cls;p.innerHTML=html;$('overlay').hidden=false;p.querySelector('button:not([disabled])')?.focus({preventScroll:true})}
+function hidePanel(){$('overlay').hidden=true}
+
+const restoration={stage:0,visual:0,lastAt:-Infinity,patches:[]};
+let freeStatus='',freePulse=-100,bodyStarted=false,touchMode=false,motionRAF=0,motionCanvas=null,motionContext=null,motionPrev=null,motionLast=0;
+let bodyControl={active:false,x:.5,y:.57,tx:.5,ty:.57,points:[],prior:new Map(),last:0,source:'none',fish:[],dogX:.78,crayX:.5,crayY:.62};
+function clearBody(){bodyControl={active:false,x:.5,y:.57,tx:.5,ty:.57,points:[],prior:new Map(),last:0,source:'none',fish:[],dogX:.78,crayX:.5,crayY:.62};motionPrev=null;cancelAnimationFrame(motionRAF);motionRAF=0}
+const SOUND_ASSETS=[{"id":"creek","file":"Flowing-water-100019.ogg","author":"Fg2","license":"Public domain","description":"19-second flowing water field recording","source":"https://commons.wikimedia.org/wiki/File:Flowing-water-100019.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/2/26/Flowing-water-100019.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/2/26/Flowing-water-100019.ogg/Flowing-water-100019.ogg.mp3"},{"id":"trickle","file":"Swale.ogg","author":"Ksd5","license":"CC0 1.0","description":"A small swale flowing into a stream","source":"https://commons.wikimedia.org/wiki/File:Swale.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/8/84/Swale.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/8/84/Swale.ogg/Swale.ogg.mp3"},{"id":"birds","file":"Indigobunting.ogg","author":"U.S. Fish and Wildlife Service","license":"Public domain (US government)","description":"Indigo bunting call","source":"https://commons.wikimedia.org/wiki/File:Indigobunting.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/d/d2/Indigobunting.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d2/Indigobunting.ogg/Indigobunting.ogg.mp3"},{"id":"frogs","file":"Spring_Peeper_(Pseudacris_crucifer).ogg","author":"Don Becker","license":"CC0 1.0","description":"Spring peeper call","source":"https://commons.wikimedia.org/wiki/File:Spring_Peeper_(Pseudacris_crucifer).ogg","url":"https://upload.wikimedia.org/wikipedia/commons/e/e9/Spring_Peeper_(Pseudacris_crucifer).ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/e/e9/Spring_Peeper_(Pseudacris_crucifer).ogg/Spring_Peeper_(Pseudacris_crucifer).ogg.mp3"},{"id":"insects","file":"Field_cricket_unedited.ogg","author":"Thatcher","license":"CC BY-SA 3.0","description":"North American field cricket; unedited recording","source":"https://commons.wikimedia.org/wiki/File:Field_cricket_unedited.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/0/0d/Field_cricket_unedited.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/0/0d/Field_cricket_unedited.ogg/Field_cricket_unedited.ogg.mp3"},{"id":"dog","file":"George_vuf_1996.ogg","author":"Broadbeer","license":"Public domain","description":"Labrador bark","source":"https://commons.wikimedia.org/wiki/File:George_vuf_1996.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/4/4c/George_vuf_1996.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4c/George_vuf_1996.ogg/George_vuf_1996.ogg.mp3"},{"id":"splash","file":"Bathtub_water_splashes.ogg","author":"gradha","license":"Public domain","description":"Recorded water splashes","source":"https://commons.wikimedia.org/wiki/File:Bathtub_water_splashes.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/8/83/Bathtub_water_splashes.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/8/83/Bathtub_water_splashes.ogg/Bathtub_water_splashes.ogg.mp3"},{"id":"bubbles","file":"Water_bubbles_chortling.ogg","author":"stephan","license":"Public domain","description":"Real water bubbles","source":"https://commons.wikimedia.org/wiki/File:Water_bubbles_chortling.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/4/4b/Water_bubbles_chortling.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4b/Water_bubbles_chortling.ogg/Water_bubbles_chortling.ogg.mp3"},{"id":"gravel","file":"Assorted_gravel_rock_and_stones.ogg","author":"stephan","license":"Public domain","description":"Gravel and stone Foley","source":"https://commons.wikimedia.org/wiki/File:Assorted_gravel_rock_and_stones.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/a/a3/Assorted_gravel_rock_and_stones.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a3/Assorted_gravel_rock_and_stones.ogg/Assorted_gravel_rock_and_stones.ogg.mp3"},{"id":"sloshing","file":"Water_sloshing_in_a_small_bottle.ogg","author":"tamanders","license":"Public domain","description":"Sloshing water Foley","source":"https://commons.wikimedia.org/wiki/File:Water_sloshing_in_a_small_bottle.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/1/1b/Water_sloshing_in_a_small_bottle.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/1/1b/Water_sloshing_in_a_small_bottle.ogg/Water_sloshing_in_a_small_bottle.ogg.mp3"}];
+const recorded={buffers:new Map(),pending:new Map(),loops:new Map(),master:null,started:false,lastMix:0,lastShots:new Map(),failed:new Set(),lastMessage:'',lastEffect:-100,nextWildlife:0,lastWildlife:-100,wildlifeIndex:0};
+function audioStatus(){
+ const el=$('audioState');if(!el)return;
+ const water=recorded.loops.has('creek')||recorded.loops.has('trickle');
+ const label=!soundOn?'Sound off':!audio||audio.state!=='running'?'Tap speaker for sound':water?'Quiet creek · sound on':recorded.failed.has('creek')&&recorded.failed.has('trickle')?'Water recording unavailable · tap speaker to retry':'Loading quiet creek…';
+ if(label!==recorded.lastMessage){recorded.lastMessage=label;el.textContent=label}
+}
+function rmsLevel(buffer){
+ let sum=0,n=0;
+ for(let c=0;c<buffer.numberOfChannels;c++){const d=buffer.getChannelData(c);for(let i=0;i<d.length;i+=20){sum+=d[i]*d[i];n++}}
+ return Math.max(.008,Math.sqrt(sum/Math.max(1,n)));
+}
+async function loadRecording(id){
+ if(recorded.buffers.has(id))return recorded.buffers.get(id);
+ if(recorded.pending.has(id))return recorded.pending.get(id);
+ const entry=SOUND_ASSETS.find(a=>a.id===id);if(!entry||!audio)return null;
+ const task=(async()=>{
+  for(const url of [entry.url,entry.mp3]){
+   let timer,ac;
+   try{
+    ac=new AbortController();timer=setTimeout(()=>ac.abort(),12000);
+    const res=await fetch(url,{signal:ac.signal,mode:'cors',cache:'force-cache'});
+    if(!res.ok)throw Error('HTTP '+res.status);
+    const bytes=await res.arrayBuffer();clearTimeout(timer);
+    const buffer=await audio.decodeAudioData(bytes);
+    if(buffer.duration<.1)throw Error('Invalid audio');
+    const item={buffer,rms:rmsLevel(buffer)};
+    recorded.buffers.set(id,item);recorded.failed.delete(id);
+    if(['creek','trickle'].includes(id))ensureLoop(id);
+    audioStatus();updateSoundMix(true);return item;
+   }catch(e){clearTimeout(timer)}
+  }
+  recorded.failed.add(id);audioStatus();return null;
+ })();
+ recorded.pending.set(id,task);task.finally(()=>recorded.pending.delete(id));return task;
+}
+function startRecordedAudio(){
+ if(!audio)return;
+ if(!recorded.master){
+  const master=audio.createGain();master.gain.value=soundOn?.64:0;
+  const limiter=audio.createDynamicsCompressor();limiter.threshold.value=-22;limiter.knee.value=20;limiter.ratio.value=6;limiter.attack.value=.008;limiter.release.value=.19;
+  master.connect(limiter).connect(audio.destination);recorded.master=master;
+ }
+ if(!recorded.started){
+  recorded.started=true;
+  // Start the creek and immediate interaction sounds first; remaining layers arrive without blocking play.
+  Promise.allSettled(['trickle','creek','splash','bubbles','gravel','sloshing','birds','frogs','insects'].map(loadRecording)).then(audioStatus);
+ }
+ if(recorded.failed.has('creek')&&recorded.failed.has('trickle')){loadRecording('creek');loadRecording('trickle')}
+ updateSoundMix(true);
+ audio.resume().then(audioStatus).catch(audioStatus);
+}
+function seamlessWater(buffer){
+ // Overlap the last 750ms with the first 750ms: a continuous water bed, no clicks.
+ const n=buffer.length,f=Math.min(Math.floor(buffer.sampleRate*.75),Math.floor(n/4));
+ if(!f||!audio.createBuffer)return buffer;
+ const out=audio.createBuffer(buffer.numberOfChannels,n-f,buffer.sampleRate);
+ for(let c=0;c<buffer.numberOfChannels;c++){
+  const src=buffer.getChannelData(c),dst=out.getChannelData(c),body=n-2*f;
+  dst.set(src.subarray(f,n-f),0);
+  for(let i=0;i<f;i++){const p=i/Math.max(1,f-1);dst[body+i]=src[n-f+i]*(1-p)+src[i]*p}
+ }
+ return out;
+}
+function ensureLoop(id){
+ if(recorded.loops.has(id)||!recorded.master||!['creek','trickle'].includes(id))return;
+ const item=recorded.buffers.get(id);if(!item)return;
+ try{
+  const src=audio.createBufferSource(),g=audio.createGain();
+  src.buffer=seamlessWater(item.buffer);src.loop=true;g.gain.value=0;
+  const filter=audio.createBiquadFilter();filter.type='lowpass';filter.frequency.value=1700;filter.Q.value=.25;
+  src.connect(filter).connect(g).connect(recorded.master);
+  src.start(0,Math.min(src.buffer.duration*.15,1));
+  recorded.loops.set(id,{g,filter,item});
+ }catch(e){}
+}
+function updateSoundMix(force=false){
+ if(!audio)return;
+ const t=audio.currentTime;if(!force&&t-recorded.lastMix<.25)return;recorded.lastMix=t;
+ const h=clamp(restoration.visual),active=soundOn&&!document.hidden;
+ // One water bed, not two competing beds. Crossfade only as habitat changes.
+ const both=recorded.loops.has('creek')&&recorded.loops.has('trickle');
+ const fade=h*h*(3-2*h);
+ const total=.038+.020*h;
+ const level={trickle:total*(both?1-fade:1),creek:total*(both?fade:1)};
+ if(ambient)ambient.gain.setTargetAtTime(0,t,.3);
+ if(recorded.master)recorded.master.gain.setTargetAtTime(active?.64:0,t,.25);
+ for(const [id,node] of recorded.loops){
+  const gain=Math.min(.85,(level[id]||0)/node.item.rms);
+  node.g.gain.setTargetAtTime(active?gain:0,t,1.5);
+  node.filter.frequency.setTargetAtTime(1700+2000*h,t,1.6);
+ }
+ // Wildlife is a rare, short foreground event, never a loop or a reward alarm.
+ if(active&&h>.65&&phase==='free'&&!paused){
+  if(!recorded.nextWildlife)recorded.nextWildlife=t+24;
+  if(t>=recorded.nextWildlife){
+   recorded.nextWildlife=t+30+Math.random()*24;
+   const ids=['birds','birds','frogs','insects'];
+   const id=ids[recorded.wildlifeIndex++%ids.length];
+   if(t-recorded.lastEffect>5&&playRecording(id,{x:.5,level:id==='birds'?.032:.018,duration:1.7,gap:25,rate:1,wildlife:true}))recorded.lastWildlife=t;
+  }
+ }
+ audioStatus();
+}
+function sampleOnset(item,duration){
+ // Prefer a representative quiet section; do not hunt for the loudest transient.
+ const b=item.buffer,d=b.getChannelData(0),sr=b.sampleRate,span=Math.min(b.duration,duration);
+ if(b.duration<=span+.08)return 0;
+ let best=0,score=Infinity;
+ for(let tries=0;tries<6;tries++){
+  const x=Math.random()*Math.max(0,b.duration-span-.02),j=Math.floor(x*sr),end=Math.min(d.length,j+Math.floor(span*sr));let e=0,n=0;
+  for(let i=j;i<end;i+=Math.max(1,Math.floor(sr/1000))){e+=d[i]*d[i];n++}
+  const rms=Math.sqrt(e/Math.max(1,n)),cost=rms<item.rms*.15?10:Math.abs(rms-item.rms*.7);
+  if(cost<score){score=cost;best=x}
+ }
+ return best;
+}
+function playRecording(id,{x=.5,level=.04,duration=.85,gap=3.5,rate=1,wildlife=false}={}){
+ if(!soundOn||!recorded.master||!audio||audio.state!=='running'||document.hidden)return false;
+ const item=recorded.buffers.get(id);if(!item)return false;
+ const t=audio.currentTime;
+ if(t-(recorded.lastShots.get(id)??-99)<gap)return true;
+ try{
+  const src=audio.createBufferSource(),g=audio.createGain();src.buffer=item.buffer;src.playbackRate.value=rate;
+  const len=Math.min(item.buffer.duration,duration*rate),offset=sampleOnset(item,len),seconds=len/rate;
+  const peak=Math.min(.58,level/item.rms),attack=Math.min(.16,seconds*.33),release=Math.min(.38,seconds*.45);
+  g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(peak,t+attack);g.gain.setValueAtTime(peak,t+Math.max(attack,seconds-release));g.gain.linearRampToValueAtTime(.0001,t+seconds);
+  const lp=audio.createBiquadFilter();lp.type='lowpass';lp.frequency.value=wildlife?3100:2200;lp.Q.value=.25;
+  src.connect(lp).connect(g);
+  try{const p=audio.createStereoPanner();p.pan.value=clamp((x-.5)*.7,-.35,.35);g.connect(p).connect(recorded.master)}catch(e){g.connect(recorded.master)}
+  src.start(t,offset,len);recorded.lastShots.set(id,t);return true;
+ }catch(e){return false}
+}
+const soundScore={
+ ripples:['splash',.037,.95,.90],
+ stones:['gravel',.024,.65,.95],
+ channels:['sloshing',.035,1.2,.92],
+ trout:['splash',.034,.85,.94],
+ stepping:['gravel',.027,.72,.95],
+ bubbles:['bubbles',.036,1.25,.93],
+ dog:['sloshing',.026,.9,1],
+ crayfish:['bubbles',.027,.95,.95],
+ net:['sloshing',.031,.9,1],
+ horizon:['splash',.033,1.15,.85]
+};
+function playSceneSounds(k,x){
+ if(!audio||!soundOn)return false;
+ const t=audio.currentTime;
+ // Visual feedback is immediate; audio is deliberately sparse.
+ if(t-recorded.lastEffect<3.8||t-recorded.lastWildlife<3.5)return true;
+ const [id,level,duration,rate]=soundScore[k]||soundScore.ripples;
+ const played=playRecording(id,{x,level,duration,rate,gap:4});
+ if(played)recorded.lastEffect=t;
+ return played;
+}
+function soundMilestone(stage,x){
+ // Restore the timbre and balance over seconds, rather than playing a fanfare.
+ updateSoundMix(true);
+}
+function startSound(){if(!audioDecided){audioDecided=true;soundOn=true;$('sound').innerHTML=icon('sound');$('sound').setAttribute('aria-pressed','true');$('sound').setAttribute('aria-label','Mute sound')}enableAudio()}
+const restorationLabels=['Muddy water','Water clears','Green shoots','Insects return','Fish return','Creek restored'];
+function updateRestoreHUD(){
+ $('app').classList.toggle('guided',input==='camera'&&['playing','rest'].includes(phase));
+ $('restoreSeeds').innerHTML=Array.from({length:5},(_,i)=>'<i class="'+(i<restoration.stage?'grown':'')+'"></i>').join('');
+ $('restoreText').textContent=restorationLabels[restoration.stage];
+}
+function resetRestoration(){restoration.stage=0;restoration.visual=0;restoration.lastAt=-Infinity;restoration.patches=[];recorded.nextWildlife=0;recorded.lastEffect=-100;recorded.lastWildlife=-100;updateRestoreHUD()}
+function restorePatch(x,y,source){
+ // Only actual tracked changes, touch demonstration events, or completed calibrated cycles
+ // change the fictional creek. No medical score, no range or speed bonus.
+ if(restoration.stage>=5)return;
+ const guided=source==='approved-cycle';
+ if(!guided&&performance.now()-restoration.lastAt<850)return;
+ const next=guided?Math.min(5,Math.floor(5*count/Math.max(1,limit))):restoration.stage+1;
+ if(next<=restoration.stage)return;
+ restoration.stage=next;restoration.lastAt=performance.now();
+ restoration.patches.push({x:clamp(x/W),y:clamp(y/H),t:clock});
+ updateRestoreHUD();
+ soundMilestone(restoration.stage,clamp(x/W));
+
+ if(restoration.stage===5){if(phase==='free')$('prompt').textContent='Creek restored';toast('Creek restored. Rest whenever you like.')}
+ else toast(restorationLabels[restoration.stage]);
+}
+function ecologySound(k='ripples',x=.5){
+ if(!soundOn||!audio||audio.state!=='running')return;
+ playSceneSounds(k,x);
+ // Failed or unavailable recordings are silent: no synthesized substitute.
+}
+function updateBody(points,source,t){
+ if(phase!=='free'||paused||document.hidden||!points.length)return;
+ const c=bodyControl,prev=c.prior;
+ let moves=points.map(p=>({...p,m:prev.has(p.id)?Math.hypot(p.x-prev.get(p.id).x,p.y-prev.get(p.id).y):0}));
+ let moving=moves.filter(p=>p.m>.008&&p.m<.34).sort((a,b)=>b.m-a.m);
+ let target=moving[0]||moves.find(p=>p.id===15||p.id===16)||moves[0];
+ c.active=true;c.source=source;c.last=t;c.tx=clamp(target.x);c.ty=.42+clamp(target.y)*.42;c.points=points;c.prior=new Map(points.map(p=>[p.id,p]));
+ if(moving.length&&t-freePulse>460){
+  freePulse=t;
+  ecologyEvent(c.tx*W,c.ty*H,true);
+  for(let p of moving.slice(1,3))bursts.push({x:clamp(p.x)*W,y:(.42+clamp(p.y)*.42)*H,t:clock,kind:'ripple'});
+ }
+}
+function ecologyEvent(x,y,fromBody=false){
+ if(phase!=='free'||paused)return;
+ const k=mode.id,c=bodyControl;count++;discoveries=Math.min(30,discoveries+1);
+ if(!fromBody){c.active=true;c.source='touch';c.last=performance.now();c.tx=clamp(x/W);c.ty=clamp(y/H);c.points=[]}
+ bursts.push({x:Math.max(8,Math.min(W-8,x)),y:Math.max(8,Math.min(H-8,y)),t:clock,kind:k==='bubbles'?'bubbles':'ripple'});
+ if(bursts.length>30)bursts.splice(0,bursts.length-30);
+ if(k==='stones')stoneReveal=Math.min(1,stoneReveal+.25);
+ if(k==='dog')dogTravel=Math.min(5,dogTravel+1);
+ if(k==='crayfish')crayTravel=Math.min(12,crayTravel+1);
+ if(k==='net')netLift=1;if(k==='horizon')viewShift=1-viewShift;
+ if(k==='channels')channel=Math.min(5,channel+1);
+ if(k==='trout')fishBoost=Math.min(4,fishBoost+1.5);
+ ecologySound(k,clamp(x/W));restorePatch(x,y,fromBody?'body':'touch');
+}
+function motionLoop(token){
+ if(token!==cameraToken||!stream||phase!=='free')return;
+ if(!motionCanvas){motionCanvas=document.createElement('canvas');motionCanvas.width=64;motionCanvas.height=48;motionContext=motionCanvas.getContext('2d',{willReadFrequently:true})}
+ const step=t=>{
+  if(token!==cameraToken||!stream||phase!=='free')return;
+  if((!modelReady||!trackStatus)&&VIDEO.readyState>=2&&t-motionLast>=110&&!document.hidden){
+   motionLast=t;
+   try{
+    motionContext.drawImage(VIDEO,0,0,64,48);const d=motionContext.getImageData(0,0,64,48).data,gray=new Uint8Array(3072);
+    let n=0,x=0,y=0;
+    for(let i=0;i<gray.length;i++){gray[i]=(d[i*4]*.299+d[i*4+1]*.587+d[i*4+2]*.114)|0;if(motionPrev&&Math.abs(gray[i]-motionPrev[i])>23){n++;x+=i%64;y+=Math.floor(i/64)}}
+    if(n>=14&&n<1200){const p={id:'motion',x:1-x/n/63,y:y/n/47};updateBody([p],'motion',t);
+     // The fallback responds to local motion even when its centroid stays still.
+     if(t-freePulse>650){freePulse=t;ecologyEvent(p.x*W,(.42+p.y*.42)*H,true)}
+     if($('freeStatus'))$('freeStatus').textContent=modelReady?'MOTION · FIND BODY':'MOTION CAMERA · LOADING POSE';
+    }
+    motionPrev=gray;
+   }catch(e){}
+  }else if(modelReady&&trackStatus)motionPrev=null;
+  motionRAF=requestAnimationFrame(step);
+ };cancelAnimationFrame(motionRAF);motionRAF=requestAnimationFrame(step);
+}
+function renderFree(){
+ $('worldTitle').textContent=mode.name;
+ $('cam').classList.toggle('show',!!stream);
+ $('measure').classList.remove('show');
+ $('worlds').disabled=false;$('worlds').textContent='Next ›';$('worlds').setAttribute('aria-label','Next creek game');
+ $('ptSetup').disabled=loading;
+ $('status').innerHTML='<span class="dot '+(trackStatus?'ok':'')+'"></span><span id="freeStatus"></span>';
+ $('freeStatus').textContent=freeStatus||(stream?(modelReady?(trackStatus?'BODY CONNECTED':'LOOKING FOR BODY'):'MOTION CAMERA · LOADING POSE'):(touchMode?'TOUCH PLAY':'BODY PLAY'));
+ $('prompt').textContent=restoration.stage===5?'Creek restored':mode.name;
+ $('hint').textContent=stream?'Move only as approved. Watch the water change.':touchMode?'Tap the creek. Watch it change.':'Start the camera to play with your body.';
+ $('act').innerHTML=loading&&!stream?'Allow camera…':!stream&&!touchMode?icon('cam')+' Start body play':stream&&!modelReady&&!loading?icon('cam')+' Retry body tracking':icon('water')+' '+mode.action;
+ $('act').disabled=loading&&!stream;
+ $('touchPlay').style.display=stream||touchMode||loading?'none':'flex';$('touchPlay').textContent='Touch';
+ $('pause').innerHTML=icon(stream||loading?'stop':paused?'play':'pause');$('pause').setAttribute('aria-label',stream||loading?'Stop camera':paused?'Resume':'Pause');
+ $('cameraCheck').setAttribute('aria-pressed',String(!!stream));$('cameraCheck').setAttribute('aria-label',stream?'Enlarge camera':'Start body play');
+}
+function freeTouch(x=W*.5,y=H*.56){
+ if(phase!=='free'||paused||!$('overlay').hidden)return;
+ startSound();touchMode=true;if(!stream&&!loading)renderHUD();ecologyEvent(x,y,false);
+}
+
+function nextFree(){
+ if(phase!=='free')return;
+ mode=modes[(modes.indexOf(mode)+1)%modes.length];
+ count=0;paused=false;resetScene();resetRestoration();renderHUD();
+}
+
+function welcome(){
+ if(stream||loading)stopCamera();
+ phase='free';input='demo';paused=false;session=null;setup=null;freeStatus='';freePulse=-100;count=0;touchMode=false;bodyStarted=false;clearBody();mode=modes[0];resetScene();resetRestoration();
+ hidePanel();renderHUD();
+}
+function freePose(lm,seen,t){
+ if(!seen||!lm||document.hidden||paused)return;
+ const pts=[11,12,15,16,23,24,25,26,27,28,29,30,31,32].filter(i=>lm[i]&&(lm[i].visibility??1)>.55&&Number.isFinite(lm[i].x)&&Number.isFinite(lm[i].y)&&lm[i].x>=0&&lm[i].x<=1&&lm[i].y>=0&&lm[i].y<=1).map(i=>({id:i,x:1-lm[i].x,y:lm[i].y}));
+ if(pts.length)updateBody(pts,'pose',t);
+}
+
+async function quickCamera(){
+ if(phase!=='free')welcome();
+ startSound();paused=false;touchMode=false;bodyStarted=true;
+ if(loading)return;
+ if(stream&&modelReady){stopCamera();freeStatus='';renderHUD();return}
+ let existing=stream;
+ if(!existing)stopCamera();
+ let token=cameraToken;loading=true;modelReady=false;freeStatus='ALLOW CAMERA';renderHUD();
+ try{
+  if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia)throw Error('Open in Chrome or Safari over HTTPS.');
+  const cameraRequest=existing?Promise.resolve(existing):navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'user'},width:{ideal:480},height:{ideal:360},frameRate:{ideal:20,max:24}}});
+  const modelRequest=prepareModel();
+  const media=await cameraRequest;
+  if(token!==cameraToken){if(!existing)media.getTracks().forEach(t=>t.stop());return}
+  stream=media;restoreCamera();VIDEO.muted=true;VIDEO.srcObject=media;
+  if(!existing)for(const t of media.getVideoTracks())t.addEventListener('ended',()=>{if(token!==cameraToken)return;if(input==='camera'&&['playing','rest'].includes(phase)){finishEarly();return}welcome();freeStatus='CAMERA DISCONNECTED';renderHUD()});
+  freeStatus='MOTION CAMERA · LOADING POSE';renderHUD();
+  await VIDEO.play();if(token!==cameraToken)return;
+  motionLoop(token);
+  landmarker=await modelTimeout(modelRequest,35000);
+  if(token!==cameraToken)return;
+  loading=false;modelReady=true;lastVideoTime=-1;lastInfer=0;lastGood=0;freeStatus='';renderHUD();runPose(++runToken);
+ }catch(e){
+  if(token!==cameraToken)return;
+  loading=false;modelReady=false;
+  freeStatus=e?.name==='NotAllowedError'?'CAMERA BLOCKED · ALLOW IN BROWSER':stream?'CAMERA ON · RETRY TRACKING':e?.name==='NotFoundError'?'NO CAMERA FOUND':'CAMERA UNAVAILABLE';
+  renderHUD();toast(e?.name==='NotAllowedError'?'Allow camera in browser site settings.':String(e?.message||'Camera unavailable'));
+ }
+}
+
+function startDemo(m){stopCamera();input='demo';mode=m;phase='playing';paused=false;count=0;limit=5;session=null;resetScene();resetRestoration();hidePanel();renderHUD()}
+function reward(){if(phase!=='playing'||paused||count>=limit)return;count++;discoveries++;let k=mode.id;bursts.push({x:W*(.4+rand(count+38)*.28),y:H*.53,t:clock,kind:k==='bubbles'?'bubbles':'ripple'});if(k==='stones')stoneReveal=Math.min(1,count*.25);if(k==='dog')dogTravel++;if(k==='crayfish')crayTravel++;if(k==='net')netLift=1;if(k==='horizon')viewShift=1-viewShift;if(k==='channels')channel=Math.min(5,count);if(k==='trout')fishBoost+=2;ecologySound(k,.5);restorePatch(W*.5,H*.55,input==='camera'?'approved-cycle':'touch');drawProgress();if(count>=limit){phase='complete';paused=false;stopCamera();setMeter(0);renderHUD();completePanel()}}
+function completePanel(){showPanel(`<div class="kicker">${input==='camera'?'Guided session':'Field notes'}</div><div class="summarynum">${count} / ${limit}</div><h2>${input==='camera'?'Session complete.':'Creek restored.'}</h2><p>${input==='camera'?'Game-detected repetitions only. This is not a clinical assessment.':'Your creek is a little more alive.'}</p><button class="primary" id="again">${input==='camera'?'Finish':'Next game'} ${icon('arrow')}</button><button class="secondary" id="home">Home</button>`);$('again').onclick=()=>input==='camera'?welcome():startDemo(modes[(modes.indexOf(mode)+1)%modes.length]);$('home').onclick=welcome}
+function picker(kind='demo',p=0){page=p;let oldPhase=phase;const entries=modes.slice(p*5,p*5+5);showPanel(`<div class="kicker">${kind==='camera'?'Therapist setup':'Choose a habitat'}</div><h2>${kind==='camera'?'Approved movement':'Explore the creek'}</h2><button class="iconbtn close" id="closePanel" aria-label="Close">${icon('x')}</button><div class="modegrid">${entries.map(m=>`<button class="tile ${m===mode?'active':''}" data-mode="${m.id}"><span class="tileicon">${m.glyph}</span><span><strong>${kind==='camera'?m.exercise:m.name}</strong><small>${kind==='camera'?m.name:m.exercise}</small></span></button>`).join('')}</div><div class="pagination"><button class="secondary" id="prev" ${p===0?'disabled':''}>‹ Back</button><span class="counter">${p+1} / 2</span><button class="secondary" id="next" ${p===1?'disabled':''}>More ›</button></div>`);$('panel').querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{let m=modes.find(x=>x.id===b.dataset.mode);kind==='camera'?configure(m):startDemo(m)});$('prev').onclick=()=>picker(kind,p-1);$('next').onclick=()=>picker(kind,p+1);$('closePanel').onclick=()=>kind==='camera'?welcome():oldPhase==='welcome'?welcome():hidePanel()}
+function setupStart(){restoreCamera();$('app').classList.remove('free');phase='setup';paused=false;input='demo';picker('camera')}
+function configure(m){mode=m;phase='setup';showPanel(`<div class="kicker">Step 1 / 3 · caregiver or clinician</div><h2>${m.exercise}</h2><p>Use only a movement, range and repetitions already approved for this person.</p><div class="fields"><label class="field">Body side<select id="side"><option value="left">Left</option><option value="right">Right</option></select></label><label class="field">Prescribed reps<input id="reps" type="number" min="1" max="100" step="1" inputmode="numeric" placeholder="Enter" required></label></div><label class="check"><input id="approved" type="checkbox"> <span>Movement, range, support and repetition count approved by the treating clinician.</span></label><p class="micro setupnote">${m.view}. Use a mounted phone. A helper should handle the controls, especially for standing exercises.</p><div class="actions"><button class="secondary" id="back">Back</button><button class="primary" id="connect" disabled>${icon('cam')} ${stream&&modelReady?'Next':'Camera'}</button></div><p class="micro">Video is processed on-device; model files and SDK load online. MediaPipe may collect SDK metrics.</p>`);function valid(){const n=Number($('reps').value);$('connect').disabled=!$('approved').checked||!Number.isInteger(n)||n<1||n>100}$('approved').onchange=valid;$('reps').oninput=valid;$('back').onclick=()=>picker('camera',Math.floor(modes.indexOf(m)/5));$('connect').onclick=()=>{if($('connect').disabled)return;setup={mode:m,side:$('side').value,limit:Number($('reps').value),neutral:null,target:null};connectCamera(false)}}
+function pausePanel(reason=''){paused=true;phase='rest';setMeter(0);if(session){session.state='needNeutral';session.hits=0}renderHUD();showPanel(`<div class="kicker">Rest</div><h2>Take your time.</h2><p>${reason||'Your progress is saved for this session.'}</p>${input==='camera'?`<p class="micro" id="restTracking">${trackStatus?'Camera ready.':'Camera needs a clear view.'}</p>`:''}<button class="primary" id="resume" ${input==='camera'&&!trackStatus?'disabled':''}>${icon('play')} Resume</button><button class="secondary" id="finish">${icon('stop')} End session</button><p class="micro">${input==='camera'?'Resume only when comfortable and approved. Start from your calibrated neutral position.':'No time limit.'}</p>`);$('resume').onclick=resume;$('finish').onclick=finishEarly}
+function resume(){if(input==='camera'&&(!stream||!trackStatus)){if($('restTracking'))$('restTracking').textContent='Camera needs a clear view first.';return}paused=false;phase='playing';if(session){session.state='needNeutral';session.hits=0;session.smooth=null;lastGood=performance.now()}hidePanel();renderHUD()}
+function finishEarly(){stopCamera();phase='complete';paused=false;renderHUD();showPanel(`<div class="kicker">Session ended</div><h2>Enough for now.</h2><p>${count} / ${limit} game-detected repetitions. Rest whenever needed.</p><button class="primary" id="home">Home</button>`);$('home').onclick=welcome}
+$('act').onclick=()=>{if(phase==='free'){if((!stream&&!touchMode)||(stream&&!modelReady&&!loading)){quickCamera();return}freeTouch();return}if(phase==='playing'){input==='demo'?reward():pausePanel()}else if(phase==='rest')resume();else if(phase==='complete')completePanel();else welcome()};$('touchPlay').onclick=()=>{touchMode=true;startSound();renderHUD();freeTouch()};$('worlds').onclick=()=>{if(phase==='free'){nextFree();return}if(input==='camera'&&phase==='playing')return;picker('demo',Math.floor(modes.indexOf(mode)/5))};$('pause').onclick=()=>{if(phase==='free'){if(stream||loading){stopCamera();freeStatus='';renderHUD()}else{paused=!paused;renderHUD()}return}if(phase==='playing')pausePanel();else if(phase==='rest')resume();else welcome()};
+// Camera and calibrated movement recognition. No clinical joint-angle or safety claims.
+const CDN='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21';
+const MODEL='https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+const VIDEO=$('video'),POSE=$('pose'),PC=POSE.getContext('2d');
+const links=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[27,29],[29,31],[27,31],[24,26],[26,28],[28,30],[30,32],[28,32]];
+function stopCamera(){clearBody();cameraToken++;$('cam').classList.remove('expanded');runToken++;loading=false;cancelAnimationFrame(rafPose);rafPose=0;if(stream){for(let t of stream.getTracks())t.stop();stream=null}VIDEO.srcObject=null;trackStatus=false;lastMetric=null;lastPose=null;calSamples=[];lastVideoTime=-1;PC.clearRect(0,0,POSE.width,POSE.height);restoreCamera();$('cam').classList.remove('show')}
+function restoreCamera(){const cam=$('cam');if(VIDEO.parentNode!==cam){cam.prepend(POSE);cam.prepend(VIDEO)}}
+function updateCameraLabel(ok){trackStatus=ok;if(phase==='free'&&$('freeStatus')&&!loading&&modelReady){$('freeStatus').textContent=ok?'BODY CONNECTED':'MOTION CAMERA · FIND BODY';$('status').querySelector('.dot')?.classList.toggle('ok',ok)}$('camDot').classList.toggle('ok',ok);$('camText').textContent=ok?'Tracking':'Find body';let cd=$('calDot');if(cd){cd.classList.toggle('ok',ok);$('calStatus').textContent=ok?'Body in view':'Adjust camera view'}if(input==='camera'&&phase==='rest'&&$('resume')){ $('resume').disabled=!ok; if($('restTracking'))$('restTracking').textContent=ok?'Camera ready.':'Camera needs a clear view.';}if(input==='camera')$('status').innerHTML=`<span class="dot ${ok?'ok':''}"></span>CAMERA • ${ok?'TRACKING':'CHECK VIEW'}`}
+function renderPose(lm){let vw=VIDEO.videoWidth||640,vh=VIDEO.videoHeight||480;if(POSE.width!==vw||POSE.height!==vh){POSE.width=vw;POSE.height=vh}PC.clearRect(0,0,vw,vh);if(!lm)return;PC.lineCap='round';PC.lineJoin='round';PC.lineWidth=Math.max(4,vw/115);const good=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&(p.visibility??1)>.55&&p.x>=0&&p.x<=1&&p.y>=0&&p.y<=1;let hi=setup?.side==='right'?[24,26,28,30,32]:[23,25,27,29,31];for(let [a,b] of links){if(!good(lm[a])||!good(lm[b]))continue;PC.beginPath();PC.moveTo((1-lm[a].x)*vw,lm[a].y*vh);PC.lineTo((1-lm[b].x)*vw,lm[b].y*vh);PC.strokeStyle=hi.includes(a)&&hi.includes(b)?'#aaff66':'#f8fff5';PC.stroke()}for(let i=11;i<33;i++){let p=lm[i];if(!good(p))continue;PC.beginPath();PC.arc((1-p.x)*vw,p.y*vh,Math.max(4,vw/100),0,Math.PI*2);PC.fillStyle=hi.includes(i)?'#c7ec99':'#f3f4dd';PC.fill()}}
+function metric(lm,spec,side,w,h){if(!lm||!spec||!w||!h)return null;const idx=side==='left'?[11,23,25,27,29,31]:[12,24,26,28,30,32],other=side==='left'?24:23;const good=i=>{let p=lm[i];return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&(p.visibility??1)>=.65&&(p.presence??1)>=.5&&p.x>.005&&p.x<.995&&p.y>.005&&p.y<.995};const pt=i=>[lm[i].x*w,lm[i].y*h];const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);const angle=(a,b,c)=>{let u=[a[0]-b[0],a[1]-b[1]],v=[c[0]-b[0],c[1]-b[1]],n=Math.hypot(...u)*Math.hypot(...v);return n>9?Math.acos(clamp((u[0]*v[0]+u[1]*v[1])/n,-1,1))*180/Math.PI:null};const [sh,hip,knee,ank,heel,toe]=idx;
+// Use image-plane motion, not an inferred anatomical range of motion.
+if(spec.metric==='knee'){if(![hip,knee,ank].every(good))return null;return angle(pt(hip),pt(knee),pt(ank))}
+if(spec.metric==='hip'){if(![sh,hip,knee].every(good))return null;return angle(pt(sh),pt(hip),pt(knee))}
+if(spec.metric==='ankle'){if(![knee,ank,toe].every(good))return null;return angle(pt(knee),pt(ank),pt(toe))}
+if(spec.metric==='heel'){if(![ank,heel,toe,knee].every(good))return null;let a=pt(heel),b=pt(toe),s=dist(pt(knee),pt(ank));return s>12?(b[1]-a[1])/s:null}
+if(spec.metric==='abduction'){if(![hip,other,knee,ank].every(good))return null;let p=pt(hip),q=pt(other),a=pt(ank),n=dist(p,q);if(n<10)return null;return ((a[0]-p[0])*(p[0]-q[0])+(a[1]-p[1])*(p[1]-q[1]))/(n*n)}return null}
+function median(xs){let a=[...xs].sort((x,y)=>x-y);let i=Math.floor(a.length/2);return a.length%2?a[i]:(a[i-1]+a[i])/2}
+function calibrationReading(){let t=performance.now();let a=calSamples.filter(s=>t-s.t<1100).map(s=>s.v);if(a.length<5||t-lastGood>350)return null;let v=median(a),noise=median(a.map(x=>Math.abs(x-v)));let floor=['hip','knee','ankle'].includes(mode.metric)?2.5:.025;return noise<=floor?{v,noise}:null}
+function setCalButtons(){let b=$('capture');if(b)b.disabled=!calibrationReading()}
+
+let modelReady=false,modelPromise=null;
+function cameraPanel(preview,headline,detail,error=false){
+ restoreCamera();
+ showPanel('<div class="kicker">LIVE CAMERA · ON DEVICE</div><h2>'+headline+'</h2><div class="calview" id="liveview"><div class="statusbar"><span class="dot" id="calDot"></span><span id="calStatus">'+(stream?'Camera on':'Camera off')+'</span></div></div><p id="previewStatus" class="'+(error?'error':'')+'"></p><div class="actions"><button class="secondary" id="cameraBack">Back</button><button class="primary" id="cameraNext" '+(modelReady&&preview?'':'disabled')+'>'+(preview?'Choose movement':'Preparing…')+'</button></div>','camera-panel');
+ $('previewStatus').textContent=detail;
+ $('liveview').prepend(POSE);$('liveview').prepend(VIDEO);
+ $('cameraBack').onclick=()=>{stopCamera();welcome()};
+ $('cameraNext').onclick=()=>{if(!modelReady)return;setupStart()};
+ if(error){$('cameraNext').disabled=false;$('cameraNext').textContent='Retry';$('cameraNext').onclick=()=>connectCamera(preview)}
+}
+function modelTimeout(p,ms){let t;return Promise.race([p,new Promise((_,reject)=>t=setTimeout(()=>reject(new Error('Pose model download timed out. Check your connection.')),ms))]).finally(()=>clearTimeout(t))}
+async function loadPoseModel(){
+ const options={baseOptions:{modelAssetPath:MODEL,delegate:'CPU'},runningMode:'VIDEO',numPoses:1,minPoseDetectionConfidence:.5,minPosePresenceConfidence:.5,minTrackingConfidence:.5,outputSegmentationMasks:false};
+ const bases=[CDN,'https://unpkg.com/@mediapipe/tasks-vision@0.10.21'];
+ let err;
+ for(const base of bases){try{
+  let mod;try{mod=await import(base+'/vision_bundle.mjs')}catch(e){mod=await import(base)}
+  const fileset=await mod.FilesetResolver.forVisionTasks(base+'/wasm');
+  options.baseOptions.delegate='GPU';
+  try{return await mod.PoseLandmarker.createFromOptions(fileset,options)}
+  catch(e){options.baseOptions.delegate='CPU';return await mod.PoseLandmarker.createFromOptions(fileset,options)}
+ }catch(e){err=e}}
+ throw err||new Error('Pose model unavailable');
+}
+function prepareModel(){
+ if(landmarker)return Promise.resolve(landmarker);
+ if(!modelPromise){modelPromise=loadPoseModel().then(m=>{landmarker=m;return m},e=>{modelPromise=null;throw e});modelPromise.catch(()=>{})}
+ return modelPromise;
+}
+async function connectCamera(preview=false){
+ if(loading)return;
+ if(!preview&&stream&&landmarker&&modelReady){calibratePanel('neutral');return}
+ if(preview&&stream&&landmarker&&modelReady){phase='preview';cameraPanel(true,'Live camera','Body tracking is ready. Choose your movement when ready.');VIDEO.play().catch(()=>{});return}
+ const existing=stream;
+ if(!existing)stopCamera();
+ let token=cameraToken;loading=true;modelReady=false;
+ phase=preview?'preview':'setup';paused=false;input='demo';
+ cameraPanel(preview,existing?'Live camera':'Start camera',existing?'Loading body tracking…':'Tap Allow if your browser asks.');
+ try{
+  if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia)throw new Error('Open this HTTPS page directly in Chrome or Safari, not a file preview.');
+  const cameraRequest=existing?Promise.resolve(existing):navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'user'},width:{ideal:480},height:{ideal:360},frameRate:{ideal:20,max:24}}});
+  const modelRequest=prepareModel();
+  let s=await cameraRequest;
+  if(token!==cameraToken){s.getTracks().forEach(t=>t.stop());return}
+  stream=s;VIDEO.muted=true;VIDEO.srcObject=s;
+  if(!existing)for(let t of s.getVideoTracks())t.addEventListener('ended',()=>{if(token!==cameraToken)return;stopCamera();if(phase==='playing'||phase==='rest')finishEarly();else{phase='preview';cameraPanel(preview,'Camera disconnected','Reconnect the camera to continue.',true)}});
+  await VIDEO.play();if(token!==cameraToken)return;
+  $('panel').querySelector('h2').textContent='Live camera';
+  $('calStatus').textContent='Camera on';
+  $('previewStatus').textContent='Loading body tracking…';
+  const loaded=await modelTimeout(modelRequest,35000);
+  if(token!==cameraToken)return;
+  landmarker=loaded;
+  if(token!==cameraToken)return;
+  loading=false;modelReady=true;lastVideoTime=-1;lastInfer=0;calSamples=[];lastGood=0;
+  if(preview){$('previewStatus').textContent='Body tracking ready. Green joints show detection.';$('cameraNext').disabled=false;$('cameraNext').textContent='Choose movement';$('calStatus').textContent='Looking for body'}
+  else{calibratePanel('neutral')}
+  runPose(++runToken);
+ }catch(e){
+  if(token!==cameraToken)return;loading=false;modelReady=false;
+  const msg=e?.name==='NotAllowedError'?'Camera blocked. Allow camera access in browser site settings and tap Retry.':e?.name==='NotFoundError'?'No camera found on this device.':e?.name==='NotReadableError'?'Camera is busy or unavailable. Close other camera apps and retry.':String(e?.message||'Camera unavailable');
+  if(stream){$('previewStatus').textContent='Camera works. Tracking not ready: '+msg;$('cameraNext').disabled=false;$('cameraNext').textContent='Retry tracking';$('cameraNext').onclick=()=>connectCamera(preview)}
+  else cameraPanel(preview,'Camera unavailable',msg,true);
+ }
+}
+
+function cameraError(msg){let m=String(msg).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));showPanel(`<div class="kicker">Camera unavailable</div><h2>Use the touch demo.</h2><p class="error">${m}</p><button class="primary" id="demoFallback">${icon('play')} Try the game</button><button class="secondary" id="home">Home</button>`);$('demoFallback').onclick=()=>startDemo(mode);$('home').onclick=welcome}
+function calibratePanel(which){phase='calibrate';paused=false;calSamples=[];lastMetric=null;let neutral=which==='neutral';showPanel(`<div class="kicker">Step ${neutral?'2':'3'} / 3 · helper setup</div><h2>${neutral?'Starting position':'Approved endpoint'}</h2><p>${neutral?'Position the camera so the relevant joints are visible. Record the comfortable starting position.':'Record only the endpoint previously approved by the clinician. Never push farther to satisfy the camera.'}</p><div class="calview" id="calview"><div class="statusbar"><span class="dot" id="calDot"></span><span id="calStatus">Find body</span></div></div><p class="micro" id="calFeedback">${mode.view} · wait for a clear, steady view.</p><div class="actions"><button class="secondary" id="cancel">Cancel</button><button class="primary" id="capture" disabled>Record ${neutral?'start':'endpoint'}</button></div>`);$('calview').prepend(POSE);$('calview').prepend(VIDEO);VIDEO.play().catch(()=>{});$('cancel').onclick=()=>{stopCamera();welcome()};$('capture').onclick=()=>{let r=calibrationReading();if(!r){$('calFeedback').textContent='No stable reading. Adjust the camera, not the movement.';return}if(neutral){setup.neutral=r;calibratePanel('target')}else{let delta=r.v-setup.neutral.v,min=['hip','knee','ankle'].includes(mode.metric)?5:.045;let noise=Math.max(r.noise,setup.neutral.noise);if(Math.abs(delta)<Math.max(min,noise*5)){$('calFeedback').textContent='Motion not distinguishable. Reposition the camera or use touch demo; do not increase the movement.';return}setup.target=r;readyPanel()}};setCalButtons()}
+function readyPanel(){phase='ready';restoreCamera();let m=setup.mode;showPanel(`<div class="kicker">Ready</div><h2>${m.name}</h2><p>${setup.limit} prescribed repetitions · ${m.exercise}</p><p>Return to the recorded start. The helper can begin when the clinician-approved setup is ready. Stop if uncomfortable.</p><button class="primary" id="begin">${icon('play')} Begin</button><button class="secondary" id="cancel">Cancel</button><p class="micro">Camera scores are approximate, not proof of safe form or weight bearing.</p>`);$('begin').onclick=startCameraGame;$('cancel').onclick=()=>{stopCamera();welcome()}}
+function startCameraGame(){if(!setup||!stream||!setup.target)return;input='camera';mode=setup.mode;limit=setup.limit;count=0;session={base:setup.neutral.v,delta:setup.target.v-setup.neutral.v,state:'needNeutral',hits:0,smooth:null,lastCount:0};phase='playing';paused=false;lastGood=performance.now();resetScene();resetRestoration();setMeter(0);hidePanel();renderHUD()}
+function consumeMetric(v,t){if(!session||phase!=='playing'||paused||input!=='camera'||document.hidden)return;let s=session;if(!Number.isFinite(v))return;let p=(v-s.base)/s.delta;s.smooth=s.smooth===null?p:s.smooth*.40+p*.60;let x=s.smooth;setMeter(clamp(x));let need=2;if(x>1.35||x<-.45){s.state='needNeutral';s.hits=0;$('hint').textContent='Return to the recorded start.';return}let pass=s.state==='target'?x>=.72&&x<=1.22:x>=-.26&&x<=.26;if(pass)s.hits++;else s.hits=0;if(s.hits>=need){s.hits=0;if(s.state==='needNeutral'){s.state='target';$('hint').textContent='Your approved movement.'}else if(s.state==='target'){s.state='return';$('hint').textContent='Return to the start.'}else if(s.state==='return'){if(t-s.lastCount>650){s.lastCount=t;reward()}s.state='target';if(phase==='playing')$('hint').textContent='Your approved movement.'}}}
+function runPose(token){if(token!==runToken||!stream||!landmarker)return;const loop=t=>{if(token!==runToken||!stream)return;let valid=false;if(VIDEO.readyState>=2&&t-lastInfer>=90&&VIDEO.currentTime!==lastVideoTime){lastInfer=t;lastVideoTime=VIDEO.currentTime;try{let stamp=Math.max(performance.now(),lastInferStamp+.01);lastInferStamp=stamp;let r=landmarker.detectForVideo(VIDEO,stamp);let lm=r.landmarks?.[0];lastPose=lm||null;renderPose(lastPose);if(phase==='free'||phase==='preview'||phase==='setup'){let seen=!!lm&&lm.filter(p=>(p.visibility??1)>.5).length>=5;if(seen)lastGood=performance.now();updateCameraLabel(seen);if(phase==='free')freePose(lm,seen,t);}else{let v=metric(lm,setup?.mode,setup?.side,VIDEO.videoWidth,VIDEO.videoHeight);valid=v!==null&&Number.isFinite(v);if(valid){lastGood=performance.now();lastMetric=v;calSamples.push({t:lastGood,v});calSamples=calSamples.filter(s=>lastGood-s.t<=1250);updateCameraLabel(true);if(phase==='calibrate')setCalButtons();consumeMetric(v,lastGood)}else{lastMetric=null;calSamples=[];updateCameraLabel(false);if(session&&phase==='playing'){session.state='needNeutral';session.hits=0;session.smooth=null;setMeter(0)}if(phase==='calibrate')setCalButtons()}}}catch(e){if(phase==='free'&&$('freeStatus'))$('freeStatus').textContent='TRACKING ERROR';if(phase==='preview'&&$('previewStatus'))$('previewStatus').textContent='Pose inference failed. Camera remains available.';lastMetric=null;calSamples=[];updateCameraLabel(false);if(session&&phase==='playing'){session.state='needNeutral';session.hits=0;session.smooth=null;setMeter(0)}}}let elapsed=performance.now()-lastGood;if(elapsed>500){if(trackStatus){updateCameraLabel(false);if(phase==='calibrate')setCalButtons()}if(session&&phase==='playing'){session.state='needNeutral';session.hits=0;session.smooth=null;setMeter(0)}}if(input==='camera'&&phase==='playing'&&elapsed>1200){pausePanel('Tracking lost. A helper should check the camera before resuming.')}if(token===runToken&&stream)rafPose=requestAnimationFrame(loop)};rafPose=requestAnimationFrame(loop)}
+// No score while the app is hidden. End camera access when navigating away.
+document.addEventListener('visibilitychange',()=>{if(audio)updateSoundMix(true);if(document.hidden&&phase==='free'){return}if(document.hidden&&phase==='playing'){pausePanel('The game was interrupted. Resume when ready.')}});window.addEventListener('pagehide',()=>{stopCamera();if(audio){if(recorded.master)recorded.master.gain.value=0;if(ambient)ambient.gain.value=0;audio.suspend().catch(()=>{})}});window.addEventListener('keydown',e=>{if(e.key==='Escape'&&phase==='playing'){e.preventDefault();pausePanel()}if(e.code==='Space'&&phase==='free'&&e.target===document.body){e.preventDefault();freeTouch()}if(e.code==='Space'&&phase==='playing'&&input==='demo'&&e.target===document.body){e.preventDefault();reward()}});
+$('ptSetup').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="4" r="2"/><path d="M5 9h14M12 6v8m0 0-4 7m4-7 4 7"/></svg>';
+$('ptSetup').onclick=()=>{if(phase==='free'&&!loading)setupStart()};
+$('cameraCheck').innerHTML=icon('cam');
+world.addEventListener('pointerup',e=>{if(phase==='free'&&e.isPrimary!==false){const r=world.getBoundingClientRect();freeTouch(e.clientX-r.left,e.clientY-r.top)}});
+
+$('cameraCheck').onclick=()=>{if(phase==='free'){if(stream&&modelReady){$('cam').classList.toggle('expanded')}else quickCamera();return}if(input==='camera'&&stream&&phase==='playing'){$('cam').classList.toggle('expanded');return}if(phase==='playing'&&input==='demo'){welcome();quickCamera();return}if(!stream&&!loading){welcome();quickCamera()}};
+$('cam').onclick=()=>{if(phase==='free'||(input==='camera'&&phase==='playing'))$('cam').classList.toggle('expanded')};
+
+/* INTRO X-SHEET — classical cutout/hand-inked multiplane animation.
+   Thumbnail choices: A creek-only reveal; B body/creek split; C overhead watershed.
+   B selected: simultaneous cause and effect, readable without sound.
+   0–1.3s establish: seated player, phone, muddy stream.
+   1.3–2.6s anticipation / gesture / settle. 2.4–4.6s ripple, clear water, plant growth.
+   4.6–6.8s fish enter on an arc, insect takes flight, hold before loop.
+   Camera planes: sky, hills, trees, banks, water, character, effects, foreground.
+*/
+const introCanvas=$('introFilm'),ic=introCanvas.getContext('2d');
+let introStart=0,introRAF=0,lastCue='';
+const ease=(a,b,t)=>{let p=clamp((t-a)/(b-a));return p*p*(3-2*p)};
+function introPath(points,fill,stroke='#293d32',w=2){
+ ic.beginPath();for(let i=0;i<points.length;i++){const p=points[i];i?ic.lineTo(p[0],p[1]):ic.moveTo(p[0],p[1])}
+ if(fill){ic.closePath();ic.fillStyle=fill;ic.fill()}if(stroke){ic.strokeStyle=stroke;ic.lineWidth=w;ic.lineJoin='round';ic.lineCap='round';ic.stroke()}
+}
+function ie(x,y,rx,ry,fill,stroke=null){ic.beginPath();ic.ellipse(x,y,Math.max(.1,rx),Math.max(.1,ry),0,0,Math.PI*2);ic.fillStyle=fill;ic.fill();if(stroke){ic.lineWidth=1.5;ic.strokeStyle=stroke;ic.stroke()}}
+function il(x,y,a,b,c,w=2){introPath([[x,y],[a,b]],null,c,w)}
+function introFrame(ms){
+ if($('titleScreen').hidden)return;
+ if(!introStart)introStart=ms;
+ let t=((ms-introStart)/1000)%7.2;if(reduceMotion)t=5.4;
+ let gesture=ease(1.25,2.1,t)-ease(2.5,3.15,t),rest=ease(2.3,4.6,t),arrival=ease(4.2,5.5,t),cam=ease(.3,5.6,t)*13;
+ ic.clearRect(0,0,800,450);
+ // Far sky and two distant ridge cels.
+ ic.fillStyle='#c6cfb0';ic.fillRect(0,0,800,450);
+ introPath([[-20-cam*.12,182],[90,87],[171,125],[280,55],[392,122],[520,74],[685,122],[815,65],[820,320],[-20,320]],'#879d83',null);
+ introPath([[-20-cam*.22,236],[100,145],[245,190],[375,128],[480,185],[610,117],[815,162],[815,330],[-20,330]],'#587c68',null);
+ // Midground trees; different parallax from the hills.
+ for(let i=0;i<11;i++){let x=i*85-cam*.60,y=100+18*Math.sin(i*4.1);il(x,y,x-8,260,'#526454',7);ie(x,y,47+8*Math.sin(i),59,'#668b65');ie(x-18,y+20,35,38,'#476c58')}
+ // Right-hand creek plane with watercolor-like irregular banks.
+ introPath([[274,214],[420,189],[528,207],[800,164],[800,450],[260,450],[225,340]],'#887c54','#405f50',2);
+ const blend=(a,b,k)=>Math.round(a+(b-a)*k);
+ const waterColor='rgb('+[blend(116,62,rest),blend(99,133,rest),blend(61,122,rest)].join(',')+')';
+ introPath([[379,207],[504,213],[619,204],[800,195],[800,450],[278,450],[286,385],[343,323]],waterColor,'#3b6259',3);
+ for(let i=0;i<15;i++){let x=330+(i*109%455),y=245+(i*49%180);ie(x,y,12+((i*13)%18),6+i%5,'#b4b29770','#586a57')}
+ // Debris disappears as the restoration proceeds; plants grow in separate cels.
+ for(let i=0;i<7;i++){if(i/7<rest)continue;let x=365+i*57,y=320+(i*37%100);il(x-12,y+5,x+16,y-3,'#4b4635',4);il(x,y,x+7,y-12,'#625941',2)}
+ for(let i=0;i<6;i++){let x=385+i*76,y=423-(i*29%78),h=25+rest*35;for(let j=-1;j<=1;j++){let q=rest*(.85+.15*Math.sin(i));introPath([[x,y],[x+j*18*q-8,y-h*.55*q],[x+j*21*q,y-h*q],[x+5,y-h*.32*q]],'#739e63','#4d7852',1)}}
+ // Character cel: stable seated body, moving forearm only; no leg lift or unsupervised stance.
+ ie(139,408,99,13,'#344a3c55');
+ introPath([[53,255],[60,391],[70,391],[78,312],[181,312],[185,397],[197,397],[195,251]],'#846b4b','#463f34',3);
+ introPath([[64,295],[176,295],[181,309],[64,309]],'#c4a273','#594b3c',2);
+ il(129,291,190,322,'#506761',28);il(190,322,192,391,'#506761',24);ie(207,393,25,9,'#e5d6b4','#46544b');
+ il(128,292,146,345,'#667a72',24);il(146,345,151,393,'#667a72',21);ie(164,398,24,9,'#e7d9b9','#46544b');
+ introPath([[89,214],[134,210],[158,280],[141,308],[82,299],[78,251]],'#e0b56e','#534c39',3);
+ ie(109,177,30,35,'#d3ad88','#644f3e');ie(105,152,26,12,'#dcd4bd');ie(127,173,3,3,'#303a35');il(124,192,134,190,'#685447',1.5);
+ let ex=145+8*gesture,ey=246-3*gesture,wx=174+38*gesture,wy=258-25*gesture;
+ il(122,221,ex,ey,'#d7af89',15);il(ex,ey,wx,wy,'#d7af89',13);ie(wx,wy,8,6,'#d7af89','#765b43');
+ il(94,222,81,252,'#cc9f75',14);il(81,252,116,287,'#cc9f75',12);
+ // Phone prop and a simple pose-tracking line connecting wrist to water.
+ introPath([[244,191],[265,191],[265,230],[244,230]],'#243f3a','#e2dcb9',2);ie(254,197,2,2,'#bad39b');il(254,230,254,292,'#58665b',3);il(242,292,267,292,'#58665b',3);
+ if(t>1.1&&t<4.8){ic.save();ic.globalAlpha=.5+.5*gesture;il(122,221,ex,ey,'#d4f2ae',2);il(ex,ey,wx,wy,'#d4f2ae',2);ie(wx,wy,5,5,'#f3f5bd');ic.setLineDash([6,9]);il(wx,wy,390,303,'#e9efb4',2);ic.setLineDash([]);ic.restore()}
+ // Ripple key, breakdown and expansion; fish enter after plants.
+ if(t>2.0&&t<5.2){let a=t-2;ic.save();ic.globalAlpha=clamp(1-a/3.2);for(let i=0;i<3;i++){let rr=(a-i*.2)*75;if(rr>0){ic.beginPath();ic.ellipse(403,311,rr,rr*.32,0,0,6.283);ic.strokeStyle='#f4efbc';ic.lineWidth=3;ic.stroke()}}ic.restore()}
+ for(let i=0;i<3;i++){let x=823-(220+i*88)*arrival+Math.sin(t*1.8+i)*9,y=326+i*37+Math.sin(t*2+i)*7;ic.save();ic.translate(x,y);ic.scale(-1,1);ie(0,0,25,9,'#b2c98a','#4c6955');introPath([[-20,0],[-37,-11],[-33,11]],'#a1b978','#4c6955',1.3);ie(17,-2,2,2,'#263e36');ic.restore()}
+ if(t>4.5){let f=ease(4.5,6,t),x=600-90*f,y=242-75*f;il(x,y,x+11,y+9,'#4b624b',2);ie(x-5,y-4,8,3,'#e5ebba','#6d9671');ie(x+6,y-7,8,3,'#e5ebba','#6d9671')}
+ // Nearest reed cel; a faster shift emphasizes physical layer separation.
+ for(let i=0;i<4;i++){let x=799+i*16-cam*1.65;il(x,450,x-31,326+i*13,'#36594b',6);ie(x-24,361+i*14,8,34,'#537c52')}
+ let cue=t<1.3?'Put your phone on a stand.':t<2.7?'Move gently within your approved range.':t<4.4?'Your movement changes the creek.':'Watch plants, insects and fish return.';
+ if(cue!==lastCue){lastCue=cue;$('introCue').textContent=cue}
+ introRAF=requestAnimationFrame(introFrame);
+}
+function showTitle(){welcome();$('titleScreen').hidden=false;introStart=0;lastCue='';cancelAnimationFrame(introRAF);introRAF=requestAnimationFrame(introFrame)}
+function dismissTitle(){ $('titleScreen').hidden=true;cancelAnimationFrame(introRAF);introRAF=0;welcome();startSound();}
+$('beginBody').onclick=()=>{dismissTitle();quickCamera()};
+$('beginTouch').onclick=()=>{dismissTitle();touchMode=true;renderHUD();};
+$('beginBody').innerHTML=icon('cam')+' Start body play';
+$('beginTouch').innerHTML=icon('water')+' Play by touch';
+showTitle();
+</script></body></html>
