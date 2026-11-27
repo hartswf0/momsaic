@@ -204,8 +204,12 @@ function resetRestoration(){restoration.stage=0;restoration.visual=0;restoration
 function restorePatch(x,y,source){
  // Only actual tracked changes, touch demonstration events, or completed calibrated cycles
  // change the fictional creek. No medical score, no range or speed bonus.
- if(restoration.stage>=5||performance.now()-restoration.lastAt<850)return;
- restoration.stage++;restoration.lastAt=performance.now();
+ if(restoration.stage>=5)return;
+ const guided=source==='approved-cycle';
+ if(!guided&&performance.now()-restoration.lastAt<850)return;
+ const next=guided?Math.min(5,Math.floor(5*count/Math.max(1,limit))):restoration.stage+1;
+ if(next<=restoration.stage)return;
+ restoration.stage=next;restoration.lastAt=performance.now();
  restoration.patches.push({x:clamp(x/W),y:clamp(y/H),t:clock});
  updateRestoreHUD();
  if(soundOn&&audio&&audio.state==='running'){
