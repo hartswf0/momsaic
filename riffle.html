@@ -12,7 +12,12 @@ html,body{margin:0;height:100%;background:var(--deep);color:var(--cream);overflo
 #vid{position:fixed;width:2px;height:2px;opacity:0;pointer-events:none}
 #cv{position:fixed;inset:0;width:100%;height:100%;display:block}
 #home{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:min(2.2vh,16px);padding:16px 16px max(18px,env(safe-area-inset-bottom));background:linear-gradient(transparent 26%,#12343ad9 44%,#0e2226 78%)}
-#home[hidden],#setup[hidden],#x[hidden]{display:none}
+#home[hidden],#setup[hidden],#x[hidden],#title[hidden]{display:none}
+#title{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:14px;padding:0 16px max(26px,env(safe-area-inset-bottom))}
+#go{border:0;border-radius:60px;background:var(--amber);color:var(--ink);font-family:inherit;font-weight:800;font-size:clamp(26px,8vmin,40px);line-height:1;letter-spacing:.14em;padding:.62em 1.5em .62em 1.64em;box-shadow:0 7px 0 #a8791f,0 0 0 0 #f2b84b88;cursor:pointer;animation:pulse 1.8s ease-out infinite}
+#go:active{transform:translateY(5px);box-shadow:0 2px 0 #a8791f}
+@keyframes pulse{70%{box-shadow:0 7px 0 #a8791f,0 0 0 22px #f2b84b00}100%{box-shadow:0 7px 0 #a8791f,0 0 0 0 #f2b84b00}}
+#how{border:0;background:#0e222699;color:var(--cream);font-family:inherit;font-weight:700;font-size:15px;line-height:1;letter-spacing:.16em;padding:13px 20px;border-radius:30px;cursor:pointer}
 h1{position:absolute;left:16px;top:max(12px,env(safe-area-inset-top));margin:0;font-size:20px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;display:flex;align-items:center;gap:.4em;color:var(--ink)}
 h1 svg{width:1.3em;height:1.3em}
 #envs{display:flex;gap:10px;background:#0e222699;border-radius:40px;padding:6px}
@@ -46,7 +51,7 @@ h1 svg{width:1.3em;height:1.3em}
 #setup h2{margin:0;font-size:22px}
 #setup h3{margin:22px 0 6px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
 #setup p{margin:4px 0 0;font-size:14px;line-height:1.45;color:#f6f0e0bb}
-#sx{border:0;border-radius:24px;background:var(--amber);color:var(--ink);font:700 16px/1 inherit;padding:13px 22px;cursor:pointer}
+#sx{border:0;border-radius:24px;background:var(--amber);color:var(--ink);font-family:inherit;font-weight:700;font-size:16px;line-height:1;padding:13px 22px;cursor:pointer}
 .row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #ffffff18}
 .row label{display:flex;gap:12px;align-items:center;font-size:16px;min-height:44px;cursor:pointer}
 .row input{width:26px;height:26px;accent-color:#f2b84b;flex:none}
@@ -72,10 +77,12 @@ h1 svg{width:1.3em;height:1.3em}
   </div>
   <div id="tiles"></div>
   <div id="bar">
-    <button class="rb" id="cfg" aria-label="Exercise sheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.8h6V4M8.5 10l1.5 1.5 2.5-3M8.5 16l1.5 1.5 2.5-3M15 11h1M15 17h1"/></svg></button>
-    <button class="rb" id="all" aria-label="Play all"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.9l12.5-7.5a1 1 0 0 0 0-1.8L8.5 3.6A1 1 0 0 0 7 4.5z"/></svg></button>
+    <button class="rb" id="cfg" style="order:0" aria-label="Exercise sheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.8h6V4M8.5 10l1.5 1.5 2.5-3M8.5 16l1.5 1.5 2.5-3M15 11h1M15 17h1"/></svg></button>
+    <button class="rb" id="help" style="order:2" aria-label="How to play"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9a3 3 0 1 1 4.6 2.5c-1 .7-1.6 1.3-1.6 2.5"/><circle cx="12" cy="18" r=".6" fill="currentColor"/></svg></button>
+    <button class="rb" id="all" style="order:1" aria-label="Play all"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.9l12.5-7.5a1 1 0 0 0 0-1.8L8.5 3.6A1 1 0 0 0 7 4.5z"/></svg></button>
   </div>
 </div>
+<div id="title" hidden><button id="go">START</button><button id="how">HOW TO PLAY</button></div>
 <div id="setup" hidden></div>
 <button id="x" hidden aria-label="Stop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
 
@@ -368,22 +375,22 @@ function newGame(id) { G = { id, n: 0, px: 0, s: 0, sd: 0, hold: 0, rs: 'ready',
 function begin(ids) { if (!ids.length) return; queue = ids.slice(); sessTotal = ids.length; sessDone = 0; next(); }
 async function next(keepVoice) {
   const id = queue.shift();
-  if (!id) { if (sessDone) say('Session complete. The creek is healthier.'); return goHome(); }
+  if (!id) { if (sessDone) say('Session done. Look: the water is clearer.'); return goHome(); }
   newGame(id); home.hidden = true; xBtn.hidden = false; audio(); ambient(true); music(true); wake();
   say(`${VO[id][0]}. ${VO[id][1]}.`, !keepVoice);
   if (!SIM && !PACED && (!camOn || !landmarker)) {
     st = 'load';
     try { await Promise.race([Promise.all([startCam(), loadPose()]), new Promise((_, no) => setTimeout(() => no(new Error('slow')), 40000))]); }
-    catch (e) { PACED = true; say("I can't use the camera, so follow the tone. Move as it rises. Return as it falls."); }   // the session goes on without tracking
+    catch (e) { PACED = true; say('No camera. Follow the tone. Move as it rises. Return as it falls.'); }   // the session goes on without tracking
     if (st !== 'load' || G.id !== id) return;
   }
   st = 'intro';
 }
-function goHome() { st = 'home'; newGame('kick'); home.hidden = false; xBtn.hidden = true; ambient(true); paintHome(); }
+function goHome() { st = 'home'; newGame('kick'); $('title').hidden = true; home.hidden = false; xBtn.hidden = true; ambient(true); paintHome(); }
 function rep() { G.n++; G.cue = 0; SFX.plink(G.n - 1); say(String(G.n), true); if (G.n >= reps()) G.end = T + 1.6; }
 function finish() { const whole = G.n >= reps(); logReps(G.id, G.n, whole); sessDone++; st = 'done'; G.doneAt = T; if (whole) { SFX.win(); say('Done. ' + VO[G.id][3], true); } else say(G.n ? 'Saved. Rest now.' : 'Resting.', true); }
-xBtn.onclick = () => { if (st === 'play' && G.n) logReps(G.id, G.n, false); queue = []; try { speechSynthesis.cancel(); } catch (e) {} goHome(); };
-cv.addEventListener('pointerdown', () => { if (st === 'done' && T - G.doneAt > .6) next(); });
+xBtn.onclick = () => { if (st === 'howto') { S.seenIntro = true; save(); } if (st === 'play' && G.n) logReps(G.id, G.n, false); queue = []; try { speechSynthesis.cancel(); } catch (e) {} goHome(); };
+cv.addEventListener('pointerdown', () => { if (st === 'done' && T - G.doneAt > .6) next(); else if (st === 'howto' && HW.t > .4) howNext(); });
 
 function fire(side) {
   const id = G.id; G.side = side || 0; G.fireAt = T; G.idle = 0;
@@ -401,12 +408,14 @@ function fire(side) {
 }
 
 function update(dt) {
+  if (st === 'title') return;
+  if (st === 'howto') { HW.t += dt; if (HW.t > HOW[HW.i].dur) howNext(); return; }
   if (camOn || SIM) commands(dt);
   if (st === 'intro') {
     const timed = EX[G.id].sig === 'timer' || PACED;
     if (timed) G.seen += dt * .4;
     else if (seen(G.id)) { signal(dt); G.seen += dt; }                    // the resting pose is measured while the ring fills
-    else { G.seen = Math.max(0, G.seen - dt * 2); if ((G.nag += dt) > 9) { G.nag = -6; say("I can't see you yet. Move until the camera sees your whole body."); } }
+    else { G.seen = Math.max(0, G.seen - dt * 2); if ((G.nag += dt) > 9) { G.nag = -6; say('Step back until your whole body is in the frame.'); } }
     if (G.seen > 1.6) { st = 'play'; SFX.ready(); say(VO[G.id][2] + (HINTED || PACED ? '' : EX[G.id].env === 'bed' ? ' Show a thumbs up to skip. An open hand to stop.' : ' Raise one hand to skip. Both hands to stop.')); HINTED = true; }
     return;
   }
@@ -417,7 +426,7 @@ function update(dt) {
     G.sd = G.ph < len ? Math.min(1, G.ph / (len * .7)) : Math.max(0, 1 - (G.ph - len) / (len * .7)); G.hold = G.ph > len * .7 && G.ph < len ? .01 : 0;
   } else {
     const ok = seen(G.id);
-    if (!ok) { if (G.lost <= 1.5 && G.lost + dt > 1.5) { SFX.lost(); say('I lost you. Rest, then move back into view.', true); } G.lost += dt; G.hold = 0; }
+    if (!ok) { if (G.lost <= 1.5 && G.lost + dt > 1.5) { SFX.lost(); say('Out of frame. Rest. Step back in when ready.', true); } G.lost += dt; G.hold = 0; }
     else {
       if (G.lost > 1.5) SFX.ready(); G.lost = 0;
       const r = signal(dt); G.s = r.s; G.sd += (clamp(r.s, -.2, 1.1) - G.sd) * (1 - Math.exp(-dt * 10));
@@ -752,6 +761,87 @@ function sceneHome() {
   if (E('abd') + E('march')) { boulder(W * .86, wy + u, u * 9, u * 4, 1); c.save(); c.translate(W * .86, wy - u * 2.6); c.scale(-1, 1); dog(u * 7, 'sit', 0); c.restore(); }
 }
 
+/* ---------- title: one multiplane shot ----------
+   Seven sheets at different depths under one camera. The camera trucks sideways and pushes in; a sheet's slide is
+   camera / depth, so the reeds at the lens race past while the far hills barely move, and the reeds cross the action.
+   The shot is one cause and its effect, looped: the wrecked creek holds, the mend sweeps through, the trout sinks
+   (anticipation), leaps (stretch), lands (splash, ripples), the dog's head follows, the mayflies rise. Lines boil on twos. */
+let titleAt = 0;
+function sceneTitle() {
+  const L = 14, t = (T - titleAt) % L, el = T - titleAt;
+  const th = t < 2.6 ? 0 : t < 6 ? ease((t - 2.6) / 3.4) : t < 12 ? 1 : 1 - ease((t - 12) / 2);
+  const cam = Math.sin(el * TAU / 30) * W * .24, push = .5 - .5 * Math.cos(el * TAU / 15), wy = H * .5, bo = Math.floor(T * 8);
+  const jit = (i, a = 1) => Math.sin(i * 91.7 + bo * 13.3) * u * .22 * a;
+  const plane = (depth, fn) => { const z = 1 + push * .16 / (depth * .6 + .4); c.save(); c.translate(W / 2, wy); c.scale(z, z); c.translate(-W / 2 - cam / depth, -wy); fn(); c.restore(); };
+  const X0 = -W * .6, X1 = W * 1.6, ridge = (base, hh, f, ph, col) => { c.fillStyle = col; c.beginPath(); c.moveTo(X0, wy + 2); for (let x = X0; x <= X1; x += 10) c.lineTo(x, base - u * hh * (.7 + .3 * Math.sin(x * f + ph) + .14 * Math.sin(x * f * 2.6 + ph * 3))); c.lineTo(X1, wy + 2); c.fill(); };
+  // sheet 6: sky and sun
+  let g = c.createLinearGradient(0, 0, 0, wy); g.addColorStop(0, mix('#9f957f', '#bfe0e2', th)); g.addColorStop(1, mix('#cbbd93', '#f6ecc8', th)); c.fillStyle = g; c.fillRect(0, 0, W, wy + 4);
+  plane(40, () => { c.fillStyle = mix('#b9ac8a', '#fbe9a2', th); c.beginPath(); c.arc(W * .74, H * .17, u * 9, 0, TAU); c.fill(); c.globalAlpha = .25 * th; c.beginPath(); c.arc(W * .74, H * .17, u * 14, 0, TAU); c.fill(); c.globalAlpha = 1; });
+  // sheets 5 and 4: far ridge, then the near ridge with its trees (bare snags leaf out as the creek mends)
+  plane(14, () => ridge(wy, 22, .006, 1, mix('#a39883', '#8fb0a0', th)));
+  plane(7, () => { ridge(wy, 13, .011, 4, mix('#7f7056', '#55806a', th));
+    for (let i = 0; i < 9; i++) { const x = X0 + (i + .5) * (X1 - X0) / 9, y = wy - u * (7 + (i * 5 % 4)), hgt = u * (9 + i % 3 * 3); c.strokeStyle = mix('#3a2f22', '#3c3324', th); c.lineWidth = u * .8; c.lineCap = 'round'; c.beginPath(); c.moveTo(x + jit(i), y); c.lineTo(x + u * .6 + jit(i + 1), y - hgt); c.moveTo(x + u * .3, y - hgt * .55); c.lineTo(x + u * 3 + jit(i + 2), y - hgt * .85); c.moveTo(x + u * .2, y - hgt * .4); c.lineTo(x - u * 2.6 + jit(i + 3), y - hgt * .7); c.stroke();
+      const lf = ease(clamp(th * 1.6 - i * .06)); if (lf > 0) { c.fillStyle = i % 2 ? '#3f7a52' : '#4f8f5c'; [[.6, -1, 4.2], [3, -.85, 2.8], [-2.6, -.7, 2.6]].forEach(([dx, dy, r]) => { c.beginPath(); c.arc(x + u * dx, y + hgt * dy, u * r * lf, 0, TAU); c.fill(); }); } } });
+  plane(4.5, () => ridge(wy, 5, .02, 2, mix('#58482f', '#2f5a42', th)));
+  // sheet 3: the water, its bed and its litter
+  plane(3, () => { g = c.createLinearGradient(0, wy, 0, H); g.addColorStop(0, mix('#a08f55', '#86c0b6', th)); g.addColorStop(.3, mix('#6e5c2f', '#3d8586', th)); g.addColorStop(1, mix('#2c2412', '#123a40', th)); c.fillStyle = g; c.fillRect(X0, wy, X1 - X0, H);
+    c.globalAlpha = .08 * th; c.fillStyle = '#fff'; for (let i = 0; i < 5; i++) { const x = W * (i * .32 - .2) + Math.sin(T * .3 + i) * u * 4; c.beginPath(); c.moveTo(x, wy); c.lineTo(x + u * 8, wy); c.lineTo(x - u * 10, H * 1.1); c.lineTo(x - u * 28, H * 1.1); c.fill(); } c.globalAlpha = 1;
+    STONES.forEach((q, i) => { const x = X0 + q.x * (X1 - X0), y = H * .9 + q.d * H * .14, r = q.r * u * 1.5; c.fillStyle = mix('#5a4f3c', ['#8a7a66', '#a3927a', '#6f6557', '#b59f7d'][q.k], .15 + .85 * th); c.beginPath(); c.ellipse(x, y, r, r * q.sq, 0, 0, TAU); c.fill(); });
+    TRASH.forEach((q, i) => { const a = clamp((1 - th) * 12 - i); if (a <= 0) return; const fl = q.k === 3, x = X0 + q.x * (X1 - X0), y = fl ? lerp(wy + u * 8, H * .8, q.d) + Math.sin(T * .8 + i) * u * 2 : H * .885 + q.d * u * 3; c.save(); c.globalAlpha = a * (fl ? .75 : 1); c.translate(x, y); c.rotate(q.rot * .3); junk(q.k, u * 6); c.restore(); });
+    if (t > 2.6 && t < 6.2) { const k = (t - 2.6) / 3.6; c.strokeStyle = '#fff'; c.lineWidth = u * .8; for (let i = 0; i < 3; i++) { const kk = k * 1.25 - i * .14; if (kk <= 0 || kk >= 1) continue; c.globalAlpha = 1 - kk; c.beginPath(); c.ellipse(W * .36, wy + u, W * 1.1 * kk, u * 16 * kk, 0, 0, TAU); c.stroke(); } c.globalAlpha = 1; }   // the mend spreads from where the trout waits
+    c.strokeStyle = mix('#d8cc9c', '#ffffff', th); c.globalAlpha = .75; c.lineWidth = u * .8; c.beginPath(); for (let x = X0; x <= X1; x += 8) { const y = wy + Math.sin(x * .03 + T * 1.6 * (.3 + th)) * u * .5 + jit(x * .01, .5); x === X0 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke(); c.globalAlpha = 1; });
+  // sheet 2: the action. Trout: wait, sink, leap, land. Dog: watch it go over.
+  const lp = clamp((t - 7.2) / 1.25), ant = t > 6.5 && t < 7.2 ? Math.sin((t - 6.5) / .7 * Math.PI) : 0, fx0 = W * .3, fx1 = W * .68, inAir = lp > 0 && lp < 1;
+  const fxx = lerp(fx0, fx1, lp) + (lp >= 1 ? Math.min(1, (t - 8.45) * .5) * W * .05 : 0), fyy = inAir ? wy + u * 6 - Math.sin(lp * Math.PI) * H * .23 : wy + u * (11 + ant * 7) + Math.sin(T * 1.4) * u * 1.2, rot = inAir ? Math.atan2(-Math.cos(lp * Math.PI) * H * .23 * Math.PI, fx1 - fx0) : ant * .22;
+  plane(2, () => {
+    boulder(W * .86, wy + u * 1.5, u * 13, u * 6, 1); c.save(); c.translate(W * .86, wy - u * 4); c.scale(-1, 1); dog(u * 11, 'sit', clamp(inAir ? Math.sin(lp * Math.PI) * 1.4 : .1)); c.restore();
+    c.save(); c.translate(fxx, fyy); c.rotate(rot); c.scale(1 + (inAir ? .16 * Math.sin(lp * Math.PI) : -ant * .1), 1 - (inAir ? .1 * Math.sin(lp * Math.PI) : -ant * .12)); c.globalAlpha = inAir ? 1 : .25 + .75 * th; trout(u * 34, T * (inAir ? 26 : 5 + ant * 14), inAir ? .6 : 0); c.restore(); c.globalAlpha = 1;
+    [[7.2, fx0 + u * 8], [8.45, fx1]].forEach(([t0, x]) => { const k = t - t0; if (k > 0 && k < 1.4) { ripples(x, wy, k / 1.4); drops(x, wy, k, 11, 1); } });
+    for (let i = 0; i < 4; i++) { const k = clamp((t - 6 - i * .5) / 4); if (k <= 0 || th < .5) continue; const x = W * (.14 + i * .2) + Math.sin(T * 1.3 + i * 2) * u * 3, y = lerp(wy, H * (.2 + (i % 2) * .1), ease(k)) + Math.sin(T * 2.2 + i) * u * 3; c.save(); c.translate(x, y); if (i % 2) c.scale(-1, 1); c.rotate(-.35); c.globalAlpha = Math.min(1, th * 2 - 1 + .0001) ; dun(u * 9, Math.abs(Math.sin(T * 22 + i))); c.restore(); } c.globalAlpha = 1; });
+  // the lettering rides the waterline on its own sheet, between the action and the reeds
+  plane(9, () => { const word = 'RIFFLE', fs = Math.min(W * .17, H * .15), sp = fs * .7, x0 = W / 2 - sp * 2.5; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.font = `900 ${fs}px ui-rounded,"SF Pro Rounded","Arial Rounded MT Bold",system-ui,sans-serif`; c.lineJoin = 'round';
+    [...word].forEach((ch, i) => { const k = clamp((el - .5 - i * .16) / .45), pop = k <= 0 ? 0 : 1 + Math.sin(k * Math.PI) * .25 * (1 - k * .3), x = x0 + i * sp, y = H * .3 + Math.sin(T * 1.7 + i * .9) * u * 1.1; if (!pop) return;
+      c.save(); c.translate(x, y); c.rotate(Math.sin(T * 1.3 + i * 1.7) * .035); c.scale(pop, pop); c.lineWidth = fs * .16; c.strokeStyle = C.ink; c.strokeText(ch, jit(i), jit(i + 5)); c.fillStyle = mix('#d8cfb6', '#f6f0e0', th); c.fillText(ch, 0, 0); c.fillStyle = C.amber; c.globalAlpha = th; c.fillRect(-fs * .26, fs * .12, fs * .52, fs * .055); c.restore(); });
+    const k2 = clamp((el - 1.8) / .6); c.globalAlpha = k2; c.font = `800 ${Math.min(W * .046, u * 5)}px ui-rounded,system-ui,sans-serif`; c.lineWidth = u * 1.2; c.strokeStyle = '#0e2226cc'; c.strokeText('MOVE YOUR BODY.  MEND THE CREEK.', W / 2, H * .3 + fs * .46); c.fillStyle = C.cream; c.fillText('MOVE YOUR BODY.  MEND THE CREEK.', W / 2, H * .3 + fs * .46); c.globalAlpha = 1; });
+  // sheets 1 and 0: reeds at the lens, then the mask
+  plane(.9, () => { for (let i = 0; i < 16; i++) { const side = i % 2 ? 1 : -1, x = W / 2 + side * (W * .38 + (i * 37 % 9) * u * 4.5), hgt = H * (.26 + (i * 13 % 7) * .035), sway = Math.sin(T * 1.1 + i) * u * 2.5, tip = [x + sway + side * u * 2, H * 1.02 - hgt];
+      c.strokeStyle = mix('#2a2418', '#16321f', th); c.lineWidth = u * 1.5; c.lineCap = 'round'; c.beginPath(); c.moveTo(x, H * 1.05); c.quadraticCurveTo(x + jit(i, 2), H * 1.02 - hgt * .5, tip[0], tip[1]); c.stroke();
+      if (i % 3 === 0) { c.fillStyle = mix('#3a2c1c', '#4a3320', th); c.beginPath(); c.ellipse(tip[0], tip[1] + u * 4, u * 1.7, u * 5, sway * .01, 0, TAU); c.fill(); }
+      else { c.fillStyle = mix('#2a2418', '#1f4a2c', th); c.beginPath(); c.moveTo(x, H * 1.02 - hgt * .35); c.quadraticCurveTo(x + side * u * 9, H * 1.02 - hgt * .62, tip[0] + side * u * 9 + sway, tip[1] + u * 9); c.quadraticCurveTo(x + side * u * 5, H * 1.02 - hgt * .5, x, H * 1.02 - hgt * .3); c.fill(); } } });
+  g = c.createRadialGradient(W / 2, H * .45, Math.min(W, H) * .35, W / 2, H * .45, Math.max(W, H) * .8); g.addColorStop(0, '#0e222600'); g.addColorStop(1, '#0e2226cc'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  g = c.createLinearGradient(0, H * .7, 0, H); g.addColorStop(0, '#0e222600'); g.addColorStop(1, '#0e2226d0'); c.fillStyle = g; c.fillRect(0, H * .7, W, H * .3);
+}
+
+/* ---------- how to play: five commands, each shown being done ---------- */
+const HOW = [
+  { cap: ['PROP THE PHONE.', 'STEP BACK.'], say: 'Prop the phone up. Step back until your whole body is in the frame.', dur: 6 },
+  { cap: ['MOVE.', 'THE RAILS FILL.'], say: 'Move. The tone rises and the rails fill.', dur: 5.5 },
+  { cap: ['HOLD.', 'GREEN COUNTS ONE.'], say: 'Hold until the rails turn green. That counts one.', dur: 5.5 },
+  { cap: ['EACH REP', 'CLEANS THE CREEK.'], say: 'Each rep cleans the creek.', dur: 5.5 },
+  { cap: ['ONE ARM: SKIP.', 'TWO ARMS: STOP.'], say: 'Raise one arm to skip. Raise both arms to stop. Stop any time. Every rep is saved.', dur: 8 },
+];
+let HW = { i: 0, t: 0 }, HOVR = null;
+function howStart() { st = 'howto'; HW = { i: 0, t: 0 }; $('title').hidden = true; home.hidden = true; xBtn.hidden = false; audio(); ambient(true); say(HOW[0].say, true); }
+function howNext() { HW.i++; HW.t = 0; if (HW.i >= HOW.length) { S.seenIntro = true; save(); return goHome(); } say(HOW[HW.i].say, true); }
+function sceneHow() {
+  const i = HW.i, t = HW.t, cx = W / 2, cy = H * .4, z = Math.min(W * .44, H * .27);
+  creek(H * .3, H * .86); if (i !== 3) { c.fillStyle = '#0e2226d8'; c.fillRect(0, 0, W, H); }
+  const rails = (s, on) => { const bw = Math.max(12, u * 3.4), y0 = H * .14, bh = H * .5; [0, W - bw].forEach(x => { c.fillStyle = '#ffffff22'; c.fillRect(x, y0, bw, bh); c.fillStyle = on ? '#7ee081' : C.amber; c.fillRect(x, y0 + bh * (1 - s), bw, bh * s); c.fillStyle = C.cream; c.fillRect(x, y0 - u * .8, bw, u * .8); }); };
+  if (i === 0) { const k = ease(clamp((t - .8) / 2.6)), fw = z * 1.05, fh = z * 1.5, ok = k > .97; c.save(); c.beginPath(); c.roundRect(cx - fw / 2, cy - fh / 2, fw, fh, u * 3); c.clip(); c.fillStyle = '#12343a'; c.fillRect(cx - fw / 2, cy - fh / 2, fw, fh); demo('abd', cx, cy + lerp(fh * .75, fh * .16, k), lerp(z * 2.1, z * .72, k), 0); c.restore();
+    c.lineWidth = u * 1.4; c.strokeStyle = ok ? '#7ee081' : `rgba(226,102,79,${.6 + .4 * Math.sin(T * 6)})`; c.beginPath(); c.roundRect(cx - fw / 2, cy - fh / 2, fw, fh, u * 3); c.stroke();
+    if (ok) { c.strokeStyle = '#7ee081'; c.lineWidth = u * 2; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); c.moveTo(cx + fw * .22, cy - fh * .36); c.lineTo(cx + fw * .3, cy - fh * .3); c.lineTo(cx + fw * .4, cy - fh * .42); c.stroke(); } }
+  if (i === 1) { const q = t % 3.2, p = q < 1.3 ? ease(q / 1.3) : q < 1.8 ? 1 : q < 2.9 ? 1 - ease((q - 1.8) / 1.1) : 0; demo('kick', cx, cy + z * .25, z, p); rails(p, false); }
+  if (i === 2) { const p = ease(clamp(t / 1.2)), hd = clamp((t - 1.2) / 1.3), n = hd >= 1; demo('kick', cx, cy + z * .25, z, p); rails(p, p >= 1); if (p >= 1 && !n) ring(cx, cy - z * .95, u * 6, hd, '#7ee081');
+    if (n) { const k = clamp((t - 2.5) / .3), sc = 1 + Math.sin(k * Math.PI) * .4; c.font = `800 ${u * 20 * sc}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.fillStyle = '#7ee081'; c.fillText('1', cx, cy - z * .78); } }
+  if (i === 3) { const hh = clamp(t / 4); if (hh > .45) { c.globalAlpha = clamp((hh - .45) * 3); c.save(); c.translate(cx + Math.sin(T * .8) * W * .12, H * .56); trout(u * 34, T * 6); c.restore(); c.globalAlpha = 1; } }
+  if (i === 4) { const up = ease(clamp((t % 4) / .8)), fig = (x, n, sym) => { c.save(); c.translate(x, cy + z * .2); c.scale(z * .9, z * .9); c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = C.cream; c.lineWidth = .075; c.fillStyle = C.cream; c.beginPath(); c.arc(0, -.62, .1, 0, TAU); c.fill(); c.beginPath(); c.moveTo(0, -.48); c.lineTo(0, -.02); c.lineTo(-.1, .44); c.moveTo(0, -.02); c.lineTo(.1, .44); c.stroke();
+      [-1, 1].forEach(sd => { const r = sd > 0 || n > 1, a = r ? up : 0; c.strokeStyle = r ? C.amber : C.cream; c.beginPath(); c.moveTo(0, -.44); c.lineTo(sd * lerp(.17, .2, a), lerp(-.22, -.64, a)); c.lineTo(sd * lerp(.19, .16, a), lerp(0, -.94, a)); c.stroke(); });
+      c.fillStyle = n > 1 ? C.red : '#7ee081'; c.globalAlpha = up; if (sym) [-.13, .05].forEach(o => { c.beginPath(); c.moveTo(o, -1.36); c.lineTo(o + .17, -1.22); c.lineTo(o, -1.08); c.fill(); }); else c.fillRect(-.12, -1.34, .24, .24); c.restore(); c.globalAlpha = 1; };
+    fig(cx - W * .22, 1, true); fig(cx + W * .22, 2, false); }
+  const fs = Math.min(W * .085, u * 9); c.textAlign = 'center'; c.font = `800 ${fs}px ui-rounded,system-ui,sans-serif`; c.lineJoin = 'round'; HOW[i].cap.forEach((ln, j) => { const y = H * .76 + j * fs * 1.25; c.lineWidth = fs * .22; c.strokeStyle = '#0e2226'; c.strokeText(ln, cx, y); c.fillStyle = j ? C.amber : C.cream; c.fillText(ln, cx, y); });
+  HOW.forEach((_, j) => { c.fillStyle = j === i ? C.cream : '#ffffff44'; c.beginPath(); c.arc(cx + (j - (HOW.length - 1) / 2) * u * 5, H * .94, u * (j === i ? 1.4 : 1), 0, TAU); c.fill(); });
+}
+
 /* ---------- pictograms: how to move, where the phone goes, the camera inset ---------- */
 function demo(id, x, y, z, p) {
   c.save(); c.translate(x, y); c.scale(z, z); c.lineCap = 'round'; c.lineJoin = 'round';
@@ -836,6 +926,8 @@ function cmdRing() { // a held command fills a ring big enough to read from acro
 }
 function draw() {
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (st === 'title') return sceneTitle();
+  if (st === 'howto') return sceneHow();
   if (st === 'home') { sceneHome(); cmdRing(); return; }
   if (st === 'load') { creek(H * .3, H * .86); c.fillStyle = '#0e2226aa'; c.fillRect(0, 0, W, H); for (let i = 0; i < 3; i++) { const k = (T * .6 + i / 3) % 1; c.globalAlpha = 1 - k; c.strokeStyle = C.cream; c.lineWidth = u; c.beginPath(); c.ellipse(W / 2, H / 2, u * 30 * k, u * 9 * k, 0, 0, TAU); c.stroke(); } c.globalAlpha = 1; return; }
   SCENES[G.id]();
@@ -876,8 +968,8 @@ function frame(now) {
   const dt = clamp((now - last) / 1000, 0, .05); last = now; T += dt;
   try {
     if (camOn || SIM) { if (st !== 'load') detect(now); hands(now); }
-    const b = Q.get('health') != null ? +Q.get('health') : baseHealth(), part = st === 'home' ? 0 : clamp((sessDone + (st === 'done' ? 0 : clamp(G.px / reps()))) / sessTotal);
-    HEALTH += (b + (1 - b) * .75 * part - HEALTH) * (1 - Math.exp(-dt * 1.5)); PUSH = st === 'play' && G.lost < 1 ? clamp(G.sd, 0, 1) : 0;
+    const how3 = st === 'howto' && HW.i === 3, b = how3 ? clamp(HW.t / 4) : st === 'howto' ? 0 : Q.get('health') != null ? +Q.get('health') : baseHealth(), part = st === 'home' || st === 'howto' || st === 'title' ? 0 : clamp((sessDone + (st === 'done' ? 0 : clamp(G.px / reps()))) / sessTotal);
+    HEALTH += (b + (1 - b) * .75 * part - HEALTH) * (1 - Math.exp(-dt * (how3 ? 6 : 1.5))); PUSH = st === 'play' && G.lost < 1 ? clamp(G.sd, 0, 1) : 0;
     update(dt); draw(); soundFrame(dt);
   } catch (e) { console.error(e); }      // one bad frame must not stop the session
   requestAnimationFrame(frame);
@@ -904,14 +996,14 @@ $('cfg').onclick = openSetup;
 function openSetup() {
   const el = $('setup'), row = id => { const x = S.ex[id], t = EX[id].sig === 'timer'; return `<div class="row${x.on ? '' : ' offr'}" data-id="${id}"><label><input type="checkbox"${x.on ? ' checked' : ''}>${EX[id].name}</label><span class="st"><button data-d="-1" aria-label="Fewer">−</button><b>${x.reps}</b><button data-d="1" aria-label="More">+</button></span>${t ? '<span></span>' : `<select aria-label="Movement size"><option value="1"${x.size === 1 ? ' selected' : ''}>Small</option><option value="2"${x.size === 2 ? ' selected' : ''}>Medium</option><option value="3"${x.size === 3 ? ' selected' : ''}>Large</option></select>`}</div>`; };
   el.innerHTML = `<div class="in"><header><h2>Exercise sheet</h2><button id="sx">Done</button></header>
-    <p>Switch on only the exercises the physical therapist has prescribed, with the prescribed number of repetitions. Everything else stays hidden.</p>
-    <p>“Small / Medium / Large” is how far the movement must go to count. Going further, faster or doing extra earns nothing in the game. The camera estimates movement; it does not measure joint angles or weight on the leg.</p>
+    <p>Tick each exercise the physical therapist prescribed. Set its repetitions. Leave the rest unticked: unticked exercises do not appear.</p>
+    <p>Set Small, Medium or Large: how far the leg must move before a rep counts. Moving further, faster or longer adds nothing. The camera estimates movement. It does not measure joint angle or weight on the leg.</p>
     ${ENVS.map(env => `<h3>${ENVN[env]}</h3>` + IDS.filter(id => EX[id].env === env).map(row).join('')).join('')}
     <h3>Sound</h3>
     <div class="row tg"><label><input type="checkbox" data-k="voice"${S.voice ? ' checked' : ''}>Spoken prompts and counting</label></div>
     <div class="row tg"><label><input type="checkbox" data-k="snd"${S.snd ? ' checked' : ''}>Creek sounds and movement tone</label></div>
     <div class="row tg"><label><input type="checkbox" data-k="music"${S.music ? ' checked' : ''}>Music</label></div>
-    <p>From across the room: raise one arm overhead to start or skip, both arms to stop. Close to the phone: thumbs-up to start or skip, open hand to stop. Hold until the ring fills.</p>
+    <p>Across the room: raise one arm to start or skip. Raise both arms to stop. At the phone: thumbs-up to start or skip. Open hand to stop. Hold until the ring fills.</p>
     <h3>Song</h3><div class="row" style="grid-template-columns:minmax(0,1fr)"><select id="trk" aria-label="Song">${TRACKS.map((t, i) => `<option value="${i}"${i === S.track % TRACKS.length ? ' selected' : ''}>${t.replace(/_/g, ':')}</option>`).join('')}</select></div>
     <p>Deep Sea Voyage, streamed from the VOLHOLLA album page.</p></div>`;
   el.hidden = false; el.scrollTop = 0;
@@ -928,7 +1020,10 @@ function openSetup() {
 document.addEventListener('visibilitychange', () => { if (AC) document.hidden ? AC.suspend() : AC.resume(); if (document.hidden) song.pause(); else { if (st !== 'home') music(true); if (camOn) wake(); } });
 if (!enabled(S.env).length) { const e2 = ENVS.find(v => enabled(v).length); if (e2) S.env = e2; }
 paintHome(); requestAnimationFrame(frame);
+$('go').onclick = () => { audio(); ambient(true); wake(); tone(523, .2, 'sine', .25); tone(784, .35, 'sine', .25, 0, .12); S.seenIntro ? goHome() : howStart(); };   // the first START plays the five commands, later ones go straight in
+$('how').onclick = howStart; $('help').onclick = howStart;
 if (Q.get('g') && EX[Q.get('g')]) begin([Q.get('g')]);
+else if (!Q.has('notitle')) { st = 'title'; titleAt = T; home.hidden = true; $('title').hidden = false; }
 window.__riffle = { get st() { return st; }, get G() { return G; }, get health() { return HEALTH; }, get cmd() { return CMD; }, EX, said: [] };
 if (SIM) { const real = say; window.__say = t => __riffle.said.push(t); }
 </script>
