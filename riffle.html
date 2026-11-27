@@ -123,7 +123,7 @@ const EX = {
 const IDS = Object.keys(EX), ENVS = ['bed', 'chair', 'stand'], ENVN = { bed: 'In bed', chair: 'In a chair', stand: 'Standing, with support' };
 const TAXA = { may: 'Ephemeroptera', stone: 'Plecoptera', caddis: 'Trichoptera', dragon: 'Odonata', hellg: 'Megaloptera', penny: 'Coleoptera' };
 const KINDS = Object.keys(TAXA);
-const SONG_BASE = 'https://hartswf0.github.io/moto/deep%20sea%20voyage/';
+const SONG_BASE = 'https://hartswf0.github.io/moto/deep%20sea%20voyage/', AUDIO = 'https://hartswf0.github.io/momsaic/riffle-audio/';
 const TRACKS = ["Yellow Submarine_ Abbey Road Brass-Foley Singalong", "Nobody Living Can Ever Stop Me", "The Prophet", "水上のモーター走行", "Whale's Belly Escape", "Warning Unheeded", "Exodus Song_ Viennese Epic to Satire", "The Verne Bench", "Gaslit Feerie Pit-Piano and Star-Film Salon", "Whale Belly Breach", "Submersible Propulsion", "クジラの体内からの脱出（水上の走行シーン）", "The Fool on You Thinkinghorn Leviathan", "Starálfur_ Palindromic Strings in Submersible Light", "Up on Melancholy Hill", "Descent to the Abyss", "Ondes In The Abbey", "Swordfish IV", "Cyborg Gospel", "Lake Merritt Clave", "The Selkie's Cradle", "Harpsichord in the Abyss", "The Hull Breaks Surface"];
 const VO = { // name, where to be, what to do, what it mended
   pump:  ['Ankle pumps', 'Lying down, phone at your side', 'Pull your toes up, then point them away.', 'The water is moving again.'],
@@ -183,17 +183,36 @@ function audio() {
     [110, 116.5, 164].forEach(f => { const o = AC.createOscillator(), fl = AC.createBiquadFilter(); o.type = 'sawtooth'; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.value = 700; o.connect(fl).connect(drone); o.start(); });
     bed = { clear: layer('bandpass', 1500, .7), murk: layer('lowpass', 420, .5), drone };
     const mk = type => { const o = AC.createOscillator(), g = AC.createGain(); o.type = type; g.gain.value = 0; o.connect(g).connect(out); o.start(); return { o, g }; };
-    bodyOsc = { a: mk('triangle'), b: mk('sine') };
+    bodyOsc = { a: mk('triangle'), b: mk('sine') }; loadSamples();
   } catch (e) { AC = null; }
 }
+/* Recordings replace the synthesized bed and effects once they arrive; until then, and if they never do, the synth plays. */
+const SMP = {}, LOOPS = {};
+function seamless(b) { // drop the encoder's padding and crossfade the tail into the head, so the loop has no seam
+  const sr = b.sampleRate, pad = Math.floor(sr * .06), xf = Math.floor(sr * 1.2), src = b.getChannelData(0), n = src.length - pad * 2 - xf; if (n < xf * 2) return b;
+  const o = AC.createBuffer(1, n, sr), d = o.getChannelData(0); for (let i = 0; i < n; i++) d[i] = src[pad + i];
+  for (let i = 0; i < xf; i++) { const k = i / xf; d[i] = src[pad + i] * Math.sqrt(k) + src[pad + n + i] * Math.sqrt(1 - k); }
+  return o;
+}
+function loadSamples() {
+  ['stream', 'birds', 'hum', 'splash', 'bubbles', 'bark'].forEach(async n => {
+    try { const r = await fetch(AUDIO + 'sfx/' + n + '.mp3'); if (!r.ok) return; const raw = await r.arrayBuffer(), b = await new Promise((ok, no) => AC.decodeAudioData(raw, ok, no));
+      if (n === 'stream' || n === 'birds' || n === 'hum') { const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = seamless(b); src.loop = true; g.gain.value = 0; src.connect(g).connect(out); src.start(); LOOPS[n] = g; } else SMP[n] = b;
+    } catch (e) {}
+  });
+}
+function smp(n, vol = 1, rate = 1) { if (!AC || !S.snd || !SMP[n]) return false; const src = AC.createBufferSource(), g = AC.createGain(); src.buffer = SMP[n]; src.playbackRate.value = rate; g.gain.value = vol; src.connect(g).connect(out); src.start(); return true; }
 const ambient = on => { amb = on; };
 function soundFrame(dt) {
   if (!AC || !bed) return; const t = AC.currentTime, on = amb && S.snd ? 1 : 0, h = HEALTH;
-  bed.clear.gain.setTargetAtTime(on * (.015 + h * .11), t, .3); bed.murk.gain.setTargetAtTime(on * (1 - h) * .15, t, .3); bed.drone.gain.setTargetAtTime(on * (1 - h) * (1 - h) * .03, t, .3);
+  bed.clear.gain.setTargetAtTime(LOOPS.stream ? 0 : on * (.015 + h * .11), t, .3); bed.murk.gain.setTargetAtTime(on * (1 - h) * (LOOPS.hum ? .04 : .15), t, .3); bed.drone.gain.setTargetAtTime(on * (1 - h) * (1 - h) * .03, t, .3);
+  if (LOOPS.stream) LOOPS.stream.gain.setTargetAtTime(on * (.05 + h * .5), t, .4);          // the creek is a trickle when wrecked, full when well
+  if (LOOPS.hum) LOOPS.hum.gain.setTargetAtTime(on * (1 - h) * (1 - h) * .55, t, .4);       // machinery fades as it heals
+  if (LOOPS.birds) LOOPS.birds.gain.setTargetAtTime(on * h * h * .7, t, .6);                // birds return last
   const s = st === 'play' && S.snd && G.lost < 1 ? clamp(G.sd, 0, 1) : 0, lock = s && G.hold > 0 ? 1 : 0, f = 330 * Math.pow(2, s);   // an octave from rest to target
   bodyOsc.a.o.frequency.setTargetAtTime(f, t, .04); bodyOsc.a.g.gain.setTargetAtTime(s > .06 ? .04 + s * .09 : 0, t, .06);
   bodyOsc.b.o.frequency.setTargetAtTime(f * 1.5, t, .04); bodyOsc.b.g.gain.setTargetAtTime(lock * .08, t, .05);                      // a fifth joins while the hold counts
-  if (on && Math.random() < dt * h * h * .45) { const bf = 2400 + Math.random() * 1800, k = 2 + (Math.random() * 3 | 0); for (let i = 0; i < k; i++) tone(bf * (1 + i * .06), .09, 'sine', .045, 1.25, i * .13); }  // birds come back with the water
+  if (on && !LOOPS.birds && Math.random() < dt * h * h * .45) { const bf = 2400 + Math.random() * 1800, k = 2 + (Math.random() * 3 | 0); for (let i = 0; i < k; i++) tone(bf * (1 + i * .06), .09, 'sine', .045, 1.25, i * .13); }  // birds come back with the water
 }
 function tone(f, dur = .5, type = 'sine', vol = .2, slide = 0, when = 0) {
   if (!AC || !S.snd) return; const t = AC.currentTime + when, o = AC.createOscillator(), g = AC.createGain();
@@ -212,8 +231,8 @@ function noise(dur = .4, f0 = 1800, f1 = 500, vol = .3) {
 const SCALE = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.5, 1568, 1760];
 const SFX = {
   plink: n => { const f = SCALE[Math.min(n, SCALE.length - 1)]; tone(f, .9, 'sine', .3); tone(f * 2, .5, 'sine', .1); tone(f * 3, .25, 'sine', .04); },   // one step up the scale per rep
-  splash: () => noise(.45, 2400, 400, .22), puff: () => noise(.3, 500, 150, .2), whoosh: () => noise(.3, 600, 2600, .1),
-  bark: () => { tone(330, .11, 'sawtooth', .13, .6); tone(300, .13, 'sawtooth', .13, .55, .16); },
+  splash: () => smp('splash', .8, .9 + Math.random() * .25) || noise(.45, 2400, 400, .22), puff: () => noise(.3, 500, 150, .2), whoosh: () => noise(.3, 600, 2600, .1),
+  bark: () => { if (smp('bark', .9, .82)) { setTimeout(() => smp('bark', .8, .86), 260); return; } tone(330, .11, 'sawtooth', .13, .6); tone(300, .13, 'sawtooth', .13, .55, .16); },
   gulp: () => tone(260, .16, 'sine', .22, 2.2),
   ready: () => { tone(523, .25, 'sine', .22); tone(784, .4, 'sine', .22, 0, .14); },
   lost: () => { tone(494, .25, 'sine', .22); tone(330, .45, 'sine', .22, 0, .16); },
@@ -225,19 +244,19 @@ function say(txt, urgent) {
   try { if (urgent) speechSynthesis.cancel(); const m = new SpeechSynthesisUtterance(txt); m.rate = .92; m.volume = 1; m.onstart = () => { song.volume = .05; }; m.onend = m.onerror = () => { song.volume = .2; }; speechSynthesis.speak(m); } catch (e) {}
 }
 let wl = null; async function wake() { try { if (!wl || wl.released) wl = await navigator.wakeLock?.request('screen'); } catch (e) {} }
-function loadTrack() { song.src = SONG_BASE + encodeURIComponent('Deep Sea Voyage - ' + TRACKS[S.track % TRACKS.length] + ' - Treblo.ogg'); }
+function loadTrack(ogg) { const i = S.track % TRACKS.length; song.src = ogg ? SONG_BASE + encodeURIComponent('Deep Sea Voyage - ' + TRACKS[i] + ' - Treblo.ogg') : AUDIO + 'music/' + String(i + 1).padStart(2, '0') + '.mp3'; }
 let songErr = 0;
 function music(on) { if (!on || !S.music) { song.pause(); return; } if (!song.src) loadTrack(); song.volume = .2; song.play().catch(() => {}); }
 const nextTrack = () => { S.track = (S.track + 1) % TRACKS.length; save(); loadTrack(); if (S.music) song.play().catch(() => {}); };
 song.addEventListener('ended', nextTrack);
-song.addEventListener('error', () => { if (++songErr < 3) nextTrack(); });
+song.addEventListener('error', () => { if (/\.mp3$/.test(song.src)) { loadTrack(true); if (S.music) song.play().catch(() => {}); } else if (++songErr < 3) nextTrack(); });
 
 /* ---------- pose ---------- */
 let landmarker = null, lm = null, asp = .75, lastVT = -1, camOn = false;
 async function startCam() {
   if (SIM || camOn) return;
   if (!navigator.mediaDevices?.getUserMedia) throw new Error('nocam');
-  const sm = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+  const sm = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
   vid.srcObject = sm; await vid.play();
   await new Promise(r => vid.videoWidth ? r() : vid.addEventListener('loadedmetadata', r, { once: true }));
   asp = vid.videoWidth / vid.videoHeight; camOn = true;
@@ -252,16 +271,52 @@ async function loadPose() {
   try { landmarker = await PoseLandmarker.createFromOptions(fs, opt('GPU')); } catch (e) { landmarker = await PoseLandmarker.createFromOptions(fs, opt('CPU')); }
   MP = { mod, fs }; loadHands();   // the hand model is optional and loads behind the body model
 }
+/* Distance. Movement is measured in body lengths, so the same exercise reads the same near or far. What changes with
+   distance is how many pixels the body gets. When the body is small in the frame the detector is fed a square crop
+   around it (roi) and the landmarks are mapped back; when it grows the crop is dropped. Smoothing is heavier on a
+   small body, where a pixel of jitter is a bigger share of the movement. ?zoom=0 turns the crop off. */
+let roi = null, roiCv = null, missN = 0, scanI = 0, bodyH = .5;
+// when nobody is found, look through cropped tiles of the frame in turn: a far body that is too small for the
+// detector in the whole picture is large enough inside a tile
+const SCAN = [null]; [[.7, [0, .3]], [.5, [0, .25, .5]], [.34, [0, .22, .44, .66]]].forEach(([sz, ps]) => ps.forEach(y => ps.forEach(x => SCAN.push({ s: sz, x, y }))));
+const ZOOM = Q.get('zoom') !== '0';
 function detect(now) {
   if (SIM) { lm = synth(); if (window.__pose) window.__pose(lm); return; }
   if (!landmarker || vid.readyState < 2 || vid.currentTime === lastVT) return;
   lastVT = vid.currentTime; asp = vid.videoWidth / vid.videoHeight;
-  let res; try { res = landmarker.detectForVideo(vid, now); } catch (e) { return; }
-  const raw = res.landmarks && res.landmarks[0];
-  if (!raw) { if (lm) lm.forEach(p => p.visibility *= .7); return; }
+  let src = vid; const r = roi;
+  if (r) { roiCv ||= document.createElement('canvas'); const cw = 512, ch = Math.round(512 / asp); if (roiCv.width !== cw || roiCv.height !== ch) { roiCv.width = cw; roiCv.height = ch; }
+    roiCv.getContext('2d').drawImage(vid, r.x * vid.videoWidth, r.y * vid.videoHeight, r.s * vid.videoWidth, r.s * vid.videoHeight, 0, 0, cw, ch); src = roiCv; }
+  let res; try { res = landmarker.detectForVideo(src, now); } catch (e) { return; }
+  let raw = res.landmarks && res.landmarks[0];
+  if (!raw) { if (lm) lm.forEach(p => p.visibility *= .7); if (++missN > 6 && ZOOM && missN % 3 === 0) { scanI = (scanI + 1) % SCAN.length; roi = SCAN[scanI] && { ...SCAN[scanI] }; } return; }   // nobody here: try the next tile
+  missN = 0; scanI = 0; if (r) raw = raw.map(p => ({ x: r.x + p.x * r.s, y: r.y + p.y * r.s, visibility: p.visibility }));
+  const a = clamp(.2 + bodyH * .8, .3, .6);
   if (!lm) lm = raw.map(p => ({ x: p.x, y: p.y, visibility: p.visibility ?? 1 }));
-  else raw.forEach((p, i) => { const q = lm[i]; q.x += (p.x - q.x) * .55; q.y += (p.y - q.y) * .55; q.visibility += ((p.visibility ?? 1) - q.visibility) * .35; });
+  else raw.forEach((p, i) => { const q = lm[i]; q.x += (p.x - q.x) * a; q.y += (p.y - q.y) * a; q.visibility += ((p.visibility ?? 1) - q.visibility) * .35; });
+  const v = lm.filter(p => p.visibility > .5); if (v.length < 8) return;
+  const xs = v.map(p => p.x), ys = v.map(p => p.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  bodyH += (Math.max(y1 - y0, x1 - x0) - bodyH) * .1;
+  if (!ZOOM) return;
+  const need = clamp(Math.max(y1 - y0, x1 - x0) * 1.55, .3, 1);
+  if (need > .82) { roi = null; return; }
+  if (!roi && need > .62) return;
+  const tg = { s: need, x: clamp((x0 + x1) / 2 - need / 2, 0, 1 - need), y: clamp((y0 + y1) / 2 - need / 2, 0, 1 - need) };
+  if (!roi) roi = tg; else if (Math.abs(tg.x - roi.x) + Math.abs(tg.y - roi.y) + Math.abs(tg.s - roi.s) > .06) roi = { s: lerp(roi.s, tg.s, .25), x: lerp(roi.x, tg.x, .25), y: lerp(roi.y, tg.y, .25) };
+  roi.x = clamp(roi.x, 0, 1 - roi.s); roi.y = clamp(roi.y, 0, 1 - roi.s);
 }
+function framing() { // what is wrong with the picture, if anything
+  if (!lm) return 'none'; const v = lm.filter(p => p.visibility > .5); if (v.length < 4) return 'none';
+  const xs = v.map(p => p.x), ys = v.map(p => p.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), bh = y1 - y0;
+  if (seen(G.id)) return '';
+  if (EX[G.id].env === 'bed') return 'bed';
+  if (bh > .8 || (y1 > .96 && y0 < .06)) return 'close';
+  if (y1 > .94) return 'low';
+  if (y0 < .04) return 'high';
+  if (x0 < .03 || x1 > .97) return 'side';
+  return bh < .18 ? 'far' : 'part';
+}
+const FRAME_SAY = { none: 'Step into the frame.', bed: 'Move the phone until it shows your legs.', close: 'Too close. Step back.', low: 'Your legs are cut off. Tilt the phone down, or step back.', high: 'Your head is cut off. Tilt the phone up, or step back.', side: 'Move to the middle of the frame.', far: 'Too far. Come closer.', part: 'Turn so the camera sees your legs.' };
 const vis = i => lm[i].visibility > .5;
 const visLegs = need => [0, 1].filter(k => need.every(i => vis(i + k)));
 function seen(id) { const e = EX[id]; if (e.sig === 'timer' || PACED) return true; return !!lm && e.core.every(vis) && (!e.leg.length || visLegs(e.leg).length > 0); }
@@ -347,10 +402,10 @@ function hands(now) {
   const h = r.landmarks && r.landmarks[0]; handG = h ? handGesture(h) : ''; handAt = T;
 }
 function armGesture() {
-  if (!lm || EX[G.id].env === 'bed' && st !== 'home' || ![0, 11, 12].every(vis)) return '';   // lying down, an arm overhead is just resting
-  const p = i => ({ x: lm[i].x * asp, y: lm[i].y }), sh = { x: (p(11).x + p(12).x) / 2, y: (p(11).y + p(12).y) / 2 }, nose = p(0), sw = Math.hypot(p(11).x - p(12).x, p(11).y - p(12).y);
-  const ax = { x: nose.x - sh.x, y: nose.y - sh.y }, al = Math.hypot(ax.x, ax.y) || 1, along = q => ((q.x - sh.x) * ax.x + (q.y - sh.y) * ax.y) / al;
-  const up = [15, 16].filter(i => vis(i) && along(p(i)) > al + Math.max(sw * .35, al * .5)).length;
+  if (!lm || EX[G.id].env === 'bed' && st !== 'home' || ![11, 12, 23, 24].every(vis)) return '';   // lying down, an arm overhead is just resting; with no hips in view, use the hand gestures
+  const p = i => ({ x: lm[i].x * asp, y: lm[i].y }), sh = { x: (p(11).x + p(12).x) / 2, y: (p(11).y + p(12).y) / 2 }, hp = { x: (p(23).x + p(24).x) / 2, y: (p(23).y + p(24).y) / 2 };
+  const ax = { x: sh.x - hp.x, y: sh.y - hp.y }, tl = Math.hypot(ax.x, ax.y) || 1, along = q => ((q.x - sh.x) * ax.x + (q.y - sh.y) * ax.y) / tl;   // distance past the shoulders, along the trunk
+  const up = [15, 16].filter(i => vis(i) && along(p(i)) > tl * .7).length;                          // overhead = most of a trunk length above the shoulders
   return up === 2 ? 'stop' : up === 1 ? 'go' : '';
 }
 function commands(dt) {
@@ -401,7 +456,7 @@ function fire(side) {
   if (id === 'sets') SFX.gulp();
   if (id === 'kick') SFX.whoosh();
   if (id === 'march') tone(180, .18, 'sine', .25, .6);
-  if (id === 'heel') { for (let i = 0; i < 8; i++) { G.bub.push({ x: (Math.random() - .5) * 14, t: -i * .08, r: .8 + Math.random() * 1.4 }); tone(500 + i * 90, .09, 'sine', .07, 1.5, i * .07); } }
+  if (id === 'heel') { for (let i = 0; i < 8; i++) { G.bub.push({ x: (Math.random() - .5) * 14, t: -i * .08, r: .8 + Math.random() * 1.4 }); if (!SMP.bubbles) tone(500 + i * 90, .09, 'sine', .07, 1.5, i * .07); } smp('bubbles', .9); }
   if (id === 'flex') { SFX.splash(); G.fx.push({ k: 'ring', t: 0 }); for (let i = 0; i < 1 + (Math.random() < .5); i++) { const k = KINDS[(Math.random() * KINDS.length) | 0]; G.got[k] = (G.got[k] || 0) + 1; } }
   if (id === 'stand') { G.nymph = false; G.swarm.push({ tx: .12 + Math.random() * .76, ty: .2 + Math.random() * .55, ph: Math.random() * 9, t: 0 }); G.fx.push({ k: 'ring', t: 0 }); }
   rep();
@@ -415,7 +470,7 @@ function update(dt) {
     const timed = EX[G.id].sig === 'timer' || PACED;
     if (timed) G.seen += dt * .4;
     else if (seen(G.id)) { signal(dt); G.seen += dt; }                    // the resting pose is measured while the ring fills
-    else { G.seen = Math.max(0, G.seen - dt * 2); if ((G.nag += dt) > 9) { G.nag = -6; say('Step back until your whole body is in the frame.'); } }
+    else { G.seen = Math.max(0, G.seen - dt * 2); if ((G.nag += dt) > 9) { G.nag = -6; say(FRAME_SAY[framing()] || 'Step back until your whole body is in the frame.'); } }
     if (G.seen > 1.6) { st = 'play'; SFX.ready(); say(VO[G.id][2] + (HINTED || PACED ? '' : EX[G.id].env === 'bed' ? ' Show a thumbs up to skip. An open hand to stop.' : ' Raise one hand to skip. Both hands to stop.')); HINTED = true; }
     return;
   }
@@ -897,7 +952,7 @@ function icon(id, z) { // tile / done-screen picture for an exercise
 const BONES = [[11, 12], [11, 23], [12, 24], [23, 24], [23, 25], [25, 27], [24, 26], [26, 28], [27, 31], [28, 32], [11, 13], [13, 15], [12, 14], [14, 16]];
 function pip(x, y, w, frac, bad) {
   const h = w / asp; c.save(); c.beginPath(); c.roundRect(x, y, w, h, u * 3); c.clip(); c.fillStyle = '#0e2226'; c.fillRect(x, y, w, h);
-  if (!SIM && camOn) { c.save(); c.translate(x + w, y); c.scale(-1, 1); c.drawImage(vid, 0, 0, w, h); c.restore(); c.fillStyle = '#0e222655'; c.fillRect(x, y, w, h); }
+  if (!SIM && camOn) { c.save(); c.translate(x + w, y); c.scale(-1, 1); c.drawImage(vid, 0, 0, w, h); c.restore(); c.fillStyle = '#0e222655'; c.fillRect(x, y, w, h); if (roi) { c.strokeStyle = C.amber; c.lineWidth = 2; c.setLineDash([5, 5]); c.strokeRect(x + (1 - roi.x - roi.s) * w, y + roi.y * h, roi.s * w, roi.s * h); c.setLineDash([]); } }
   if (lm) {
     const e = EX[G.id], legOk = visLegs(e.leg), need = i => e.core.includes(i) || (!legOk.length && (e.leg.includes(i) || e.leg.includes(i - 1))), P = i => [x + (1 - lm[i].x) * w, y + lm[i].y * h];
     c.lineCap = 'round'; c.lineWidth = Math.max(2, w * .022);
@@ -1005,7 +1060,7 @@ function openSetup() {
     <div class="row tg"><label><input type="checkbox" data-k="music"${S.music ? ' checked' : ''}>Music</label></div>
     <p>Across the room: raise one arm to start or skip. Raise both arms to stop. At the phone: thumbs-up to start or skip. Open hand to stop. Hold until the ring fills.</p>
     <h3>Song</h3><div class="row" style="grid-template-columns:minmax(0,1fr)"><select id="trk" aria-label="Song">${TRACKS.map((t, i) => `<option value="${i}"${i === S.track % TRACKS.length ? ' selected' : ''}>${t.replace(/_/g, ':')}</option>`).join('')}</select></div>
-    <p>Deep Sea Voyage, streamed from the VOLHOLLA album page.</p></div>`;
+    <p>Deep Sea Voyage, from the VOLHOLLA album. Creek recordings are public-domain (CC0) sounds from Freesound.</p></div>`;
   el.hidden = false; el.scrollTop = 0;
   $('sx').onclick = () => { el.hidden = true; paintHome(); };
   el.querySelectorAll('input[data-k]').forEach(i => i.onchange = () => { S[i.dataset.k] = i.checked; save(); if (i.dataset.k === 'music') music(S.music); if (i.dataset.k === 'snd' && S.snd) audio(); });
@@ -1024,7 +1079,7 @@ $('go').onclick = () => { audio(); ambient(true); wake(); tone(523, .2, 'sine', 
 $('how').onclick = howStart; $('help').onclick = howStart;
 if (Q.get('g') && EX[Q.get('g')]) begin([Q.get('g')]);
 else if (!Q.has('notitle')) { st = 'title'; titleAt = T; home.hidden = true; $('title').hidden = false; }
-window.__riffle = { get st() { return st; }, get G() { return G; }, get health() { return HEALTH; }, get cmd() { return CMD; }, EX, said: [] };
+window.__riffle = { get st() { return st; }, get G() { return G; }, get health() { return HEALTH; }, get cmd() { return CMD; }, get roi() { return roi; }, get bodyH() { return bodyH; }, get lm() { return lm; }, get paced() { return PACED; }, get hands() { return !!handLm; }, get handG() { return handG; }, get loops() { return Object.keys(LOOPS).concat(Object.keys(SMP)); }, EX, said: [] };
 if (SIM) { const real = say; window.__say = t => __riffle.said.push(t); }
 </script>
 </body>
