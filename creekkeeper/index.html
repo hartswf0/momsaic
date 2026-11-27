@@ -94,7 +94,13 @@
 .app.free .cam{border:2px solid #d8e6b1}
 @media(max-height:540px) and (orientation:landscape){#titleScreen{display:grid;grid-template-columns:1.25fr 1fr;grid-template-rows:auto auto auto;align-content:center;gap:8px 22px}.title-heading{grid-column:2;grid-row:1}.title-heading h1{font-size:clamp(36px,7vw,66px)}.title-heading p{font-size:14px}.title-controls{grid-column:2;grid-row:2}.title-controls .primary{min-height:47px;font-size:17px}.title-controls .secondary{min-height:37px;font-size:13px}#introFilm{grid-column:1;grid-row:1 / span 2;max-height:72dvh;width:100%}#introCue{grid-column:1;grid-row:3;font-size:15px}.title-note{grid-column:2;grid-row:3;font-size:10px}}
 @media(max-height:600px) and (orientation:portrait){#introFilm{max-height:35dvh}.title-controls .primary{min-height:52px}.title-controls .secondary{min-height:39px}.title-heading h1{font-size:43px}}
-</style></head><body><div class="app" id="app"><canvas id="world" aria-hidden="true"></canvas><div class="shade"></div><main class="hud" aria-label="Creekkeeper game"><div class="top"><div class="brand"><div class="brandmark" id="mark"></div><div style="min-width:0"><div class="eyebrow">CREEKKEEPER</div><div class="title" id="worldTitle">Living waters</div></div></div><div class="topactions"><button class="iconbtn" id="ptSetup" aria-label="Physical therapist setup" title="Physical therapist setup"></button><button class="iconbtn" id="cameraCheck" aria-label="Open live camera"></button><button class="iconbtn" id="sound" aria-label="Turn sound on" aria-pressed="false"></button><button class="iconbtn" id="pause" aria-label="Pause or stop"></button></div></div><div class="middle"><div class="cam" id="cam"><video id="video" autoplay playsinline webkit-playsinline muted></video><canvas id="pose"></canvas><div class="camlabel"><span class="dot" id="camDot"></span><span id="camText">Camera</span></div></div></div><div class="bottom"><div class="statusbar" id="status"><span class="dot ok"></span> FIELD STATION</div><div id="restoreHUD" aria-label="Virtual creek condition"><div class="restore-seeds" id="restoreSeeds"></div><span id="restoreText">Muddy water</span></div><div class="caption" id="prompt">A creek comes to life.</div><div class="subcaption" id="hint">Move gently. Discover slowly.</div><div class="measure" id="measure" role="meter" aria-label="Movement progress" aria-valuemin="0" aria-valuemax="100"><div id="measureFill"></div></div><div class="progressWrap"><div class="progress" id="progress" aria-hidden="true"></div><span class="counter" id="counter"></span></div><div class="buttons"><button class="primary" id="act">Explore</button><button class="secondary" id="touchPlay" aria-label="Play without camera">Play</button><button class="secondary" id="worlds" aria-label="Choose game"></button></div></div></main><section id="titleScreen" aria-label="Creekkeeper title and how to play" hidden><div class="title-heading"><h1>Creekkeeper</h1><p>Move gently. Restore a creek.</p></div><canvas id="introFilm" width="800" height="450" role="img" aria-label="Animated demonstration: a seated player makes a small gesture, a ripple spreads into muddy water, then plants and fish return."></canvas><p id="introCue">Put your phone on a stand.</p><div class="title-controls"><button class="primary" id="beginBody">Start body play</button><button class="secondary" id="beginTouch">Play by touch</button></div><p class="title-note">Allow the camera. Use only movements already approved by your physical therapist. Rest whenever needed.</p></section><div id="toast" class="toast" role="status"></div><div class="sr" id="announce" aria-live="polite"></div><div class="overlay" id="overlay"><section class="panel welcome" id="panel" role="dialog" aria-modal="true" aria-label="Creekkeeper setup"></section></div></div>
+/* Recorded soundscape feedback */
+#audioState{display:none;font-size:11px;color:#e6edca;text-shadow:0 1px 4px #172c29}
+.app.free #audioState,.app.guided #audioState{display:block}
+.title-audio{color:#c4d1b8;font-size:11px;text-decoration:underline;text-underline-offset:3px}
+#sound[aria-pressed=true]{background:#d2e6ae;color:#17372f}
+@media(max-height:520px) and (orientation:landscape){#audioState{font-size:10px}.title-audio{display:none}}
+</style></head><body><div class="app" id="app"><canvas id="world" aria-hidden="true"></canvas><div class="shade"></div><main class="hud" aria-label="Creekkeeper game"><div class="top"><div class="brand"><div class="brandmark" id="mark"></div><div style="min-width:0"><div class="eyebrow">CREEKKEEPER</div><div class="title" id="worldTitle">Living waters</div></div></div><div class="topactions"><button class="iconbtn" id="ptSetup" aria-label="Physical therapist setup" title="Physical therapist setup"></button><button class="iconbtn" id="cameraCheck" aria-label="Open live camera"></button><button class="iconbtn" id="sound" aria-label="Turn sound on" aria-pressed="false"></button><button class="iconbtn" id="pause" aria-label="Pause or stop"></button></div></div><div class="middle"><div class="cam" id="cam"><video id="video" autoplay playsinline webkit-playsinline muted></video><canvas id="pose"></canvas><div class="camlabel"><span class="dot" id="camDot"></span><span id="camText">Camera</span></div></div></div><div class="bottom"><div class="statusbar" id="status"><span class="dot ok"></span> FIELD STATION</div><div id="audioState" role="status">Sound off</div><div id="restoreHUD" aria-label="Virtual creek condition"><div class="restore-seeds" id="restoreSeeds"></div><span id="restoreText">Muddy water</span></div><div class="caption" id="prompt">A creek comes to life.</div><div class="subcaption" id="hint">Move gently. Discover slowly.</div><div class="measure" id="measure" role="meter" aria-label="Movement progress" aria-valuemin="0" aria-valuemax="100"><div id="measureFill"></div></div><div class="progressWrap"><div class="progress" id="progress" aria-hidden="true"></div><span class="counter" id="counter"></span></div><div class="buttons"><button class="primary" id="act">Explore</button><button class="secondary" id="touchPlay" aria-label="Play without camera">Play</button><button class="secondary" id="worlds" aria-label="Choose game"></button></div></div></main><section id="titleScreen" aria-label="Creekkeeper title and how to play" hidden><div class="title-heading"><h1>Creekkeeper</h1><p>Move gently. Restore a creek.</p></div><canvas id="introFilm" width="800" height="450" role="img" aria-label="Animated demonstration: a seated player makes a small gesture, a ripple spreads into muddy water, then plants and fish return."></canvas><p id="introCue">Put your phone on a stand.</p><div class="title-controls"><button class="primary" id="beginBody">Start body play</button><button class="secondary" id="beginTouch">Play by touch</button></div><p class="title-note">Allow the camera. Use only movements already approved by your physical therapist. Rest whenever needed. <a class="title-audio" href="audio/" target="_blank" rel="noopener">Sound library</a></p></section><div id="toast" class="toast" role="status"></div><div class="sr" id="announce" aria-live="polite"></div><div class="overlay" id="overlay"><section class="panel welcome" id="panel" role="dialog" aria-modal="true" aria-label="Creekkeeper setup"></section></div></div>
 <script>
 'use strict';
 const $=id=>document.getElementById(id), clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
@@ -178,8 +184,8 @@ if(live){let x=control.x*W,y=control.y*H,r=17+Math.sin(t*2)*4;ctx.save();ctx.str
 // vignette
 let vig=ctx.createRadialGradient(W*.5,H*.48,Math.min(W,H)*.22,W*.5,H*.48,Math.max(W,H)*.75);vig.addColorStop(0,'#0b2e2c00');vig.addColorStop(1,'#0a262b77');ctx.fillStyle=vig;ctx.fillRect(0,0,W,H)
 }
-function frame(ts){if(lastFrame&&ts-lastFrame<(!$('overlay').hidden?125:stream?55:33)){requestAnimationFrame(frame);return}if(!lastFrame)lastFrame=ts;const dt=Math.min(.05,(ts-lastFrame)/1000);lastFrame=ts;if(!paused&&phase!=='rest')clock+=dt*(reduceMotion?.25:1);if(!paused){fishBoost*=.992;netLift*=.995;restoration.visual+=(restoration.stage/5-restoration.visual)*.065;if(creekFilter&&audio&&soundOn){creekFilter.frequency.setTargetAtTime(450+restoration.visual*2200,audio.currentTime,.4);ambient.gain.setTargetAtTime(.19+restoration.visual*.20,audio.currentTime,.4)}}if(W&&H&&$('titleScreen').hidden)river(clock);requestAnimationFrame(frame)}requestAnimationFrame(frame);
-let audio=null,noiseNode=null,ambient=null,audioDecided=false,creekFilter=null;function enableAudio(){try{if(!audio){audio=new (window.AudioContext||window.webkitAudioContext)();let buf=audio.createBuffer(1,audio.sampleRate*3,audio.sampleRate),d=buf.getChannelData(0),v=0;for(let i=0;i<d.length;i++){v=(v+(.02*(Math.random()*2-1)))/1.02;d[i]=v*3}noiseNode=audio.createBufferSource();noiseNode.buffer=buf;noiseNode.loop=true;let lp=audio.createBiquadFilter();creekFilter=lp;lp.type='lowpass';lp.frequency.value=450+restoration.visual*2200;ambient=audio.createGain();ambient.gain.value=0;noiseNode.connect(lp).connect(ambient).connect(audio.destination);noiseNode.start()}audio.resume();ambient.gain.setTargetAtTime(soundOn?(.19+restoration.visual*.20):0,audio.currentTime,.15)}catch(e){}}
+function frame(ts){if(lastFrame&&ts-lastFrame<(!$('overlay').hidden?125:stream?55:33)){requestAnimationFrame(frame);return}if(!lastFrame)lastFrame=ts;const dt=Math.min(.05,(ts-lastFrame)/1000);lastFrame=ts;if(!paused&&phase!=='rest')clock+=dt*(reduceMotion?.25:1);if(!paused){fishBoost*=.992;netLift*=.995;restoration.visual+=(restoration.stage/5-restoration.visual)*.065;if(audio&&soundOn)updateSoundMix()}if(W&&H&&$('titleScreen').hidden)river(clock);requestAnimationFrame(frame)}requestAnimationFrame(frame);
+let audio=null,noiseNode=null,ambient=null,audioDecided=false,creekFilter=null;function enableAudio(){try{if(!audio){audio=new (window.AudioContext||window.webkitAudioContext)();let buf=audio.createBuffer(1,audio.sampleRate*3,audio.sampleRate),d=buf.getChannelData(0),v=0;for(let i=0;i<d.length;i++){v=(v+(.02*(Math.random()*2-1)))/1.02;d[i]=v*3}noiseNode=audio.createBufferSource();noiseNode.buffer=buf;noiseNode.loop=true;let lp=audio.createBiquadFilter();creekFilter=lp;lp.type='lowpass';lp.frequency.value=450+restoration.visual*2200;ambient=audio.createGain();ambient.gain.value=0;noiseNode.connect(lp).connect(ambient).connect(audio.destination);noiseNode.start()}audio.resume();ambient.gain.setTargetAtTime(soundOn?(.19+restoration.visual*.20):0,audio.currentTime,.15);if(soundOn)startRecordedAudio();else updateSoundMix(true)}catch(e){}}
 function chime(){if(!soundOn||!audio)return;for(let i=0;i<2;i++){let o=audio.createOscillator(),g=audio.createGain(),t=audio.currentTime+i*.09;o.type='sine';o.frequency.value=i?659.25:523.25;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.075,t+.04);g.gain.exponentialRampToValueAtTime(.001,t+.7);o.connect(g).connect(audio.destination);o.start(t);o.stop(t+.75)}}
 $('sound').onclick=()=>{audioDecided=true;soundOn=!soundOn;$('sound').innerHTML=icon(soundOn?'sound':'mute');$('sound').setAttribute('aria-pressed',soundOn);$('sound').setAttribute('aria-label',soundOn?'Mute sound':'Turn sound on');enableAudio()};
 function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');$('announce').textContent=msg;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),1800)}
@@ -193,6 +199,128 @@ const restoration={stage:0,visual:0,lastAt:-Infinity,patches:[]};
 let freeStatus='',freePulse=-100,bodyStarted=false,touchMode=false,motionRAF=0,motionCanvas=null,motionContext=null,motionPrev=null,motionLast=0;
 let bodyControl={active:false,x:.5,y:.57,tx:.5,ty:.57,points:[],prior:new Map(),last:0,source:'none',fish:[],dogX:.78,crayX:.5,crayY:.62};
 function clearBody(){bodyControl={active:false,x:.5,y:.57,tx:.5,ty:.57,points:[],prior:new Map(),last:0,source:'none',fish:[],dogX:.78,crayX:.5,crayY:.62};motionPrev=null;cancelAnimationFrame(motionRAF);motionRAF=0}
+const SOUND_ASSETS=[{"id":"creek","file":"Flowing-water-100019.ogg","author":"Fg2","license":"Public domain","description":"19-second flowing water field recording","source":"https://commons.wikimedia.org/wiki/File:Flowing-water-100019.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/2/26/Flowing-water-100019.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/2/26/Flowing-water-100019.ogg/Flowing-water-100019.ogg.mp3"},{"id":"trickle","file":"Swale.ogg","author":"Ksd5","license":"CC0 1.0","description":"A small swale flowing into a stream","source":"https://commons.wikimedia.org/wiki/File:Swale.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/8/84/Swale.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/8/84/Swale.ogg/Swale.ogg.mp3"},{"id":"birds","file":"Indigobunting.ogg","author":"U.S. Fish and Wildlife Service","license":"Public domain (US government)","description":"Indigo bunting call","source":"https://commons.wikimedia.org/wiki/File:Indigobunting.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/d/d2/Indigobunting.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d2/Indigobunting.ogg/Indigobunting.ogg.mp3"},{"id":"frogs","file":"Spring_Peeper_(Pseudacris_crucifer).ogg","author":"Don Becker","license":"CC0 1.0","description":"Spring peeper call","source":"https://commons.wikimedia.org/wiki/File:Spring_Peeper_(Pseudacris_crucifer).ogg","url":"https://upload.wikimedia.org/wikipedia/commons/e/e9/Spring_Peeper_(Pseudacris_crucifer).ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/e/e9/Spring_Peeper_(Pseudacris_crucifer).ogg/Spring_Peeper_(Pseudacris_crucifer).ogg.mp3"},{"id":"insects","file":"Field_cricket_unedited.ogg","author":"Thatcher","license":"CC BY-SA 3.0","description":"North American field cricket; unedited recording","source":"https://commons.wikimedia.org/wiki/File:Field_cricket_unedited.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/0/0d/Field_cricket_unedited.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/0/0d/Field_cricket_unedited.ogg/Field_cricket_unedited.ogg.mp3"},{"id":"dog","file":"George_vuf_1996.ogg","author":"Broadbeer","license":"Public domain","description":"Labrador bark","source":"https://commons.wikimedia.org/wiki/File:George_vuf_1996.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/4/4c/George_vuf_1996.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4c/George_vuf_1996.ogg/George_vuf_1996.ogg.mp3"},{"id":"splash","file":"Bathtub_water_splashes.ogg","author":"gradha","license":"Public domain","description":"Recorded water splashes","source":"https://commons.wikimedia.org/wiki/File:Bathtub_water_splashes.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/8/83/Bathtub_water_splashes.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/8/83/Bathtub_water_splashes.ogg/Bathtub_water_splashes.ogg.mp3"},{"id":"bubbles","file":"Water_bubbles_chortling.ogg","author":"stephan","license":"Public domain","description":"Real water bubbles","source":"https://commons.wikimedia.org/wiki/File:Water_bubbles_chortling.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/4/4b/Water_bubbles_chortling.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4b/Water_bubbles_chortling.ogg/Water_bubbles_chortling.ogg.mp3"},{"id":"gravel","file":"Assorted_gravel_rock_and_stones.ogg","author":"stephan","license":"Public domain","description":"Gravel and stone Foley","source":"https://commons.wikimedia.org/wiki/File:Assorted_gravel_rock_and_stones.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/a/a3/Assorted_gravel_rock_and_stones.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a3/Assorted_gravel_rock_and_stones.ogg/Assorted_gravel_rock_and_stones.ogg.mp3"},{"id":"sloshing","file":"Water_sloshing_in_a_small_bottle.ogg","author":"tamanders","license":"Public domain","description":"Sloshing water Foley","source":"https://commons.wikimedia.org/wiki/File:Water_sloshing_in_a_small_bottle.ogg","url":"https://upload.wikimedia.org/wikipedia/commons/1/1b/Water_sloshing_in_a_small_bottle.ogg","mp3":"https://upload.wikimedia.org/wikipedia/commons/transcoded/1/1b/Water_sloshing_in_a_small_bottle.ogg/Water_sloshing_in_a_small_bottle.ogg.mp3"}];
+const recorded={buffers:new Map(),pending:new Map(),loops:new Map(),master:null,started:false,lastMix:0,lastShots:new Map(),lastMessage:''};
+function audioStatus(){
+ const el=$('audioState');if(!el)return;
+ const count=recorded.buffers.size;
+ const label=!soundOn?'Sound off · tap speaker':!audio||audio.state!=='running'?'Tap speaker for sound':count?'Sound on · field recordings '+count+'/'+SOUND_ASSETS.length:'Sound on · loading nature sounds';
+ if(label!==recorded.lastMessage){recorded.lastMessage=label;el.textContent=label}
+}
+function rmsLevel(buffer){
+ let sum=0,n=0;
+ for(let c=0;c<buffer.numberOfChannels;c++){const d=buffer.getChannelData(c);for(let i=0;i<d.length;i+=20){sum+=d[i]*d[i];n++}}
+ return Math.max(.008,Math.sqrt(sum/Math.max(1,n)));
+}
+async function loadRecording(id){
+ if(recorded.buffers.has(id))return recorded.buffers.get(id);
+ if(recorded.pending.has(id))return recorded.pending.get(id);
+ const entry=SOUND_ASSETS.find(a=>a.id===id);if(!entry||!audio)return null;
+ const task=(async()=>{
+  for(const url of [entry.url,entry.mp3]){
+   let timer,ac;
+   try{
+    ac=new AbortController();timer=setTimeout(()=>ac.abort(),12000);
+    const res=await fetch(url,{signal:ac.signal,mode:'cors',cache:'force-cache'});
+    if(!res.ok)throw Error('HTTP '+res.status);
+    const bytes=await res.arrayBuffer();clearTimeout(timer);
+    const buffer=await audio.decodeAudioData(bytes);
+    if(buffer.duration<.1)throw Error('Invalid audio');
+    const item={buffer,rms:rmsLevel(buffer)};
+    recorded.buffers.set(id,item);
+    if(['creek','trickle','birds','frogs','insects'].includes(id))ensureLoop(id);
+    audioStatus();updateSoundMix(true);return item;
+   }catch(e){clearTimeout(timer)}
+  }
+  return null;
+ })();
+ recorded.pending.set(id,task);return task;
+}
+function startRecordedAudio(){
+ if(!audio)return;
+ if(!recorded.master){
+  const master=audio.createGain();master.gain.value=soundOn?.78:0;
+  const limiter=audio.createDynamicsCompressor();limiter.threshold.value=-15;limiter.knee.value=18;limiter.ratio.value=4;limiter.attack.value=.008;limiter.release.value=.19;
+  master.connect(limiter).connect(audio.destination);recorded.master=master;
+ }
+ if(!recorded.started){
+  recorded.started=true;
+  // Start the creek and immediate interaction sounds first; remaining layers arrive without blocking play.
+  Promise.allSettled(['creek','splash','trickle'].map(loadRecording)).then(()=>Promise.allSettled(['birds','frogs','insects','dog','bubbles','gravel','sloshing'].map(loadRecording))).then(audioStatus);
+ }
+ updateSoundMix(true);
+ audio.resume().then(audioStatus).catch(audioStatus);
+}
+function ensureLoop(id){
+ if(recorded.loops.has(id)||!recorded.master)return;
+ const item=recorded.buffers.get(id);if(!item)return;
+ try{
+  const src=audio.createBufferSource(),g=audio.createGain();src.buffer=item.buffer;src.loop=true;g.gain.value=0;
+  const filter=audio.createBiquadFilter();filter.type='lowpass';filter.frequency.value=id==='creek'?550:12000;
+  let pan=null;try{pan=audio.createStereoPanner();pan.pan.value=id==='birds'?.38:id==='frogs'?-.26:id==='insects'?.24:0}catch(e){}
+  src.connect(filter).connect(g);if(pan)g.connect(pan).connect(recorded.master);else g.connect(recorded.master);
+  src.start(0,Math.min(item.buffer.duration*.2,1.2));recorded.loops.set(id,{g,filter,item,pan});
+ }catch(e){}
+}
+function updateSoundMix(force=false){
+ if(!audio)return;
+ const t=audio.currentTime;if(!force&&t-recorded.lastMix<.18)return;recorded.lastMix=t;
+ const h=restoration.visual,active=soundOn&&!document.hidden;
+ const level={creek:.045+.16*h,trickle:.07*Math.max(0,(h-.10)/.90),insects:.055*Math.max(0,(h-.37)/.63),frogs:.065*Math.max(0,(h-.62)/.38),birds:.09*Math.max(0,(h-.48)/.52)};
+ const real=recorded.loops.has('creek');
+ if(ambient)ambient.gain.setTargetAtTime(active?(real?.025:.20+.15*h):0,t,.25);
+ if(creekFilter)creekFilter.frequency.setTargetAtTime(450+h*2500,t,.35);
+ if(recorded.master)recorded.master.gain.setTargetAtTime(active?.85:0,t,.12);
+ for(const [id,node] of recorded.loops){
+  const gain=Math.min(2.1,(level[id]||0)/node.item.rms);node.g.gain.setTargetAtTime(active?gain:0,t,.55);
+  if(id==='creek')node.filter.frequency.setTargetAtTime(500+9000*h,t,.6);
+ }
+ audioStatus();
+}
+function sampleOnset(item,duration){
+ // Select a recorded active region rather than an arbitrary silent section.
+ const b=item.buffer,d=b.getChannelData(0),sr=b.sampleRate,span=Math.min(b.duration,duration);
+ if(b.duration<=span+.08)return 0;
+ let best=0,bestRms=-1;
+ for(let tries=0;tries<7;tries++){let x=Math.random()*Math.max(0,b.duration-span-.02),j=Math.floor(x*sr),end=Math.min(d.length,j+Math.floor(span*sr));let e=0,n=0;for(let i=j;i<end;i+=Math.max(1,Math.floor(sr/1200))){e+=d[i]*d[i];n++}if(n&&e/n>bestRms){bestRms=e/n;best=x}}
+ return best;
+}
+function playRecording(id,{x=.5,level=.15,duration=.75,gap=.48,rate=1}={}){
+ if(!soundOn||!recorded.master||!audio||audio.state!=='running'||document.hidden)return false;
+ const item=recorded.buffers.get(id);if(!item)return false;
+ const t=audio.currentTime;if(t-(recorded.lastShots.get(id)??-99)<gap)return true;
+ try{
+  const src=audio.createBufferSource(),g=audio.createGain();src.buffer=item.buffer;src.playbackRate.value=rate;
+  const len=Math.min(item.buffer.duration,duration*rate),offset=sampleOnset(item,len),seconds=len/rate;
+  let peak=Math.min(2.4,level/item.rms);g.gain.setValueAtTime(.001,t);g.gain.linearRampToValueAtTime(peak,t+Math.min(.025,seconds*.20));g.gain.setValueAtTime(peak,t+Math.max(.026,seconds-.10));g.gain.linearRampToValueAtTime(.001,t+seconds);
+  src.connect(g);try{const p=audio.createStereoPanner();p.pan.value=clamp((x-.5)*1.6,-.8,.8);g.connect(p).connect(recorded.master)}catch(e){g.connect(recorded.master)}
+  src.start(t,offset,len);recorded.lastShots.set(id,t);return true;
+ }catch(e){return false}
+}
+const soundScore={
+ ripples:[['splash',.16,.55,1],['sloshing',.07,.45,.95]],
+ stones:[['gravel',.12,.7,.92],['splash',.10,.4,1]],
+ channels:[['sloshing',.16,1.0,.9],['splash',.08,.5,1]],
+ trout:[['splash',.16,.65,1.1],['bubbles',.08,.5,1.12]],
+ stepping:[['gravel',.13,.55,1.1],['splash',.10,.45,1]],
+ bubbles:[['bubbles',.17,1.0,1.08]],
+ dog:[['dog',.11,.35,1],['gravel',.07,.55,1.1]],
+ crayfish:[['gravel',.10,.5,1.2],['bubbles',.09,.7,.92]],
+ net:[['sloshing',.13,.65,1.05],['splash',.11,.45,1]],
+ horizon:[['splash',.14,.9,.8],['sloshing',.08,.8,.92]]
+};
+function playSceneSounds(k,x){
+ let played=false;for(const [id,level,duration,rate] of soundScore[k]||soundScore.ripples)played=playRecording(id,{x,level,duration,rate,gap:id==='dog'?2.6:.4})||played;
+ return played;
+}
+function soundMilestone(stage,x){
+ if(stage===1)playRecording('trickle',{x,level:.11,duration:1.6,gap:1.2});
+ if(stage===2)playRecording('birds',{x:.8,level:.075,duration:1.5,gap:2});
+ if(stage===3)playRecording('insects',{x:.72,level:.095,duration:1.6,gap:2});
+ if(stage===4){playRecording('splash',{x,level:.15,duration:.65,gap:.4});playRecording('frogs',{x:.2,level:.08,duration:2,gap:2})}
+ if(stage===5){playRecording('birds',{x:.8,level:.10,duration:2.4,gap:1});playRecording('frogs',{x:.2,level:.08,duration:2.1,gap:1})}
+ updateSoundMix(true);
+}
 function startSound(){if(!audioDecided){audioDecided=true;soundOn=true;$('sound').innerHTML=icon('sound');$('sound').setAttribute('aria-pressed','true');$('sound').setAttribute('aria-label','Mute sound')}enableAudio()}
 const restorationLabels=['Muddy water','Water clears','Green shoots','Insects return','Fish return','Creek restored'];
 function updateRestoreHUD(){
@@ -212,19 +340,21 @@ function restorePatch(x,y,source){
  restoration.stage=next;restoration.lastAt=performance.now();
  restoration.patches.push({x:clamp(x/W),y:clamp(y/H),t:clock});
  updateRestoreHUD();
+ soundMilestone(restoration.stage,clamp(x/W));
  if(soundOn&&audio&&audio.state==='running'){
   try{
    const t=audio.currentTime,n=restoration.stage;
    const seq=n===5?[392,523.25,659.25,783.99]:n===4?[392,587,784]:n===3?[659,880]:n===2?[392,523.25]:[261.63,392];
-   for(let i=0;i<seq.length;i++){const o=audio.createOscillator(),g=audio.createGain(),at=t+i*.11;o.type=i===0?'triangle':'sine';o.frequency.value=seq[i];g.gain.setValueAtTime(.001,at);g.gain.exponentialRampToValueAtTime(.10,at+.04);g.gain.exponentialRampToValueAtTime(.001,at+.65);o.connect(g).connect(audio.destination);o.start(at);o.stop(at+.7)}
-   if(n>=3){const o=audio.createOscillator(),g=audio.createGain(),at=t+.28;o.type='sine';o.frequency.setValueAtTime(1350,at);o.frequency.exponentialRampToValueAtTime(2300,at+.12);g.gain.setValueAtTime(.001,at);g.gain.exponentialRampToValueAtTime(.055,at+.03);g.gain.exponentialRampToValueAtTime(.001,at+.25);o.connect(g).connect(audio.destination);o.start(at);o.stop(at+.27)}
+   for(let i=0;i<seq.length;i++){const o=audio.createOscillator(),g=audio.createGain(),at=t+i*.11;o.type=i===0?'triangle':'sine';o.frequency.value=seq[i];g.gain.setValueAtTime(.001,at);g.gain.exponentialRampToValueAtTime(recorded.buffers.size?.035:.075,at+.04);g.gain.exponentialRampToValueAtTime(.001,at+.65);o.connect(g).connect(audio.destination);o.start(at);o.stop(at+.7)}
+   if(n>=3&&!recorded.buffers.has('insects')){const o=audio.createOscillator(),g=audio.createGain(),at=t+.28;o.type='sine';o.frequency.setValueAtTime(1350,at);o.frequency.exponentialRampToValueAtTime(2300,at+.12);g.gain.setValueAtTime(.001,at);g.gain.exponentialRampToValueAtTime(.055,at+.03);g.gain.exponentialRampToValueAtTime(.001,at+.25);o.connect(g).connect(audio.destination);o.start(at);o.stop(at+.27)}
   }catch(e){}
  }
  if(restoration.stage===5){if(phase==='free')$('prompt').textContent='Creek restored';toast('Creek restored. Rest whenever you like.')}
  else toast(restorationLabels[restoration.stage]);
 }
-function ecologySound(k='ripples'){
+function ecologySound(k='ripples',x=.5){
  if(!soundOn||!audio||audio.state!=='running')return;
+ if(playSceneSounds(k,x))return;
  let t=audio.currentTime;
  try{
   const splash=audio.createBuffer(1,Math.floor(audio.sampleRate*.3),audio.sampleRate),d=splash.getChannelData(0);let a=0;
@@ -259,7 +389,7 @@ function ecologyEvent(x,y,fromBody=false){
  if(k==='net')netLift=1;if(k==='horizon')viewShift=1-viewShift;
  if(k==='channels')channel=Math.min(5,channel+1);
  if(k==='trout')fishBoost=Math.min(4,fishBoost+1.5);
- ecologySound(k);restorePatch(x,y,fromBody?'body':'touch');
+ ecologySound(k,clamp(x/W));restorePatch(x,y,fromBody?'body':'touch');
 }
 function motionLoop(token){
  if(token!==cameraToken||!stream||phase!=='free')return;
@@ -352,7 +482,7 @@ async function quickCamera(){
 }
 
 function startDemo(m){stopCamera();input='demo';mode=m;phase='playing';paused=false;count=0;limit=5;session=null;resetScene();resetRestoration();hidePanel();renderHUD()}
-function reward(){if(phase!=='playing'||paused||count>=limit)return;count++;discoveries++;let k=mode.id;bursts.push({x:W*(.4+rand(count+38)*.28),y:H*.53,t:clock,kind:k==='bubbles'?'bubbles':'ripple'});if(k==='stones')stoneReveal=Math.min(1,count*.25);if(k==='dog')dogTravel++;if(k==='crayfish')crayTravel++;if(k==='net')netLift=1;if(k==='horizon')viewShift=1-viewShift;if(k==='channels')channel=Math.min(5,count);if(k==='trout')fishBoost+=2;chime();restorePatch(W*.5,H*.55,input==='camera'?'approved-cycle':'touch');drawProgress();if(count>=limit){phase='complete';paused=false;stopCamera();setMeter(0);renderHUD();completePanel()}}
+function reward(){if(phase!=='playing'||paused||count>=limit)return;count++;discoveries++;let k=mode.id;bursts.push({x:W*(.4+rand(count+38)*.28),y:H*.53,t:clock,kind:k==='bubbles'?'bubbles':'ripple'});if(k==='stones')stoneReveal=Math.min(1,count*.25);if(k==='dog')dogTravel++;if(k==='crayfish')crayTravel++;if(k==='net')netLift=1;if(k==='horizon')viewShift=1-viewShift;if(k==='channels')channel=Math.min(5,count);if(k==='trout')fishBoost+=2;ecologySound(k,.5);restorePatch(W*.5,H*.55,input==='camera'?'approved-cycle':'touch');drawProgress();if(count>=limit){phase='complete';paused=false;stopCamera();setMeter(0);renderHUD();completePanel()}}
 function completePanel(){showPanel(`<div class="kicker">${input==='camera'?'Guided session':'Field notes'}</div><div class="summarynum">${count} / ${limit}</div><h2>${input==='camera'?'Session complete.':'Creek restored.'}</h2><p>${input==='camera'?'Game-detected repetitions only. This is not a clinical assessment.':'Your creek is a little more alive.'}</p><button class="primary" id="again">${input==='camera'?'Finish':'Next game'} ${icon('arrow')}</button><button class="secondary" id="home">Home</button>`);$('again').onclick=()=>input==='camera'?welcome():startDemo(modes[(modes.indexOf(mode)+1)%modes.length]);$('home').onclick=welcome}
 function picker(kind='demo',p=0){page=p;let oldPhase=phase;const entries=modes.slice(p*5,p*5+5);showPanel(`<div class="kicker">${kind==='camera'?'Therapist setup':'Choose a habitat'}</div><h2>${kind==='camera'?'Approved movement':'Explore the creek'}</h2><button class="iconbtn close" id="closePanel" aria-label="Close">${icon('x')}</button><div class="modegrid">${entries.map(m=>`<button class="tile ${m===mode?'active':''}" data-mode="${m.id}"><span class="tileicon">${m.glyph}</span><span><strong>${kind==='camera'?m.exercise:m.name}</strong><small>${kind==='camera'?m.name:m.exercise}</small></span></button>`).join('')}</div><div class="pagination"><button class="secondary" id="prev" ${p===0?'disabled':''}>‹ Back</button><span class="counter">${p+1} / 2</span><button class="secondary" id="next" ${p===1?'disabled':''}>More ›</button></div>`);$('panel').querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{let m=modes.find(x=>x.id===b.dataset.mode);kind==='camera'?configure(m):startDemo(m)});$('prev').onclick=()=>picker(kind,p-1);$('next').onclick=()=>picker(kind,p+1);$('closePanel').onclick=()=>kind==='camera'?welcome():oldPhase==='welcome'?welcome():hidePanel()}
 function setupStart(){restoreCamera();$('app').classList.remove('free');phase='setup';paused=false;input='demo';picker('camera')}
@@ -454,7 +584,7 @@ function startCameraGame(){if(!setup||!stream||!setup.target)return;input='camer
 function consumeMetric(v,t){if(!session||phase!=='playing'||paused||input!=='camera'||document.hidden)return;let s=session;if(!Number.isFinite(v))return;let p=(v-s.base)/s.delta;s.smooth=s.smooth===null?p:s.smooth*.40+p*.60;let x=s.smooth;setMeter(clamp(x));let need=2;if(x>1.35||x<-.45){s.state='needNeutral';s.hits=0;$('hint').textContent='Return to the recorded start.';return}let pass=s.state==='target'?x>=.72&&x<=1.22:x>=-.26&&x<=.26;if(pass)s.hits++;else s.hits=0;if(s.hits>=need){s.hits=0;if(s.state==='needNeutral'){s.state='target';$('hint').textContent='Your approved movement.'}else if(s.state==='target'){s.state='return';$('hint').textContent='Return to the start.'}else if(s.state==='return'){if(t-s.lastCount>650){s.lastCount=t;reward()}s.state='target';if(phase==='playing')$('hint').textContent='Your approved movement.'}}}
 function runPose(token){if(token!==runToken||!stream||!landmarker)return;const loop=t=>{if(token!==runToken||!stream)return;let valid=false;if(VIDEO.readyState>=2&&t-lastInfer>=90&&VIDEO.currentTime!==lastVideoTime){lastInfer=t;lastVideoTime=VIDEO.currentTime;try{let stamp=Math.max(performance.now(),lastInferStamp+.01);lastInferStamp=stamp;let r=landmarker.detectForVideo(VIDEO,stamp);let lm=r.landmarks?.[0];lastPose=lm||null;renderPose(lastPose);if(phase==='free'||phase==='preview'||phase==='setup'){let seen=!!lm&&lm.filter(p=>(p.visibility??1)>.5).length>=5;if(seen)lastGood=performance.now();updateCameraLabel(seen);if(phase==='free')freePose(lm,seen,t);}else{let v=metric(lm,setup?.mode,setup?.side,VIDEO.videoWidth,VIDEO.videoHeight);valid=v!==null&&Number.isFinite(v);if(valid){lastGood=performance.now();lastMetric=v;calSamples.push({t:lastGood,v});calSamples=calSamples.filter(s=>lastGood-s.t<=1250);updateCameraLabel(true);if(phase==='calibrate')setCalButtons();consumeMetric(v,lastGood)}else{lastMetric=null;calSamples=[];updateCameraLabel(false);if(session&&phase==='playing'){session.state='needNeutral';session.hits=0;session.smooth=null;setMeter(0)}if(phase==='calibrate')setCalButtons()}}}catch(e){if(phase==='free'&&$('freeStatus'))$('freeStatus').textContent='TRACKING ERROR';if(phase==='preview'&&$('previewStatus'))$('previewStatus').textContent='Pose inference failed. Camera remains available.';lastMetric=null;calSamples=[];updateCameraLabel(false);if(session&&phase==='playing'){session.state='needNeutral';session.hits=0;session.smooth=null;setMeter(0)}}}let elapsed=performance.now()-lastGood;if(elapsed>500){if(trackStatus){updateCameraLabel(false);if(phase==='calibrate')setCalButtons()}if(session&&phase==='playing'){session.state='needNeutral';session.hits=0;session.smooth=null;setMeter(0)}}if(input==='camera'&&phase==='playing'&&elapsed>1200){pausePanel('Tracking lost. A helper should check the camera before resuming.')}if(token===runToken&&stream)rafPose=requestAnimationFrame(loop)};rafPose=requestAnimationFrame(loop)}
 // No score while the app is hidden. End camera access when navigating away.
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&phase==='free'){return}if(document.hidden&&phase==='playing'){pausePanel('The game was interrupted. Resume when ready.')}});window.addEventListener('pagehide',stopCamera);window.addEventListener('keydown',e=>{if(e.key==='Escape'&&phase==='playing'){e.preventDefault();pausePanel()}if(e.code==='Space'&&phase==='free'&&e.target===document.body){e.preventDefault();freeTouch()}if(e.code==='Space'&&phase==='playing'&&input==='demo'&&e.target===document.body){e.preventDefault();reward()}});
+document.addEventListener('visibilitychange',()=>{if(audio)updateSoundMix(true);if(document.hidden&&phase==='free'){return}if(document.hidden&&phase==='playing'){pausePanel('The game was interrupted. Resume when ready.')}});window.addEventListener('pagehide',()=>{stopCamera();if(audio){if(recorded.master)recorded.master.gain.value=0;if(ambient)ambient.gain.value=0;audio.suspend().catch(()=>{})}});window.addEventListener('keydown',e=>{if(e.key==='Escape'&&phase==='playing'){e.preventDefault();pausePanel()}if(e.code==='Space'&&phase==='free'&&e.target===document.body){e.preventDefault();freeTouch()}if(e.code==='Space'&&phase==='playing'&&input==='demo'&&e.target===document.body){e.preventDefault();reward()}});
 $('ptSetup').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="4" r="2"/><path d="M5 9h14M12 6v8m0 0-4 7m4-7 4 7"/></svg>';
 $('ptSetup').onclick=()=>{if(phase==='free'&&!loading)setupStart()};
 $('cameraCheck').innerHTML=icon('cam');
