@@ -1497,7 +1497,7 @@ function soundFrame(dt) {
   if (LOOPS.stream) LOOPS.stream.gain.setTargetAtTime(on * (.05 + h * .5), t, .4);          // the creek is a trickle when wrecked, full when well
   if (LOOPS.hum) LOOPS.hum.gain.setTargetAtTime(on * (1 - h) * (1 - h) * .55, t, .4);       // machinery fades as it heals
   if (LOOPS.birds) LOOPS.birds.gain.setTargetAtTime(on * h * h * .7, t, .6);                // birds return last
-  const s = st === 'play' && S.snd && G.lost < 1 ? clamp(G.sd, 0, 1) : 0, lock = s && G.hold > 0 ? 1 : 0, f = 330 * Math.pow(2, s);   // an octave from rest to target
+  const s = (st === 'play' || st === 'show') && S.snd && G.lost < 1 ? clamp(G.sd, 0, 1) : 0, lock = s && G.hold > 0 ? 1 : 0, f = 330 * Math.pow(2, s);   // an octave from rest to target
   bodyOsc.a.o.frequency.setTargetAtTime(f, t, .04); bodyOsc.a.g.gain.setTargetAtTime(s > .06 ? .04 + s * .09 : 0, t, .06);
   bodyOsc.b.o.frequency.setTargetAtTime(f * 1.5, t, .04); bodyOsc.b.g.gain.setTargetAtTime(lock * .08, t, .05);                      // a fifth joins while the hold counts
   if (on && !LOOPS.birds && Math.random() < dt * h * h * .45) { const bf = 2400 + Math.random() * 1800, k = 2 + (Math.random() * 3 | 0); for (let i = 0; i < k; i++) tone(bf * (1 + i * .06), .09, 'sine', .045, 1.25, i * .13); }  // birds come back with the water
@@ -1741,14 +1741,14 @@ async function next(keepVoice) {
     catch (e) { PACED = true; say('No camera. Follow the tone. Move as it rises. Return as it falls.'); }   // the session goes on without tracking
     if (st !== 'load' || G.id !== id) return;
   }
-  st = 'intro';
+  if (EX[id].sig !== 'free' && !SENSOR && (!SIM || Q.has('show'))) { st = 'show'; G.showT = 0; G.shown = true; say(VO[id][2]); } else st = 'intro';
 }
 function goHome() { if (wasFree) { wasFree = false; return showTitle(); } st = 'home'; newGame('kick'); $('title').hidden = true; home.hidden = false; xBtn.hidden = true; ambient(true); paintHome(); }
 function rep() { if (SENSOR) { G.n++; G.cue = 0; SFX.plink((G.n - 1) % 10); return; }   // the big screen keeps score and does the talking
   G.n++; G.cue = 0; SFX.plink(G.n - 1); say(String(G.n), true); if (G.n >= reps()) G.end = T + 1.6; }
 function finish() { const whole = G.n >= reps(); logReps(G.id, G.n, whole); sessDone++; st = 'done'; G.doneAt = T; if (whole) { SFX.win(); say('Done. ' + VO[G.id][3], true); } else say(G.n ? 'Saved. Rest now.' : 'Resting.', true); }
 xBtn.onclick = () => { if (SENSOR) { netLeave(); location.href = location.pathname; return; } if (st === 'tv') { netLeave(); try { speechSynthesis.cancel(); } catch (e) {} return showTitle(); } if (st === 'howto') { S.seenIntro = true; save(); } if (st === 'play' && G.n) logReps(G.id, G.n, false); queue = []; try { speechSynthesis.cancel(); } catch (e) {} goHome(); };
-cv.addEventListener('pointerdown', () => { if (st === 'done' && T - G.doneAt > .6) next(); else if (st === 'howto' && HW.t > .4) howNext(); });
+cv.addEventListener('pointerdown', () => { if (st === 'done' && T - G.doneAt > .6) next(); else if (st === 'howto' && HW.t > .4) howNext(); else if (st === 'show' && G.showT > .5) { st = 'intro'; G.sd = 0; G.hold = 0; } });
 
 function fire(side) {
   const id = G.id; G.side = side || 0; G.fireAt = T; G.idle = 0;
@@ -1772,6 +1772,7 @@ function update(dt) {
   if (SENSOR && (st === 'intro' || st === 'play') && (sendT -= dt) <= 0) { sendT = .2; sensorSend(); }
   if (st === 'howto') { HW.t += dt; if (HW.t > HOW[HW.i].dur) howNext(); return; }
   if (camOn || SIM) commands(dt);
+  if (st === 'show') { G.showT += dt; G.sd = showP(G.showT); G.hold = G.sd >= 1 ? .01 : 0; if (G.showT > SHOW_LEN) { st = 'intro'; G.sd = 0; G.hold = 0; } return; }
   if (st === 'intro') {
     const timed = EX[G.id].sig === 'timer' || PACED;
     if (timed) G.seen += dt * .4;
@@ -1783,7 +1784,7 @@ function update(dt) {
       if (code && (G.nag += dt) > 9) { G.nag = 0; say(FRAME_SAY[code]); }
       if ((G.tick = (G.tick || 0) - dt) <= 0) { if (code) { G.tick = code === 'none' ? 1.1 : .5; tone(code === 'none' ? 330 : 440, .07, 'sine', .18); } else { G.tick = .22; tone(660 + G.seen * 180, .09, 'sine', .16); } }
     }
-    if (G.seen > (EX[G.id].sig === 'free' ? .4 : 1.6)) { st = 'play'; SFX.ready(); say(VO[G.id][2] + (HINTED || PACED || EX[G.id].sig === 'free' ? '' : EX[G.id].env === 'bed' ? ' Show a thumbs up to skip. An open hand to stop.' : ' Raise one hand to skip. Both hands to stop.')); if (EX[G.id].sig !== 'free') HINTED = true; }
+    if (G.seen > (EX[G.id].sig === 'free' ? .4 : 1.6)) { st = 'play'; SFX.ready(); say((G.shown ? 'Your turn.' : VO[G.id][2]) + (HINTED || PACED || EX[G.id].sig === 'free' ? '' : EX[G.id].env === 'bed' ? ' Show a thumbs up to skip. An open hand to stop.' : ' Raise one hand to skip. Both hands to stop.')); if (EX[G.id].sig !== 'free') HINTED = true; }
     return;
   }
   if (st !== 'play') return;
@@ -2243,11 +2244,31 @@ function sceneHow() {
 }
 
 /* ---------- pictograms: how to move, where the phone goes, the camera inset ---------- */
+/* ---------- the demonstration: before each exercise a figure does it twice, in the scene, and the creek answers ----------
+   G.sd is driven by the figure while it plays, so the rails, the tone and the creek show what the movement will do. */
+let DW = 1;
+const showP = t => { const q = t % 3.6; return q < 1 ? ease(q) : q < 1.9 ? 1 : q < 2.9 ? 1 - ease(q - 1.9) : 0; };
+function showCard() {
+  const t = G.showT, q = t % 3.6, p = showP(t), hold = q >= 1 && q < 1.9, z = Math.min(W * .33, H * .2), cx = W / 2, cy = H * .56, GRN = '#7ee081';
+  let g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0e2226cc'); g.addColorStop(.2, '#0e222622'); g.addColorStop(.7, '#0e222644'); g.addColorStop(1, '#0e2226f0'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  c.fillStyle = '#0e2226c4'; c.beginPath(); c.arc(cx, cy, z * 1.25, 0, TAU); c.fill();
+  c.lineCap = 'round'; c.lineWidth = z * .07; c.strokeStyle = '#ffffff22'; c.beginPath(); c.arc(cx, cy, z * 1.25, 0, TAU); c.stroke(); c.strokeStyle = hold ? GRN : C.amber; c.beginPath(); c.arc(cx, cy, z * 1.25, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(p)); c.stroke();
+  DW = 1.9; demo(G.id, cx, cy + z * .2 - (hold ? Math.sin((q - 1) / .9 * Math.PI) * z * .02 : 0), z, p); DW = 1;
+  const bw = Math.max(12, u * 3.4), y0 = H * .16, bh = H * .66; [0, W - bw].forEach(x => { c.fillStyle = '#0e222688'; c.fillRect(x, y0, bw, bh); c.fillStyle = hold ? GRN : C.amber; c.fillRect(x, y0 + bh * (1 - p), bw, bh * p); c.fillStyle = C.cream; c.fillRect(x, y0 - u * .8, bw, u * .8); });
+  c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineJoin = 'round';
+  if (q >= 1 && q < 2.5) { const k = clamp((q - 1) / .3), sc = 1 + Math.sin(k * Math.PI) * .35, fs = u * 15 * sc; c.font = `800 ${fs}px ui-rounded,system-ui,sans-serif`; c.lineWidth = fs * .2; c.strokeStyle = '#0e2226'; const n = String(Math.floor(t / 3.6) + 1); c.strokeText(n, cx + z * 1.02, cy - z * 1.02); c.fillStyle = GRN; c.fillText(n, cx + z * 1.02, cy - z * 1.02); }
+  const title = VO[G.id][0].toUpperCase(), fs = Math.min(W * .095, u * 9.5, W * 1.5 / title.length); c.font = `800 ${fs}px ui-rounded,system-ui,sans-serif`; c.lineWidth = fs * .22; c.strokeStyle = '#0e2226'; c.strokeText(title, cx, H * .115); c.fillStyle = C.cream; c.fillText(title, cx, H * .115);
+  const cs = Math.min(W * .058, u * 5.6), words = VO[G.id][2].toUpperCase().split(' '), lines = ['']; c.font = `800 ${cs}px ui-rounded,system-ui,sans-serif`;
+  words.forEach(w => { const cur = lines[lines.length - 1], nx = cur ? cur + ' ' + w : w; if (c.measureText(nx).width > W * .84 && cur) lines.push(w); else lines[lines.length - 1] = nx; });
+  lines.forEach((ln, i) => { const y = Math.min(H * .86, cy + z * 1.25 + cs * 2.2) + i * cs * 1.3; c.lineWidth = cs * .22; c.strokeStyle = '#0e2226'; c.strokeText(ln, cx, y); c.fillStyle = C.amber; c.fillText(ln, cx, y); });
+  c.fillStyle = '#ffffff22'; c.fillRect(0, H - u * 1.2, W, u * 1.2); c.fillStyle = C.amber; c.fillRect(0, H - u * 1.2, W * clamp(t / SHOW_LEN), u * 1.2);
+}
+const SHOW_LEN = 7.3;
 function demo(id, x, y, z, p) {
   if (id === 'free') id = 'abd';
   c.save(); c.translate(x, y); c.scale(z, z); c.lineCap = 'round'; c.lineJoin = 'round';
-  const ln = (pts, col = C.cream, w = .075) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); pts.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); c.stroke(); };
-  const hd = (a, b) => { c.fillStyle = C.cream; c.beginPath(); c.arc(a, b, .1, 0, TAU); c.fill(); };
+  const ln = (pts, col = C.cream, w = .075) => { c.strokeStyle = col; c.lineWidth = w * DW; c.beginPath(); pts.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); c.stroke(); };
+  const hd = (a, b) => { c.fillStyle = C.cream; c.beginPath(); c.arc(a, b, DW > 1 ? .135 : .1, 0, TAU); c.fill(); };
   const dim = '#ffffff66', floor = () => ln([[-.6, .44], [.6, .44]], '#ffffff33', .03);
   const chair = (cx = -.28) => { ln([[cx, -.62], [cx, .4]], dim, .05); ln([[cx, -.1], [cx + .4, -.1], [cx + .4, .4]], dim, .05); };
   const rail = x0 => { ln([[x0, -.22], [x0, .44]], dim, .05); ln([[x0 - .1, -.22], [x0 + .1, -.22]], dim, .05); };
@@ -2379,6 +2400,7 @@ function draw() {
   if (st === 'load') { creek(H * .3, H * .86); c.fillStyle = '#0e2226aa'; c.fillRect(0, 0, W, H); for (let i = 0; i < 3; i++) { const k = (T * .6 + i / 3) % 1; c.globalAlpha = 1 - k; c.strokeStyle = C.cream; c.lineWidth = u; c.beginPath(); c.ellipse(W / 2, H / 2, u * 30 * k, u * 9 * k, 0, 0, TAU); c.stroke(); } c.globalAlpha = 1; return; }
   SCENES[G.id]();
   const land = W > H, e = EX[G.id], timed = e.sig === 'timer' || PACED, lying = e.env === 'bed';
+  if (st === 'show') { showCard(); cmdRing(); return; }
   if (st === 'intro') {
     if (timed) { c.fillStyle = '#0e2226cc'; c.fillRect(0, 0, W, H); const dz = land ? Math.min(H * .34, W * .2) : Math.min(W * .34, H * .19); demo(G.id, W / 2, H * .42, dz * 1.2, demoP()); ring(W / 2, H * .72, u * 7, G.seen / 1.6); }
     else coach(false);
@@ -2391,7 +2413,7 @@ function draw() {
       // the body's signal as two side rails: they fill toward the top, and turn green while the hold counts
       const s = clamp(G.sd, 0, 1), bw = Math.max(12, u * 3.4), y0 = H * .16, bh = H * .66, on = G.hold > 0 || s >= 1;
       [0, W - bw].forEach(x => { c.fillStyle = '#0e222688'; c.fillRect(x, y0, bw, bh); c.fillStyle = on ? '#7ee081' : C.amber; c.fillRect(x, y0 + bh * (1 - s), bw, bh * s); c.fillStyle = C.cream; c.fillRect(x, y0 - u * .8, bw, u * .8); });
-      c.font = `700 ${u * 17}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineWidth = u * 1.6; c.strokeStyle = '#0e2226cc'; c.lineJoin = 'round'; c.strokeText(G.n, W / 2, Math.max(10, u * 3)); c.fillStyle = C.cream; c.fillText(G.n, W / 2, Math.max(10, u * 3)); c.textBaseline = 'alphabetic'; if (!timed && G.id !== 'free') avatar();
+      c.font = `700 ${u * 17}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineWidth = u * 1.6; c.strokeStyle = '#0e2226cc'; c.lineJoin = 'round'; c.strokeText(G.n, W / 2, Math.max(10, u * 3)); c.fillStyle = C.cream; c.fillText(G.n, W / 2, Math.max(10, u * 3)); c.textBaseline = 'alphabetic'; if (!timed && G.id !== 'free') { avatar(); if (G.n < 2) { const gz = land ? H * .15 : H * .085, gx = land ? W * .86 : W * .8, gy = land ? H * .62 : H * .75; c.fillStyle = '#0e222699'; c.beginPath(); c.ellipse(gx, gy - gz * .2, gz * 1.15, gz * 1.3, 0, 0, TAU); c.fill(); DW = 1.7; demo(G.id, gx, gy, gz, demoP()); DW = 1; } }
     }
     pebbles(H - Math.max(u * 6, 26)); cmdRing(); return;
   }
@@ -2499,7 +2521,7 @@ function frame(now) {
   try {
     if (camOn || SIM) { if (st !== 'load') detect(now); hands(now); }
     const how3 = st === 'howto' && HW.i === 5, b = st === 'tv' ? 1 - Math.exp(-TV.total / (14 * Math.max(1, tvActive().length))) : how3 ? clamp(HW.t / 4) : st === 'howto' ? 0 : Q.get('health') != null ? +Q.get('health') : baseHealth(), part = st === 'home' || st === 'howto' || st === 'title' ? 0 : clamp((sessDone + (st === 'done' ? 0 : clamp(G.px / reps()))) / sessTotal);
-    HEALTH += (b + (1 - b) * .75 * part - HEALTH) * (1 - Math.exp(-dt * (how3 ? 6 : 1.5))); PUSH = st === 'play' && G.lost < 1 ? clamp(G.sd, 0, 1) : 0;
+    HEALTH += (b + (1 - b) * .75 * part - HEALTH) * (1 - Math.exp(-dt * (how3 ? 6 : 1.5))); PUSH = (st === 'play' || st === 'show') && G.lost < 1 ? clamp(G.sd, 0, 1) : 0;
     update(dt); draw(); soundFrame(dt);
   } catch (e) { console.error(e); }      // one bad frame must not stop the session
   requestAnimationFrame(frame);
