@@ -17,6 +17,18 @@ html,body{margin:0;height:100%;background:var(--deep);color:var(--cream);overflo
 #go{border:0;border-radius:60px;background:var(--amber);color:var(--ink);font-family:inherit;font-weight:800;font-size:clamp(26px,8vmin,40px);line-height:1;letter-spacing:.14em;padding:.62em 1.5em .62em 1.64em;box-shadow:0 7px 0 #a8791f,0 0 0 0 #f2b84b88;cursor:pointer;animation:pulse 1.8s ease-out infinite}
 #go:active{transform:translateY(5px);box-shadow:0 2px 0 #a8791f}
 @keyframes pulse{70%{box-shadow:0 7px 0 #a8791f,0 0 0 22px #f2b84b00}100%{box-shadow:0 7px 0 #a8791f,0 0 0 0 #f2b84b00}}
+#place{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;background:#0e2226f2;overflow-y:auto}
+#place[hidden],#skip[hidden]{display:none}
+#place h2{margin:0 0 4px;font-size:clamp(20px,6vmin,30px);letter-spacing:.1em;text-align:center}
+.pc{display:grid;grid-template-columns:104px 1fr;gap:12px;align-items:center;width:min(94vw,470px);border:3px solid transparent;border-radius:22px;padding:8px 14px 8px 8px;background:linear-gradient(#2a6a6c,#1b4e55);color:var(--cream);text-align:left;font-family:inherit;cursor:pointer;box-shadow:0 5px 0 #0c2a2f}
+.pc.on{border-color:var(--amber)}
+.pc:active{transform:translateY(3px);box-shadow:0 2px 0 #0c2a2f}
+.pc canvas{width:104px;height:104px;border-radius:16px;background:#0e2226aa}
+.pc b{display:block;font-size:19px;letter-spacing:.06em;margin-bottom:4px}
+.pc span{display:block;font-size:14px;line-height:1.35;color:#f6f0e0cc}
+@media (orientation:landscape) and (max-height:520px){#place{flex-direction:row;flex-wrap:wrap}#place h2{width:100%}.pc{width:min(31vw,300px);grid-template-columns:1fr;text-align:center}.pc canvas{margin:0 auto;width:84px;height:84px}}
+#skip{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(64px,env(safe-area-inset-bottom));width:74px;height:74px;border-radius:50%;border:0;background:#0e2226cc;color:var(--cream);display:grid;place-items:center;cursor:pointer}
+#skip svg{width:34px;height:34px}
 #how,#mine,#big{border:0;background:#0e2226b0;color:var(--cream);font-family:inherit;font-weight:700;font-size:13px;line-height:1;letter-spacing:.12em;padding:13px 14px;border-radius:30px;cursor:pointer}
 h1{position:absolute;left:16px;top:max(12px,env(safe-area-inset-top));margin:0;font-size:20px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;display:flex;align-items:center;gap:.4em;color:var(--ink)}
 h1 svg{width:1.3em;height:1.3em}
@@ -78,11 +90,19 @@ h1 svg{width:1.3em;height:1.3em}
   <div id="tiles"></div>
   <div id="bar">
     <button class="rb" id="cfg" style="order:0" aria-label="Exercise sheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.8h6V4M8.5 10l1.5 1.5 2.5-3M8.5 16l1.5 1.5 2.5-3M15 11h1M15 17h1"/></svg></button>
+    <button class="rb" id="where" style="order:3" aria-label="Where is the phone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18h2"/></svg></button>
     <button class="rb" id="help" style="order:2" aria-label="How to play"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9a3 3 0 1 1 4.6 2.5c-1 .7-1.6 1.3-1.6 2.5"/><circle cx="12" cy="18" r=".6" fill="currentColor"/></svg></button>
     <button class="rb" id="all" style="order:1" aria-label="Play all"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.9l12.5-7.5a1 1 0 0 0 0-1.8L8.5 3.6A1 1 0 0 0 7 4.5z"/></svg></button>
   </div>
 </div>
 <div id="title" hidden><button id="go">START</button><div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center"><button id="big" class="t2">BIG SCREEN</button><button id="mine" class="t2">MY EXERCISES</button><button id="how" class="t2">HOW TO PLAY</button></div></div>
+<div id="place" hidden>
+  <h2>WHERE IS THE PHONE?</h2>
+  <button class="pc" data-p="leg"><canvas></canvas><div><b>ON MY LEG</b><span>Hold it flat on your thigh. It feels your leg move. You can see it and tap it.</span></div></button>
+  <button class="pc" data-p="prop"><canvas></canvas><div><b>PROPPED UP</b><span>Lean it up, 3 big steps away. Arms and voice run it. No touching.</span></div></button>
+  <button class="pc" data-p="help"><canvas></canvas><div><b>SOMEONE HOLDS IT</b><span>They point the back camera at you and tap for you.</span></div></button>
+</div>
+<button id="skip" hidden aria-label="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 5v14l9-7zM13 5v14l9-7z"/></svg></button>
 <div id="setup" hidden></div>
 <button id="x" hidden aria-label="Stop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
 
@@ -1539,15 +1559,45 @@ const nextTrack = () => { S.track = (S.track + 1) % TRACKS.length; save(); loadT
 song.addEventListener('ended', nextTrack);
 song.addEventListener('error', () => { if (/\.mp3$/.test(song.src)) { loadTrack(true); if (S.music) song.play().catch(() => {}); } else if (++songErr < 3) nextTrack(); });
 
+/* ---------- where the phone is ----------
+   Holding the phone and being seen by it pull against each other, so the player says which one they are doing:
+   leg   the phone lies flat on the thigh, held by a hand. No camera. The motion sensor reads how far the thigh tilts
+         from where it rests, which is the movement itself for marching, knee raises, sit to stand, heel slides and
+         leg lifts. The screen is in view and in reach, so touch controls it. Exercises the thigh cannot report
+         (ankle pumps, knee extensions, lying leg slides, heel raises, squeezes) are paced by the tone instead.
+   prop  the phone leans against something three big steps away and its front camera reads the body. Nothing is
+         touched after the first tap: the session runs itself, an arm overhead skips or starts again, both arms stop.
+   help  someone else holds the phone, points the back camera at the player, and taps for them. */
+let PLACE = Q.get('place') || S.place || 'prop';
+const TAMP = { free: [13, 13, 13], march: [9, 15, 22], flex: [14, 24, 36], stand: [38, 52, 66], slide: [12, 22, 34], abd: [7, 12, 17], ext: [6, 10, 14] };   // degrees of thigh tilt for small / medium / large
+const TILT = { g: null, base: null, t: -9, ang: 0, on: false, denied: false };
+const isTimed = id => EX[id].sig === 'timer' || PACED || (PLACE === 'leg' && !TAMP[id]);
+async function tiltStart() {
+  if (TILT.on) return true;
+  try { if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) { if (await DeviceMotionEvent.requestPermission() !== 'granted') throw new Error('denied'); } } catch (e) { TILT.denied = true; return false; }
+  addEventListener('devicemotion', ev => { const a = ev.accelerationIncludingGravity; if (!a || a.x == null) return; const n = Math.hypot(a.x, a.y, a.z) || 1, v = [a.x / n, a.y / n, a.z / n]; TILT.g = TILT.g ? TILT.g.map((q, i) => q + (v[i] - q) * .18) : v; TILT.t = T; });
+  TILT.on = true; return true;
+}
+function tiltSignal(dt) {   // angle between where gravity points on the phone now and where it points at rest
+  const amp = TAMP[G.id][S.ex[G.id].size - 1];
+  if (SIM) { const cyc = T % 4.2, p = st === 'play' && !G.busy ? (cyc < .8 ? 0 : cyc < 1.6 ? ease((cyc - .8) / .8) : cyc < 3.2 ? 1 : cyc < 3.9 ? 1 - ease((cyc - 3.2) / .7) : 0) : 0, a = p * amp * 1.4 * Math.PI / 180; TILT.g = [0, Math.sin(a), Math.cos(a)]; TILT.t = T; }
+  const g = TILT.g; if (!g) return { s: 0, side: 0 };
+  const b = TILT.base || (TILT.base = g.slice()), ang = Math.acos(clamp(g[0] * b[0] + g[1] * b[1] + g[2] * b[2], -1, 1)) * 180 / Math.PI, k = 1 - Math.exp(-dt * (ang < amp * .3 ? 2.5 : .04));
+  for (let i = 0; i < 3; i++) b[i] += (g[i] - b[i]) * k; const n = Math.hypot(b[0], b[1], b[2]) || 1; for (let i = 0; i < 3; i++) b[i] /= n;
+  TILT.ang = ang; return { s: ang / amp, side: 0 };
+}
+function stopCam() { try { vid.srcObject && vid.srcObject.getTracks().forEach(t => t.stop()); } catch (e) {} vid.srcObject = null; camOn = false; lm = null; roi = null; camFace = ''; }
+let camFace = '';
+
 /* ---------- pose ---------- */
 let landmarker = null, lm = null, asp = .75, lastVT = -1, camOn = false;
 async function startCam() {
   if (SIM || camOn) return;
   if (!navigator.mediaDevices?.getUserMedia) throw new Error('nocam');
-  const sm = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+  const sm = await navigator.mediaDevices.getUserMedia({ video: { facingMode: PLACE === 'help' ? 'environment' : 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
   vid.srcObject = sm; await vid.play();
   await new Promise(r => vid.videoWidth ? r() : vid.addEventListener('loadedmetadata', r, { once: true }));
-  asp = vid.videoWidth / vid.videoHeight; camOn = true;
+  asp = vid.videoWidth / vid.videoHeight; camOn = true; camFace = PLACE === 'help' ? 'back' : 'front';
   wake();
 }
 async function loadPose() {
@@ -1594,6 +1644,7 @@ function detect(now) {
   roi.x = clamp(roi.x, 0, 1 - roi.s); roi.y = clamp(roi.y, 0, 1 - roi.s);
 }
 function framing() { // what is wrong with the picture, if anything
+  if (PLACE === 'leg') return '';
   if (EX[G.id].sig === 'free') return seen(G.id) ? '' : 'none';
   if (!lm) return 'none'; const v = lm.filter(p => p.visibility > .5); if (v.length < 4) return 'none';
   const xs = v.map(p => p.x), ys = v.map(p => p.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), bh = y1 - y0;
@@ -1610,7 +1661,7 @@ const FRAME_SAY = { none: 'Step into the frame.', bed: 'Move the phone until it 
 const vis = i => lm[i].visibility > .4;
 const ENDS = [15, 16, 25, 26, 27, 28];   // wrists, knees, ankles: what free movement watches
 const visLegs = need => [0, 1].filter(k => need.every(i => vis(i + k)));
-function seen(id) { const e = EX[id]; if (e.sig === 'free') return PACED || (!!lm && ENDS.some(vis) && ([11, 12].every(vis) || [23, 24].every(vis))); if (e.sig === 'timer' || PACED) return true; return !!lm && e.core.every(vis) && (!e.leg.length || visLegs(e.leg).length > 0); }
+function seen(id) { const e = EX[id]; if (PLACE === 'leg') return isTimed(id) || SIM || (!!TILT.g && T - TILT.t < 1.5); if (e.sig === 'free') return PACED || (!!lm && ENDS.some(vis) && ([11, 12].every(vis) || [23, 24].every(vis))); if (isTimed(id)) return true; return !!lm && e.core.every(vis) && (!e.leg.length || visLegs(e.leg).length > 0); }
 
 /* synthetic body for ?sim: rest, move, hold, return */
 function synth() {
@@ -1648,6 +1699,7 @@ function synth() {
 function track(o, v, dt) { if (o.b == null) o.b = v; o.b += (v - o.b) * (v < o.b ? 1 - Math.exp(-dt * 8) : 1 - Math.exp(-dt * .03)); return v - o.b; }
 const angle = (a, b) => Math.acos(clamp((a.x * b.x + a.y * b.y) / ((Math.hypot(a.x, a.y) * Math.hypot(b.x, b.y)) || 1), -1, 1)) * 180 / Math.PI;
 function signal(dt) {
+  if (PLACE === 'leg') return tiltSignal(dt);
   const e = EX[G.id], amp = e.amp[S.ex[G.id].size - 1], p = i => ({ x: lm[i].x * asp, y: lm[i].y }), sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y }), mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const sh = mid(p(11), p(12)), hp = mid(p(23), p(24)), tr = sub(hp, sh), face = Math.sign(p(0).x - sh.x) || 1;
   G.T = Math.max(Math.hypot(tr.x, tr.y), (G.T || 0) * (1 - dt * .02)) || .2;
@@ -1718,6 +1770,7 @@ function doCmd(g) {
   tone(880, .12, 'sine', .25); tone(g === 'go' ? 1320 : 440, .25, 'sine', .25, 0, .1);
   if (g === 'stop') { if (st === 'home') return; if (st === 'play' && G.n) logReps(G.id, G.n, false); queue = []; say('Stopping. Rest.', true); goHome(); return; }
   if (st === 'home') begin(enabled(S.env));
+  else if (st === 'title') begin(['free', 'free', 'free']);
   else if (st === 'done') next();
   else if (st === 'play' || st === 'intro') { if (G.n) logReps(G.id, G.n, false); say('Skipping.', true); next(true); }
 }
@@ -1731,11 +1784,14 @@ function showTitle() { st = 'title'; titleAt = T; newGame('kick'); home.hidden =
 function begin(ids) { if (!ids.length) return; wasFree = ids[0] === 'free'; $('title').hidden = true; queue = ids.slice(); sessTotal = ids.length; sessDone = 0; next(); }
 async function next(keepVoice) {
   const id = queue.shift();
-  if (!id) { if (sessDone) say('Session done. Look: the water is clearer.'); return goHome(); }
+  if (!id) { if (sessDone) say('Session done. Look: the water is clearer.' + (PLACE === 'prop' && camOn ? ' Raise one arm to go again.' : '')); return goHome(); }
   if (id === 'free' && sessDone) keepVoice = true;
   newGame(id); home.hidden = true; xBtn.hidden = false; audio(); ambient(true); music(true); wake();
-  if (!(id === 'free' && sessDone)) say(id === 'free' ? 'Put the phone where it can see you.' : `${VO[id][0]}. ${VO[id][1]}.`, !keepVoice); else say('Again, when you are ready.');
-  if (!SIM && !PACED && (!camOn || !landmarker)) {
+  if (id === 'free' && sessDone) say('Again, when you are ready.'); else say(PLACE === 'leg' ? (id === 'free' ? '' : VO[id][0] + '. ') + (isTimed(id) ? 'Follow the tone.' : 'Hold the phone flat on your thigh.') : id === 'free' ? 'Put the phone where it can see you.' : `${VO[id][0]}. ${VO[id][1]}.`, !keepVoice);
+  TILT.base = null;
+  if (camOn && camFace !== (PLACE === 'help' ? 'back' : 'front')) stopCam();
+  if (PLACE === 'leg' && !SIM && !TILT.on && !(await tiltStart())) { PLACE = 'prop'; say('This phone will not share its motion. Prop it up instead.'); }
+  if (!SIM && !PACED && PLACE !== 'leg' && (!camOn || !landmarker)) {
     st = 'load';
     try { await Promise.race([Promise.all([startCam(), loadPose()]), new Promise((_, no) => setTimeout(() => no(new Error('slow')), 40000))]); }
     catch (e) { PACED = true; say('No camera. Follow the tone. Move as it rises. Return as it falls.'); }   // the session goes on without tracking
@@ -1767,28 +1823,28 @@ function fire(side) {
 }
 
 function update(dt) {
-  if (st === 'title') return;
+  if (st === 'title') { if ((camOn || SIM) && PLACE === 'prop') commands(dt); return; }
   if (st === 'tv') return tvTick(dt);
   if (SENSOR && (st === 'intro' || st === 'play') && (sendT -= dt) <= 0) { sendT = .2; sensorSend(); }
   if (st === 'howto') { HW.t += dt; if (HW.t > HOW[HW.i].dur) howNext(); return; }
   if (camOn || SIM) commands(dt);
   if (st === 'show') { G.showT += dt; G.sd = showP(G.showT); G.hold = G.sd >= 1 ? .01 : 0; if (G.showT > SHOW_LEN) { st = 'intro'; G.sd = 0; G.hold = 0; } return; }
   if (st === 'intro') {
-    const timed = EX[G.id].sig === 'timer' || PACED;
+    const timed = isTimed(G.id);
     if (timed) G.seen += dt * .4;
     else if (seen(G.id)) { signal(dt); G.seen += dt; }                    // the resting pose is measured while the ring fills
     else G.seen = Math.max(0, G.seen - dt * 2);
-    if (!timed) {   // say what to change as soon as it changes, and tick like a parking sensor: slow when lost, fast when close, steady when read
+    if (!timed && PLACE !== 'leg') {   // say what to change as soon as it changes, and tick like a parking sensor: slow when lost, fast when close, steady when read
       const code = framing(); if (code !== G.code) { G.code = code; G.codeT = 0; } else G.codeT = (G.codeT || 0) + dt;
       if (G.codeT > 1 && G.saidCode !== code) { G.saidCode = code; G.nag = 0; say(code ? FRAME_SAY[code] : 'Good. I can read you. Hold still.'); }
       if (code && (G.nag += dt) > 9) { G.nag = 0; say(FRAME_SAY[code]); }
       if ((G.tick = (G.tick || 0) - dt) <= 0) { if (code) { G.tick = code === 'none' ? 1.1 : .5; tone(code === 'none' ? 330 : 440, .07, 'sine', .18); } else { G.tick = .22; tone(660 + G.seen * 180, .09, 'sine', .16); } }
     }
-    if (G.seen > (EX[G.id].sig === 'free' ? .4 : 1.6)) { st = 'play'; SFX.ready(); say((G.shown ? 'Your turn.' : VO[G.id][2]) + (HINTED || PACED || EX[G.id].sig === 'free' ? '' : EX[G.id].env === 'bed' ? ' Show a thumbs up to skip. An open hand to stop.' : ' Raise one hand to skip. Both hands to stop.')); if (EX[G.id].sig !== 'free') HINTED = true; }
+    if (G.seen > (EX[G.id].sig === 'free' ? .4 : 1.6)) { st = 'play'; SFX.ready(); say((G.shown ? 'Your turn.' : (PLACE === 'leg' && G.id === 'free' ? 'Lift your leg. Hold it. Lower it.' : VO[G.id][2])) + (HINTED || PACED || PLACE !== 'prop' || EX[G.id].sig === 'free' ? '' : EX[G.id].env === 'bed' ? ' Show a thumbs up to skip. An open hand to stop.' : ' Raise one hand to skip. Both hands to stop.')); if (EX[G.id].sig !== 'free') HINTED = true; }
     return;
   }
   if (st !== 'play') return;
-  const e = EX[G.id], timed = e.sig === 'timer' || PACED, len = e.sig === 'timer' ? e.hold : 3.5;
+  const e = EX[G.id], timed = isTimed(G.id), len = e.sig === 'timer' ? e.hold : 3.5;
   if (timed) {                                   // paced by the tone: move or squeeze while it rises, let go while it falls
     if (!G.end && !G.busy) { G.ph += dt; if (G.ph >= len && !G.fired) { G.fired = true; fire(); } if (G.ph >= len * 2) { G.ph = 0; G.fired = false; } }
     G.sd = G.ph < len ? Math.min(1, G.ph / (len * .7)) : Math.max(0, 1 - (G.ph - len) / (len * .7)); G.hold = G.ph > len * .7 && G.ph < len ? .01 : 0;
@@ -2427,10 +2483,10 @@ function bones(P, lw) {
 function coach(lostMode, over) {
   const vw = asp, sc = Math.min(W * .84 / vw, H * .7), dw = vw * sc, dh = sc, code = framing(), ok = code === '', col = ok ? '#7ee081' : code === 'none' ? '#f6f0e0' : C.red;
   c.fillStyle = '#0b1b1e'; c.fillRect(0, 0, W, H);
-  if (!SIM && camOn && vid.readyState >= 2) { c.save(); c.translate(W, 0); c.scale(-1, 1); c.drawImage(vid, (W - dw) / 2, (H - dh) / 2, dw, dh); c.restore(); c.fillStyle = '#0b1b1e66'; c.fillRect((W - dw) / 2, (H - dh) / 2, dw, dh); }   // the camera as a mirror
+  if (!SIM && camOn && vid.readyState >= 2) { c.save(); if (PLACE !== 'help') { c.translate(W, 0); c.scale(-1, 1); } c.drawImage(vid, (W - dw) / 2, (H - dh) / 2, dw, dh); c.restore(); c.fillStyle = '#0b1b1e66'; c.fillRect((W - dw) / 2, (H - dh) / 2, dw, dh); }   // the camera as a mirror
   const zx = (W - dw) / 2, zy = (H - dh) / 2, zw = dw, zh = dh, per = 2 * (zw + zh);   // the zone is the edge of the camera's picture
   if (SIM || !camOn) { c.fillStyle = '#12343a'; c.fillRect(zx, zy, zw, zh); }
-  c.save(); c.beginPath(); c.rect(zx, zy, zw, zh); c.clip(); if (lm) bones(i => [W / 2 + (.5 - lm[i].x) * dw, H / 2 + (lm[i].y - .5) * dh], Math.max(5, u * 1.7)); c.restore();
+  c.save(); c.beginPath(); c.rect(zx, zy, zw, zh); c.clip(); if (lm) bones(i => [W / 2 + (PLACE === 'help' ? -1 : 1) * (.5 - lm[i].x) * dw, H / 2 + (lm[i].y - .5) * dh], Math.max(5, u * 1.7)); c.restore();
   c.lineWidth = u * .9; c.strokeStyle = col; c.globalAlpha = .9; c.setLineDash([u * 3, u * 3]); c.beginPath(); c.roundRect(zx, zy, zw, zh, u * 5); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
   if (ok && !lostMode) { c.lineWidth = u * 1.8; c.strokeStyle = '#7ee081'; c.setLineDash([per * clamp(G.seen / 1.6), per]); c.beginPath(); c.roundRect(zx, zy, zw, zh, u * 5); c.stroke(); c.setLineDash([]); }
   // distance gauge: the marker is how much of the picture your body fills. Green band = stand here.
@@ -2444,13 +2500,32 @@ function coach(lostMode, over) {
   if (!over) { const dz = Math.min(W * .13, H * .07), dy = Math.min(H - dz * 1.2, zy + zh + dz * 1.5); demo(G.id, W / 2, dy, dz, demoP()); }
 }
 function avatar(big) {
+  if (PLACE === 'leg') { const land = W > H, h = big ? Math.min(H * .5, W * 1.1) : land ? H * .44 : H * .26, bx = big ? W / 2 : land ? W * .15 : W * .22, by = big ? H * .6 : land ? H * .64 : H * .76; if (!big) { c.fillStyle = '#0e222677'; c.beginPath(); c.ellipse(bx, by - h * .12, h * .5, h * .62, 0, 0, TAU); c.fill(); } DW = 1.9; demo(G.id === 'free' ? 'march' : G.id, bx, by, h * .62, clamp(G.sd)); DW = 1; return null; }   // no camera here: the character's leg follows the phone on yours
   if (!lm) return; const v = lm.filter(p => p.visibility > .5); if (v.length < 4) return;
   const land = W > H, h = big ? Math.min(H * .52, W * 1.15) : land ? H * .44 : H * .24, bx = big ? W / 2 : land ? W * .14 : W * .2, by = big ? H * .55 : land ? H * .6 : H * .73;
   const xs = v.map(p => p.x * asp), ys = v.map(p => p.y), span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)), cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
   const A = G.av || (G.av = { s: span, x: cx, y: cy }); A.s += (span - A.s) * .04; A.x += (cx - A.x) * .06; A.y += (cy - A.y) * .06; const sc = h / A.s;
   if (!big) { c.fillStyle = '#0e222677'; c.beginPath(); c.ellipse(bx, by, h * .5, h * .62, 0, 0, TAU); c.fill(); }
-  const P = i => [bx - (lm[i].x * asp - A.x) * sc, by + (lm[i].y - A.y) * sc]; bones(P, Math.max(4, u * (big ? 2.1 : 1.4))); return P;
+  const P = i => [bx - (PLACE === 'help' ? -1 : 1) * (lm[i].x * asp - A.x) * sc, by + (lm[i].y - A.y) * sc]; bones(P, Math.max(4, u * (big ? 2.1 : 1.4))); return P;
 }
+function legCard() {   // the phone goes flat on the thigh; the ring fills while it lies still
+  c.fillStyle = '#0e2226d8'; c.fillRect(0, 0, W, H); const z = Math.min(W * .5, H * .3), cx = W / 2, cy = H * .5;
+  DW = 1.9; demo('march', cx, cy, z, 0); DW = 1;
+  c.save(); c.translate(cx + z * .04, cy - z * .27); c.rotate(-.02); c.fillStyle = '#0e2226'; c.strokeStyle = C.amber; c.lineWidth = z * .025; c.beginPath(); c.roundRect(-z * .15, -z * .035, z * .3, z * .07, z * .02); c.fill(); c.stroke(); c.restore();
+  ring(cx, H * .16, u * 7, G.seen / 1.6, '#7ee081');
+  const fs = Math.min(W * .07, u * 7); c.font = `800 ${fs}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.lineJoin = 'round'; [['HOLD THE PHONE FLAT', C.cream], ['ON YOUR THIGH.', C.amber]].forEach(([ln, col], i) => { const y = H * .82 + i * fs * 1.25; c.lineWidth = fs * .22; c.strokeStyle = '#0e2226'; c.strokeText(ln, cx, y); c.fillStyle = col; c.fillText(ln, cx, y); });
+}
+function paintPlace() {
+  document.querySelectorAll('.pc').forEach(b => { const k = b.querySelector('canvas'), z = 208; k.width = k.height = z; const real = c; c = k.getContext('2d'); b.classList.toggle('on', b.dataset.p === (S.place || 'prop'));
+    if (b.dataset.p === 'leg') { DW = 1.9; demo('march', z * .5, z * .56, z * .7, 0); DW = 1; c.fillStyle = '#0e2226'; c.strokeStyle = C.amber; c.lineWidth = 4; c.beginPath(); c.roundRect(z * .5 + z * .7 * (-.1), z * .56 - z * .7 * .305, z * .7 * .3, z * .7 * .07, 3); c.fill(); c.stroke(); }
+    if (b.dataset.p === 'prop') { c.fillStyle = '#7ee08133'; c.beginPath(); c.moveTo(z * .16, z * .56); c.lineTo(z * .98, z * .12); c.lineTo(z * .98, z * .98); c.fill(); c.fillStyle = '#0e2226'; c.strokeStyle = C.cream; c.lineWidth = 4; c.save(); c.translate(z * .14, z * .62); c.rotate(-.25); c.beginPath(); c.roundRect(-z * .03, -z * .16, z * .06, z * .18, 3); c.fill(); c.stroke(); c.restore(); c.strokeStyle = '#c9b98a'; c.lineWidth = 5; c.beginPath(); c.moveTo(z * .04, z * .66); c.lineTo(z * .26, z * .66); c.moveTo(z * .08, z * .66); c.lineTo(z * .08, z * .9); c.moveTo(z * .22, z * .66); c.lineTo(z * .22, z * .9); c.stroke(); DW = 1.9; demo('flex', z * .7, z * .6, z * .52, .9); DW = 1; }
+    if (b.dataset.p === 'help') { DW = 1.9; demo('abd', z * .7, z * .6, z * .52, .7); DW = 1; c.strokeStyle = C.cream; c.fillStyle = C.cream; c.lineWidth = 9; c.lineCap = 'round'; c.beginPath(); c.arc(z * .2, z * .32, z * .06, 0, TAU); c.fill(); c.beginPath(); c.moveTo(z * .2, z * .42); c.lineTo(z * .2, z * .66); c.lineTo(z * .14, z * .88); c.moveTo(z * .2, z * .66); c.lineTo(z * .27, z * .88); c.moveTo(z * .2, z * .46); c.lineTo(z * .36, z * .5); c.stroke(); c.fillStyle = '#0e2226'; c.strokeStyle = C.amber; c.lineWidth = 4; c.beginPath(); c.roundRect(z * .35, z * .41, z * .06, z * .15, 3); c.fill(); c.stroke(); }
+    c = real; });
+}
+let placeCb = null;
+function openPlace(cb) { placeCb = cb; paintPlace(); $('title').hidden = true; $('place').hidden = false; }
+document.querySelectorAll('.pc').forEach(b => b.onclick = async () => { S.place = PLACE = b.dataset.p; save(); $('place').hidden = true; audio(); if (PLACE === 'leg' && !SIM) { if (!(await tiltStart())) { PLACE = 'prop'; say('This phone will not share its motion. Prop it up instead.'); } } const cb = placeCb; placeCb = null; cb && cb(); });
+$('skip').onclick = () => { if (st === 'show') { st = 'intro'; G.sd = 0; G.hold = 0; } else if (st === 'play' || st === 'intro') { if (G.n) logReps(G.id, G.n, false); next(true); } else if (st === 'done') next(); };
 function cmdRing() { // a held command fills a ring big enough to read from across the room
   if (!CMD.k || CMD.latch || CMD.t < .2) return; const r = u * 20, go = CMD.k === 'go';
   c.fillStyle = '#0e2226cc'; c.beginPath(); c.arc(W / 2, H / 2, r * 1.25, 0, TAU); c.fill(); ring(W / 2, H / 2, r, CMD.t / CMD.need, go ? '#7ee081' : C.red);
@@ -2458,28 +2533,28 @@ function cmdRing() { // a held command fills a ring big enough to read from acro
 }
 function draw() {
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
-  if (st === 'title') return sceneTitle();
+  if (st === 'title') { sceneTitle(); cmdRing(); return; }
   if (st === 'tv') return sceneTV();
   if (SENSOR && (st === 'intro' || st === 'play')) { coach(st === 'play', 'WATCH THE BIG SCREEN'); const col = PCOL[Math.max(0, myNum) % PCOL.length], fs = Math.min(W * .09, u * 9); c.textAlign = 'center'; c.font = `800 ${fs}px ui-rounded,system-ui,sans-serif`; c.lineJoin = 'round'; c.lineWidth = fs * .22; c.strokeStyle = '#0e2226'; const txt = NET.cam === 'fail' ? 'CAMERA NEEDED' : NET.state === 'fail' ? 'NO CONNECTION' : (myNum >= 0 ? `PLAYER ${myNum + 1}` : 'JOINING') + '   ' + G.n; c.strokeText(txt, W / 2, H - fs * .7); c.fillStyle = NET.cam === 'fail' || NET.state === 'fail' ? C.red : col; c.fillText(txt, W / 2, H - fs * .7); return; }
   if (st === 'howto') return sceneHow();
   if (st === 'home') { sceneHome(); cmdRing(); return; }
   if (st === 'load') { creek(H * .3, H * .86); c.fillStyle = '#0e2226aa'; c.fillRect(0, 0, W, H); for (let i = 0; i < 3; i++) { const k = (T * .6 + i / 3) % 1; c.globalAlpha = 1 - k; c.strokeStyle = C.cream; c.lineWidth = u; c.beginPath(); c.ellipse(W / 2, H / 2, u * 30 * k, u * 9 * k, 0, 0, TAU); c.stroke(); } c.globalAlpha = 1; return; }
   SCENES[G.id]();
-  const land = W > H, e = EX[G.id], timed = e.sig === 'timer' || PACED, lying = e.env === 'bed';
+  const land = W > H, e = EX[G.id], timed = isTimed(G.id), lying = e.env === 'bed';
   if (st === 'show') { showCard(); cmdRing(); return; }
   if (st === 'intro') {
     if (timed) { c.fillStyle = '#0e2226cc'; c.fillRect(0, 0, W, H); const dz = land ? Math.min(H * .34, W * .2) : Math.min(W * .34, H * .19); demo(G.id, W / 2, H * .42, dz * 1.2, demoP()); ring(W / 2, H * .72, u * 7, G.seen / 1.6); }
-    else coach(false);
+    else if (PLACE === 'leg') legCard(); else coach(false);
     cmdRing(); return;
   }
   if (st === 'play') {
     const lost = !timed && G.lost > 1;
-    if (lost) coach(true);
+    if (lost && PLACE !== 'leg') coach(true);
     else {
       // the body's signal as two side rails: they fill toward the top, and turn green while the hold counts
       const s = clamp(G.sd, 0, 1), bw = Math.max(12, u * 3.4), y0 = H * .16, bh = H * .66, on = G.hold > 0 || s >= 1;
       [0, W - bw].forEach(x => { c.fillStyle = '#0e222688'; c.fillRect(x, y0, bw, bh); c.fillStyle = on ? '#7ee081' : C.amber; c.fillRect(x, y0 + bh * (1 - s), bw, bh * s); c.fillStyle = C.cream; c.fillRect(x, y0 - u * .8, bw, u * .8); });
-      c.font = `700 ${u * 17}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineWidth = u * 1.6; c.strokeStyle = '#0e2226cc'; c.lineJoin = 'round'; c.strokeText(G.n, W / 2, Math.max(10, u * 3)); c.fillStyle = C.cream; c.fillText(G.n, W / 2, Math.max(10, u * 3)); c.textBaseline = 'alphabetic'; if (!timed && G.id !== 'free') { avatar(); if (G.n < 2) { const gz = land ? H * .15 : H * .085, gx = land ? W * .86 : W * .8, gy = land ? H * .62 : H * .75; c.fillStyle = '#0e222699'; c.beginPath(); c.ellipse(gx, gy - gz * .2, gz * 1.15, gz * 1.3, 0, 0, TAU); c.fill(); DW = 1.7; demo(G.id, gx, gy, gz, demoP()); DW = 1; } }
+      c.font = `700 ${u * 17}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineWidth = u * 1.6; c.strokeStyle = '#0e2226cc'; c.lineJoin = 'round'; c.strokeText(G.n, W / 2, Math.max(10, u * 3)); c.fillStyle = C.cream; c.fillText(G.n, W / 2, Math.max(10, u * 3)); c.textBaseline = 'alphabetic'; if (!timed && G.id !== 'free') { avatar(); if (G.n < 2 && PLACE !== 'leg') { const gz = land ? H * .15 : H * .085, gx = land ? W * .86 : W * .8, gy = land ? H * .62 : H * .75; c.fillStyle = '#0e222699'; c.beginPath(); c.ellipse(gx, gy - gz * .2, gz * 1.15, gz * 1.3, 0, 0, TAU); c.fill(); DW = 1.7; demo(G.id, gx, gy, gz, demoP()); DW = 1; } }
     }
     pebbles(H - Math.max(u * 6, 26)); cmdRing(); return;
   }
@@ -2512,6 +2587,7 @@ function netLeave() { if (NET.on) { NET.on = false; jf(roomUrl('leave'), { peerI
 /* a phone that scanned the code: this player's camera */
 let SENSOR = false, myNum = -1, sendT = 0;
 async function sensorStart() {
+  PLACE = 'prop';
   $('title').hidden = true; audio(); wake(); SENSOR = true; newGame('free'); st = 'load'; xBtn.hidden = false;
   say('Lean the phone up, about waist high, facing you. Take three big steps back. Then watch the big screen.');
   netJoin(Q.get('join'), 'PHONE').then(() => netPoll((from, m) => { if (m.type === 'tv' && m.num && m.num[NET.id] != null) myNum = m.num[NET.id]; }, 1500)).catch(() => {});
@@ -2588,7 +2664,7 @@ function frame(now) {
     if (camOn || SIM) { if (st !== 'load') detect(now); hands(now); }
     const how3 = st === 'howto' && HW.i === 5, b = st === 'tv' ? 1 - Math.exp(-TV.total / (14 * Math.max(1, tvActive().length))) : how3 ? clamp(HW.t / 4) : st === 'howto' ? 0 : Q.get('health') != null ? +Q.get('health') : baseHealth(), part = st === 'home' || st === 'howto' || st === 'title' ? 0 : clamp((sessDone + (st === 'done' ? 0 : clamp(G.px / reps()))) / sessTotal);
     HEALTH += (b + (1 - b) * .75 * part - HEALTH) * (1 - Math.exp(-dt * (how3 ? 6 : 1.5))); PUSH = (st === 'play' || st === 'show') && G.lost < 1 ? clamp(G.sd, 0, 1) : 0;
-    update(dt); draw(); soundFrame(dt);
+    update(dt); draw(); soundFrame(dt); $('skip').hidden = !(PLACE !== 'prop' && !SENSOR && (st === 'show' || st === 'intro' || st === 'play' || st === 'done'));
   } catch (e) { console.error(e); }      // one bad frame must not stop the session
   requestAnimationFrame(frame);
 }
@@ -2638,14 +2714,15 @@ function openSetup() {
 document.addEventListener('visibilitychange', () => { if (AC) document.hidden ? AC.suspend() : AC.resume(); if (document.hidden) song.pause(); else { if (st !== 'home') music(true); if (camOn) wake(); } });
 if (!enabled(S.env).length) { const e2 = ENVS.find(v => enabled(v).length); if (e2) S.env = e2; }
 paintHome(); requestAnimationFrame(frame);
-$('go').onclick = () => { audio(); ambient(true); wake(); tone(523, .2, 'sine', .25); tone(784, .35, 'sine', .25, 0, .12); begin(['free', 'free', 'free']); };   // one tap: straight into free movement, three sets of ten
+$('go').onclick = () => { audio(); ambient(true); wake(); tone(523, .2, 'sine', .25); tone(784, .35, 'sine', .25, 0, .12); openPlace(() => begin(['free', 'free', 'free'])); };   // one tap: straight into free movement, three sets of ten
+$('where').onclick = () => { home.hidden = true; openPlace(() => { home.hidden = false; paintHome(); }); };
 $('mine').onclick = () => { audio(); ambient(true); wasFree = false; goHome(); };
 $('how').onclick = howStart; $('help').onclick = howStart;
 if (Q.get('g') && EX[Q.get('g')]) begin([Q.get('g')]);
 else if (!Q.has('notitle')) showTitle();
 $('big').onclick = tvStart;
 if (Q.get('join')) { $('go').textContent = 'JOIN'; $('go').onclick = sensorStart; $('big').parentNode.style.display = 'none'; }   // a phone that scanned the code: one button
-window.__riffle = { get st() { return st; }, get G() { return G; }, get health() { return HEALTH; }, get cmd() { return CMD; }, get roi() { return roi; }, get bodyH() { return bodyH; }, get lm() { return lm; }, get paced() { return PACED; }, get hands() { return !!handLm; }, get handG() { return handG; }, get loops() { return Object.keys(LOOPS).concat(Object.keys(SMP)); }, EX, tv: TV, net: NET, said: [] };
+window.__riffle = { get st() { return st; }, get G() { return G; }, get health() { return HEALTH; }, get cmd() { return CMD; }, get roi() { return roi; }, get place() { return PLACE; }, tilt: TILT, get bodyH() { return bodyH; }, get lm() { return lm; }, get paced() { return PACED; }, get hands() { return !!handLm; }, get handG() { return handG; }, get loops() { return Object.keys(LOOPS).concat(Object.keys(SMP)); }, EX, tv: TV, net: NET, said: [] };
 if (SIM) { const real = say; window.__say = t => __riffle.said.push(t); }
 </script>
 </body>
