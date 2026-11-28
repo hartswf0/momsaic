@@ -2230,8 +2230,8 @@ function sceneHow() {
     const tk = ok ? 1 : (t * (1.5 + k * 3)) % 1; c.fillStyle = col; for (let n = 0; n < 3; n++) { c.globalAlpha = ok ? 1 : (tk < .35 ? 1 : .25); c.beginPath(); c.arc(cx + (n - 1) * u * 5, cy + fh / 2 + u * 6, u * (ok ? 1.8 : 1.3), 0, TAU); c.fill(); } c.globalAlpha = 1;
     if (ok) { c.fillRect(cx - u * 5, cy + fh / 2 + u * 5.2, u * 10, u * 1.6); }
   }
-  if (i === 3) { const q = t % 3.2, p = q < 1.3 ? ease(q / 1.3) : q < 1.8 ? 1 : q < 2.9 ? 1 - ease((q - 1.8) / 1.1) : 0; demo('kick', cx, cy + z * .25, z, p); rails(p, false); }
-  if (i === 4) { const p = ease(clamp(t / 1.2)), hd = clamp((t - 1.2) / 1.3), n = hd >= 1; demo('kick', cx, cy + z * .25, z, p); rails(p, p >= 1); if (p >= 1 && !n) ring(cx, cy - z * .95, u * 6, hd, GRN);
+  if (i === 3) { const q = t % 3.2, p = q < 1.3 ? ease(q / 1.3) : q < 1.8 ? 1 : q < 2.9 ? 1 - ease((q - 1.8) / 1.1) : 0; DW = 1.9; demo('kick', cx, cy + z * .25, z, p); DW = 1; rails(p, false); }
+  if (i === 4) { const p = ease(clamp(t / 1.2)), hd = clamp((t - 1.2) / 1.3), n = hd >= 1; DW = 1.9; demo('kick', cx, cy + z * .25, z, p); DW = 1; rails(p, p >= 1); if (p >= 1 && !n) ring(cx, cy - z * .95, u * 6, hd, GRN);
     if (n) { const k = clamp((t - 2.5) / .3), sc = 1 + Math.sin(k * Math.PI) * .4; c.font = `800 ${u * 20 * sc}px ui-rounded,system-ui,sans-serif`; c.textAlign = 'center'; c.fillStyle = GRN; c.fillText('1', cx, cy - z * .78); } }
   if (i === 5) { const hh = clamp(t / 4); if (hh > .45) { c.globalAlpha = clamp((hh - .45) * 3); c.save(); c.translate(cx + Math.sin(T * .8) * W * .12, H * .56); trout(u * 34, T * 6); c.restore(); c.globalAlpha = 1; } }
   if (i === 6) { const up = ease(clamp((t % 4) / .8)), fig = (x, n, sym) => { c.save(); c.translate(x, cy + z * .2); c.scale(z * .9, z * .9); c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = C.cream; c.lineWidth = .075; c.fillStyle = C.cream; c.beginPath(); c.arc(0, -.62, .1, 0, TAU); c.fill(); c.beginPath(); c.moveTo(0, -.48); c.lineTo(0, -.02); c.lineTo(-.1, .44); c.moveTo(0, -.02); c.lineTo(.1, .44); c.stroke();
@@ -2247,13 +2247,78 @@ function sceneHow() {
 /* ---------- the demonstration: before each exercise a figure does it twice, in the scene, and the creek answers ----------
    G.sd is driven by the figure while it plays, so the rails, the tone and the creek show what the movement will do. */
 let DW = 1;
+/* ---------- the demonstrator: a jointed character ----------
+   A creek biologist in chest waders and a bucket hat. Every part hangs off the same joints the exercise defines
+   (hip, knee, ankle, toe, shoulder, elbow, hand), so the movement shown is the movement asked for: the trunk stays
+   upright, only the working limb travels. The working limb carries an amber outline that turns green at the hold.
+   He breathes, blinks, watches the limb he is moving, and smiles when he holds it. */
+const KC = { skin: '#e9b68c', skinD: '#c9976f', shirt: '#b9523a', shirtD: '#8d3c2a', wader: '#5f7d50', waderD: '#465d3c', boot: '#27302a', bootD: '#1b221d', hat: '#d6c48f', hatD: '#b5a26e', hair: '#f1f2ec', wood: '#a47a4d', woodD: '#7a5937', metal: '#aab4b6', sheet: '#e6e0d0', sheetD: '#c9c2ae' };
+function cap(a, b, w1, w2, col) { const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1e-6, nx = -dy / L, ny = dx / L; c.fillStyle = col; c.beginPath(); c.moveTo(a[0] + nx * w1, a[1] + ny * w1); c.lineTo(b[0] + nx * w2, b[1] + ny * w2); c.lineTo(b[0] - nx * w2, b[1] - ny * w2); c.lineTo(a[0] - nx * w1, a[1] - ny * w1); c.fill(); c.beginPath(); c.arc(a[0], a[1], w1, 0, TAU); c.fill(); c.beginPath(); c.arc(b[0], b[1], w2, 0, TAU); c.fill(); }
+function actor(id, x, y, z, p) {
+  c.save(); c.translate(x, y); c.scale(z, z); c.lineCap = 'round'; c.lineJoin = 'round';
+  const hold = p > .985, GL = hold ? '#7ee081' : C.amber, br = Math.sin(T * 2.2) * .006, blink = (T % 3.3) < .12, L2 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
+  const leg = (hip, knee, ank, toe, far, lit) => { if (lit) { cap(hip, knee, .112, .096, GL); cap(knee, ank, .096, .08, GL); cap(ank, toe, .084, .072, GL); }
+    cap(hip, knee, .086, .07, far ? KC.waderD : KC.wader); cap(knee, ank, .07, .054, far ? KC.waderD : KC.wader); cap(ank, toe, .058, .048, far ? KC.bootD : KC.boot); c.fillStyle = far ? KC.bootD : KC.boot; c.beginPath(); c.arc(ank[0], ank[1], .062, 0, TAU); c.fill(); };
+  const arm = (sh, el, hand, far) => { cap(sh, el, .056, .046, far ? KC.shirtD : KC.shirt); cap(el, hand, .046, .038, far ? KC.shirtD : KC.shirt); c.fillStyle = far ? KC.skinD : KC.skin; c.beginPath(); c.arc(hand[0], hand[1], .046, 0, TAU); c.fill(); };
+  const torso = (sh, hip, w = .112) => { cap(sh, hip, w, w * .96, KC.shirt); const m = L2(sh, hip, .42); cap(m, hip, w * 1.04, w, KC.wader); c.strokeStyle = KC.waderD; c.lineWidth = .028; c.beginPath(); c.moveTo(m[0], m[1]); c.lineTo(lerp(sh[0], m[0], .1) + (hip[1] - sh[1]) * .1, lerp(sh[1], m[1], .1) - (hip[0] - sh[0]) * .1); c.stroke(); };
+  const head = (h, ang, look = 0) => { c.save(); c.translate(h[0], h[1]); c.rotate(ang);                      // drawn upright facing +x, then turned
+    c.fillStyle = KC.hair; c.beginPath(); c.arc(-.035, .01, .104, 0, TAU); c.fill(); c.fillStyle = KC.skin; c.beginPath(); c.arc(0, 0, .105, 0, TAU); c.fill();
+    c.fillStyle = KC.skinD; c.beginPath(); c.arc(-.02, .015, .024, 0, TAU); c.fill(); c.beginPath(); c.arc(.108, .012, .026, 0, TAU); c.fill();
+    c.fillStyle = KC.hat; c.beginPath(); c.roundRect(-.1, -.175, .2, .12, .05); c.fill(); c.fillStyle = KC.hatD; c.beginPath(); c.ellipse(.012, -.062, .168, .034, -.06, 0, TAU); c.fill(); c.fillStyle = KC.wader; c.fillRect(-.1, -.105, .2, .026);
+    if (blink) { c.strokeStyle = '#2a211b'; c.lineWidth = .014; c.beginPath(); c.moveTo(.03, -.012); c.lineTo(.07, -.012); c.stroke(); } else { c.fillStyle = '#2a211b'; c.beginPath(); c.arc(.05 + look * .006, -.012 + Math.abs(look) * .008, .016, 0, TAU); c.fill(); }
+    c.strokeStyle = KC.hair; c.lineWidth = .016; c.beginPath(); c.moveTo(.025, -.045 - (hold ? .012 : 0)); c.lineTo(.078, -.04 - (hold ? .016 : 0)); c.stroke();
+    if (hold) { c.strokeStyle = '#8a4a3a'; c.lineWidth = .014; c.beginPath(); c.arc(.066, .05, .03, .15, 1.9); c.stroke(); }
+    c.fillStyle = KC.hair; c.beginPath(); c.ellipse(.076, .046, .05, .02, .25, 0, TAU); c.fill(); c.restore(); };
+  const headFront = h => { c.fillStyle = KC.hair; c.beginPath(); c.arc(h[0], h[1] + .012, .115, 0, TAU); c.fill(); c.fillStyle = KC.skin; c.beginPath(); c.arc(h[0], h[1], .105, 0, TAU); c.fill();
+    c.fillStyle = KC.hat; c.beginPath(); c.roundRect(h[0] - .1, h[1] - .175, .2, .12, .05); c.fill(); c.fillStyle = KC.wader; c.fillRect(h[0] - .1, h[1] - .105, .2, .026); c.fillStyle = KC.hatD; c.beginPath(); c.ellipse(h[0], h[1] - .062, .172, .034, 0, 0, TAU); c.fill();
+    [-1, 1].forEach(sd => { if (blink) { c.strokeStyle = '#2a211b'; c.lineWidth = .014; c.beginPath(); c.moveTo(h[0] + sd * .04 - .018, h[1] - .008); c.lineTo(h[0] + sd * .04 + .018, h[1] - .008); c.stroke(); } else { c.fillStyle = '#2a211b'; c.beginPath(); c.arc(h[0] + sd * .04 + .006, h[1] - .008 + .006, .015, 0, TAU); c.fill(); } });
+    c.fillStyle = KC.skinD; c.beginPath(); c.arc(h[0], h[1] + .022, .022, 0, TAU); c.fill(); if (hold) { c.strokeStyle = '#8a4a3a'; c.lineWidth = .014; c.beginPath(); c.arc(h[0], h[1] + .04, .04, .35, Math.PI - .35); c.stroke(); }
+    c.fillStyle = KC.hair; c.beginPath(); c.ellipse(h[0] - .03, h[1] + .05, .036, .017, -.2, 0, TAU); c.fill(); c.beginPath(); c.ellipse(h[0] + .03, h[1] + .05, .036, .017, .2, 0, TAU); c.fill(); };
+  const shadow = (cx = 0, w = .5) => { c.fillStyle = '#00000044'; c.beginPath(); c.ellipse(cx, .455, w, .04, 0, 0, TAU); c.fill(); };
+  const chair = () => { cap([-.3, -.7], [-.3, .42], .028, .028, KC.woodD); cap([.11, -.06], [.11, .42], .028, .028, KC.woodD); cap([-.32, -.075], [.13, -.075], .04, .04, KC.wood); cap([-.3, -.62], [-.3, -.3], .04, .04, KC.wood); };
+  const rail = x0 => { cap([x0, -.25], [x0, .43], .024, .024, KC.metal); cap([x0 + .09, -.25], [x0 + .12, .43], .02, .02, '#8d9799'); cap([x0 - .07, -.25], [x0 + .13, -.25], .034, .034, '#3a4447'); };
+  const frontBody = (d, sh, hp, legR, armL) => {
+    leg([d - .085, hp], [L2([d - .085, hp], [-.1, .4], .5)[0], lerp(hp, .4, .5)], [-.1, .4], [-.13, .43], false, false);
+    leg([d + .085, hp], legR.knee, legR.ank, legR.toe, false, legR.lit);
+    cap([d, sh + .04 + br], [d, hp], .152, .115, KC.shirt); cap([d, lerp(sh, hp, .45)], [d, hp], .128, .118, KC.wader); c.strokeStyle = KC.waderD; c.lineWidth = .026; [-1, 1].forEach(k => { c.beginPath(); c.moveTo(d + k * .08, lerp(sh, hp, .45)); c.lineTo(d + k * .1, sh + .01); c.stroke(); });
+    arm([d - .15, sh + .03 + br], armL.el, armL.hand, false); arm([d + .15, sh + .03 + br], [d + .2, sh + .22], [d + .2, sh + .42], false); headFront([d, sh - .17 + br]); };
+  if (id === 'pump' || id === 'slide' || id === 'sets') {            // lying on the back, head to the left
+    cap([-.84, -.08], [-.84, .44], .03, .03, KC.woodD); cap([.8, .3], [.8, .44], .03, .03, KC.woodD); c.fillStyle = KC.sheet; c.beginPath(); c.roundRect(-.82, .2, 1.64, .14, .05); c.fill(); c.fillStyle = KC.sheetD; c.fillRect(-.8, .3, 1.6, .04); c.fillStyle = '#fff'; c.beginPath(); c.ellipse(-.6, .17, .17, .06, 0, 0, TAU); c.fill();
+    const b = id === 'slide' ? p : 0, a = id === 'pump' ? -.4 + p * 1.0 : .12, hip = [-.05, .09], sh = [-.44, .09 + br], kn = [.3 - b * .1, .09 - b * .27], an = [.62 - b * .3, .1];
+    leg(hip, [.3, .1], [.62, .11], [.64, -.04], true, false); arm(sh, [-.26, .13], [-.1, .14], true); torso(sh, hip);
+    leg(hip, kn, an, [an[0] + Math.sin(a) * .15, an[1] - Math.cos(a) * .15], false, id !== 'sets');
+    if (id === 'sets') { c.globalAlpha = .35 + p * .55; cap([-.03, .09], [.27, .09], .1 + p * .02, .085 + p * .02, GL); cap([-.2, .1], [-.05, .1], .1 + p * .015, .1, GL); c.globalAlpha = 1; }
+    arm(sh, [-.24, .1], [-.07, .08 - (id === 'sets' ? p * .02 : 0)], false); head([-.61, .03 + br], -Math.PI / 2, 1);
+  } else if (id === 'open') {                                       // lying, seen from above
+    c.fillStyle = KC.woodD; c.beginPath(); c.roundRect(-.47, -.9, .94, 1.42, .04); c.fill(); c.fillStyle = KC.sheet; c.beginPath(); c.roundRect(-.43, -.86, .86, 1.34, .04); c.fill(); c.fillStyle = '#fff'; c.beginPath(); c.roundRect(-.2, -.82, .4, .2, .06); c.fill();
+    const a = p * .5, hp = -.05; frontBody(0, -.45, hp, { knee: [.085 + Math.sin(a) * .24, hp + Math.cos(a) * .24], ank: [.085 + Math.sin(a) * .47, hp + Math.cos(a) * .47], toe: [.085 + Math.sin(a) * .5 + .02, hp + Math.cos(a) * .5 + .02], lit: true }, { el: [-.2, -.24], hand: [-.2, -.04] });
+  } else if (id === 'kick' || id === 'march' || id === 'heel') {     // sitting, seen from the side
+    shadow(-.02, .46); chair(); const hip = [-.12, -.16], sh = [-.14, -.62 + br], lift = id === 'march' ? p * .42 : 0, hl = id === 'heel' ? p : 0, th = id === 'kick' ? p * 1.42 : 0;
+    const kn = [hip[0] + Math.cos(lift) * .32, hip[1] - Math.sin(lift) * .32 - hl * .03], an = id === 'heel' ? [.2, .37 - hl * .1] : [kn[0] + Math.sin(th) * .46, Math.min(.37, kn[1] + Math.cos(th) * .46)], toe = id === 'heel' ? [.34, .41] : [an[0] + Math.cos(th) * .14, an[1] - Math.sin(th) * .14 + .04 * (1 - Math.min(1, th))];
+    leg(hip, id === 'heel' ? [.19, -.16 - hl * .03] : [.2, -.16], id === 'heel' ? [.17, .37 - hl * .1] : [.2, .37], id === 'heel' ? [.31, .41] : [.34, .41], true, false); arm(sh, [-.05, -.36], [.06, -.2], true); torso(sh, hip);
+    leg(hip, kn, an, toe, false, true); arm(sh, [-.02, -.36], [.12, -.23 - lift * .12], false); head([-.13, -.81 + br], 0, 1);
+  } else if (id === 'stand') {                                       // sit to stand, from the side
+    shadow(.05, .46); chair(); const e = ease(p), fw = Math.sin(e * Math.PI) * .2, hip = [lerp(-.12, .17, e), lerp(-.16, -.5, e)], sh = [hip[0] + fw - .02, hip[1] - .46 + fw * .3 + br], kn = [.2, lerp(-.16, -.05, e)];
+    leg(hip, [kn[0] - .01, kn[1]], [.19, .37], [.33, .41], true, false); arm(sh, [sh[0] + .1 + fw * .4, sh[1] + .2], [sh[0] + .2 + fw * .35, sh[1] + .32], true); torso(sh, hip);
+    leg(hip, kn, [.2, .37], [.34, .41], false, true); arm(sh, [sh[0] + .12 + fw * .4, sh[1] + .21], [sh[0] + .24 + fw * .35, sh[1] + .33], false); head([sh[0] + .01 + fw * .18, sh[1] - .19], fw * .5, 0);
+    c.globalAlpha = .5 + .5 * p; c.strokeStyle = GL; c.lineWidth = .05; c.beginPath(); c.moveTo(.56, -.2); c.lineTo(.56, -.62); c.moveTo(.48, -.52); c.lineTo(.56, -.62); c.lineTo(.64, -.52); c.stroke(); c.globalAlpha = 1;
+  } else if (id === 'abd') {                                         // standing, facing us, one hand on the support
+    shadow(0, .42); rail(-.5); const a = p * .55, hp = -.06; frontBody(0, -.5, hp, { knee: [.085 + Math.sin(a) * .24, hp + Math.cos(a) * .24], ank: [.085 + Math.sin(a) * .46, hp + Math.cos(a) * .46], toe: [.085 + Math.sin(a) * .49 + .03, hp + Math.cos(a) * .49 + .02], lit: true }, { el: [-.3, -.3], hand: [-.44, -.25] });
+  } else {                                                           // ext, flex: standing side on, both hands on the support
+    shadow(0, .4); rail(.4); const hip = [0, -.06], sh = [.02, -.5 + br], a = id === 'ext' ? p * .46 : p * 1.15;
+    const kn = id === 'ext' ? [-Math.sin(a) * .24, -.06 + Math.cos(a) * .24] : [Math.sin(a) * .26, -.06 + Math.cos(a) * .26], an = id === 'ext' ? [-Math.sin(a) * .46, -.06 + Math.cos(a) * .44] : [kn[0] - .03, kn[1] + .22], toe = id === 'ext' ? [an[0] + .13, an[1] + .04 + Math.sin(a) * .04] : [an[0] + .13, an[1] + .05];
+    leg(hip, [0, .16], [0, .37], [.14, .41], true, false); arm(sh, [.2, -.33], [.36, -.26], true); torso(sh, hip);
+    leg(hip, kn, an, toe, false, true); arm(sh, [.22, -.31], [.39, -.25], false); head([.03, -.69 + br], 0, id === 'ext' ? 0 : 1);
+  }
+  c.restore();
+}
 const showP = t => { const q = t % 3.6; return q < 1 ? ease(q) : q < 1.9 ? 1 : q < 2.9 ? 1 - ease(q - 1.9) : 0; };
 function showCard() {
   const t = G.showT, q = t % 3.6, p = showP(t), hold = q >= 1 && q < 1.9, z = Math.min(W * .33, H * .2), cx = W / 2, cy = H * .56, GRN = '#7ee081';
   let g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0e2226cc'); g.addColorStop(.2, '#0e222622'); g.addColorStop(.7, '#0e222644'); g.addColorStop(1, '#0e2226f0'); c.fillStyle = g; c.fillRect(0, 0, W, H);
   c.fillStyle = '#0e2226c4'; c.beginPath(); c.arc(cx, cy, z * 1.25, 0, TAU); c.fill();
   c.lineCap = 'round'; c.lineWidth = z * .07; c.strokeStyle = '#ffffff22'; c.beginPath(); c.arc(cx, cy, z * 1.25, 0, TAU); c.stroke(); c.strokeStyle = hold ? GRN : C.amber; c.beginPath(); c.arc(cx, cy, z * 1.25, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(p)); c.stroke();
-  DW = 1.9; demo(G.id, cx, cy + z * .2 - (hold ? Math.sin((q - 1) / .9 * Math.PI) * z * .02 : 0), z, p); DW = 1;
+  DW = 1.9; demo(G.id, cx, cy + z * .27 - (hold ? Math.sin((q - 1) / .9 * Math.PI) * z * .02 : 0), z * 1.32, p); DW = 1;
   const bw = Math.max(12, u * 3.4), y0 = H * .16, bh = H * .66; [0, W - bw].forEach(x => { c.fillStyle = '#0e222688'; c.fillRect(x, y0, bw, bh); c.fillStyle = hold ? GRN : C.amber; c.fillRect(x, y0 + bh * (1 - p), bw, bh * p); c.fillStyle = C.cream; c.fillRect(x, y0 - u * .8, bw, u * .8); });
   c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineJoin = 'round';
   if (q >= 1 && q < 2.5) { const k = clamp((q - 1) / .3), sc = 1 + Math.sin(k * Math.PI) * .35, fs = u * 15 * sc; c.font = `800 ${fs}px ui-rounded,system-ui,sans-serif`; c.lineWidth = fs * .2; c.strokeStyle = '#0e2226'; const n = String(Math.floor(t / 3.6) + 1); c.strokeText(n, cx + z * 1.02, cy - z * 1.02); c.fillStyle = GRN; c.fillText(n, cx + z * 1.02, cy - z * 1.02); }
@@ -2266,6 +2331,7 @@ function showCard() {
 const SHOW_LEN = 7.3;
 function demo(id, x, y, z, p) {
   if (id === 'free') id = 'abd';
+  if (DW > 1) return actor(id, x, y, z, p);
   c.save(); c.translate(x, y); c.scale(z, z); c.lineCap = 'round'; c.lineJoin = 'round';
   const ln = (pts, col = C.cream, w = .075) => { c.strokeStyle = col; c.lineWidth = w * DW; c.beginPath(); pts.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); c.stroke(); };
   const hd = (a, b) => { c.fillStyle = C.cream; c.beginPath(); c.arc(a, b, DW > 1 ? .135 : .1, 0, TAU); c.fill(); };
