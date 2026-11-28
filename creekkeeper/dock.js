@@ -193,7 +193,7 @@ function poseFrame(poses,t){
  if(!goodSince)goodSince=t;
  if(t-goodSince<450){renderDock();return}
  if(!wasFramed||frameMode!=='pose'){
-  frameMode='pose';wasFramed=true;everFramed=true;saidLost=false;anchors.clear();smooth.clear();lastEvent=t;setState('ready');
+  frameMode='pose';wasFramed=true;everFramed=true;saidLost=false;anchors.clear();smooth.clear();lastEvent=t;lastActivity=t;setState('ready');
   if(!saidReady){saidReady=true;if(spoken)speech(f.legs?'Your legs are in view. Move whenever you are ready.':'Your upper body is in view. Ask a helper to aim lower for leg play.',true)}
  }
  if(checkEnd(lm,t))return;
