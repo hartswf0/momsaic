@@ -5,7 +5,7 @@ if(query.has('tv')||query.has('together')||query.has('manual'))return;
 const by=id=>document.getElementById(id),joined=query.has('join');
 const title=by('titleScreen'),controls=title.querySelector('.title-controls');
 const css=document.createElement('style');css.textContent=`
-#titleScreen.dock-title{gap:8px}
+#titleScreen.dock-title{gap:8px}#titleScreen.dock-title [hidden]{display:none!important}
 #titleScreen.dock-title #introFilm{max-height:29dvh}
 #titleScreen.dock-title .title-heading p{font-size:clamp(16px,4.5vw,22px)}
 #titleScreen.dock-title .title-controls{display:grid;grid-template-columns:1fr 1fr;gap:7px}
@@ -60,7 +60,7 @@ by('beginTouch').textContent='Touch play';
 by('app').insertAdjacentHTML('beforeend',`<section id="dockSetup" hidden aria-label="Camera setup"><h2>Put the phone down.</h2><div class="dk-guide"><p><b>1.</b> Ask a helper to put the phone on a stable table or stand. Use your usual approved seating or support.</p><p><b>2.</b> Start about 5–8 feet away. Adjust the phone until your hips, knees and ankles are visible. This is a starting distance, not a requirement.</p><p><b>3.</b> Tap Play and allow the camera once. You can start, play, rest and resume without reaching for the screen.</p><p><b>4.</b> To end, stop moving and rest. If comfortable, hold a hand near your chest for about three seconds to turn off the camera. A helper can also press End.</p></div><div class="dk-choices"><button class="secondary selected" id="dkFront">Front camera<br>Screen faces you</button><button class="secondary" id="dkRear">Rear camera<br>TV or helper sees screen</button></div><p class="dk-small" id="dkCameraNote">Use the front camera when the phone is your display. Mirror to a TV for easier viewing.</p><div class="dk-actions"><button class="primary" id="dkListen">Listen again</button><button class="secondary" id="dkDone">Done</button></div></section>`);
 by('cam').insertAdjacentHTML('beforeend',`<div id="dockFrame" hidden><div class="dk-brackets"></div><div class="dk-parts"><span id="dkHip">Hip</span><span id="dkKnee">Knee</span><span id="dkAnkle">Ankle</span></div></div>`);
 let active=false,state='idle',facing='user',rear=false,spoken=true,wake=null,serial=0;
-let cameraAt=0,lastActivity=0,lastValid=0,lastPoseAt=0,goodSince=0,lastEvent=-1e9,voiceAt=-1e9,saidReady=false,saidRest=false,saidFallback=false,saidComplete=false,wasFramed=false;
+let cameraAt=0,lastActivity=0,lastValid=0,lastPoseAt=0,goodSince=0,lastEvent=-1e9,voiceAt=-1e9,saidReady=false,saidRest=false,saidFallback=false,saidComplete=false,wasFramed=false,everFramed=false,saidLost=false;
 let handOutsideSince=0,handArmed=false,handSince=0,handWarning=false,handCancelUntil=0,handMissingSince=0;
 let smooth=new Map(),anchors=new Map(),frameParts=[false,false,false],frameKind='',frameMode='pose',lastUI='';
 const originalRender=renderFree,originalAct=by('act').onclick,originalStop=stopCamera,originalSoundToggle=by('sound').onclick;
@@ -85,7 +85,7 @@ async function keepAwake(){
 }
 function releaseWake(){const w=wake;wake=null;try{w?.release()?.catch(()=>{})}catch(e){}}
 function resetTracking(){
- smooth.clear();anchors.clear();frameParts=[false,false,false];frameKind='';goodSince=0;lastValid=0;wasFramed=false;
+ smooth.clear();anchors.clear();frameParts=[false,false,false];frameKind='';goodSince=0;lastValid=0;wasFramed=false;everFramed=false;saidLost=false;
  handOutsideSince=0;handArmed=false;handSince=0;handWarning=false;handCancelUntil=0;handMissingSince=0;lastPoseAt=0;lastUI='';
 }
 stopCamera=function(){releaseWake();return originalStop()};
@@ -101,19 +101,21 @@ function renderDock(){
  cam.classList.toggle('dk-endhold',state==='ending');
  for(const [i,id] of ['dkHip','dkKnee','dkAnkle'].entries())by(id).classList.toggle('ok',frameParts[i]);
  const frameLabel=frameKind==='legs'?'Legs in view':frameKind==='upper'?'Upper body in view':frameKind==='motion'?'Camera motion only':'Adjust camera';
+ const motionOnly=frameMode==='motion';
  const text={
  starting:['Allow camera','Tap Allow once. A helper can place the phone.','Waiting for permission'],
  loading:['Camera on','Ask a helper to aim the phone. Body tracking is loading.','Camera on · loading'],
  framing:['Adjust the phone','Ask a helper to put your body in view. No need to change position.','Body not fully in view'],
  ready:['Ready','Move only when comfortable and as approved.','Ready · '+frameLabel],
- playing:[restoration.stage===5?'Creek restored':'Creek responding','Your movement changes the water.','Movement detected'],
- rest:['Resting','The creek waits. Move again only when ready.','Resting · camera on'],
+ playing:[restoration.stage===5?'Creek restored':'Creek responding',motionOnly?'Camera motion changes the water. Joints are not tracked.':'Your movement changes the water.',motionOnly?'Motion detected · no joint tracking':'Movement detected'],
+ rest:['Resting','The creek waits. Move again only when ready.',motionOnly?'Resting · motion only':'Resting · camera on'],
  motion:['Camera motion mode','No joint tracking yet. Gentle motion can change the creek.','Motion only'],
  ending:['Hold to end','Relax your hand to cancel.','Ending camera…'],
  finished:[restoration.stage===5?'Creek restored':'Session ended','Camera off. Your creek stays here.','Camera off'],
  error:['Camera unavailable',permissionError||'Ask a helper to allow camera access.','Camera off']
  }[state]||['Ready','Move gently.','Camera on'];
  const key=[state,frameLabel,restoration.stage,has,permissionError].join('|');
+ by('camText').textContent=text[2];
  if(key!==lastUI){
   lastUI=key;by('worldTitle').textContent='Creekkeeper';by('prompt').textContent=text[0];by('hint').textContent=text[1];by('camText').textContent=text[2];
   const act=by('act');act.textContent=has?'End':state==='starting'?'Waiting…':state==='finished'?'Resume creek':'Try again';act.disabled=state==='starting';act.classList.toggle('dk-restart',!has);
@@ -124,7 +126,7 @@ renderFree=function(){originalRender();lastUI='';if(active||state!=='idle')rende
 function finish(reason){
  if(!active&&!stream)return;
  ++serial;active=false;stopCamera();loading=false;modelReady=false;simpleRest=true;paused=false;permissionError='';resetTracking();state='finished';renderHUD();if(audio)updateSoundMix(true);
- if(reason==='gesture')speech('Camera off. Rest comfortably.',true&&spoken);
+ if(reason==='gesture'&&spoken)speech('Camera off. Rest comfortably.',true);
  else if(reason==='idle')speech('Camera off. Your creek will wait.');
 }
 function pointGood(p){return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&(p.visibility??1)>.58&&p.x>.025&&p.x<.975&&p.y>.025&&p.y<.975}
@@ -184,15 +186,15 @@ function react(x,y,t,source){
 function poseFrame(poses,t){
  if(!active||!stream||document.hidden)return;
  lastPoseAt=t;const lm=poses?.[0];
- if(!lm){goodSince=0;if(t-lastValid>1100){anchors.clear();smooth.clear();handSince=0;handArmed=false;frameParts=[false,false,false];frameKind='';wasFramed=false;setState('framing');renderDock()}return}
+ if(!lm){goodSince=0;if(t-lastValid>1100){anchors.clear();smooth.clear();handSince=0;handArmed=false;frameParts=[false,false,false];wasFramed=false;if(frameMode!=='motion'){frameKind='';setState('framing');renderDock()}}return}
  const f=framing(lm);drawPose(lm);
- if(!f.eligible){goodSince=0;if(t-lastValid>1000){anchors.clear();smooth.clear();handSince=0;handArmed=false;wasFramed=false;setState('framing');renderDock()}return}
+ if(!f.eligible){goodSince=0;if(t-lastValid>1000){anchors.clear();smooth.clear();handSince=0;handArmed=false;wasFramed=false;if(frameMode!=='motion'){setState('framing');renderDock()}}return}
  lastValid=t;
  if(!goodSince)goodSince=t;
  if(t-goodSince<450){renderDock();return}
  if(!wasFramed||frameMode!=='pose'){
-  frameMode='pose';wasFramed=true;anchors.clear();smooth.clear();lastEvent=t;setState('ready');
-  if(!saidReady){saidReady=true;speech(f.legs?'Your legs are in view. Move whenever you are ready.':'Your upper body is in view. Ask a helper to aim lower for leg play.')}
+  frameMode='pose';wasFramed=true;everFramed=true;saidLost=false;anchors.clear();smooth.clear();lastEvent=t;setState('ready');
+  if(!saidReady){saidReady=true;if(spoken)speech(f.legs?'Your legs are in view. Move whenever you are ready.':'Your upper body is in view. Ask a helper to aim lower for leg play.',true)}
  }
  if(checkEnd(lm,t))return;
  const ids=f.legs?[23,24,25,26,27,28,29,30,31,32,15,16]:[11,12,13,14,15,16];
@@ -220,7 +222,7 @@ function dockMotion(token,session){
   if(document.hidden){prev=null;eligibleSince=0;motionRAF=requestAnimationFrame(loop);return}
   if(t-lastActivity>180000){finish('idle');return}
   // Camera-motion play never claims that the camera has identified a joint.
-  const fallback=t-cameraAt>1800&&(!modelReady||t-lastPoseAt>3500||t-Math.max(cameraAt,lastValid)>9000);
+  const fallback=!everFramed&&t-cameraAt>1800&&(!modelReady||t-lastPoseAt>3500||t-Math.max(cameraAt,lastValid)>9000);
   if(fallback&&t-lastFrameTime>110&&VIDEO.readyState>=2){
    if(frameMode!=='motion'){frameMode='motion';wasFramed=false;anchors.clear();smooth.clear();handSince=0;handArmed=false;prev=null;eligibleSince=t}
    frameParts=[false,false,false];frameKind='motion';
@@ -235,7 +237,8 @@ function dockMotion(token,session){
    }catch(e){}
    if(t-lastActivity>=5000&&state!=='rest'){setState('rest');if(!saidRest){saidRest=true;speech('Resting. The creek will wait.')}}
   }else if(!fallback){prev=null;eligibleSince=0}
-  if(!fallback&&modelReady&&t-lastValid>1500&&state==='playing')setState('framing');
+  if(!fallback&&everFramed&&t-lastValid>1500&&state!=='framing'){wasFramed=false;goodSince=0;anchors.clear();smooth.clear();handSince=0;handArmed=false;frameKind='';frameParts=[false,false,false];setState('framing')}
+  if(!fallback&&everFramed&&t-lastValid>3500&&!saidLost){saidLost=true;speech('Ask a helper to adjust the camera. Stay comfortable.')}
   motionRAF=requestAnimationFrame(loop);
  };
  cancelAnimationFrame(motionRAF);motionRAF=requestAnimationFrame(loop);
